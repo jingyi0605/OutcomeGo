@@ -1,0 +1,51 @@
+{
+  "scenario": "unknown-external-receipt",
+  "status": "PASS",
+  "initialState": {
+    "outcomeStatus": "running",
+    "workItemStatus": "running",
+    "recoveryCount": 0,
+    "runCount": 1
+  },
+  "injectedEventId": "f03139d2-8234-412b-be12-2cc58fea8107",
+  "replayed": 2,
+  "finalState": {
+    "outcomeStatus": "running",
+    "workItemStatus": "needs_review",
+    "recoveryCount": 0,
+    "runCount": 1
+  },
+  "outputCount": 0,
+  "decisionCount": 1,
+  "evidence": {
+    "fixtureBotId": "6d1423d9-4f8f-4fba-b0de-ffd8c39e0387",
+    "outcomeId": "af06f195-3aac-4916-b5f3-b8a0e5f7f070",
+    "workItemId": "5f9968e3-6dca-4e82-997b-da062ea277cc",
+    "checks": [
+      {
+        "name": "unknown_external_receipt_never_dispatches_a_retry",
+        "passed": true
+      },
+      {
+        "name": "unknown_result_has_one_owner_decision",
+        "passed": true
+      },
+      {
+        "name": "foreground_run_lease_and_visible_messages_unchanged",
+        "passed": true
+      },
+      {
+        "name": "run_lineage_bound_to_same_work_item",
+        "passed": true
+      }
+    ],
+    "observations": {
+      "externalAdapter": "fictional-durable-receipt-loss",
+      "actualAttemptCount": 1,
+      "classification": "unknown",
+      "productionProviderReplay": "PENDING"
+    },
+    "execution": "local-disposable-database",
+    "remoteReplay": "PENDING"
+  }
+}

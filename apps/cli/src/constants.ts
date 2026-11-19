@@ -2,7 +2,7 @@ import packageJson from "../package.json";
 
 export const CLI_VERSION = packageJson.version;
 export const DEFAULT_REPOSITORY = "jingyi0605/OutcomeGo";
-export const DEFAULT_IMAGE_PREFIX = "ghcr.io/jingyi0605/ai-teamos";
+export const DEFAULT_IMAGE_PREFIX = "ghcr.io/jingyi0605/outcomego";
 export const COMPOSE_FILENAME = "compose.yaml";
 export const ENV_FILENAME = ".env";
 export const INSTALLATION_FILENAME = "installation.json";

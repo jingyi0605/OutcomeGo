@@ -1,0 +1,25 @@
+bun test v1.4.4 (38afee6c8)
+
+packages/messaging/test/read-transcript.integration.test.ts:
+(pass) scoped persisted history: stopped workers, paging, append, compaction and private boundaries [302.34ms]
+
+packages/messaging/test/transcript-projection.test.ts:
+(pass) transcript projection scheduling > deduplicates bot ids and uses a keyed trailing debounce [0.13ms]
+
+packages/messaging/test/read-transcript.test.ts:
+(pass) strict bounded selectors and cursors [0.09ms]
+(pass) projection excludes arguments, hidden fields, arbitrary details and held form results [0.04ms]
+(pass) credential redaction precedes truncation [0.04ms]
+(pass) long command observations retain their final result while redacting both ends [0.10ms]
+(pass) browser action observations survive history recovery without exposing input arguments or private details [0.06ms]
+(pass) browser form entry, arbitrary execution and approval results remain excluded [0.02ms]
+(pass) desktop history retains screenshot receipts after interruption without replaying inputs or images [0.03ms]
+(pass) first-party dynamic Computer receipts are observable without exposing other namespaces [0.03ms]
+
+packages/messaging/test/read-transcript-screenshot.integration.test.ts:
+(pass) recovered canonical Computer receipts still lead to a readable screenshot without replaying private input [358.24ms]
+
+ 11 pass
+ 0 fail
+ 138 expect() calls
+Ran 11 tests across 4 files. [1442.00ms]

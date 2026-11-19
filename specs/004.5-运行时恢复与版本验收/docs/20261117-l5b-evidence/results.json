@@ -1,0 +1,250 @@
+[
+  {
+    "id": "version",
+    "command": "bun --no-install scripts/release/version.ts check",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "version.log"
+  },
+  {
+    "id": "wrong-tag",
+    "command": "bun --no-install scripts/release/version.ts check --tag v0.1.0-beta.13",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "wrong-tag.log"
+  },
+  {
+    "id": "workflows",
+    "command": "bun --no-install scripts/check/release-workflows.ts",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "workflows.log"
+  },
+  {
+    "id": "backup-tests",
+    "command": "bun --no-install test scripts/migration/validate-outcomego-backup.test.ts",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "backup-tests.log"
+  },
+  {
+    "id": "desktop-tests",
+    "command": "bun --no-install test apps/desktop/test/update-status.test.ts apps/desktop/test/server-update-cache.test.ts",
+    "exit": 1,
+    "expectedExit": 0,
+    "status": "PENDING",
+    "log": "desktop-tests.log"
+  },
+  {
+    "id": "cli-safety-tests",
+    "command": "bun --no-install test apps/cli/test/update-safety.test.ts",
+    "exit": 1,
+    "expectedExit": 0,
+    "status": "PENDING",
+    "log": "cli-safety-tests.log"
+  },
+  {
+    "id": "cli-signature-tests",
+    "command": "bun --no-install test apps/cli/test/release.test.ts --test-name-pattern 'local release signature trust|fails closed'",
+    "exit": 1,
+    "expectedExit": 0,
+    "status": "PENDING",
+    "log": "cli-signature-tests.log"
+  },
+  {
+    "id": "android-parity",
+    "command": "python3 scripts/android/parity-report.py --check",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "android-parity.log"
+  },
+  {
+    "id": "android-assetlinks",
+    "command": "python3 scripts/android/check-assetlinks.py docs/android/assetlinks.json.template --template --package com.outcomego.android --host outcomego.example.com",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "android-assetlinks.log"
+  },
+  {
+    "id": "android-contract",
+    "command": "python3 scripts/android/live-parity.py --contract",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "android-contract.log"
+  },
+  {
+    "id": "ios-native-config",
+    "command": "python3 apps/ios/scripts/check-native-config.py",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "ios-native-config.log"
+  },
+  {
+    "id": "desktop-local-exports",
+    "command": "bun test --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/tsconfig.json' apps/desktop/test/update-status.test.ts apps/desktop/test/server-update-cache.test.ts apps/desktop/test/server-update-i18n.test.ts apps/desktop/test/user-data-path.test.ts packages/contracts/test/server-updates.test.ts",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "desktop-local-exports.log"
+  },
+  {
+    "id": "cli-config-local-exports",
+    "command": "bun test --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/tsconfig.json' apps/cli/test/config.test.ts",
+    "exit": 1,
+    "expectedExit": 0,
+    "status": "FAIL",
+    "log": "cli-config-local-exports.log"
+  },
+  {
+    "id": "cli-safety-local-exports",
+    "command": "bun test --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/tsconfig.json' apps/cli/test/update-safety.test.ts",
+    "exit": 1,
+    "expectedExit": 0,
+    "status": "PENDING",
+    "log": "cli-safety-local-exports.log"
+  },
+  {
+    "id": "cli-signature-primitive",
+    "command": "bun --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/tsconfig.json' -e '\nimport { verify } from \"node:crypto\";\nimport { readFileSync } from \"node:fs\";\nimport { LOCAL_RELEASE_PUBLIC_KEY, localReleaseSigningPayload } from \"./apps/cli/src/release-signing-key\";\nimport { DEFAULT_REPOSITORY } from \"./apps/cli/src/constants\";\nconst artifact = readFileSync(\"./apps/cli/test/fixtures/local-release-artifact.txt\");\nconst bundle = JSON.parse(readFileSync(\"./apps/cli/test/fixtures/local-release-artifact.txt.sigstore.json\", \"utf8\"));\nconst signature = Buffer.from(bundle.messageSignature.signature, \"base64\");\nfor (const [name, repository, version, bytes, expected] of [\n  [\"historical-valid\", \"raghavpillai/openteam\", \"0.0.0\", artifact, true],\n  [\"wrong-repository\", \"attacker/repo\", \"0.0.0\", artifact, false],\n  [\"wrong-tag\", \"raghavpillai/openteam\", \"0.0.1\", artifact, false],\n  [\"wrong-hash\", \"raghavpillai/openteam\", \"0.0.0\", Buffer.concat([artifact, Buffer.from(\"tampered\")]), false],\n  [\"renamed-repository\", DEFAULT_REPOSITORY, \"0.0.0\", artifact, false],\n]) {\n  const accepted = verify(\"sha256\", localReleaseSigningPayload(repository, version, bytes), LOCAL_RELEASE_PUBLIC_KEY, signature);\n  console.log(JSON.stringify({name, expected, accepted}));\n  if (accepted !== expected) process.exit(1);\n}\n'",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "cli-signature-primitive.log"
+  },
+  {
+    "id": "android-signature-valid",
+    "command": "openssl dgst -sha256 -verify '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-public.der' -keyform DER -signature '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-signature.der' '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-valid.txt'",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "android-signature-valid.log"
+  },
+  {
+    "id": "android-signature-wrong-tag",
+    "command": "openssl dgst -sha256 -verify '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-public.der' -keyform DER -signature '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-signature.der' '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-wrong-tag.txt'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "android-signature-wrong-tag.log"
+  },
+  {
+    "id": "android-signature-wrong-repository",
+    "command": "openssl dgst -sha256 -verify '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-public.der' -keyform DER -signature '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-signature.der' '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-wrong-repository.txt'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "android-signature-wrong-repository.log"
+  },
+  {
+    "id": "android-signature-wrong-hash",
+    "command": "openssl dgst -sha256 -verify '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-public.der' -keyform DER -signature '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-signature.der' '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-wrong-hash.txt'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "android-signature-wrong-hash.log"
+  },
+  {
+    "id": "android-signature-wrong-certificate",
+    "command": "openssl dgst -sha256 -verify '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-public.der' -keyform DER -signature '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-signature.der' '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-wrong-certificate.txt'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "android-signature-wrong-certificate.log"
+  },
+  {
+    "id": "android-signature-wrong-application",
+    "command": "openssl dgst -sha256 -verify '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-public.der' -keyform DER -signature '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-signature.der' '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/android-wrong-application.txt'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "android-signature-wrong-application.log"
+  },
+  {
+    "id": "backup-valid",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-valid.json'",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "backup-valid.log"
+  },
+  {
+    "id": "backup-wrong-hash",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-wrong-hash.json'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "backup-wrong-hash.log"
+  },
+  {
+    "id": "backup-wrong-hash-retry",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-wrong-hash.json'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "backup-wrong-hash-retry.log"
+  },
+  {
+    "id": "backup-legacy",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-legacy.json'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "backup-legacy.log"
+  },
+  {
+    "id": "backup-wrong-row-count",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-wrong-row-count.json'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "backup-wrong-row-count.log"
+  },
+  {
+    "id": "backup-broken-reference",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-broken-reference.json'",
+    "exit": 1,
+    "expectedExit": 1,
+    "status": "PASS",
+    "log": "backup-broken-reference.log"
+  },
+  {
+    "id": "backup-missing-reference-table",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-missing-reference-table.json'",
+    "exit": 0,
+    "expectedExit": 1,
+    "status": "FAIL",
+    "log": "backup-missing-reference-table.log"
+  },
+  {
+    "id": "backup-unknown-table",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-unknown-table.json'",
+    "exit": 0,
+    "expectedExit": 1,
+    "status": "FAIL",
+    "log": "backup-unknown-table.log"
+  },
+  {
+    "id": "backup-outcome-orphan",
+    "command": "bun --no-install scripts/migration/validate-outcomego-backup.ts --input '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/backup-outcome-orphan.json'",
+    "exit": 0,
+    "expectedExit": 1,
+    "status": "FAIL",
+    "log": "backup-outcome-orphan.log"
+  },
+  {
+    "id": "cli-config-isolated-retry",
+    "command": "bun test --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-retry-6drd7ryg/tsconfig.json' apps/cli/test/config.test.ts",
+    "exit": 0,
+    "expectedExit": 0,
+    "status": "PASS",
+    "log": "cli-config-isolated-retry.log"
+  }
+]

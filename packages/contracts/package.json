@@ -1,6 +1,6 @@
 {
   "name": "@outcomego/contracts",
-  "version": "0.1.0-beta.20",
+  "version": "0.1.0-beta.21",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -59,7 +59,15 @@
     "./voice": "./src/voice.ts",
     "./localization": "./src/localization.ts",
     "./external-draft-revision": "./src/external-draft-revision.ts",
-    "./presentation": "./src/presentation.ts"
+    "./presentation": "./src/presentation.ts",
+    "./outcomes": "./src/outcomes.ts",
+    "./outcome-chat": "./src/outcome-chat.ts",
+    "./outcome-thread": "./src/outcome-thread.ts",
+    "./outcome-inbox": "./src/outcome-inbox.ts",
+    "./knowledge": "./src/knowledge.ts",
+    "./human-work": "./src/human-work.ts",
+    "./outcome-runtime": "./src/outcome-runtime.ts",
+    "./explore": "./src/explore.ts"
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target bun",

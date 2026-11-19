@@ -20,7 +20,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,11 +44,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.AlertDialog
@@ -76,6 +82,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -98,6 +105,7 @@ import com.outcomego.android.data.ChannelActivity
 import com.outcomego.android.data.ChatMessage
 import com.outcomego.android.data.Conversation
 import com.outcomego.android.data.Delivery
+import com.outcomego.android.data.OutcomeUpdateCard
 import com.outcomego.android.data.RoutineEvent
 import com.outcomego.android.ui.designsystem.GlassTier
 import com.outcomego.android.ui.designsystem.SpatialGlassSurface
@@ -145,9 +153,15 @@ internal fun MessageBubble(
     onOpenRoutine: () -> Unit,
     replyOriginal: ChatMessage?,
     onOpenOriginal: (String) -> Unit,
+    onOpenOutcome: (String) -> Unit = {},
+    loadOutcomeStatus: suspend (String) -> String? = { null },
 ) {
     message.routineEvent?.let { event ->
         RoutineEventRow(message.id, event, onOpenRoutine)
+        return
+    }
+    message.outcomeUpdateCard?.let { card ->
+        OutcomeUpdateCardRow(message.id, card, loadOutcomeStatus, onOpenOutcome) { onReply(message.id) }
         return
     }
     var previewAttachment by remember(message.id) { mutableStateOf<Attachment?>(null) }
@@ -193,21 +207,32 @@ internal fun MessageBubble(
                 .offset { IntOffset(swipe.value.roundToInt(), 0) }
                 .then(
                     if (!canSwipeReply) Modifier else Modifier.pointerInput(message.id) {
-                        var crossed = false
-                        detectHorizontalDragGestures(
-                            onDragStart = { crossed = false },
-                            onDragEnd = {
+                        awaitEachGesture {
+                            var crossed = false
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            fun drag(delta: Float) {
+                                val next = (swipe.value + delta).coerceIn(-maxSwipePx, 0f)
+                                swipeScope.launch { swipe.snapTo(next) }
+                                val nowCrossed = -next >= replyThresholdPx
+                                if (nowCrossed && !crossed) haptics.play(HapticEffect.Light)
+                                crossed = nowCrossed
+                            }
+                            // Only a leftward drag belongs to reply; a rightward drag stays unconsumed
+                            // so the screen-level swipe-back gesture can take it.
+                            val start = awaitHorizontalTouchSlopOrCancellation(down.id) { change, over ->
+                                if (over < 0f) {
+                                    change.consume()
+                                    drag(over)
+                                }
+                            }
+                            if (start != null) {
+                                horizontalDrag(start.id) { change ->
+                                    change.consume()
+                                    drag(change.positionChange().x)
+                                }
                                 if (crossed) onReply(message.id)
-                                swipeScope.launch { swipe.animateTo(0f) }
-                            },
-                            onDragCancel = { swipeScope.launch { swipe.animateTo(0f) } },
-                        ) { change, delta ->
-                            change.consume()
-                            val next = (swipe.value + delta).coerceIn(-maxSwipePx, 0f)
-                            swipeScope.launch { swipe.snapTo(next) }
-                            val nowCrossed = -next >= replyThresholdPx
-                            if (nowCrossed && !crossed) haptics.play(HapticEffect.Light)
-                            crossed = nowCrossed
+                            }
+                            swipeScope.launch { swipe.animateTo(0f) }
                         }
                     },
                 ),
@@ -889,4 +914,81 @@ private fun ChannelActivity.label(): String = when (this) {
     ChannelActivity.OrganizingContext -> localizedText("Organizing context", "正在整理上下文")
     ChannelActivity.Working -> localizedText("Working", "处理中")
     ChannelActivity.Background -> localizedText("Working in the background", "正在后台处理")
+}
+
+/**
+ * The goal notice in a Bot conversation. Opening it never touches the Bot; replying to it is how the
+ * user quotes it in the main thread, which is the only way the Bot learns about it.
+ */
+@Composable
+private fun OutcomeUpdateCardRow(
+    messageId: String,
+    card: OutcomeUpdateCard,
+    loadStatus: suspend (String) -> String?,
+    onOpen: (String) -> Unit,
+    onReply: () -> Unit,
+) {
+    val colors = SpatialTheme.colors
+    var liveStage by remember(card.outcomeId) { mutableStateOf<String?>(null) }
+    LaunchedEffect(card.outcomeId) {
+        liveStage = loadStatus(card.outcomeId)?.let(OutcomeUpdateCard::stageForStatus)
+    }
+    val stage = liveStage ?: card.stage
+    val label = when (stage) {
+        "attention" -> localizedText("Needs attention", "需要处理")
+        "running", "generating" -> localizedText("Running", "运行中")
+        "review" -> localizedText("Pending review", "待验收")
+        "accepted" -> localizedText("Accepted", "已验收")
+        "failed" -> localizedText("Failed", "已失败")
+        "cancelled" -> localizedText("Cancelled", "已取消")
+        else -> localizedText("Draft", "草稿")
+    }
+    val icon = when (stage) {
+        "attention", "failed" -> Icons.Default.Warning
+        "running", "generating" -> Icons.Default.Refresh
+        "accepted" -> Icons.Default.CheckCircle
+        "cancelled" -> Icons.Default.Close
+        else -> Icons.Default.Flag
+    }
+    Row(Modifier.fillMaxWidth().padding(end = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+        SpatialGlassSurface(
+            tier = GlassTier.Subtle,
+            shape = RoundedCornerShape(20.dp),
+            onClick = { onOpen(card.outcomeId) },
+            modifier = Modifier.weight(1f, fill = false).testTag("outcome-update-card-$messageId"),
+        ) {
+            Row(
+                Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = if (stage == "attention" || stage == "failed") colors.accent else colors.textSecondary,
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f, fill = false)) {
+                    Text(
+                        "${localizedText("Goal", "目标")} · $label",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = colors.textSecondary,
+                    )
+                    Text(
+                        card.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colors.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+        Icon(
+            Icons.AutoMirrored.Filled.Reply,
+            contentDescription = localizedText("Reply to goal notice", "回复目标通知"),
+            modifier = Modifier.size(44.dp).clickable(onClick = onReply).padding(11.dp).testTag("outcome-update-reply-$messageId"),
+            tint = colors.textSecondary,
+        )
+    }
 }

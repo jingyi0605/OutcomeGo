@@ -15,6 +15,7 @@ object DeepLinkRouter {
             addAll(uri.path.orEmpty().split('/').filter(String::isNotBlank))
         }
         val chatIndex = segments.indexOfFirst { it in setOf("chat", "conversation", "channel") }
+        if (chatIndex < 0) return null
         val conversationId = segments.getOrNull(chatIndex + 1)?.takeIf(String::isNotBlank) ?: return null
         val message = uri.rawQuery.orEmpty().split('&').firstNotNullOfOrNull { pair ->
             val parts = pair.split('=', limit = 2)

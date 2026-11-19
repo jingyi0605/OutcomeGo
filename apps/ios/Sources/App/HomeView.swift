@@ -16,6 +16,12 @@ struct HomeView: View {
     var route: SettingsRoute?
   }
   @State private var settings: SettingsSheet?
+  @State private var outcomes = false
+  @State private var outcomeInitialTarget: OutcomeLinkTarget?
+  @State private var outcomePresentation = UUID()
+  @State private var outcomesSupported = false
+  /// True only once the server said goal management is off; until then a pending link may still open.
+  @State private var outcomesTurnedOff = false
   @State private var marketplace = false
   @State private var marketplaceRevision = 0
   @State private var marketplaceHovered = false
@@ -66,7 +72,7 @@ struct HomeView: View {
     InboxUnreadPosition(orderedIDs: renderedChannels.map(\.id),
       visibleIDs: viewportChannelIDs.subtracting(store.pins)
         .union(pinnedStripVisible ? pinnedChannels.map(\.id) : []),
-      unreadIDs: Set(visible.filter { store.isUnread($0) }.map(\.id)))
+      unreadIDs: Set(visible.filter { $0.notificationsMuted != true && store.isUnread($0) }.map(\.id)))
   }
   private var visible: [Channel] { store.channels.filter { $0.kind != "agent_dm" } }
   private var sections: [JSON] { store.sidebar["sections"].array }
@@ -129,6 +135,7 @@ struct HomeView: View {
     }
     .readingBarRegions { barRegions = $0 }
     .onChange(of: store.navigation) { _, path in
+      if !path.isEmpty { outcomes = false }
       // Once the zoomed chat has closed (and zoomed back into its row), later
       // opens push as usual.
       guard path.isEmpty, zoomChannel != nil, store.landing == nil else { return }
@@ -136,6 +143,40 @@ struct HomeView: View {
         try? await Task.sleep(for: .seconds(1))
         if store.navigation.isEmpty, store.landing == nil { zoomChannel = nil }
       }
+    }
+    .onChange(of: store.api?.resourceGeneration) { _, _ in outcomesSupported = false; outcomesTurnedOff = false }
+    .task(id: OutcomeProbeKey(generation: store.api?.resourceGeneration, active: scenePhase == .active)) {
+      // The switch lives in Desktop settings, so look again whenever the app returns to the foreground.
+      guard scenePhase == .active || store.api == nil else { return }
+      if store.api == nil { outcomesSupported = false; outcomes = false; outcomeInitialTarget = nil; return }
+      // Goal management is opt-in: off (or unreadable) hides the entry. A server without the switch
+      // answers 404 and keeps the older behaviour of probing the Outcome collection.
+      var enabled: Bool?
+      do { enabled = try await store.outcomesEnabled() }
+      catch {
+        if UserFacingError.isCancelled(error) || (error as? APIError)?.status == 401 { return }
+        enabled = false
+      }
+      outcomesTurnedOff = enabled == false
+      if enabled == false { outcomesSupported = false; outcomes = false; outcomeInitialTarget = nil; return }
+      do { outcomesSupported = try await store.listOutcomes() != nil }
+      catch {
+        if !UserFacingError.isCancelled(error) && (error as? APIError)?.status != 401 {
+          outcomesSupported = true
+        }
+      }
+    }
+    .onChange(of: store.outcomeNavigation, initial: true) { _, target in
+      guard let target else { return }
+      guard !outcomesTurnedOff else { store.consumeOutcomeNavigation(); return }
+      outcomeInitialTarget = target
+      outcomePresentation = UUID()
+      outcomes = true
+      store.consumeOutcomeNavigation()
+    }
+    .sheet(isPresented: $outcomes, onDismiss: { outcomeInitialTarget = nil }) {
+      OutcomeInboxView(initialTarget: outcomeInitialTarget) { outcomesSupported = false; outcomes = false }
+        .id("\(store.api?.resourceGeneration.uuidString ?? "")-\(outcomePresentation.uuidString)").referenceSheet()
     }
     .sheet(isPresented: $marketplace, onDismiss: { marketplaceRevision += 1 }) {
       NavigationStack { PluginListView() }.referenceSheet()
@@ -591,6 +632,10 @@ struct HomeView: View {
       }
       Spacer()
       MobileUpdateBadge()
+      if outcomesSupported {
+        InboxChromeButton(title: "Outcomes", symbol: "checkmark.circle") { outcomes = true }
+          .accessibilityIdentifier("outcomes-button")
+      }
       InboxChromeButton(title: "Search", symbol: "magnifyingglass",
         pointSize: isSidebar ? SidebarMetrics.searchGlyph : 21) { search = true }
         .accessibilityIdentifier("search-button")
@@ -608,6 +653,10 @@ struct HomeView: View {
         if splitAvailable { sidebarToggle }
         Spacer(minLength: 12)
         creationMenu().frame(width: 44, height: 44).nativeInboxGlass()
+        if outcomesSupported {
+          InboxChromeButton(title: "Outcomes", symbol: "checkmark.circle") { outcomes = true }
+            .accessibilityIdentifier("outcomes-button")
+        }
         searchControl
         if !expandedReferenceSidebar, store.navigation.isEmpty {
           MarketplaceShortcut { marketplace = true }
@@ -627,6 +676,12 @@ struct HomeView: View {
   }
 
   @ToolbarContentBuilder private var inboxToolbar: some ToolbarContent {
+    if outcomesSupported {
+      ToolbarItem(id: "inbox.outcomes", placement: .topBarTrailing) {
+        Button("Outcomes", systemImage: "checkmark.circle") { outcomes = true }
+          .accessibilityIdentifier("outcomes-button")
+      }
+    }
     if toolbarOnSide {
       creationToolbarItem
       if #available(iOS 26.0, *) { ToolbarSpacer(.fixed, placement: .topBarTrailing) }
@@ -861,6 +916,11 @@ struct HomeView: View {
       await store.markRead(channel.id, through: store.latestMessage(channel.id)?.sequence ?? "0", fromInbox: true)
     } else { await store.markUnread(channel.id) }
   }
+}
+
+private struct OutcomeProbeKey: Hashable {
+  let generation: UUID?
+  let active: Bool
 }
 
 private struct ConversationPreview: View {
@@ -1294,7 +1354,9 @@ struct ChannelRow: View {
           }
           Text(preview).font(.system(size: 15)).tracking(isSidebar ? 0 : 0.2).lineLimit(1).truncationMode(.tail).frame(
             maxWidth: .infinity, alignment: .leading)
-          if unread { Circle().fill(NativePalette.inboxUnread).frame(width: 10, height: 10).accessibilityLabel("Unread") }
+          if unread && channel.notificationsMuted != true {
+            Circle().fill(NativePalette.inboxUnread).frame(width: 10, height: 10).accessibilityLabel("Unread")
+          }
         }.foregroundStyle(NativePalette.chatMuted)
       }
     }.frame(minHeight: isSidebar ? SidebarMetrics.rowHeight : 80).contentShape(Rectangle()).accessibilityElement(children: .combine)

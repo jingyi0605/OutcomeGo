@@ -17,7 +17,7 @@
 
 - README/FORK、文档 metadata、移动端说明和应用内仓库链接使用新 slug；多个用户入口中的 server installer 旧域名已改为新 GitHub Releases URL。GitHub 网页当前公开文件仍是旧提交内容，说明本地修正尚未推送。
 - CLI `DEFAULT_REPOSITORY`、Desktop electron-builder publish repo 和 release workflow consistency check 使用 `jingyi0605/OutcomeGo`。
-- GHCR 保持 `ghcr.io/jingyi0605/ai-teamos-*`；GitHub repository rename 不会迁移 Container Registry package。本次不复制镜像、不更名 GHCR。
+- GHCR 路径由 `ghcr.io/jingyi0605/ai-teamos-*` 改为 `ghcr.io/.../outcomego-*`（负责人 2026 年 11 月 17 日授权，取代原先“保持不变”的决定）；GitHub repository rename 不会迁移 Container Registry package，下次发布推送新包并设为 public，不复制旧镜像。旧 `ai-teamos-*` 包保留给旧版本安装，不由流水线删除。
 - 仓库网页旧 URL 已在浏览器中验证会跳转到新 slug；CodingNS `web_fetch` 对旧 Release asset URL 返回 404。不同访问方式结果不可互相外推；SSH clone redirect 仍待验证。
 
 ## 后续验证

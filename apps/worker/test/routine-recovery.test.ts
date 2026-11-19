@@ -51,6 +51,14 @@ describe("routine execution restart reconciliation", () => {
     const executionUpdates: unknown[] = [];
     const routineUpdates: unknown[] = [];
     const events: unknown[] = [];
+    const roundQueries: unknown[] = [];
+    const advanced: string[] = [];
+    const completedRound = {
+      id: "round-1",
+      status: "completed",
+      completedAt,
+      deliveries: [{ status: "failed", run: null }, { status: "skipped", run: null }],
+    };
     const tx = {
       routineExecution: {
         findUnique: async () => ({
@@ -71,12 +79,8 @@ describe("routine execution restart reconciliation", () => {
       run: { findMany: async () => [] },
       channelMessage: { findUnique: async () => ({ channelId: "channel-1" }), findMany: async () => [] },
       channelRound: {
-        findMany: async () => [{ status: "completed", deliveries: [{ status: "failed", run: null }, { status: "skipped", run: null }] }],
-        findFirst: async () => ({
-          status: "completed",
-          completedAt,
-          deliveries: [{ status: "failed" }, { status: "skipped" }],
-        }),
+        findMany: async () => [completedRound],
+        findFirst: async () => completedRound,
       },
       routine: {
         update: async (input: unknown) => {
@@ -93,7 +97,20 @@ describe("routine execution restart reconciliation", () => {
     };
     const worker = Object.create(WakeWorker.prototype) as WakeWorker;
     Object.defineProperty(worker, "prisma", {
-      value: { $transaction: async (work: (client: typeof tx) => Promise<void>) => work(tx) },
+      value: {
+        channelRound: {
+          findMany: async (input: { where: { status: { in: string[] } } }) => {
+            roundQueries.push(input);
+            return [completedRound]
+              .filter(round => input.where.status.in.includes(round.status))
+              .map(({ id }) => ({ id }));
+          },
+        },
+        $transaction: async (work: (client: typeof tx) => Promise<void>) => work(tx),
+      },
+    });
+    Object.defineProperty(worker, "messaging", {
+      value: { advanceRound: async (id: string) => { advanced.push(id); } },
     });
     const settled: unknown[] = [];
     Object.defineProperty(worker, "routines", { value: { afterGroupExecution: async (input: unknown) => settled.push(input) } });
@@ -103,6 +120,11 @@ describe("routine execution restart reconciliation", () => {
         recoverGroupRoutineExecution(executionId: string, rootMessageId: string): Promise<void>;
       }
     ).recoverGroupRoutineExecution("execution-1", "message-1");
+    expect(roundQueries).toEqual([{
+      where: { rootMessageId: "message-1", status: { in: ["queued", "running"] } },
+      select: { id: true },
+    }]);
+    expect(advanced).toEqual([]);
     // A finished PR watch and waiting events are handled once the repair is committed.
     expect(settled).toEqual([{ executionId: "execution-1", routineId: "routine-1" }]);
 

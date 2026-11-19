@@ -1,6 +1,7 @@
 import { Button } from "../../ui/button";
 import { useCallback, useEffect, useState } from "react";
 import { useShortcutBindings, isMac } from "../../../hooks/use-shortcut-bindings";
+import { useI18n } from "../../../lib/i18n";
 import {
   canonicalShortcut,
   defaultShortcutBindings,
@@ -12,13 +13,13 @@ import {
   type ShortcutAction,
 } from "../../../lib/keyboard-shortcuts";
 import { checkShortcut, SHORTCUT_LABELS } from "../../../lib/keyboard-shortcut-rules";
-import { Keycaps, RecordingKeys, ScreenBotShortcutSettings } from "./screenbot-shortcut";
+import {
+  Keycaps,
+  RecordingKeys,
+  ScreenBotShortcutSettings,
+  shortcutErrorText,
+} from "./screenbot-shortcut";
 import { SectionLabel, SettingsGroup, SettingsRow, settingsSecondaryButton } from "./ui";
-
-const errorText = (cause: unknown) =>
-  cause instanceof Error
-    ? cause.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "")
-    : "That shortcut can’t be used.";
 
 const HELD_MAC: Record<string, string> = { Command: "⌘", Control: "⌃", Alt: "⌥", Shift: "⇧" };
 const HELD_OTHER: Record<string, string> = { Control: "Ctrl", Super: "Win" };
@@ -42,6 +43,7 @@ function ShortcutRow({
   recording: boolean;
   onRecord: (action: ShortcutAction | null) => void;
 }) {
+  const { t } = useI18n();
   const mac = isMac();
   const bindings = useShortcutBindings();
   const binding = bindings[action];
@@ -66,7 +68,7 @@ function ShortcutRow({
         await window.outcomego?.shortcuts?.set(action, value);
         setError(null);
       } catch (cause) {
-        setError(errorText(cause));
+        setError(shortcutErrorText(cause));
       }
     },
     [action, bindings, mac, onRecord]
@@ -125,6 +127,7 @@ function ShortcutRow({
   }, [action, mac, onRecord, recording, save]);
 
   const label = SHORTCUT_LABELS[action];
+  const actionLabel = t(label.title);
   const description = recording ? "Press the new shortcut. Esc cancels." : label.description;
 
   return (
@@ -138,8 +141,11 @@ function ShortcutRow({
               aria-live="polite"
               aria-label={
                 recording
-                  ? `Recording a shortcut for ${label.title}`
-                  : `${label.title}: ${shortcutText(binding, mac)}`
+                  ? t("Recording a shortcut for {action}", { action: actionLabel })
+                  : t("{action}: {shortcut}", {
+                      action: actionLabel,
+                      shortcut: shortcutText(binding, mac),
+                    })
               }
               className="px-1.5 py-1"
             >
@@ -158,7 +164,7 @@ function ShortcutRow({
               className={settingsSecondaryButton}
               onClick={() => onRecord(recording ? null : action)}
             >
-              {recording ? "Cancel" : "Change…"}
+              {t(recording ? "Cancel" : "Change…")}
             </Button>
             <Button
               size="xs"
@@ -166,10 +172,10 @@ function ShortcutRow({
               type="button"
               className={settingsSecondaryButton}
               disabled={isDefault || recording}
-              title={`Reset to ${shortcutText(fallback, mac)}`}
+              title={t("Reset to {shortcut}", { shortcut: shortcutText(fallback, mac) })}
               onClick={() => void save(null)}
             >
-              Reset
+              {t("Reset")}
             </Button>
           </div>
         }
@@ -179,7 +185,7 @@ function ShortcutRow({
           role="alert"
           className="border-t border-black/[0.065] py-2.5 text-[12px] leading-4 text-[#d70015] dark:border-white/[0.07] dark:text-[#ff6961]"
         >
-          {error}
+          {t(error)}
         </div>
       )}
     </>

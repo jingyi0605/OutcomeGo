@@ -237,7 +237,7 @@ test('every tool a managed skill names exists under that name', async () => {
     'PagerDuty', 'PartName', 'PowerPoint', 'PptxGenJS', 'SaaS', 'TheFork', 'WhatsApp', 'YouTube',
     // Prompt blocks, stock states and routine wake blocks, not tools.
     'user_info', 'agent_skills', 'automation_status', 'in_stock', 'out_of_stock', 'made_to_order', 'github_event', 'linear_event', 'microsoft_teams_message',
-    'origin_event', 'pagerduty_event', 'sentry_event', 'slack_message', 'webhook_event', 'email_received',
+    'origin_event', 'pagerduty_event', 'sentry_event', 'slack_message', 'webhook_event', 'email_received', 'plugin_event',
   ]);
   const unknown: string[] = [];
   for (const item of managed.skills) {

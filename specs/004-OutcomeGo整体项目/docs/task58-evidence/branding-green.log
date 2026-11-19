@@ -1,0 +1,14 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/wake-parent.integration.test.ts:
+(node:53665) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) routine → isolated automation → WakeParent → channel delivery, including silent results and delegated continuation [5921.90ms]
+
+apps/worker/test/lifecycle.integration.test.ts:
+(pass) durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group rounds [5721.94ms]
+
+ 2 pass
+ 0 fail
+ 131 expect() calls
+Ran 2 tests across 2 files. [12.08s]

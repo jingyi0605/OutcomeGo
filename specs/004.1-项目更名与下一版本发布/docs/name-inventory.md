@@ -3,7 +3,7 @@
 - 盘点日期：2026 年 11 月 12 日
 - 范围：当前工作树的源代码、配置、CI、文档、规格和平台资源；排除 `.git`、依赖缓存及构建输出。名称分组按用途归类，不执行全局替换。
 - 范围决定：负责人明确要求彻底改用 OutcomeGo 内部名称，并使用单一最新数据库 schema；不要求旧安装覆盖升级或旧数据库字段自动转换。此决定取代早期“保留大部分内部身份以兼容升级”的设计文字。
-- 明确授权的身份覆盖（2026 年 11 月 12 日）：负责人批准新 Desktop/Android/iOS app identities、`outcomego://` scheme、`outcomego-*` Compose/CLI assets、Desktop `publish.repo=OutcomeGo`、root package `outcomego`、CLI `PROJECT_NAME=outcomego` 和 `DEFAULT_REPOSITORY=jingyi0605/OutcomeGo`。同时固定保留 GHCR `ai-teamos`、Desktop `userData=aiTeamOS`、Desktop artifact prefix `aiTeamOS-*`、Postgres channel `aiteamos_events`、`.github/workflows/release.yml` 及其他表列稳定身份；fork 默认分支现按负责人决定命名为 `OutcomeGo`，上游同步仍使用 `main`。
+- 明确授权的身份覆盖（2026 年 11 月 12 日）：负责人批准新 Desktop/Android/iOS app identities、`outcomego://` scheme、`outcomego-*` Compose/CLI assets、Desktop `publish.repo=OutcomeGo`、root package `outcomego`、CLI `PROJECT_NAME=outcomego` 和 `DEFAULT_REPOSITORY=jingyi0605/OutcomeGo`。同时固定保留 Desktop `userData=aiTeamOS`、Desktop artifact prefix `aiTeamOS-*`、Postgres channel `aiteamos_events`、`.github/workflows/release.yml` 及其他表列稳定身份；fork 默认分支现按负责人决定命名为 `OutcomeGo`，上游同步仍使用 `main`。
 
 ## 命中组和最终分类
 
@@ -15,11 +15,11 @@
 | 旧数据库表/字段/enum/index/constraint 命名 | `rename` | 当前 Prisma 和 raw schema 是单一最新 `outcomego-v1`。校验器只接受最新格式、检查 manifest/hash/行数/关系，不把旧字段或表名转换到新 schema。 |
 | `com.teambots.android`、`com.aiteamos.android`、`dev.aiteamos.*`、旧 iOS targets | `rename` | 新包使用 `com.outcomego.android`、新 iOS/桌面身份。无旧应用覆盖升级要求；Android/iOS 签名、设备分发和商店登记分开记录，不能从显示名推断签名已就绪。 |
 | URL schemes 和协议命中 `aiteamos://`、`outcomego://` | `rename` | 负责人明确授权新 scheme `outcomego://`。旧 `aiteamos://` 链接不会由新 app 自动解析；外部书签/链接需要用户更新。应用代码使用新 scheme。 |
-| `DEFAULT_REPOSITORY`、CLI `PROJECT_NAME` 和 root package name | `rename`（负责人覆盖） | 按负责人后续明确授权改为 `jingyi0605/OutcomeGo`、`outcomego` 和 `outcomego`；`DEFAULT_IMAGE_PREFIX` 仍保留 GHCR 稳定路径。 |
+| `DEFAULT_REPOSITORY`、CLI `PROJECT_NAME` 和 root package name | `rename`（负责人覆盖） | 按负责人后续明确授权改为 `jingyi0605/OutcomeGo`、`outcomego` 和 `outcomego`；`DEFAULT_IMAGE_PREFIX` 的 GHCR 路径也已于 2026 年 11 月 17 日由 `ai-teamos` 改为 `outcomego`。 |
 | Compose asset `aiteamos-compose.yaml` 与 CLI raw assets `aiteamos-<os>-<arch>` | `rename`（负责人覆盖） | 负责人明确授权 OutcomeGo beta.14 使用 `outcomego-compose.yaml` 与 `outcomego-<os>-<arch>`；安装器、签名、下载和 checksum 消费方已同步。beta.13 资产保持历史原名。 |
 | Desktop electron-builder `publish.repo` | `rename`（负责人覆盖） | 负责人明确授权新 Release source `OutcomeGo`；不改 `.github/workflows/release.yml` 文件名和其 OIDC identity 路径。 |
 | PostgreSQL LISTEN 通道 `aiteamos_events` | `preserve` | server listener 与数据库通知触发器继续共用此固定运行接口；产品表、索引和约束仍使用 OutcomeGo 名称。 |
-| `ghcr.io/jingyi0605/ai-teamos-*`、Release workflow 中 GHCR prefix | `preserve` | 固定保留 GHCR package paths；仓库 slug rename 不会迁移镜像，重命名会造成现有镜像不可定位。CLI `DEFAULT_IMAGE_PREFIX` 及 workflow assertion 保持该值。 |
+| `ghcr.io/jingyi0605/ai-teamos-*`、Release workflow 中 GHCR prefix | `rename` | 2026 年 11 月 17 日负责人授权改为 `outcomego-*`；仓库 slug rename 不会迁移镜像，故下次发布推送新包。CLI `DEFAULT_IMAGE_PREFIX` 及 workflow assertion 同步更新，旧 `ai-teamos-*` 包不再更新。 |
 | `OUTCOMEGO_*` 环境变量和 `aiteamos_events` | `preserve` | 环境变量使用新品牌；LISTEN 通道按固定决定保留为 Postgres 通信接口。不得再机械更名。 |
 | `outcomego://` | `preserve` | 它是负责人批准并实现的当前新 scheme，Android、iOS、Desktop 和共享客户端依赖。 |
 | iOS `APP_DISPLAY_NAME` 的旧 `OpenTeam` 产品显示值 | `rename` | `apps/ios/scripts/generate-project.py` 生成 Release `OutcomeGo`、Debug `OutcomeGo Dev`；bundle/APNs/extension 设置属于平台身份，签名构建另验。 |
@@ -37,7 +37,7 @@
 
 | 必须逐项检查的模式 | 最终分类 | 核验位置/理由 |
 |---|---|---|
-| `ghcr.io/.../ai-teamos` | `preserve` | `apps/cli/src/constants.ts`、`.github/workflows/release.yml`、Compose；保持既有 GHCR package 路径。 |
+| `ghcr.io/.../outcomego`（原 `ai-teamos`） | `rename` | `apps/cli/src/constants.ts`、`.github/workflows/release.yml`、`.github/workflows/verify-images.yml`、Compose；新包需在首次推送后设为 public。 |
 | `AITEAMOS_*` | `rename` | 新实例源码和 CI 使用 `OUTCOMEGO_*`；不自动转换旧环境配置。 |
 | `aiteamos_events` | `preserve` | `apps/server/src/event-wakeup.ts` 与 raw schema publisher 共用此固定 LISTEN 通道。 |
 | `aiteamos://` | `rename` | 负责人授权新 `outcomego://` scheme；新客户端不承诺解析旧 scheme，旧外部链接需要更新。 |

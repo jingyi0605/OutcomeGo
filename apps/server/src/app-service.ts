@@ -1,3 +1,26 @@
+import { OutcomeService } from "./services/outcome-service";
+import { lockAssetReferences, referencedAssetIdsSql } from "./services/asset-retention";
+import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
+import { OutcomePlanningService } from "./services/outcome-planning-service";
+import { OutcomeThreadService } from "./services/outcome-thread-service";
+import { OutcomeThreadTools } from "./services/outcome-thread-tools";
+import { ExploreService } from "./services/explore-service";
+import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
+import { DecisionService } from "./services/decision-service";
+import { createOutcomeDecisionTool } from "./services/outcome-decision-tool";
+import { createOutcomeProgressTool } from "./services/outcome-progress-tool";
+import { createOutcomeCredentialApprovalTool } from "./services/outcome-credential-approval";
+import { OutcomeChatTools } from "./services/outcome-chat-tools";
+import { OutcomeChatCards } from "./services/outcome-chat-cards";
+import { OutcomeInboxService } from "./services/outcome-inbox-service";
+import { createHumanWorkServices } from "./services/human-work-factory";
+import type { HumanKnowledgeService } from "./services/human-knowledge-service";
+import type { HumanWorkService } from "./services/human-work-service";
+import type { HumanReceiptService } from "./services/human-receipt-service";
+import { OutcomeReviewService } from "./services/outcome-review-service";
+import { OutcomeEvidenceConsumer } from "./services/outcome-evidence-consumer";
+import { OutcomeResultSummaryWorker } from "./services/outcome-result-summary-worker";
+import { outcomeInference } from "./services/outcome-inference";
 import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import { UserLocationService } from "./services/user-location";
 import { MachineService } from "./services/machine-service";
@@ -5,15 +28,22 @@ import {
   AutomationWebhooksService,
   containsWebhookTrigger,
 } from "./services/automation-webhooks";
-import { ApiError, type UpdateUserTimeZoneInput, type UploadAssetInput } from "@outcomego/contracts";
+import {
+  ApiError,
+  type UpdateFeatureSettingsInput,
+  type UpdateUserTimeZoneInput,
+  type UploadAssetInput,
+} from "@outcomego/contracts";
 import { createPrismaClient, Prisma, type PrismaClient } from "@outcomego/db";
 import {
   AgentDataStore,
   AgentMessaging,
   appendAgentTimelineEvent,
   AssetStore,
+  readFeatureSettings,
   type RoutineMutationInput,
   RoutineService,
+  updateFeatureSettings,
   userTimeZoneView,
 } from "@outcomego/messaging";
 import { Effect } from "effect";
@@ -54,6 +84,7 @@ import { DurableStateService } from "./update-state";
 import { VoiceService } from "./services/voice-service";
 import { ComputerNetworkPolicyService } from "./services/computer-network-policy-service";
 import { DingTalkService } from "./services/dingtalk";
+import { OutcomeBriefService, prismaOutcomeBriefStore } from "./services/outcome-brief-service";
 
 const COMPUTER_ID = "00000000-0000-0000-0000-000000000001";
 
@@ -74,6 +105,19 @@ export class AppService {
   readonly screenViewerHost: string;
   readonly agentData: AgentDataStore;
   readonly messaging: AgentMessaging;
+  readonly outcomes: OutcomeService;
+  readonly outcomePlanning: OutcomePlanningService;
+  readonly outcomeThreads: OutcomeThreadService;
+  readonly outcomeBriefs: OutcomeBriefService;
+  readonly explore: ExploreService;
+  readonly outcomeRecovery: OutcomeRecoveryService;
+  readonly outcomeDecisions: DecisionService;
+  readonly knowledge: HumanKnowledgeService;
+  readonly humanWork: HumanWorkService;
+  readonly humanReceipts: HumanReceiptService;
+  readonly outcomeReviews: OutcomeReviewService;
+  private readonly outcomeEvidence: OutcomeEvidenceConsumer;
+  private readonly outcomeResultSummaries: OutcomeResultSummaryWorker;
   readonly routines: RoutineService;
   readonly durableState: DurableStateService;
   readonly bots: BotService;
@@ -220,6 +264,37 @@ export class AppService {
       this.prisma,
       (path, init) => this.computerFetch(path, init)
     );
+    const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
+    this.outcomeBriefs = new OutcomeBriefService(inferOutcome, prismaOutcomeBriefStore(this.prisma));
+    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions, (outcome) =>
+      this.outcomeBriefs.warm(outcome)
+    );
+    // Planning is the goal's own bot's work (specs/004.8). This retired service keeps only the cleanup of old
+    // planning drafts, and can no longer reach a model.
+    this.outcomePlanning = new OutcomePlanningService(this.prisma, async () => {
+      throw new Error("Goal planning is done by the goal's own bot in its thread");
+    });
+    this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging, this.outcomes);
+    this.explore = new ExploreService(this.prisma, this.outcomePlanning);
+    this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);
+    const humanServices = createHumanWorkServices(this.prisma, this.messaging, this.agentData, this.assets);
+    this.knowledge = humanServices.knowledge;
+    this.humanWork = humanServices.humanWork;
+    this.humanReceipts = humanServices.humanReceipts;
+    this.outcomeDecisions = new DecisionService(this.prisma, {
+      messaging: this.messaging,
+      createRevision: this.outcomes.createRevisionInTransaction,
+      humanActions: this.humanWork,
+      onRevisionCreated: (outcomeId) => {
+        void Effect.runPromise(this.outcomes.get(outcomeId)).then(
+          (outcome) => this.outcomeBriefs.warm(outcome),
+          () => undefined
+        );
+      },
+    });
+    this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome, undefined, this.humanReceipts);
+    this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
+    this.outcomeResultSummaries = new OutcomeResultSummaryWorker(this.prisma, this.outcomes, this.outcomeBriefs);
     this.voice = new VoiceService(this.prisma, this.channels, this.runs);
     this.todos = new TodoService(this.prisma);
     this.administration = new AdministrationService(
@@ -292,6 +367,7 @@ export class AppService {
       this.messaging,
       this.automationWebhooks
     );
+    const outcomeChatTools = new OutcomeChatTools(this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging), this.outcomeDecisions);
     this.internalTools = new InternalToolService(
       this.prisma,
       this.messaging,
@@ -306,7 +382,15 @@ export class AppService {
       (runId, callId, text) => this.voice.speakChunk(runId, callId, text),
       this.computerNetworkPolicy,
       this.externalDelivery,
-      this.userLocations
+      {
+        RequestOutcomeDecision: createOutcomeDecisionTool(this.prisma, this.outcomeDecisions),
+        RequestHumanAction: humanServices.humanActionTool,
+        ReportOutcomeProgress: createOutcomeProgressTool(this.prisma),
+        RequestBitwardenReadApproval: createOutcomeCredentialApprovalTool(this.prisma, this.outcomeDecisions),
+      },
+      outcomeChatTools,
+      this.userLocations,
+      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools)
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
@@ -322,6 +406,8 @@ export class AppService {
       await this.automationWebhooks.loadPublicUrl();
       await this.eventWakeup.start();
       await this.voice.startGroupDeliveryWatcher(this.eventWakeup);
+      this.outcomeEvidence.start();
+      this.outcomeResultSummaries.start();
       await this.snapshots.pruneEvents();
       this.eventPruneTimer = setInterval(() => {
         void this.automationWebhooks
@@ -444,6 +530,8 @@ export class AppService {
       this.externalDelivery.stopRecovery();
       this.externalReminders.stop();
       await this.voice.stopGroupDeliveryWatcher();
+      await this.outcomeEvidence.stop();
+      await this.outcomeResultSummaries.stop();
       await this.eventWakeup.stop();
       await this.agentData.stopWatching();
       await this.boss.stop({ graceful: true });
@@ -452,22 +540,22 @@ export class AppService {
     });
 
   private async pruneUnreferencedAssets(): Promise<void> {
-    // Extract only candidate ids in PostgreSQL. Pulling every message's complete
-    // JSON metadata into Bun made the six-hour cleanup proportional to total
-    // transcript bytes and could briefly duplicate a very large history in RAM.
+    await this.outcomePlanning.pruneExpired().catch(error => console.error("outcome plan cleanup", error));
+    // Keep candidate extraction in PostgreSQL, including durable receipt history
+    // and knowledge snapshots whose attachments no longer occur in a message.
     const candidates = await this.prisma.$queryRaw<Array<{ assetId: string | null }>>(Prisma.sql`
-      SELECT DISTINCT candidate #>> '{}' AS "assetId"
-      FROM "outcomego_channel_message" AS message
-      CROSS JOIN LATERAL jsonb_path_query(
-        coalesce(message."metadata", '{}'::jsonb),
-        '$.**.assetId'::jsonpath
-      ) AS candidate
-      WHERE jsonb_typeof(candidate) = 'string'
+      ${referencedAssetIdsSql}
     `);
     const referenced = new Set(
       candidates.flatMap(({ assetId }) => (assetId && ASSET_ID.test(assetId) ? [assetId] : []))
     );
-    await this.assets.prune(referenced);
+    await this.assets.prune(referenced, undefined, (assetId, remove) => this.prisma.$transaction(async tx => {
+      await lockAssetReferences(tx, [`asset:${assetId}`]);
+      const [current] = await tx.$queryRaw<Array<{ referenced: boolean }>>(Prisma.sql`
+        SELECT EXISTS (SELECT 1 FROM (${referencedAssetIdsSql}) AS refs WHERE "assetId" = ${assetId}) AS referenced
+      `);
+      return current?.referenced ? false : remove();
+    }));
   }
 
   createBot = forwardServiceMethod(() => this.bots.create);
@@ -496,6 +584,11 @@ export class AppService {
         ...(input.overrideTimeZone !== undefined ? { override: input.overrideTimeZone } : {}),
       })
     );
+
+  featureSettings = () => readFeatureSettings(this.prisma);
+
+  updateFeatureSettings = (input: UpdateFeatureSettingsInput) =>
+    updateFeatureSettings(this.prisma, input);
 
   listRoutines = (botId: string) => serviceEffect(() => this.routines.list(botId));
 
@@ -801,6 +894,7 @@ export class AppService {
   disablePushDevicesForSession = forwardServiceMethod(() => this.notifications.disableForSession);
 
   markChannelRead = forwardServiceMethod(() => this.notifications.markChannelRead);
+  setGroupNotificationMute = forwardServiceMethod(() => this.notifications.setGroupNotificationMute);
 
   search = forwardServiceMethod(() => this.searchIndex.search);
   channelLibrary = forwardServiceMethod(() => this.library.list);

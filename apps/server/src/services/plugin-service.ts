@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { equalOAuthState, validateDesktopCallback, parseManualCallback, oauthCallbackMode, MANUAL_OAUTH_REDIRECT, type PluginOAuthDesktopContext } from "../plugins/oauth-callback";
 import type { PluginOAuthCallbackInput } from "@outcomego/contracts/plugin-management";
 import { normalizeAccountLabel, pluginToolArguments } from "./plugin/tool-arguments";
-import { connectionNamespaces } from "@outcomego/plugin-sdk";
+import { connectionNamespaces, connectorHostTools } from "@outcomego/plugin-sdk";
 import type { ConfigurePluginConnectionInput, PluginTestInput, RunOrigin } from "@outcomego/contracts";
 import { ApiError } from "@outcomego/contracts";
 import { assertMessagingBound } from "./external-messaging/binding";
@@ -134,7 +134,8 @@ export class PluginService {
       prisma,
       () => this.catalog(),
       (key) => this.definition(key),
-      this.publicUrl
+      this.publicUrl,
+      skillLibrary
     );
 
     this.transport = new PluginTransport(prisma, this.http, this.publicUrl, computerFetch);
@@ -155,7 +156,7 @@ export class PluginService {
     this.http.onToolsChanged = async (id, tools, options) => {
       const connection = await this.connectionOrThrow(id);
       if (connection.status === "ready" && connection.runtimeGeneration === options.runtimeGeneration)
-        await this.markReady(connection, tools, "connection.tools_changed");
+        await this.markReady(connection, this.withoutHostTools(connection, tools), "connection.tools_changed");
     };
 
     this.connectors = new PluginConnectors(
@@ -861,7 +862,7 @@ export class PluginService {
     try {
       if (connection.transport === "http") {
         if (!connection.endpoint) throw new Error("Connection endpoint is missing");
-        tools = await this.http.discover(connectionId, this.httpOptions(connection));
+        tools = this.withoutHostTools(connection, await this.http.discover(connectionId, this.httpOptions(connection)));
       } else if (connection.transport === "stdio") {
         // Connect is an explicit user action. A failed process may be retried
         // here, while concurrent connects share this same attempt.
@@ -1473,8 +1474,22 @@ export class PluginService {
   callHostTool = (
     connection: PollableConnection,
     toolName: string,
-    args: Record<string, unknown>
-  ): Promise<unknown> => this.transport.callHostTool(connection, toolName, args);
+    args: Record<string, unknown>,
+    signal?: AbortSignal
+  ): Promise<unknown> => this.transport.callHostTool(connection, toolName, args, signal);
+
+  /** A remote MCP server lists its event-poll tool with the rest. The server calls it; Bots never see it. */
+  private withoutHostTools(
+    connection: { connectorKey: string; installation: { manifest: Prisma.JsonValue } },
+    tools: PluginToolDefinition[]
+  ): PluginToolDefinition[] {
+    const hidden = connectorHostTools(
+      definitionFromManifest(connection.installation.manifest)?.connections.find(
+        (connector) => connector.key === connection.connectorKey
+      )
+    );
+    return hidden.length ? tools.filter((tool) => !hidden.includes(tool.name)) : tools;
+  }
 
   close = async (): Promise<void> => {
     clearInterval(this.healthTimer);

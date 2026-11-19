@@ -1,0 +1,16 @@
+$ bun test --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/tsconfig.json' apps/cli/test/update-safety.test.ts
+exit=1
+bun test v1.4.4 (38afee6c8)
+
+apps/cli/test/update-safety.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find package 'semver' from '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/apps/cli/src/docker.ts'
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [1.50s]

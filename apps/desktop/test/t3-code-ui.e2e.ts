@@ -44,7 +44,7 @@ try {
   const connection = (await client.pluginSettings()).installs.find(
     (p) => p.pluginKey === definition.key
   )!.connections[0]!;
-  await urlInput.fill("http://192.168.1.5:3773/mcp");
+  await urlInput.fill("http://mcp.example.com:3773/mcp");
   const first = fixture.requests.length;
   await page.getByRole("button", { name: "Validate URL and connect", exact: true }).click();
   await page.getByRole("alert").filter({ hasText: "HTTPS" }).waitFor();

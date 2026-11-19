@@ -1,0 +1,98 @@
+{
+  "sourceBase": "93d5ff66510ddb77d1f8b7fb589c365fe4b537f1",
+  "nonSpecSources": {
+    ".github/workflows/ci.yml": "1e33dd23520be3dc6a6b0a8fc4e5b9fa4403bfb08ab972a88c1174722cb3155b",
+    "apps/desktop/package.json": "32bc10d92e24c8930fece7e93cd161e62ba5a6ad73a7b0f69df598abe7aaf80e",
+    "apps/desktop/src/renderer/components/outcomego/outcomes/human-work/human-action.tsx": "538d51c89ce81dd3cc1091dfad6566a0c884001e14e773a7ac8e50bc212e0559",
+    "apps/desktop/src/renderer/components/outcomego/outcomes/human-work/receipt-form.tsx": "ae9b3399cd1e3f05dd0ed7d1b3ddccf42db02ece1027d49ad4f6d77edffee723",
+    "apps/desktop/test/outcome-human-receipt-ui.test.tsx": "7e992c70eeb06a046bcbb6b070d0b753a44bc628a9f9b49181072cdf9da0e3e7",
+    "apps/server/test/fixtures/outcome-decision-replay.ts": "8cb3fe2d02b2ba47b6827a1b7545ace464f9ada059a6545c5bd914fab47f45f1",
+    "apps/server/test/fixtures/outcome-recovery/populated-backup.ts": "e73a285d355a3136f45769582f7feb71eeff3a0dff5fda093a7fc5954c85ecd8",
+    "apps/server/test/fixtures/outcome-recovery/product-replay.ts": "577b53372ef126a5b707eb4748b2a3714414faf076363bb76428ec5810bc41dc",
+    "apps/server/test/outcome-decision-full-replay.integration.test.ts": "199726036bafb507a8ead2c6ddb3a32caa1c0c580d43fb79f670cc9fbd07ba14",
+    "apps/server/test/outcome-product-replay.integration.test.ts": "9a46c11d442436c48b099bb20c3da24c065f0cc81dcb5dad7851f9ac4e41d4f6",
+    "bun.lock": "90f2e8dc674d56ea86ae773f785c926f576f11f1b8e04170ba565e2f0d92cf3a",
+    "scripts/backup.sh": "c75f3b46f23ae0e7ccf4a75a5b930b1567214e528c3295f156c77b97761efd74",
+    "scripts/backup.test.ts": "38848d969098b4f802cf5ca5f76ce7d7cfb6d17c4da0b63cfadd34d7e372d60e",
+    "scripts/check/outcome-regression-types.ts": "73de1f7b9798a5868343e47f8a1b49629e94954bf9607a28d33ba53561f1359c",
+    "scripts/migration/validate-outcomego-backup.ts": "a9738b49b6a55b37a24434a397c328a32599b7e5db27d867ca162a42b949dfc7",
+    "scripts/outcome-recovery/populated-backup.test.ts": "096ddec59044d84e5886b6697b8c800df1a1c29f2cf4c8b46ba86bea78344362",
+    "scripts/outcome-recovery/product-replay.ts": "c3f8ffce31080fd57a96a24ea1440b81478666b24e13b4dc8f7a3593b0f46788",
+    "scripts/test-outcome-populated-backup.ts": "52b7562fa266f8ee49a6e2074ea8a7eea0d9a8f81bdcf154644a0b84821a0a7f"
+  },
+  "checks": [
+    {
+      "label": "isolated-server-union",
+      "cwd": "/Users/jackson/Code/openteam-spec004",
+      "command": [
+        "bun",
+        "--no-env-file",
+        "test",
+        "./apps/server/test/outcome-product-replay.integration.test.ts",
+        "./apps/server/test/outcome-decision-full-replay.integration.test.ts",
+        "./apps/server/test/human-receipt.integration.test.ts",
+        "./apps/server/test/outcome-decision-tool.test.ts",
+        "./apps/server/test/outcome-inbox-service.test.ts",
+        "./apps/server/test/outcome-review-service.test.ts",
+        "./apps/server/test/human-work-service.test.ts",
+        "./apps/server/test/knowledge-provider.test.ts",
+        "./apps/server/test/outcome-inbox-routes.test.ts"
+      ],
+      "environmentKeys": [
+        "HOME",
+        "OUTCOMEGO_TEST_DATABASE_URL",
+        "PATH",
+        "TMPDIR"
+      ],
+      "database": "postgresql://outcomego@127.0.0.1:55440/outcomego_development_isolated",
+      "exitCode": 0,
+      "seconds": 12.635,
+      "log": "data/spec004-development-validation/isolated-server-union.log",
+      "sha256": "8534c84e18f47526834e959f18f8a680747a74e627d653eb8769bdb0a0de28b0"
+    },
+    {
+      "label": "isolated-server-types",
+      "cwd": "/Users/jackson/Code/openteam-spec004",
+      "command": [
+        "bun",
+        "--no-env-file",
+        "./node_modules/.bin/tsc",
+        "-p",
+        "apps/server/tsconfig.json",
+        "--pretty",
+        "false"
+      ],
+      "environmentKeys": [
+        "HOME",
+        "OUTCOMEGO_TEST_DATABASE_URL",
+        "PATH",
+        "TMPDIR"
+      ],
+      "database": "postgresql://outcomego@127.0.0.1:55440/outcomego_development_isolated",
+      "exitCode": 0,
+      "seconds": 7.663,
+      "log": "data/spec004-development-validation/isolated-server-types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "isolated-regression-types",
+      "cwd": "/Users/jackson/Code/openteam-spec004",
+      "command": [
+        "bun",
+        "--no-env-file",
+        "scripts/check/outcome-regression-types.ts"
+      ],
+      "environmentKeys": [
+        "HOME",
+        "OUTCOMEGO_TEST_DATABASE_URL",
+        "PATH",
+        "TMPDIR"
+      ],
+      "database": "postgresql://outcomego@127.0.0.1:55440/outcomego_development_isolated",
+      "exitCode": 0,
+      "seconds": 6.092,
+      "log": "data/spec004-development-validation/isolated-regression-types.log",
+      "sha256": "e3167befbdb87e7e9618d1c2f78a73deba081139efdda618944e237fdb181eb7"
+    }
+  ]
+}

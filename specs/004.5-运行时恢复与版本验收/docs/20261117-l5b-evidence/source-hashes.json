@@ -1,0 +1,12 @@
+{
+  "scripts/migration/validate-outcomego-backup.ts": "ed2ff6c8de91c6cc40ac9923c9de50be766ad03b2de045dc13adf39236bcad87",
+  "packages/db/scripts/deploy-schema.ts": "c92bbbb8ee6e4ee0efe8b79c01167614201059019f2c997b89590e55bf635ac0",
+  "packages/db/test/fresh-schema.integration.test.ts": "114ce0e87bbb7e912b90d7387a136bf1021f9a23b202e554558d38b7bceaec8f",
+  "apps/android/app/src/main/kotlin/com/outcomego/platform/AndroidUpdateManifest.kt": "e7d92ce081488919eb6572e4bd5a2060df73a847fa677d8bf1bb78166b496676",
+  "apps/android/app/src/test/kotlin/com/outcomego/platform/AndroidUpdateManifestTest.kt": "e56e497e522509bdbc5940e6bd6a91edc7b875d96ccdbcbd3be9f0f058453722",
+  "apps/cli/src/release-signing-key.ts": "93f4e434ec74a57cbc2b2d033ec1cd2a06ce6674123b6c56984f3d7a2d081d02",
+  "apps/cli/test/fixtures/local-release-artifact.txt": "b3543e2469c0cd652cf271432b3643f943ef2d23042791d61f7e95fd83c25c0e",
+  "apps/cli/test/fixtures/local-release-artifact.txt.sigstore.json": "b652e656d3e3c592b3fee82564a6e89847ff9eb8b7e63f4b0f3dd167637e72fe",
+  "specs/004-OutcomeGo整体项目/docs/test-failure-baseline.md": "55b6af09fd1cad4582333d2609ed43124c70ea53dd2ea5ac3c338dd89ae7463b",
+  ".github/workflows/ci.yml": "07b64ed2380efd86cbe45c4fb133cad435a05cd688ee609aab30e56d43bcb886"
+}

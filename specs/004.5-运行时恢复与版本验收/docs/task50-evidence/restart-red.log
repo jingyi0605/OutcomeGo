@@ -1,0 +1,22 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/memory-restart.integration.test.ts:
+116 |     const until = async (check: () => Promise<boolean>) => {
+117 |       for (let i = 0; i < 1200; i++) {
+118 |         if (await check()) return;
+119 |         await Bun.sleep(50);
+120 |       }
+121 |       throw new Error(`Memory worker fixture timed out:\n${await Bun.file(join(root, "worker-error.log")).text().catch(() => "")}`);
+                      ^
+error: Memory worker fixture timed out:
+(node:76508) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-restart.integration.test.ts:121:17)
+      at async <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-restart.integration.test.ts:191:18)
+(fail) a worker killed at before-memory recovers the settled exchange without another turn [62452.23ms]
+
+ 0 pass
+ 4 filtered out
+ 1 fail
+Ran 1 test across 1 file. [62.87s]

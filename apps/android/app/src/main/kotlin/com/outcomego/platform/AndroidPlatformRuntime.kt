@@ -42,6 +42,8 @@ class AndroidPlatformRuntime(
         Context.MODE_PRIVATE,
     ).getString(AndroidNotificationStorage.TOKEN, null)
     private var active = false
+    private var backgroundSyncWanted = false
+    private var backgroundSyncRunning = false
 
     init {
         NotificationChannels(context).create()
@@ -67,6 +69,7 @@ class AndroidPlatformRuntime(
         )
         if (active) presence?.setActive(true)
         registerTokenIfAvailable()
+        applyBackgroundSync()
     }
 
     fun clearSession() {
@@ -76,6 +79,7 @@ class AndroidPlatformRuntime(
         presence = null
         reads = null
         session = null
+        applyBackgroundSync()
         activeChannelId = null
         context.getSharedPreferences(AndroidNotificationStorage.PREFERENCES, Context.MODE_PRIVATE)
             .edit()
@@ -118,6 +122,10 @@ class AndroidPlatformRuntime(
                 }
             }
         }
+        com.outcomego.mobile.core.parseOutcomeDeepLink(value.dataString)?.let { target ->
+            onOpenDeepLink(target.deepLink)
+            return AndroidPlatformIntent(share = share, shortcut = shortcut)
+        }
         val appLink = value.data?.let { AndroidAppLinks.parse(it, appLinkHost) }
         if (appLink != null) {
             if (appLink.action != null) {
@@ -157,6 +165,23 @@ class AndroidPlatformRuntime(
         )
     }
 
+    /**
+     * Without FCM the sync connection is the only source of alerts, so keep the process alive
+     * in the background while a session exists and notifications are on. With FCM the push
+     * itself wakes the app and no persistent service is needed.
+     */
+    fun setBackgroundSyncWanted(wanted: Boolean) {
+        backgroundSyncWanted = wanted
+        applyBackgroundSync()
+    }
+
+    private fun applyBackgroundSync() {
+        val run = backgroundSyncWanted && session != null && token == null
+        if (run == backgroundSyncRunning) return
+        backgroundSyncRunning = run
+        if (run) AndroidMessageSyncForegroundService.start(context) else AndroidMessageSyncForegroundService.stop(context)
+    }
+
     override fun onStart(owner: LifecycleOwner) {
         active = true
         presence?.setActive(true)
@@ -178,6 +203,7 @@ class AndroidPlatformRuntime(
 
     override fun onToken(token: String) {
         this.token = token
+        applyBackgroundSync()
         context.getSharedPreferences(AndroidNotificationStorage.PREFERENCES, Context.MODE_PRIVATE)
             .edit()
             .putString(AndroidNotificationStorage.TOKEN, token)

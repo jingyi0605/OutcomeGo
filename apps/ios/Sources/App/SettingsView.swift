@@ -373,6 +373,7 @@ struct ConversationDetails: View {
   @State private var resetAvatar = false
   @State private var deleting = false
   @State private var saving = false
+  @State private var savingMute = false
   @State private var color = "#A47952"
   @State private var icon = "chip"
   @State private var title = ""
@@ -469,6 +470,12 @@ struct ConversationDetails: View {
             }.listRowBackground(NativePalette.assistant)
           }
           if channel.isGroup {
+            Section {
+              Toggle("Do Not Disturb", isOn: Binding(
+                get: { store.channel(channelID)?.notificationsMuted == true },
+                set: { muted in Task { await setNotificationMute(muted) } }
+              )).disabled(savingMute)
+            }
             Section("Members") {
               ForEach(store.bots) { bot in
                 Toggle(
@@ -693,6 +700,14 @@ struct ConversationDetails: View {
       NativeHaptics.play(.light, source: "profile.share-template")
       templateFile = url
     } catch { failure = UserFacingError.message(error) }
+  }
+  private func setNotificationMute(_ muted: Bool) async {
+    guard !savingMute else { return }
+    savingMute = true
+    defer { savingMute = false }
+    await store.mutate(
+      "/api/v0/channels/\(API.segment(channelID))/notification-mute", method: "PATCH",
+      body: .object(["muted": .bool(muted)]))
   }
   func save() async {
     guard canSaveProfile, let channel else { return }

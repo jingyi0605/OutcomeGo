@@ -1,5 +1,8 @@
 export { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
+import { lockQuestions, dismissQuestions, questionScopeForReply } from "./question-lifecycle";
+import { OUTCOME_UPDATE_CARD_SOURCE } from "@outcomego/contracts/outcome-chat";
 export { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
+import { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
 export { AUTOMATION_ATTEMPT_LIMIT, AUTOMATION_RETRY_DELAYS_MS, automationRetryDelay, requeueAutomationWake } from "./automation-retry";
 export { finalizeInterruptedItems } from "./interrupted-progress";
 export { cleanupRetiredAgent, RETIRED_AGENT_CLEANUP_RETRY_MS } from "./retired-agent-cleanup";
@@ -19,6 +22,14 @@ export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTa
 import { taskProgressContext, taskScopeContext } from "./task-progress";
 export { taskScopeContext, taskScopeUpdates } from "./task-progress";
 export { readTranscript } from "./read-transcript";
+export { readOutcomeTranscript } from "./outcome-transcript";
+export { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
+export { startOutcomeThreadTurn, settleOutcomeThreadTurn, settleFinishedOutcomeThreadTurns, outcomeThreadContext, OUTCOME_THREAD_EVENT_TOPIC } from "./outcome-threads";
+export { enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
+export { recoverOutcomeWorkItem, recoverOutcomeWorkItems, routeOutcomeNextStep, OUTCOME_RECOVERY_PROMPT, type OutcomeRecoveryRuntime, type OutcomeNextFact } from "./outcome-recovery";
+export { outcomeDispatchEnabled } from "./outcome-availability";
+export { unavailableHumanActionPort, type DecisionEffect, type HumanActionPort, type HumanActionInput, type HumanActionResult } from "./outcome-actions";
+export { OutcomeThreadFake } from "./testing/outcome-thread-fake";
 export { readAgentActivity } from "./read-agent-activity";
 export {
   automationContextRoutine,
@@ -34,10 +45,11 @@ import { nextMessageAddress, resolveMessageAddress } from "./message-address";
 export { nextMessageAddress, resolveMessageAddress } from "./message-address";
 export { parseAutomationEvent, matchesAutomationEvent, type AutomationEvent } from "./automation-events";
 export { wakeAutomationParent, saveSilentAutomationResult, automationBackgroundWorkRunning, automationContinuationRoute, automationContextRunId, reconcileRoutineExecution } from "./automation-results";
+import { outcomeRunContext, outcomeThreadContext } from "./outcome-threads";
 import { AUTOMATION_RUN_INSTRUCTIONS, automationContinuationRoute } from "./automation-results";
 import { join } from "node:path";
 import { publishChannelNotification, publishMessageNotification } from "./notifications";
-export { publishChannelNotification, publishMessageNotification, channelNotificationStates } from "./notifications";
+export { publishChannelNotification, publishMessageNotification, publishOutcomeNotification, publishRequiredDecisionNotification, reconcileOutcomeDecisionNotifications, channelNotificationStates } from "./notifications";
 import { messagePreviewText } from "@outcomego/contracts/message-preview";
 import { defaultTaskConfiguration, type TaskConfiguration } from "@outcomego/contracts/task-configuration";
 import { combinedGraphicalWorkerPrompt } from "./graphical-worker-prompts";
@@ -88,6 +100,7 @@ import {
   renderSkillsSection,
 } from "./platform-system-prompt";
 import { formatFriendlyDate, resolveTimeZone, retimestampUserTurn, timestampUserTurn } from "./timestamps";
+import { readOutcomesEnabled } from "./feature-settings";
 import { canonicalTimeZone, readUserTimeZone, userTimeZoneView } from "./user-time-zone";
 import { renderAgentSkillsSection } from "./skill-catalog";
 import type { AutomationStatusReceipt, MemoryContextReceipt, PromptSectionReceipt } from "./prompt-sections";
@@ -171,6 +184,8 @@ export interface PlatformPrompt {
   /** The <automation_status> reminder, only when it changed since the one in context. */
   automationStatus?: string | null;
   ambientContext?: string | null;
+  /** Whether the owner has goal management on; the worker forwards it so the computer offers the goal tools only then. */
+  outcomesEnabled?: boolean;
   acknowledgement?: {
     sections: PromptSectionReceipt[];
     memory?: MemoryContextReceipt;
@@ -736,7 +751,9 @@ export interface WakeInput {
     | "connector"
     | "background_revival"
     | "handoff_resume"
-    | "broadcast";
+    | "broadcast"
+    | "outcome"
+    | "outcome_thread";
   type: string;
   content: string;
   images?: readonly AgentImageInput[];
@@ -750,6 +767,9 @@ export interface WakeInput {
   replyToMessageId?: string;
   isFork?: boolean;
   automationContextRunId?: string;
+  outcomeWorkItemId?: string;
+  /** A turn of a goal's own thread (specs/004.8); the owner's words arrive as the turn's content. */
+  outcomeThreadId?: string;
   taskContextRunId?: string;
   includeAttachmentPaths?: boolean;
   revival?: RevivalCompletion;
@@ -919,6 +939,8 @@ export class AgentMessaging {
 
   async completeShell(input: ShellCompletionInput) {
     return this.prisma.$transaction(async (tx) => {
+      await lockAgentLifecycle(tx, input.scope);
+      if (input.channelId) await lockGroupExecution(tx, input.channelId);
       const clientId = `shell-completion:${input.scope}:${input.id}`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${clientId}))`;
       if (await tx.inboxEvent.findUnique({ where: { idempotencyKey: clientId } })) return { delivered: true, duplicate: true };
@@ -1042,6 +1064,8 @@ export class AgentMessaging {
         origin: input.origin,
         channelId: input.channelId,
         deliveryId: input.deliveryId,
+        outcomeWorkItemId: input.outcomeWorkItemId,
+        outcomeThreadId: input.outcomeThreadId,
       },
     });
     await tx.message.update({ where: { id: messageId }, data: { runId } });
@@ -1064,6 +1088,8 @@ export class AgentMessaging {
           isFork: input.isFork === true,
           timeZone,
           automationContextRunId: input.automationContextRunId,
+          outcomeWorkItemId: input.outcomeWorkItemId,
+          outcomeThreadId: input.outcomeThreadId,
           taskContextRunId: input.taskContextRunId,
           revival: input.revival,
           handoff: input.handoff,
@@ -2106,7 +2132,7 @@ export class AgentMessaging {
   }
 
   /** channelId is the run's channel (null for a home run); undefined renders no pending automation results. */
-  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string): Promise<PlatformPrompt> {
+  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string, outcomeWorkItemId?: string, outcomeThreadId?: string): Promise<PlatformPrompt> {
     const timeZone = await this.userTimeZone();
     const bot = await this.prisma.bot.findUniqueOrThrow({
       where: { id: botId },
@@ -2159,7 +2185,13 @@ export class AgentMessaging {
       };
     }
     const context = await this.prisma.contextSession.findFirst({ where: { id: contextSessionId, botId }, select: { scope: true, scopeId: true } });
-    const automation = context?.scope === "automation";
+    const outcome = context?.scope === "outcome";
+    const goalThread = context?.scope === "outcome-thread";
+    const outcomeContext = outcome
+      ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId)
+      : goalThread ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId) : null;
+    const automation = context?.scope === "automation" || outcome || goalThread;
+    const outcomesEnabled = await readOutcomesEnabled(this.prisma);
     const [agentPrompt, taskConfiguration] = await Promise.all([
       this.agentData.promptContext(botId, contextSessionId, channelId),
       taskConfigurationSnapshot ?? this.agentData.loadTaskConfiguration(),
@@ -2300,7 +2332,7 @@ export class AgentMessaging {
     // memory, other conversations, Routines, Skills, channels, Teammates, connector instructions,
     // Your box, The box desktop, so per-turn changes sit late in the cached prefix.
     const instructions = [
-      renderPlatformBaseSystemPrompt({ ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}) }),
+      renderPlatformBaseSystemPrompt({ outcomes: outcomesEnabled, ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}) }),
       [agentPrompt.profileSection, renderAgentProfileFiles({ agentDataRoot: this.agentData.root, botId })].join("\n"),
       USER_IDENTITY_LINE,
       frozen.sections.agent_instructions,
@@ -2348,8 +2380,9 @@ export class AgentMessaging {
     return {
       instructions,
       instructionsUpdate: [frozen.update, frozen.memory?.update].filter(Boolean).join("\n\n") || null,
+      outcomesEnabled,
       automationStatus: frozen.automationStatus?.note ?? null,
-      ambientContext: automation ? null : [
+      ambientContext: outcomeContext ?? (automation ? null : [
         dismissedWidgetPrompts.length > 0 ? buildDismissedQuestionsNote(dismissedWidgetPrompts) : "",
         ...richMessagePrompts,
         ...automationResults.map((result) => {
@@ -2357,7 +2390,7 @@ export class AgentMessaging {
           const source = routine ? `routine ${JSON.stringify(routine.name)} (folder ${routine.slug}), run ${result.runId}` : result.runId;
           return `[Silent automation result: ${source}]\nThis result waited for your next natural boundary and has not been shown to the user. Use it as relevant to the current task; it is not a request for an unsolicited notification.\n${result.message}`;
         }),
-      ].filter(Boolean).join("\n\n") || null,
+      ].filter(Boolean).join("\n\n") || null),
       acknowledgement: { identity: agentPrompt.identityReceipt, sections: frozen.receipts, memory: frozen.memory?.receipt, automationStatus: frozen.automationStatus?.receipt, automationResultRunIds: automationResults.map((result) => result.runId), dismissedMessageIds: automation ? [] : dismissedIds, unansweredMessageIds: automation ? [] : unansweredIds, outcomeIds: (automation ? [] : pendingRichMessages).flatMap((message) => {
         const metadata = message.metadata as Record<string, unknown>;
         return typeof metadata.outcomeId === "string" && typeof metadata.outcomeText === "string" ? [{ messageId: message.id, outcomeId: metadata.outcomeId }] : [];
@@ -2412,7 +2445,12 @@ export class AgentMessaging {
     // A refused send is an answer the model reads, not a tool failure.
     const refusal = (acknowledgement: string) => ({ acknowledgement, interruptRunId: null });
     const result = await this.prisma.$transaction(async (tx) => {
+      // Both owners precede the source claim gate, including reciprocal sends.
+      for (const id of [...new Set([context.botId, input.target_id].map(canonicalAgentId))].sort()) {
+        await lockAgentLifecycle(tx, id);
+      }
       await assertBackgroundRequestDeliveryAllowed(tx, context);
+      await lockGroupExecution(tx, input.target_id);
       const source = await tx.bot.findUnique({
         where: { id: context.botId },
         include: { subagentIdentity: { select: { id: true } } },
@@ -2629,19 +2667,45 @@ export class AgentMessaging {
         note: `${JSON.stringify(input.message_address)} isn't a valid message address. React with the [t3u]-style tag shown on the user's message.`,
       };
     if (!context.channelId) throw new Error("No active chat for this reaction");
-    const scope = `reaction:${context.botId}`;
+    const scope = `reaction:${context.botId}:${context.runId}:${context.channelId}`;
     const requestHash = `${input.message_address}:${input.emoji}`;
-    const receipt = await this.prisma.idempotencyRecord.findUnique({
-      where: { scope_key: { scope, key: context.callId } },
-    });
-    if (receipt) {
-      if (receipt.requestHash !== requestHash) {
-        throw new Error("This reaction call id was already used with different arguments");
-      }
-      if (receipt.response) return receipt.response as Record<string, unknown>;
-    }
-
     return this.prisma.$transaction(async (tx) => {
+      // Unknown message addresses also need a stable receipt, so serialize the call before resolving the target.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${scope}:${context.callId}`}))`;
+      const receipt = await tx.idempotencyRecord.findUnique({
+        where: { scope_key: { scope, key: context.callId } },
+      });
+      if (receipt) {
+        if (receipt.requestHash !== requestHash) throw new Error("This reaction call id was already used with different arguments");
+        if (receipt.response) return receipt.response as Record<string, unknown>;
+        throw new Error("This reaction is already being applied");
+      }
+      // Old receipts omitted Run and channel identity. Replay only when an existing notification proves both.
+      const legacy = await tx.idempotencyRecord.findUnique({
+        where: { scope_key: { scope: `reaction:${context.botId}`, key: context.callId } },
+      });
+      if (legacy) {
+        const run = await tx.run.findFirst({ where: { id: context.runId, botId: context.botId, channelId: context.channelId } });
+        if (!run) throw new Error("Cannot safely match an old reaction receipt to this turn");
+        if (legacy.createdAt >= run.createdAt) {
+          const separator = legacy.requestHash.indexOf(":");
+          const address = legacy.requestHash.slice(0, separator);
+          const emoji = legacy.requestHash.slice(separator + 1);
+          const target = separator > 0 ? await resolveMessageAddress(tx, context.channelId!, address) : null;
+          const notification = target ? await tx.channelNotification.findUnique({
+            where: { key: `reaction:${target.id}:${context.botId}:${emoji}:${context.callId}` },
+          }) : null;
+          const payload = notification?.payload as { runId?: string; messageId?: string; channelId?: string; botId?: string } | null;
+          if (legacy.status !== "completed" || !legacy.response || !notification || notification.channelId !== context.channelId ||
+            notification.botId !== context.botId || payload?.runId !== context.runId || payload.messageId !== target?.id ||
+            payload.channelId !== context.channelId || payload.botId !== context.botId)
+            throw new Error("Cannot safely match an old reaction receipt to this turn");
+          if (legacy.requestHash !== requestHash) throw new Error("This reaction call id was already used with different arguments");
+          await tx.idempotencyRecord.create({ data: { scope, key: context.callId, requestHash,
+            status: "completed", response: legacy.response as Prisma.InputJsonValue, expiresAt: legacy.expiresAt } });
+          return legacy.response as Record<string, unknown>;
+        }
+      }
       await tx.idempotencyRecord.create({
         data: {
           scope,
@@ -2651,8 +2715,10 @@ export class AgentMessaging {
         },
       });
       const addressed = await resolveMessageAddress(tx, context.channelId!, input.message_address);
+      if (addressed?.sender === "user")
+        await tx.$queryRaw`SELECT id FROM "outcomego_channel_message" WHERE id = ${addressed.id}::uuid FOR NO KEY UPDATE`;
       const message = addressed?.sender === "user" ? await tx.channelMessage.findFirst({
-        where:{id:addressed.id,channel:{members:{some:{botId:context.botId}}}},
+        where:{id:addressed.id,sender:"user",channel:{archivedAt:null,members:{some:{botId:context.botId}}}},
         include:{channel:{include:{members:{select:{botId:true}}}}}
       }) : null;
       if (!message) {
@@ -2693,7 +2759,7 @@ export class AgentMessaging {
         await tx.channelNotification.updateMany({ where: { key: { startsWith: `${notificationKey}:` } }, data: { revoked: true } });
       } else {
         const bot = await tx.bot.findUniqueOrThrow({ where: { id: context.botId } });
-        await publishChannelNotification(tx, `${notificationKey}:${context.callId}`, {
+        await publishChannelNotification(tx, `${notificationKey}:${context.runId}:${context.callId}`, {
           schemaVersion: 1, kind: "reaction", botId: context.botId, channelId: message.channelId,
           runId: context.runId, messageSequence: message.sequence.toString(),
           messageId: message.id,
@@ -2744,13 +2810,14 @@ export class AgentMessaging {
     let content = standalone?.fileName ?? this.visibleContent(input);
     let groupRoundId: string | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
+      await lockAgentLifecycle(tx, context.botId);
       await assertBackgroundRequestDeliveryAllowed(tx, context);
       if (target?.kind === "group") await lockGroupExecution(tx, context.channelId);
       const activeChannel = await tx.channel.findFirst({
         where: {
           id: context.channelId,
           archivedAt: null,
-          members: { some: { botId: context.botId } },
+          members: { some: { botId: context.botId, bot: { status: "active" } } },
         },
         include: { members: { orderBy: { ordinal: "asc" } } },
       });
@@ -2799,6 +2866,8 @@ export class AgentMessaging {
       if (replyAddress && !replyTarget) {
         throw new ApiError(404, "reply_target_not_found", "The reply target was not found");
       }
+      await lockQuestions(tx, channel.id);
+      const questionScopeId = questionScopeForReply(inheritsFork, replyTarget);
       const existing = await tx.channelMessage.findUnique({
         where: {
           channelId_clientId: {
@@ -2885,6 +2954,8 @@ export class AgentMessaging {
       const voiceTurn = input.type === "text"
         ? await tx.voiceTurn.findUnique({ where: { runId: context.runId }, select: { id: true, sessionId: true } })
         : null;
+      if (input.type === "widget")
+        await dismissQuestions(tx, channel.id, questionScopeId, "superseded");
       const message = await tx.channelMessage.create({
         data: {
           channelId: channel.id,
@@ -2900,7 +2971,7 @@ export class AgentMessaging {
             ...(routineRootMessageId ? { routineRootMessageId } : {}),
             address,
             ...(replyTarget ? { replyTo: replyTarget.id } : {}),
-            ...(inheritsFork ? { branched: true } : {}),
+            ...(inheritsFork ? { branched: true, questionScopeId } : {}),
             timeZone: resolveTimeZone(context.timeZone ?? (await this.userTimeZone(tx))),
           }),
         },
@@ -3065,6 +3136,12 @@ export {
 } from "./timestamps";
 export { readUserTimeZone, userTimeZoneView } from "./user-time-zone";
 export {
+  featureSettingsView,
+  readFeatureSettings,
+  readOutcomesEnabled,
+  updateFeatureSettings,
+} from "./feature-settings";
+export {
   turnOwesReplyReminder,
   turnSystemReminder,
   UNFINISHED_TASKS_REMINDER,
@@ -3197,7 +3274,12 @@ export async function buildSafeTranscript(
   const channelIds = bot.channelMemberships.map((membership) => membership.channelId);
   const [messages, runs] = await Promise.all([
     prisma.channelMessage.findMany({
-      where: { channelId: { in: channelIds }, channel: { kind: { not: "agent_dm" } } },
+      where: {
+        channelId: { in: channelIds },
+        channel: { kind: { not: "agent_dm" } },
+        // Platform goal notices are for the user; the Bot sees one only when the user quotes it.
+        NOT: { sender: "system", metadata: { path: ["source"], equals: OUTCOME_UPDATE_CARD_SOURCE } },
+      },
       include: { channel: true, senderBot: true },
       orderBy: { sequence: "asc" },
     }),
@@ -3270,3 +3352,8 @@ export async function buildSafeTranscript(
 }
 
 export { notificationRouting } from "./notification-presence";
+
+export { createOutcomeDecision, isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql, closeOutcomeDecision, revokeOutcomeDecisionNotification, withdrawSupersededOutcomeDecisions } from "./outcome-decisions";
+
+export { postOutcomeUpdateCard } from "./outcome-update-cards";
+export { consumeOutcomeInboxEvent, reconcileOutcomeInboxNotifications, outcomeNotificationIsCurrent, unreadOutcomeNotifications, outcomeReviewNotificationFactsSql } from "./outcome-inbox-notifications";

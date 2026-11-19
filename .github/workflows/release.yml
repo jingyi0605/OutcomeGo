@@ -51,7 +51,7 @@ jobs:
             bun scripts/release/version.ts check
             publish=false
           fi
-          prefix="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')/ai-teamos"
+          prefix="ghcr.io/$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')/outcomego"
           # The CLI downloads from, and verifies signatures for, the repository and image prefix
           # compiled into it. A mismatch would publish a release the CLI cannot install.
           grep -q "\"$GITHUB_REPOSITORY\"" apps/cli/src/constants.ts \
@@ -277,7 +277,7 @@ jobs:
           for image in server worker migrate computer; do
             digest=$(cat "digests/outcomego-$image.digest")
             if ! docker pull "$PREFIX-$image@$digest"; then
-              echo "::error::Anonymous pull of $PREFIX-$image failed. Make the package public: ${GITHUB_SERVER_URL}/users/${GITHUB_REPOSITORY_OWNER}/packages/container/ai-teamos-$image/settings"
+              echo "::error::Anonymous pull of $PREFIX-$image failed. Make the package public: ${GITHUB_SERVER_URL}/users/${GITHUB_REPOSITORY_OWNER}/packages/container/outcomego-$image/settings"
               failed=1
             fi
           done

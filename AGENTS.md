@@ -8,7 +8,7 @@
 
 ## Spec 文档位置和模板
 
-- 所有 Spec 文档必须保存到 `/Users/jackson/Code/openteam/specs` 目录下，不得新建到 `docs/development/specs` 或其他目录。
+- 所有 Spec 文档必须保存到当前工作树的 `specs/` 目录下，不得新建到 `docs/development/specs` 或其他目录。
 - 新建 Spec 必须以 `specs/000-Spec规范/Spec模板` 为模板，复制其目录结构和 `README.md`、`requirements.md`、`design.md`、`tasks.md` 文件。
 - Spec 目录使用 `<编号>-<功能名称>` 命名；子规格使用带小数的编号，例如 `specs/002.1-群聊实时语音对话`。
 - `requirements.md`、`design.md` 和 `tasks.md` 必须相互引用，需求、设计章节、任务和验证方式必须可以逐项追踪。

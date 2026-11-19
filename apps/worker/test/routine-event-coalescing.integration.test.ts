@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import type { ComputerTurnRequest } from "@outcomego/contracts";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
@@ -37,6 +38,7 @@ test.skipIf(!databaseUrl)(
         if (path !== "/v1/turns") return Response.json({ ok: true, quarantined: [] });
         const input = (await request.json()) as ComputerTurnRequest;
         turns.push(input);
+        return turnResponse(async () => {
         // The first routine run stays busy while more mail arrives.
         if (input.content.includes("COALESCE_FIXTURE") && turns.filter((turn) => turn.content.includes("COALESCE_FIXTURE")).length === 1)
           await gate;
@@ -49,8 +51,7 @@ test.skipIf(!databaseUrl)(
           { type: "item.completed", turnId: input.runId, item: { id: `final-${input.runId}`, type: "agentMessage", text: "Noted the mail." } },
           { type: "turn.completed", turnId: input.runId, status: "completed" },
         ];
-        return new Response(events.map((event) => JSON.stringify(event)).join("\n") + "\n", {
-          headers: { "content-type": "application/x-ndjson" },
+        return events;
         });
       }),
     });

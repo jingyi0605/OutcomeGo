@@ -5,7 +5,7 @@ import { AgentMessaging } from "@outcomego/messaging";
 import { ChannelService } from "../../server/src/services/channel-service";
 import { WakeWorker } from "../src/worker";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 
 async function fixture(body: (f: Awaited<ReturnType<typeof setup>>) => Promise<void>) {
   const f = await setup();

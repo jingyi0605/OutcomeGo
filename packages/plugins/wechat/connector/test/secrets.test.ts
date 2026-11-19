@@ -136,8 +136,13 @@ describe("nothing secret leaves through a tool or a log", () => {
     const { stat } = await import("node:fs/promises");
     const state = join(root, "state");
     for (const name of await readdir(state)) {
-      const info = await stat(join(state, name));
-      if (info.isFile()) expect({ name, mode: info.mode & 0o077 }).toEqual({ name, mode: 0 });
+      // The poll loop keeps saving state with atomic temp-file renames, so an entry
+      // listed a moment ago may already be gone; files still present must be owner-only.
+      const info = await stat(join(state, name)).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return null;
+        throw error;
+      });
+      if (info?.isFile()) expect({ name, mode: info.mode & 0o077 }).toEqual({ name, mode: 0 });
     }
     expect((await stat(state)).mode & 0o077).toBe(0);
   });

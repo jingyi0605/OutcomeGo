@@ -1,0 +1,40 @@
+$ bun test --no-install --tsconfig-override '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/specs/004.5-运行时恢复与版本验收/docs/20261117-l5b-evidence/.l5b-checks-7x3nlxgc/tsconfig.json' apps/desktop/test/update-status.test.ts apps/desktop/test/server-update-cache.test.ts apps/desktop/test/server-update-i18n.test.ts apps/desktop/test/user-data-path.test.ts packages/contracts/test/server-updates.test.ts
+exit=0
+bun test v1.4.4 (38afee6c8)
+
+apps/desktop/test/user-data-path.test.ts:
+(pass) desktop user data path > pins the OutcomeGo directory before the packaged app reads userData [0.07ms]
+(pass) desktop user data path > keeps unpackaged development and test builds on their own userData path [0.02ms]
+
+apps/desktop/test/update-status.test.ts:
+(pass) desktop update diagnostics > only builds with an update feed can update themselves [263.99ms]
+(pass) desktop update diagnostics > validates release manifests and refuses unsafe download URLs [1.56ms]
+(pass) desktop update diagnostics > distinguishes signature, feed, network, download, and apply failures [6.98ms]
+(pass) desktop update diagnostics > reports a wrapped GitHub timeout without exposing the release feed or response [0.11ms]
+(pass) desktop update diagnostics > ignores signature references in malformed feed payloads [0.03ms]
+(pass) desktop update diagnostics > recognizes structured HTTP, network and verification errors [0.03ms]
+(pass) desktop update diagnostics > treats Electron network errors as an unreachable update service [0.04ms]
+(pass) desktop update diagnostics > unknown updater errors use bounded public copy [0.13ms]
+
+apps/desktop/test/server-update-cache.test.ts:
+(pass) active progress survives a fresh reader, stays server-scoped and clears when finished [3.32ms]
+(pass) expired, future, corrupt and unavailable storage cannot invent active progress [115.54ms]
+
+apps/desktop/test/server-update-i18n.test.ts:
+(pass) translates every status line the update pipeline reports [2.17ms]
+(pass) keeps text it cannot translate instead of hiding the failure detail [0.02ms]
+(pass) localizes the failure of a refused request and keeps unknown causes [0.14ms]
+(pass) names the bots that keep an update waiting inside the interface language [0.04ms]
+(pass) translates every update milestone so the progress panel never falls back to English [1.56ms]
+(pass) translates the desktop updater's own status text [0.16ms]
+(pass) keeps the English source for the default locale [0.04ms]
+
+packages/contracts/test/server-updates.test.ts:
+(pass) progress follows actual host milestones, including recovery and unknown phases [0.07ms]
+(pass) an update refused for working bots names them [0.10ms]
+(pass) the refusal is told apart from a failed update [0.02ms]
+
+ 22 pass
+ 0 fail
+ 126 expect() calls
+Ran 22 tests across 5 files. [978.00ms]

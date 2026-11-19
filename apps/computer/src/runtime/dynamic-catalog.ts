@@ -1,6 +1,7 @@
 import { REPORT_TASK_PROGRESS_TOOL, TaskProgressInput, REPORT_REQUEST_PROGRESS_TOOL, RequestProgressInput } from "@outcomego/contracts/task-progress";
 import { READ_TRANSCRIPT_TOOL, parseReadTranscriptInput } from "@outcomego/contracts/read-transcript";
 import { READ_AGENT_ACTIVITY_TOOL, parseReadAgentActivityInput } from "@outcomego/contracts/read-agent-activity";
+import { OUTCOME_CHAT_TOOLS, decodeOutcomeChatInput } from "@outcomego/contracts/outcome-chat";
 import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { withCanonicalSubagentType } from "@outcomego/contracts/subagent-dispatch";
 import { withReferenceContract, taskToolContract, firstPartyNamespaceDescription } from "@outcomego/contracts/tool-contracts";
@@ -194,11 +195,21 @@ export function dynamicCatalog(
   }, execute: (turn, callId, args, signal) => callControlPlaneTool(turn, callId, "ReadAgentActivity", args, signal) };
   const cursorTools: RuntimeDynamicTool[] = [
     ...additionalTools,
+    ...(active.outcomesEnabled && active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && !active.readOnly
+      ? OUTCOME_CHAT_TOOLS.map((tool): RuntimeDynamicTool => ({
+          ...tool,
+          inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
+          source: "first-party",
+          decodeArguments: (args) => decodeOutcomeChatInput(tool.name, args),
+          execute: (turn, callId, args, signal) =>
+            callControlPlaneTool(turn, callId, tool.name, args, signal),
+        }))
+      : []),
     ...(active.runtimeProfile !== "subagent" && active.requestSource !== "automation"
       ? [controlPlaneTool(UPDATE_COMPUTER_NETWORK_POLICY_TOOL, UpdateComputerNetworkPolicyInput)] : []),
     ...(active.runtimeProfile !== "subagent" && active.requestSource !== "automation" ? [controlPlaneTool(REPORT_REQUEST_PROGRESS_TOOL, RequestProgressInput)] : []),
     ...(active.runtimeProfile === "subagent" && ["computerUse", "executor", "knowledgeWork"].includes(active.subagentType ?? "") ? [controlPlaneTool(REPORT_TASK_PROGRESS_TOOL, TaskProgressInput)] : []),
-    ...(active.requestSource === "automation" && active.runtimeProfile !== "subagent"
+    ...(active.requestSource === "automation" && active.runtimeProfile !== "subagent" && !active.goalThread
       ? [controlPlaneTool(WAKE_PARENT_TOOL, WakeParentInput)] : []),
     {
       name: AWAIT_SHELL_TOOL.name,

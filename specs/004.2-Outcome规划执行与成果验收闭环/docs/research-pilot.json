@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "fixtureId": "research-pilot-backup-choice",
+  "description": "004.2 研究试点：比较两个备份方案并给出选型建议。全部为虚构数据，不引用生产资料。",
+  "initialState": {
+    "bot": { "ref": "fixture-bot", "status": "active", "description": "研究助理" },
+    "outcomes": 0,
+    "mainConversation": { "ref": "fixture-bot-dm", "messages": 1 }
+  },
+  "planningRequest": {
+    "sourceText": "比较两个备份方案并给出选型建议",
+    "context": { "botId": "$fixture-bot" },
+    "clientRequestId": "plan:research-pilot-1"
+  },
+  "fakeInferenceResponse": {
+    "goal": [
+      { "text": "形成可执行的选型建议", "recommended": true, "reason": "直接对应用户请求中的决策目标" },
+      { "text": "列出两种方案的适用场景", "recommended": false }
+    ],
+    "acceptance": [
+      { "text": "比较两条可行路线的成本、恢复时间和限制", "required": true },
+      { "text": "每个结论附来源", "required": true },
+      { "text": "给出一个推荐方案和理由", "required": true }
+    ],
+    "boundaries": [
+      { "text": "只使用公开资料", "kind": "included" },
+      { "text": "不修改生产系统", "kind": "excluded" }
+    ],
+    "questions": []
+  },
+  "selections": {
+    "goal": { "selectedOptionIds": ["goal-1"], "customEntries": [] },
+    "acceptance": { "selectedOptionIds": ["acceptance-1", "acceptance-2", "acceptance-3"], "customEntries": [] },
+    "boundaries": { "selectedOptionIds": ["boundaries-1", "boundaries-2"], "customEntries": [] },
+    "title": "备份方案选型建议",
+    "clientRequestId": "outcome:research-pilot-1"
+  },
+  "requestSequence": [
+    { "step": 1, "method": "POST", "path": "/api/v0/outcomes/plans", "expect": { "status": 200, "planStatus": "ready", "optionsPerDimensionMax": 4 } },
+    { "step": 2, "method": "POST", "path": "/api/v0/outcomes", "expect": { "status": 200, "outcomeStatus": "pending_approval", "revision": 1, "revisionStatus": "pending_approval", "criteria": 3 } },
+    { "step": 3, "method": "POST", "path": "/api/v0/outcomes/:id/revisions/1/approve", "body": { "expectedRevision": 1, "confirmationText": "我确认以上目标、验收和边界", "clientRequestId": "approve:research-pilot-1:1" }, "expect": { "status": 200, "revisionStatus": "approved", "outcomeStatus": "approved" } },
+    { "step": 4, "method": "POST", "path": "/api/v0/outcomes/:id/runs", "body": { "expectedRevision": 1, "clientRequestId": "run:research-pilot-1:1" }, "expect": { "status": 200, "workItems": 1, "workItemStatus": "queued", "rootRunOrigin": "outcome", "outcomeStatus": "running" } },
+    { "step": 5, "action": "send-main-conversation-message", "content": "今天天气怎么样？", "expect": { "outcomeRunInterrupted": false, "mainRunInterrupted": false } },
+    { "step": 6, "action": "wait-work-item-settled", "expect": { "workItemStatus": "completed", "outputs": { "final_result": 1 }, "outcomeStatus": "review_pending", "mainConversationVisibleMessagesFromThread": 0 } },
+    { "step": 7, "method": "POST", "path": "/api/v0/outcomes/:id/reviews", "body": { "expectedRevision": 1, "results": "PASS for all 3 criteria with human_confirmed evidence", "clientRequestId": "review:research-pilot-1:1" }, "expect": { "status": 200, "outcomeStatus": "accepted" } }
+  ],
+  "idempotencyAssertions": [
+    { "repeatStep": 2, "sameClientRequestId": true, "expect": "same outcomeId, no second Outcome" },
+    { "repeatStep": 3, "sameClientRequestId": true, "expect": "same approval, no second revision" },
+    { "repeatStep": 4, "sameClientRequestId": true, "expect": "same workItemId and rootRunId, no second Run" },
+    { "repeatStep": 4, "sameClientRequestId": false, "expect": "409 invalid_outcome_transition while WorkItem is active" }
+  ],
+  "expectedEvents": [
+    "outcome.created",
+    "outcome.contract.revision_created",
+    "outcome.contract.revision_approved",
+    "outcome.work_item.created",
+    "outcome.work_item.updated",
+    "outcome.output.recorded",
+    "outcome.review.required",
+    "outcome.review.recorded",
+    "outcome.accepted"
+  ],
+  "cleanup": "删除 fixture-bot 下 title 为“备份方案选型建议”的 Outcome 及其级联记录；删除 Run.outcomeWorkItemId 指向这些 WorkItem 的 Run；工作区删除 outcomes/<outcomeId>/。"
+}

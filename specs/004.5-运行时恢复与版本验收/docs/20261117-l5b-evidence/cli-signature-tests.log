@@ -1,0 +1,16 @@
+$ bun --no-install test apps/cli/test/release.test.ts --test-name-pattern 'local release signature trust|fails closed'
+exit=1
+bun test v1.4.4 (38afee6c8)
+
+apps/cli/test/release.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+error: Cannot find module '@sigstore/bundle' from '/Users/jackson/Code/openteam-spec004-worktrees/l5b-ops/apps/cli/test/release.test.ts'
+-------------------------------
+
+
+ 0 pass
+ 1 fail
+ 1 error
+Ran 1 test across 1 file. [82.00ms]

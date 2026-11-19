@@ -255,7 +255,7 @@ iOS marketing version 使用不带 prerelease suffix 的基础版本，build num
 | `dev.outcomego.mobile` | iOS bundle ID | 全量新安装身份使用 | iOS native config |
 | `openteam` | 上游、协议、服务或目录 | 逐项保留或独立迁移 | classified grep |
 | `OutcomeGo` | 仓库、Release、fork 默认分支 | GitHub slug 和默认分支使用 `jingyi0605/OutcomeGo` / `OutcomeGo`；上游 `main` 独立保留 | repository/branch rename evidence、CLI/release workflow |
-| `ghcr.io/<owner>/ai-teamos-*` | 容器镜像路径（`DEFAULT_IMAGE_PREFIX`、release.yml `image_prefix`） | 保留稳定的 GHCR package path；仓库 slug 重命名不改变该镜像地址 | CLI update、compose render |
+| `ghcr.io/<owner>/outcomego-*` | 容器镜像路径（`DEFAULT_IMAGE_PREFIX`、release.yml `image_prefix`） | 迁移：仓库 slug 重命名不会迁移 GHCR package，故改用 `outcomego-*` 新路径；旧 `ai-teamos-*` 包不再更新，由负责人手动清理 | CLI update、compose render |
 | `OUTCOMEGO_*` | 环境变量（约 219 个） | 保留；新增同名 `OUTCOMEGO_*` 别名不在本阶段实现 | `.env.example`、compose、server 启动 |
 | `aiteamos_events` | Postgres LISTEN 通道（`apps/server/src/event-wakeup.ts`、raw schema） | `preserve`；它是 publisher/listener 间的运行接口，数据库表和索引仍采用 OutcomeGo 命名 | fresh-schema integration test |
 | `outcomego://` | 客户端 URL scheme（Android Manifest、iOS `APP_URL_SCHEME`、`app-deep-links.ts`） | 保留；`004.3` 的 Outcome 深链也使用该 scheme | 三端深链测试 |
@@ -289,9 +289,9 @@ aiteamos <args>   ─┘
 
 CLI 当前会根据 `DEFAULT_REPOSITORY` 和 Release 资产验证来源。GitHub 仓库 slug 已由负责人批准并更改为 `jingyi0605/OutcomeGo`，因此该常量使用新仓库地址；`DEFAULT_IMAGE_PREFIX` 继续保留稳定 GHCR 路径。历史本地 P-256 签名只对 `raghavpillai/openteam` 旧资产有效，不得验证 OutcomeGo 资产；新仓库 Release 必须通过 `.github/workflows/release.yml` 的 OIDC/Sigstore 身份验证。下列稳定项不随本地名称修改：
 
-1. CLI `PROJECT_NAME=outcomego`、`DEFAULT_REPOSITORY=jingyi0605/OutcomeGo` 和 `DEFAULT_IMAGE_PREFIX=ghcr.io/jingyi0605/ai-teamos`（负责人后续授权修改前两项，GHCR 路径保持原值）。
+1. CLI `PROJECT_NAME=outcomego`、`DEFAULT_REPOSITORY=jingyi0605/OutcomeGo` 和 `DEFAULT_IMAGE_PREFIX=ghcr.io/jingyi0605/outcomego`（负责人后续授权修改前两项，并于 2026 年 11 月 17 日授权将 GHCR 路径由 `ai-teamos` 改为 `outcomego`）。
 2. `.github/workflows/release.yml` 文件名和 Sigstore workflow identity。
-3. GHCR `ai-teamos` 镜像路径。
+3. 历史 GHCR `ai-teamos` 镜像路径（已于 2026 年 11 月 17 日迁移到 `outcomego`，旧包仅作旧版本安装使用）。
 4. 旧版本 verifier 对历史仓库和旧资产的兼容逻辑；该兼容不得扩大到新仓库。
 
 错误仓库/签名、错误 tag、错误 hash、旧 Release 和新 Release 都需要负例。Sigstore/TUF 透明日志测试若网络不可用，记录为 BLOCKED，不得标记为通过。
@@ -462,7 +462,7 @@ Server/Compose：<result>
 
 ## 22. 设计决策和未决事项
 
-负责人已确定以下决策，实施时不得再视为未决：GitHub slug 为 `jingyi0605/OutcomeGo`；新安装使用 `outcomego`、`@outcomego/*` 和新的 Desktop/Android/iOS identities；CLI 可额外提供同一 binary 的 `aiteamos` 命令别名；旧安装不要求覆盖升级，数据由用户手动备份并导入最新 schema；iOS 发布构建暂缓；GHCR `ai-teamos` 路径和 Desktop `aiTeamOS-*` artifact prefix 按名称清单保留。beta.13 历史 Release/asset 保留为旧身份输入。
+负责人已确定以下决策，实施时不得再视为未决：GitHub slug 为 `jingyi0605/OutcomeGo`；新安装使用 `outcomego`、`@outcomego/*` 和新的 Desktop/Android/iOS identities；CLI 可额外提供同一 binary 的 `aiteamos` 命令别名；旧安装不要求覆盖升级，数据由用户手动备份并导入最新 schema；iOS 发布构建暂缓；Desktop `aiTeamOS-*` artifact prefix 按名称清单保留；GHCR 路径后续已由负责人授权改为 `outcomego`（2026 年 11 月 17 日）。beta.13 历史 Release/asset 保留为旧身份输入。
 
 ## 23. 文件到验证命令映射
 

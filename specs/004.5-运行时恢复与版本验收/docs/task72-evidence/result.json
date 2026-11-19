@@ -1,0 +1,4008 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "all_physical_tables_full_rows_and_primary_identities_match",
+      "passed": true
+    },
+    {
+      "name": "portable_backup_content_hash_and_all_references_match",
+      "passed": true
+    },
+    {
+      "name": "all_foreign_keys_present_and_validated",
+      "passed": true
+    },
+    {
+      "name": "schema_fingerprint_marker_preserved",
+      "passed": true
+    },
+    {
+      "name": "service_views_preserve_full_content_and_links",
+      "passed": true
+    },
+    {
+      "name": "ready_and_consumed_planning_preserved",
+      "passed": true
+    },
+    {
+      "name": "draft_proposed_converted_explore_preserved",
+      "passed": true
+    },
+    {
+      "name": "conversion_bidirectional_links_preserved",
+      "passed": true
+    },
+    {
+      "name": "explore_source_reference_digest_preserved",
+      "passed": true
+    },
+    {
+      "name": "approved_source_and_unapproved_independent_conversion_preserved",
+      "passed": true
+    },
+    {
+      "name": "idempotent_service_replay_makes_no_second_facts",
+      "passed": true
+    },
+    {
+      "name": "source_database_unchanged_by_restore_and_replay",
+      "passed": true
+    },
+    {
+      "name": "source_dump_bytes_unchanged",
+      "passed": true
+    },
+    {
+      "name": "schema_services_and_replay_source_files_unchanged",
+      "passed": true
+    }
+  ],
+  "execution": "actual-local-postgres-dump-restore",
+  "fixtureIds": {
+    "botId": "e4f20eeb-df70-43f2-a91e-62afce8153b3",
+    "readyPlanId": "035221a7-9e59-4891-a3cc-6ec51a7a75a8",
+    "consumedPlanId": "e1e664a7-a7da-4f50-8a6d-dadbc1602edd",
+    "proposedPlanId": "c702649f-075d-4d02-8e2e-1d7a305d4bc0",
+    "convertedPlanId": "85ee949a-a896-4a12-a313-592340948410",
+    "draftIdeaId": "ddccdf73-4554-494c-b1fb-769b2a25b90b",
+    "proposedIdeaId": "92d5cc3d-d889-4480-aef7-da6d0cfd8b95",
+    "convertedIdeaId": "fbbc76ea-0135-4d81-bac6-d1e2d319ad17",
+    "sourceOutcomeId": "5622ead5-228e-4ab8-a07b-7cba03212c48",
+    "convertedOutcomeId": "60dade77-31e1-4330-9c14-96555b029c4a"
+  },
+  "inferenceCalls": 4,
+  "sourceDatabase": "outcomego_task72_exact_source",
+  "restoredDatabase": "outcomego_task72_exact_restored",
+  "container": "outcomego-task72-populated-backup-pg-20261117",
+  "sourceHead": "93d5ff66510ddb77d1f8b7fb589c365fe4b537f1",
+  "dump": {
+    "path": "/Users/jackson/Code/openteam-spec004-worktrees/task72-populated-backup/data/task72/exact-proof/planning-explore.dump",
+    "bytes": 315021,
+    "sha256": "616ff76f531326291635e02b2aecc625205e0e2223c7b2c87b9854b74c4035f4"
+  },
+  "sourceHashesBefore": {
+    "packages/db/prisma/schema.prisma": "c82e369fcb036a71daf0f8489ecda8cba56eac43047a52fc11e8632508abc7d4",
+    "packages/db/prisma/sql/raw-schema.sql": "7ad0441f6ab2925b9464d73864a603b5ada3ae7f53fca5190f367a92279aad56",
+    "apps/server/src/services/outcome-planning-service.ts": "98e8a74be08841e67a735a03c929ea4d514dd60b0ce21b65e6ce07201c0bb448",
+    "apps/server/src/services/explore-service.ts": "ab2c1809bb6b13b214e8a4b819bbfa1cab5ac74710b77e646bbe3a8462eb463f",
+    "apps/server/src/services/outcome-service.ts": "ecef602b5ea2740824733a03184a9ce5e71b4610f198e5a677930db89268e822",
+    "scripts/migration/backup-schema.ts": "293cf8fce43fdd5b17a1302119b7f791c2e9bac1f45b57a1ce1f5d69499f7b27",
+    "scripts/migration/validate-outcomego-backup.ts": "a9738b49b6a55b37a24434a397c328a32599b7e5db27d867ca162a42b949dfc7",
+    "apps/server/test/fixtures/outcome-recovery/populated-backup.ts": "e73a285d355a3136f45769582f7feb71eeff3a0dff5fda093a7fc5954c85ecd8",
+    "scripts/test-outcome-populated-backup.ts": "52b7562fa266f8ee49a6e2074ea8a7eea0d9a8f81bdcf154644a0b84821a0a7f"
+  },
+  "sourceHashesAfter": {
+    "packages/db/prisma/schema.prisma": "c82e369fcb036a71daf0f8489ecda8cba56eac43047a52fc11e8632508abc7d4",
+    "packages/db/prisma/sql/raw-schema.sql": "7ad0441f6ab2925b9464d73864a603b5ada3ae7f53fca5190f367a92279aad56",
+    "apps/server/src/services/outcome-planning-service.ts": "98e8a74be08841e67a735a03c929ea4d514dd60b0ce21b65e6ce07201c0bb448",
+    "apps/server/src/services/explore-service.ts": "ab2c1809bb6b13b214e8a4b819bbfa1cab5ac74710b77e646bbe3a8462eb463f",
+    "apps/server/src/services/outcome-service.ts": "ecef602b5ea2740824733a03184a9ce5e71b4610f198e5a677930db89268e822",
+    "scripts/migration/backup-schema.ts": "293cf8fce43fdd5b17a1302119b7f791c2e9bac1f45b57a1ce1f5d69499f7b27",
+    "scripts/migration/validate-outcomego-backup.ts": "a9738b49b6a55b37a24434a397c328a32599b7e5db27d867ca162a42b949dfc7",
+    "apps/server/test/fixtures/outcome-recovery/populated-backup.ts": "e73a285d355a3136f45769582f7feb71eeff3a0dff5fda093a7fc5954c85ecd8",
+    "scripts/test-outcome-populated-backup.ts": "52b7562fa266f8ee49a6e2074ea8a7eea0d9a8f81bdcf154644a0b84821a0a7f"
+  },
+  "before": {
+    "tables": {
+      "outcomego_account": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_agent_file_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_apns_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_result": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_webhook": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_webhook_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bitwarden_read_approval": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bot": {
+        "count": 1,
+        "sha256": "392a92b57b1a58eeed92ac913b1dddf89dc82ac847c89e201723d7681c86876e",
+        "identities": [
+          {
+            "id": "e4f20eeb-df70-43f2-a91e-62afce8153b3"
+          }
+        ]
+      },
+      "outcomego_bot_connector_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bot_run_lease": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_browser_network_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_member": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_message": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_notification": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_read_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_round": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_display_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_network_policy": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_network_policy_approval": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_connector_file_transfer": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_compaction": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_prompt_snapshot": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_conversation": {
+        "count": 1,
+        "sha256": "8cdc88794402a9199d11b193705808cc4ecd04b838ad0c4cf6f9595249f3267b",
+        "identities": [
+          {
+            "id": "f09dea05-a0eb-4083-968e-66b89ecaa375"
+          }
+        ]
+      },
+      "outcomego_event": {
+        "count": 8,
+        "sha256": "d938b3e38c3fb94467b9a13b324a435791a28d18a0667bbfac9e00e16fa45642",
+        "identities": [
+          {
+            "sequence": 1
+          },
+          {
+            "sequence": 2
+          },
+          {
+            "sequence": 3
+          },
+          {
+            "sequence": 4
+          },
+          {
+            "sequence": 5
+          },
+          {
+            "sequence": 6
+          },
+          {
+            "sequence": 7
+          },
+          {
+            "sequence": 8
+          }
+        ]
+      },
+      "outcomego_explore_idea": {
+        "count": 3,
+        "sha256": "2649b17f7bc710bc836f4bd75923216611c21af508febf98de3702569f06f1cc",
+        "identities": [
+          {
+            "id": "92d5cc3d-d889-4480-aef7-da6d0cfd8b95"
+          },
+          {
+            "id": "ddccdf73-4554-494c-b1fb-769b2a25b90b"
+          },
+          {
+            "id": "fbbc76ea-0135-4d81-bac6-d1e2d319ad17"
+          }
+        ]
+      },
+      "outcomego_external_channel_mapping": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_message_receipt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_messaging_binding": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_outbound_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_host_machine": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_idempotency_record": {
+        "count": 10,
+        "sha256": "0f2cfc4efdda59702d151b8c4bfc5c56e5ca2ebf2d267b979ac6bad606d20c01",
+        "identities": [
+          {
+            "scope": "outcome-approve:5622ead5-228e-4ab8-a07b-7cba03212c48",
+            "key": "populated-backup:07289ea3-4878-41aa-aa11-1f20de16940b"
+          },
+          {
+            "scope": "outcome-create",
+            "key": "populated-backup:1573f3d8-1d16-43bb-a7c1-c37fd62ba700"
+          },
+          {
+            "scope": "explore-propose:fbbc76ea-0135-4d81-bac6-d1e2d319ad17",
+            "key": "populated-backup:2f895161-6430-4c92-8d05-0a29800172ac"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:44d12910-dd88-4e18-b72b-8d325489f228"
+          },
+          {
+            "scope": "explore-propose:92d5cc3d-d889-4480-aef7-da6d0cfd8b95",
+            "key": "populated-backup:8c6852dd-db15-4998-b92f-ed1ead49ce07"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:9ce32c85-61f2-4a38-bbb0-eb179018a136"
+          },
+          {
+            "scope": "outcome-plan",
+            "key": "populated-backup:c0bbfe07-f4fa-4b1b-8eb6-f1c0a70473ac"
+          },
+          {
+            "scope": "outcome-create",
+            "key": "populated-backup:c22437c7-e9dd-4390-aa71-0ec0ddafe2d7"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:c43cc95c-e526-49ac-aa12-ca9c8711b67c"
+          },
+          {
+            "scope": "outcome-plan",
+            "key": "populated-backup:c52ddd30-6de0-4d73-890e-08b63485ddfe"
+          }
+        ]
+      },
+      "outcomego_inbox_event": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_fact": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_review_lease": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_revision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_message": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_messages_allowed_recipient": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_notification_preferences": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_notification_presence": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outbox_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome": {
+        "count": 2,
+        "sha256": "4689ba9294c415e415d409cb62bb44f937c70a08ccb9c8837642ea964137a9a6",
+        "identities": [
+          {
+            "id": "5622ead5-228e-4ab8-a07b-7cba03212c48"
+          },
+          {
+            "id": "60dade77-31e1-4330-9c14-96555b029c4a"
+          }
+        ]
+      },
+      "outcomego_outcome_acceptance_criterion": {
+        "count": 2,
+        "sha256": "d5b43d066d12781b40cb7d9c1fcd147d30c7797d9b7ad22d743b91ab41fd4c0c",
+        "identities": [
+          {
+            "id": "5eb96f17-71f6-40e0-8eb3-f3c3d538faa6"
+          },
+          {
+            "id": "ed07f59b-6430-42d6-81ab-b88c2bae97e2"
+          }
+        ]
+      },
+      "outcomego_outcome_contract_revision": {
+        "count": 2,
+        "sha256": "3b1c47c0693839362e0be7ba1721e3d1645fe7f2196c3bd35dc17e549c1ed659",
+        "identities": [
+          {
+            "id": "b9465565-e7c8-471a-ba27-dc6e049951dc"
+          },
+          {
+            "id": "d39e70a7-0f82-4af4-bc78-a1bca4712fcb"
+          }
+        ]
+      },
+      "outcomego_outcome_decision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_evidence": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_human_action_card": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_human_receipt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_output": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_planning_draft": {
+        "count": 4,
+        "sha256": "9f7b45e45a9894af37452ab45919bde188cbcaf85073cb26d0f970ee9373ae55",
+        "identities": [
+          {
+            "id": "035221a7-9e59-4891-a3cc-6ec51a7a75a8"
+          },
+          {
+            "id": "85ee949a-a896-4a12-a313-592340948410"
+          },
+          {
+            "id": "c702649f-075d-4d02-8e2e-1d7a305d4bc0"
+          },
+          {
+            "id": "e1e664a7-a7da-4f50-8a6d-dadbc1602edd"
+          }
+        ]
+      },
+      "outcomego_outcome_review": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_work_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_activity": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_connection": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_draft": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_installation": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_invocation": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_private_skill": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_source": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_process_secret": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_push_device": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_retired_agent": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine_execution": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine_revision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_run": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_run_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_saved_skill": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_search_document": {
+        "count": 1,
+        "sha256": "f46269f8152ff24224ea1dbd7fb83c088141b4e4f9dfabc62d4919576f80f5c7",
+        "identities": [
+          {
+            "id": "bot:e4f20eeb-df70-43f2-a91e-62afce8153b3"
+          }
+        ]
+      },
+      "outcomego_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_subagent": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_subagent_attempt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_task_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_todo_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_user": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_user_time_zone_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_verification": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_turn": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_fetch_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_search_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_tool_provider": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      }
+    },
+    "foreignKeys": [
+      {
+        "name": "outcomego_account_userId_fkey",
+        "table": "outcomego_account",
+        "definition": "FOREIGN KEY (\"userId\") REFERENCES outcomego_user(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_agent_file_state_botId_fkey",
+        "table": "outcomego_agent_file_state",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_automation_result_runId_fkey",
+        "table": "outcomego_automation_result",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_automation_webhook_routineId_fkey",
+        "table": "outcomego_automation_webhook",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_botId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_channelId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_connectionId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_sourceRunId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_connector_state_botId_fkey",
+        "table": "outcomego_bot_connector_state",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_run_lease_botId_fkey",
+        "table": "outcomego_bot_run_lease",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_run_lease_runId_fkey",
+        "table": "outcomego_bot_run_lease",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_delivery_botId_fkey",
+        "table": "outcomego_channel_delivery",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_delivery_roundId_fkey",
+        "table": "outcomego_channel_delivery",
+        "definition": "FOREIGN KEY (\"roundId\") REFERENCES outcomego_channel_round(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_member_botId_fkey",
+        "table": "outcomego_channel_member",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_member_channelId_fkey",
+        "table": "outcomego_channel_member",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_channelId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_senderBotId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"senderBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_sourceRunId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_notification_channelId_fkey",
+        "table": "outcomego_channel_notification",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_read_state_channelId_fkey",
+        "table": "outcomego_channel_read_state",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_channelId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_initiatorBotId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"initiatorBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_triggerMessageId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"triggerMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_botId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_channelId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_sourceRunId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_compaction_contextSessionId_fkey",
+        "table": "outcomego_context_compaction",
+        "definition": "FOREIGN KEY (\"contextSessionId\") REFERENCES outcomego_context_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_prompt_snapshot_contextSessionId_fkey",
+        "table": "outcomego_context_prompt_snapshot",
+        "definition": "FOREIGN KEY (\"contextSessionId\") REFERENCES outcomego_context_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_session_botId_fkey",
+        "table": "outcomego_context_session",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_conversation_botId_fkey",
+        "table": "outcomego_conversation",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_botId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_planningDraftId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"planningDraftId\") REFERENCES outcomego_outcome_planning_draft(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_proposedOutcomeId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"proposedOutcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_sourceOutcomeId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"sourceOutcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_botId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_channelId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_connectionId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_channelMessageId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_connectionId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_mappingId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"mappingId\") REFERENCES outcomego_external_channel_mapping(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_runId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_messaging_binding_botId_fkey",
+        "table": "outcomego_external_messaging_binding",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_messaging_binding_connectionId_fkey",
+        "table": "outcomego_external_messaging_binding",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_botId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_channelMessageId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_connectionId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_mappingId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"mappingId\") REFERENCES outcomego_external_channel_mapping(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_runId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_botId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_conversationId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_runId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_memory_fact_writtenByBotId_fkey",
+        "table": "outcomego_memory_fact",
+        "definition": "FOREIGN KEY (\"writtenByBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_memory_review_lease_botId_fkey",
+        "table": "outcomego_memory_review_lease",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_botId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_conversationId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_runId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_messages_allowed_recipient_machineId_fkey",
+        "table": "outcomego_messages_allowed_recipient",
+        "definition": "FOREIGN KEY (\"machineId\") REFERENCES outcomego_host_machine(\"machineId\") ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_notification_presence_authSessionId_fkey",
+        "table": "outcomego_notification_presence",
+        "definition": "FOREIGN KEY (\"authSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_botId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_currentRevisionId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"currentRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_planningDraftId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"planningDraftId\") REFERENCES outcomego_outcome_planning_draft(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_sourceExploreId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"sourceExploreId\") REFERENCES outcomego_explore_idea(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_acceptance_criterion_contractRevisionId_fkey",
+        "table": "outcomego_outcome_acceptance_criterion",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_contract_revision_outcomeId_fkey",
+        "table": "outcomego_outcome_contract_revision",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_contractRevisionId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_outcomeId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_runId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_workItemId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_contractRevisionId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_criterionId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"criterionId\") REFERENCES outcomego_outcome_acceptance_criterion(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_outcomeId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_outputId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"outputId\") REFERENCES outcomego_outcome_output(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_workItemId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_action_card_requestedByWorkItemId_fkey",
+        "table": "outcomego_outcome_human_action_card",
+        "definition": "FOREIGN KEY (\"requestedByWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_action_card_workItemId_fkey",
+        "table": "outcomego_outcome_human_action_card",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_receipt_outcomeId_fkey",
+        "table": "outcomego_outcome_human_receipt",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_receipt_workItemId_fkey",
+        "table": "outcomego_outcome_human_receipt",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_outcomeId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_runId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_workItemId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_planning_draft_botId_fkey",
+        "table": "outcomego_outcome_planning_draft",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_contractRevisionId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_criterionId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"criterionId\") REFERENCES outcomego_outcome_acceptance_criterion(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_outcomeId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_contractRevisionId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_outcomeId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_reworkOfWorkItemId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"reworkOfWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_rootRunId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"rootRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_botId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_connectionId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_installationId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"installationId\") REFERENCES outcomego_plugin_installation(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_connection_installationId_fkey",
+        "table": "outcomego_plugin_connection",
+        "definition": "FOREIGN KEY (\"installationId\") REFERENCES outcomego_plugin_installation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_botId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_connectionId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_runId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_process_secret_botId_fkey",
+        "table": "outcomego_process_secret",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_push_device_authSessionId_fkey",
+        "table": "outcomego_push_device",
+        "definition": "FOREIGN KEY (\"authSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_botId_fkey",
+        "table": "outcomego_routine",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_channelId_fkey",
+        "table": "outcomego_routine",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_channelMessageId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_routineId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_routineRevisionId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"routineRevisionId\") REFERENCES outcomego_routine_revision(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_runId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_revision_routineId_fkey",
+        "table": "outcomego_routine_revision",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_botId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_channelId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_conversationId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_deliveryId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"deliveryId\") REFERENCES outcomego_channel_delivery(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_outcomeWorkItemId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"outcomeWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_item_runId_fkey",
+        "table": "outcomego_run_item",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_saved_skill_botId_fkey",
+        "table": "outcomego_saved_skill",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_session_userId_fkey",
+        "table": "outcomego_session",
+        "definition": "FOREIGN KEY (\"userId\") REFERENCES outcomego_user(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_childBotId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"childBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_parentBotId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"parentBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_requestRunId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"requestRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_attempt_subagentId_fkey",
+        "table": "outcomego_subagent_attempt",
+        "definition": "FOREIGN KEY (\"subagentId\") REFERENCES outcomego_subagent(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_todo_item_botId_fkey",
+        "table": "outcomego_todo_item",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_botId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_channelId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_conversationId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_ownerSessionId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"ownerSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_turn_runId_fkey",
+        "table": "outcomego_voice_turn",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_turn_sessionId_fkey",
+        "table": "outcomego_voice_turn",
+        "definition": "FOREIGN KEY (\"sessionId\") REFERENCES outcomego_voice_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      }
+    ],
+    "schemaMarker": "OutcomeGo schema ready: outcomego-v1:c468a7e773e3659701d1250f86aa94f13d4ce3d208aa59917e20761b93f2a431",
+    "portableDataSha256": "f4ebc159af3d9990d9b7b80f6fba192a8a241e044c6e2906b4e9e8d5e15a52d2"
+  },
+  "after": {
+    "tables": {
+      "outcomego_account": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_agent_file_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_apns_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_result": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_webhook": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_webhook_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bitwarden_read_approval": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bot": {
+        "count": 1,
+        "sha256": "392a92b57b1a58eeed92ac913b1dddf89dc82ac847c89e201723d7681c86876e",
+        "identities": [
+          {
+            "id": "e4f20eeb-df70-43f2-a91e-62afce8153b3"
+          }
+        ]
+      },
+      "outcomego_bot_connector_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bot_run_lease": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_browser_network_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_member": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_message": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_notification": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_read_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_round": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_display_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_network_policy": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_network_policy_approval": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_connector_file_transfer": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_compaction": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_prompt_snapshot": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_conversation": {
+        "count": 1,
+        "sha256": "8cdc88794402a9199d11b193705808cc4ecd04b838ad0c4cf6f9595249f3267b",
+        "identities": [
+          {
+            "id": "f09dea05-a0eb-4083-968e-66b89ecaa375"
+          }
+        ]
+      },
+      "outcomego_event": {
+        "count": 8,
+        "sha256": "d938b3e38c3fb94467b9a13b324a435791a28d18a0667bbfac9e00e16fa45642",
+        "identities": [
+          {
+            "sequence": 1
+          },
+          {
+            "sequence": 2
+          },
+          {
+            "sequence": 3
+          },
+          {
+            "sequence": 4
+          },
+          {
+            "sequence": 5
+          },
+          {
+            "sequence": 6
+          },
+          {
+            "sequence": 7
+          },
+          {
+            "sequence": 8
+          }
+        ]
+      },
+      "outcomego_explore_idea": {
+        "count": 3,
+        "sha256": "2649b17f7bc710bc836f4bd75923216611c21af508febf98de3702569f06f1cc",
+        "identities": [
+          {
+            "id": "92d5cc3d-d889-4480-aef7-da6d0cfd8b95"
+          },
+          {
+            "id": "ddccdf73-4554-494c-b1fb-769b2a25b90b"
+          },
+          {
+            "id": "fbbc76ea-0135-4d81-bac6-d1e2d319ad17"
+          }
+        ]
+      },
+      "outcomego_external_channel_mapping": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_message_receipt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_messaging_binding": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_outbound_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_host_machine": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_idempotency_record": {
+        "count": 10,
+        "sha256": "0f2cfc4efdda59702d151b8c4bfc5c56e5ca2ebf2d267b979ac6bad606d20c01",
+        "identities": [
+          {
+            "scope": "outcome-approve:5622ead5-228e-4ab8-a07b-7cba03212c48",
+            "key": "populated-backup:07289ea3-4878-41aa-aa11-1f20de16940b"
+          },
+          {
+            "scope": "outcome-create",
+            "key": "populated-backup:1573f3d8-1d16-43bb-a7c1-c37fd62ba700"
+          },
+          {
+            "scope": "explore-propose:fbbc76ea-0135-4d81-bac6-d1e2d319ad17",
+            "key": "populated-backup:2f895161-6430-4c92-8d05-0a29800172ac"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:44d12910-dd88-4e18-b72b-8d325489f228"
+          },
+          {
+            "scope": "explore-propose:92d5cc3d-d889-4480-aef7-da6d0cfd8b95",
+            "key": "populated-backup:8c6852dd-db15-4998-b92f-ed1ead49ce07"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:9ce32c85-61f2-4a38-bbb0-eb179018a136"
+          },
+          {
+            "scope": "outcome-plan",
+            "key": "populated-backup:c0bbfe07-f4fa-4b1b-8eb6-f1c0a70473ac"
+          },
+          {
+            "scope": "outcome-create",
+            "key": "populated-backup:c22437c7-e9dd-4390-aa71-0ec0ddafe2d7"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:c43cc95c-e526-49ac-aa12-ca9c8711b67c"
+          },
+          {
+            "scope": "outcome-plan",
+            "key": "populated-backup:c52ddd30-6de0-4d73-890e-08b63485ddfe"
+          }
+        ]
+      },
+      "outcomego_inbox_event": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_fact": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_review_lease": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_revision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_message": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_messages_allowed_recipient": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_notification_preferences": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_notification_presence": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outbox_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome": {
+        "count": 2,
+        "sha256": "4689ba9294c415e415d409cb62bb44f937c70a08ccb9c8837642ea964137a9a6",
+        "identities": [
+          {
+            "id": "5622ead5-228e-4ab8-a07b-7cba03212c48"
+          },
+          {
+            "id": "60dade77-31e1-4330-9c14-96555b029c4a"
+          }
+        ]
+      },
+      "outcomego_outcome_acceptance_criterion": {
+        "count": 2,
+        "sha256": "d5b43d066d12781b40cb7d9c1fcd147d30c7797d9b7ad22d743b91ab41fd4c0c",
+        "identities": [
+          {
+            "id": "5eb96f17-71f6-40e0-8eb3-f3c3d538faa6"
+          },
+          {
+            "id": "ed07f59b-6430-42d6-81ab-b88c2bae97e2"
+          }
+        ]
+      },
+      "outcomego_outcome_contract_revision": {
+        "count": 2,
+        "sha256": "3b1c47c0693839362e0be7ba1721e3d1645fe7f2196c3bd35dc17e549c1ed659",
+        "identities": [
+          {
+            "id": "b9465565-e7c8-471a-ba27-dc6e049951dc"
+          },
+          {
+            "id": "d39e70a7-0f82-4af4-bc78-a1bca4712fcb"
+          }
+        ]
+      },
+      "outcomego_outcome_decision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_evidence": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_human_action_card": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_human_receipt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_output": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_planning_draft": {
+        "count": 4,
+        "sha256": "9f7b45e45a9894af37452ab45919bde188cbcaf85073cb26d0f970ee9373ae55",
+        "identities": [
+          {
+            "id": "035221a7-9e59-4891-a3cc-6ec51a7a75a8"
+          },
+          {
+            "id": "85ee949a-a896-4a12-a313-592340948410"
+          },
+          {
+            "id": "c702649f-075d-4d02-8e2e-1d7a305d4bc0"
+          },
+          {
+            "id": "e1e664a7-a7da-4f50-8a6d-dadbc1602edd"
+          }
+        ]
+      },
+      "outcomego_outcome_review": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_work_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_activity": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_connection": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_draft": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_installation": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_invocation": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_private_skill": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_source": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_process_secret": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_push_device": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_retired_agent": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine_execution": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine_revision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_run": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_run_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_saved_skill": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_search_document": {
+        "count": 1,
+        "sha256": "f46269f8152ff24224ea1dbd7fb83c088141b4e4f9dfabc62d4919576f80f5c7",
+        "identities": [
+          {
+            "id": "bot:e4f20eeb-df70-43f2-a91e-62afce8153b3"
+          }
+        ]
+      },
+      "outcomego_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_subagent": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_subagent_attempt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_task_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_todo_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_user": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_user_time_zone_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_verification": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_turn": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_fetch_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_search_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_tool_provider": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      }
+    },
+    "foreignKeys": [
+      {
+        "name": "outcomego_account_userId_fkey",
+        "table": "outcomego_account",
+        "definition": "FOREIGN KEY (\"userId\") REFERENCES outcomego_user(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_agent_file_state_botId_fkey",
+        "table": "outcomego_agent_file_state",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_automation_result_runId_fkey",
+        "table": "outcomego_automation_result",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_automation_webhook_routineId_fkey",
+        "table": "outcomego_automation_webhook",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_botId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_channelId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_connectionId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_sourceRunId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_connector_state_botId_fkey",
+        "table": "outcomego_bot_connector_state",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_run_lease_botId_fkey",
+        "table": "outcomego_bot_run_lease",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_run_lease_runId_fkey",
+        "table": "outcomego_bot_run_lease",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_delivery_botId_fkey",
+        "table": "outcomego_channel_delivery",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_delivery_roundId_fkey",
+        "table": "outcomego_channel_delivery",
+        "definition": "FOREIGN KEY (\"roundId\") REFERENCES outcomego_channel_round(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_member_botId_fkey",
+        "table": "outcomego_channel_member",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_member_channelId_fkey",
+        "table": "outcomego_channel_member",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_channelId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_senderBotId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"senderBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_sourceRunId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_notification_channelId_fkey",
+        "table": "outcomego_channel_notification",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_read_state_channelId_fkey",
+        "table": "outcomego_channel_read_state",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_channelId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_initiatorBotId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"initiatorBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_triggerMessageId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"triggerMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_botId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_channelId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_sourceRunId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_compaction_contextSessionId_fkey",
+        "table": "outcomego_context_compaction",
+        "definition": "FOREIGN KEY (\"contextSessionId\") REFERENCES outcomego_context_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_prompt_snapshot_contextSessionId_fkey",
+        "table": "outcomego_context_prompt_snapshot",
+        "definition": "FOREIGN KEY (\"contextSessionId\") REFERENCES outcomego_context_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_session_botId_fkey",
+        "table": "outcomego_context_session",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_conversation_botId_fkey",
+        "table": "outcomego_conversation",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_botId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_planningDraftId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"planningDraftId\") REFERENCES outcomego_outcome_planning_draft(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_proposedOutcomeId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"proposedOutcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_sourceOutcomeId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"sourceOutcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_botId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_channelId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_connectionId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_channelMessageId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_connectionId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_mappingId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"mappingId\") REFERENCES outcomego_external_channel_mapping(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_runId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_messaging_binding_botId_fkey",
+        "table": "outcomego_external_messaging_binding",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_messaging_binding_connectionId_fkey",
+        "table": "outcomego_external_messaging_binding",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_botId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_channelMessageId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_connectionId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_mappingId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"mappingId\") REFERENCES outcomego_external_channel_mapping(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_runId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_botId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_conversationId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_runId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_memory_fact_writtenByBotId_fkey",
+        "table": "outcomego_memory_fact",
+        "definition": "FOREIGN KEY (\"writtenByBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_memory_review_lease_botId_fkey",
+        "table": "outcomego_memory_review_lease",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_botId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_conversationId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_runId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_messages_allowed_recipient_machineId_fkey",
+        "table": "outcomego_messages_allowed_recipient",
+        "definition": "FOREIGN KEY (\"machineId\") REFERENCES outcomego_host_machine(\"machineId\") ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_notification_presence_authSessionId_fkey",
+        "table": "outcomego_notification_presence",
+        "definition": "FOREIGN KEY (\"authSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_botId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_currentRevisionId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"currentRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_planningDraftId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"planningDraftId\") REFERENCES outcomego_outcome_planning_draft(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_sourceExploreId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"sourceExploreId\") REFERENCES outcomego_explore_idea(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_acceptance_criterion_contractRevisionId_fkey",
+        "table": "outcomego_outcome_acceptance_criterion",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_contract_revision_outcomeId_fkey",
+        "table": "outcomego_outcome_contract_revision",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_contractRevisionId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_outcomeId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_runId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_workItemId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_contractRevisionId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_criterionId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"criterionId\") REFERENCES outcomego_outcome_acceptance_criterion(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_outcomeId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_outputId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"outputId\") REFERENCES outcomego_outcome_output(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_workItemId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_action_card_requestedByWorkItemId_fkey",
+        "table": "outcomego_outcome_human_action_card",
+        "definition": "FOREIGN KEY (\"requestedByWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_action_card_workItemId_fkey",
+        "table": "outcomego_outcome_human_action_card",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_receipt_outcomeId_fkey",
+        "table": "outcomego_outcome_human_receipt",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_receipt_workItemId_fkey",
+        "table": "outcomego_outcome_human_receipt",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_outcomeId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_runId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_workItemId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_planning_draft_botId_fkey",
+        "table": "outcomego_outcome_planning_draft",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_contractRevisionId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_criterionId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"criterionId\") REFERENCES outcomego_outcome_acceptance_criterion(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_outcomeId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_contractRevisionId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_outcomeId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_reworkOfWorkItemId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"reworkOfWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_rootRunId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"rootRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_botId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_connectionId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_installationId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"installationId\") REFERENCES outcomego_plugin_installation(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_connection_installationId_fkey",
+        "table": "outcomego_plugin_connection",
+        "definition": "FOREIGN KEY (\"installationId\") REFERENCES outcomego_plugin_installation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_botId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_connectionId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_runId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_process_secret_botId_fkey",
+        "table": "outcomego_process_secret",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_push_device_authSessionId_fkey",
+        "table": "outcomego_push_device",
+        "definition": "FOREIGN KEY (\"authSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_botId_fkey",
+        "table": "outcomego_routine",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_channelId_fkey",
+        "table": "outcomego_routine",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_channelMessageId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_routineId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_routineRevisionId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"routineRevisionId\") REFERENCES outcomego_routine_revision(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_runId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_revision_routineId_fkey",
+        "table": "outcomego_routine_revision",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_botId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_channelId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_conversationId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_deliveryId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"deliveryId\") REFERENCES outcomego_channel_delivery(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_outcomeWorkItemId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"outcomeWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_item_runId_fkey",
+        "table": "outcomego_run_item",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_saved_skill_botId_fkey",
+        "table": "outcomego_saved_skill",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_session_userId_fkey",
+        "table": "outcomego_session",
+        "definition": "FOREIGN KEY (\"userId\") REFERENCES outcomego_user(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_childBotId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"childBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_parentBotId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"parentBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_requestRunId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"requestRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_attempt_subagentId_fkey",
+        "table": "outcomego_subagent_attempt",
+        "definition": "FOREIGN KEY (\"subagentId\") REFERENCES outcomego_subagent(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_todo_item_botId_fkey",
+        "table": "outcomego_todo_item",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_botId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_channelId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_conversationId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_ownerSessionId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"ownerSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_turn_runId_fkey",
+        "table": "outcomego_voice_turn",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_turn_sessionId_fkey",
+        "table": "outcomego_voice_turn",
+        "definition": "FOREIGN KEY (\"sessionId\") REFERENCES outcomego_voice_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      }
+    ],
+    "schemaMarker": "OutcomeGo schema ready: outcomego-v1:c468a7e773e3659701d1250f86aa94f13d4ce3d208aa59917e20761b93f2a431",
+    "portableDataSha256": "f4ebc159af3d9990d9b7b80f6fba192a8a241e044c6e2906b4e9e8d5e15a52d2"
+  },
+  "afterReplay": {
+    "tables": {
+      "outcomego_account": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_agent_file_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_apns_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_result": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_webhook": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_automation_webhook_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bitwarden_read_approval": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bot": {
+        "count": 1,
+        "sha256": "392a92b57b1a58eeed92ac913b1dddf89dc82ac847c89e201723d7681c86876e",
+        "identities": [
+          {
+            "id": "e4f20eeb-df70-43f2-a91e-62afce8153b3"
+          }
+        ]
+      },
+      "outcomego_bot_connector_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_bot_run_lease": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_browser_network_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_member": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_message": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_notification": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_read_state": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_channel_round": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_display_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_network_policy": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_computer_network_policy_approval": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_connector_file_transfer": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_compaction": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_prompt_snapshot": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_context_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_conversation": {
+        "count": 1,
+        "sha256": "8cdc88794402a9199d11b193705808cc4ecd04b838ad0c4cf6f9595249f3267b",
+        "identities": [
+          {
+            "id": "f09dea05-a0eb-4083-968e-66b89ecaa375"
+          }
+        ]
+      },
+      "outcomego_event": {
+        "count": 8,
+        "sha256": "d938b3e38c3fb94467b9a13b324a435791a28d18a0667bbfac9e00e16fa45642",
+        "identities": [
+          {
+            "sequence": 1
+          },
+          {
+            "sequence": 2
+          },
+          {
+            "sequence": 3
+          },
+          {
+            "sequence": 4
+          },
+          {
+            "sequence": 5
+          },
+          {
+            "sequence": 6
+          },
+          {
+            "sequence": 7
+          },
+          {
+            "sequence": 8
+          }
+        ]
+      },
+      "outcomego_explore_idea": {
+        "count": 3,
+        "sha256": "2649b17f7bc710bc836f4bd75923216611c21af508febf98de3702569f06f1cc",
+        "identities": [
+          {
+            "id": "92d5cc3d-d889-4480-aef7-da6d0cfd8b95"
+          },
+          {
+            "id": "ddccdf73-4554-494c-b1fb-769b2a25b90b"
+          },
+          {
+            "id": "fbbc76ea-0135-4d81-bac6-d1e2d319ad17"
+          }
+        ]
+      },
+      "outcomego_external_channel_mapping": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_message_receipt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_messaging_binding": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_external_outbound_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_host_machine": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_idempotency_record": {
+        "count": 10,
+        "sha256": "0f2cfc4efdda59702d151b8c4bfc5c56e5ca2ebf2d267b979ac6bad606d20c01",
+        "identities": [
+          {
+            "scope": "outcome-approve:5622ead5-228e-4ab8-a07b-7cba03212c48",
+            "key": "populated-backup:07289ea3-4878-41aa-aa11-1f20de16940b"
+          },
+          {
+            "scope": "outcome-create",
+            "key": "populated-backup:1573f3d8-1d16-43bb-a7c1-c37fd62ba700"
+          },
+          {
+            "scope": "explore-propose:fbbc76ea-0135-4d81-bac6-d1e2d319ad17",
+            "key": "populated-backup:2f895161-6430-4c92-8d05-0a29800172ac"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:44d12910-dd88-4e18-b72b-8d325489f228"
+          },
+          {
+            "scope": "explore-propose:92d5cc3d-d889-4480-aef7-da6d0cfd8b95",
+            "key": "populated-backup:8c6852dd-db15-4998-b92f-ed1ead49ce07"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:9ce32c85-61f2-4a38-bbb0-eb179018a136"
+          },
+          {
+            "scope": "outcome-plan",
+            "key": "populated-backup:c0bbfe07-f4fa-4b1b-8eb6-f1c0a70473ac"
+          },
+          {
+            "scope": "outcome-create",
+            "key": "populated-backup:c22437c7-e9dd-4390-aa71-0ec0ddafe2d7"
+          },
+          {
+            "scope": "explore-create",
+            "key": "populated-backup:c43cc95c-e526-49ac-aa12-ca9c8711b67c"
+          },
+          {
+            "scope": "outcome-plan",
+            "key": "populated-backup:c52ddd30-6de0-4d73-890e-08b63485ddfe"
+          }
+        ]
+      },
+      "outcomego_inbox_event": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_fact": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_review_lease": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_memory_revision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_message": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_messages_allowed_recipient": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_notification_preferences": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_notification_presence": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outbox_delivery": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome": {
+        "count": 2,
+        "sha256": "4689ba9294c415e415d409cb62bb44f937c70a08ccb9c8837642ea964137a9a6",
+        "identities": [
+          {
+            "id": "5622ead5-228e-4ab8-a07b-7cba03212c48"
+          },
+          {
+            "id": "60dade77-31e1-4330-9c14-96555b029c4a"
+          }
+        ]
+      },
+      "outcomego_outcome_acceptance_criterion": {
+        "count": 2,
+        "sha256": "d5b43d066d12781b40cb7d9c1fcd147d30c7797d9b7ad22d743b91ab41fd4c0c",
+        "identities": [
+          {
+            "id": "5eb96f17-71f6-40e0-8eb3-f3c3d538faa6"
+          },
+          {
+            "id": "ed07f59b-6430-42d6-81ab-b88c2bae97e2"
+          }
+        ]
+      },
+      "outcomego_outcome_contract_revision": {
+        "count": 2,
+        "sha256": "3b1c47c0693839362e0be7ba1721e3d1645fe7f2196c3bd35dc17e549c1ed659",
+        "identities": [
+          {
+            "id": "b9465565-e7c8-471a-ba27-dc6e049951dc"
+          },
+          {
+            "id": "d39e70a7-0f82-4af4-bc78-a1bca4712fcb"
+          }
+        ]
+      },
+      "outcomego_outcome_decision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_evidence": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_human_action_card": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_human_receipt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_output": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_planning_draft": {
+        "count": 4,
+        "sha256": "9f7b45e45a9894af37452ab45919bde188cbcaf85073cb26d0f970ee9373ae55",
+        "identities": [
+          {
+            "id": "035221a7-9e59-4891-a3cc-6ec51a7a75a8"
+          },
+          {
+            "id": "85ee949a-a896-4a12-a313-592340948410"
+          },
+          {
+            "id": "c702649f-075d-4d02-8e2e-1d7a305d4bc0"
+          },
+          {
+            "id": "e1e664a7-a7da-4f50-8a6d-dadbc1602edd"
+          }
+        ]
+      },
+      "outcomego_outcome_review": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_outcome_work_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_activity": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_connection": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_draft": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_installation": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_invocation": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_private_skill": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_plugin_source": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_process_secret": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_push_device": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_retired_agent": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine_execution": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_routine_revision": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_run": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_run_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_saved_skill": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_search_document": {
+        "count": 1,
+        "sha256": "f46269f8152ff24224ea1dbd7fb83c088141b4e4f9dfabc62d4919576f80f5c7",
+        "identities": [
+          {
+            "id": "bot:e4f20eeb-df70-43f2-a91e-62afce8153b3"
+          }
+        ]
+      },
+      "outcomego_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_subagent": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_subagent_attempt": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_task_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_todo_item": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_user": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_user_time_zone_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_verification": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_session": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_voice_turn": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_fetch_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_search_settings": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      },
+      "outcomego_web_tool_provider": {
+        "count": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "identities": []
+      }
+    },
+    "foreignKeys": [
+      {
+        "name": "outcomego_account_userId_fkey",
+        "table": "outcomego_account",
+        "definition": "FOREIGN KEY (\"userId\") REFERENCES outcomego_user(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_agent_file_state_botId_fkey",
+        "table": "outcomego_agent_file_state",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_automation_result_runId_fkey",
+        "table": "outcomego_automation_result",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_automation_webhook_routineId_fkey",
+        "table": "outcomego_automation_webhook",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_botId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_channelId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_connectionId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bitwarden_read_approval_sourceRunId_fkey",
+        "table": "outcomego_bitwarden_read_approval",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_connector_state_botId_fkey",
+        "table": "outcomego_bot_connector_state",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_run_lease_botId_fkey",
+        "table": "outcomego_bot_run_lease",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_bot_run_lease_runId_fkey",
+        "table": "outcomego_bot_run_lease",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_delivery_botId_fkey",
+        "table": "outcomego_channel_delivery",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_delivery_roundId_fkey",
+        "table": "outcomego_channel_delivery",
+        "definition": "FOREIGN KEY (\"roundId\") REFERENCES outcomego_channel_round(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_member_botId_fkey",
+        "table": "outcomego_channel_member",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_member_channelId_fkey",
+        "table": "outcomego_channel_member",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_channelId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_senderBotId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"senderBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_message_sourceRunId_fkey",
+        "table": "outcomego_channel_message",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_notification_channelId_fkey",
+        "table": "outcomego_channel_notification",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_read_state_channelId_fkey",
+        "table": "outcomego_channel_read_state",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_channelId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_initiatorBotId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"initiatorBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_channel_round_triggerMessageId_fkey",
+        "table": "outcomego_channel_round",
+        "definition": "FOREIGN KEY (\"triggerMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_botId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_channelId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_computer_network_policy_approval_sourceRunId_fkey",
+        "table": "outcomego_computer_network_policy_approval",
+        "definition": "FOREIGN KEY (\"sourceRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_compaction_contextSessionId_fkey",
+        "table": "outcomego_context_compaction",
+        "definition": "FOREIGN KEY (\"contextSessionId\") REFERENCES outcomego_context_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_prompt_snapshot_contextSessionId_fkey",
+        "table": "outcomego_context_prompt_snapshot",
+        "definition": "FOREIGN KEY (\"contextSessionId\") REFERENCES outcomego_context_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_context_session_botId_fkey",
+        "table": "outcomego_context_session",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_conversation_botId_fkey",
+        "table": "outcomego_conversation",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_botId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_planningDraftId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"planningDraftId\") REFERENCES outcomego_outcome_planning_draft(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_proposedOutcomeId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"proposedOutcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_explore_idea_sourceOutcomeId_fkey",
+        "table": "outcomego_explore_idea",
+        "definition": "FOREIGN KEY (\"sourceOutcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_botId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_channelId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_channel_mapping_connectionId_fkey",
+        "table": "outcomego_external_channel_mapping",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_channelMessageId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_connectionId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_mappingId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"mappingId\") REFERENCES outcomego_external_channel_mapping(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_message_receipt_runId_fkey",
+        "table": "outcomego_external_message_receipt",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_messaging_binding_botId_fkey",
+        "table": "outcomego_external_messaging_binding",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_messaging_binding_connectionId_fkey",
+        "table": "outcomego_external_messaging_binding",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_botId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_channelMessageId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_connectionId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_mappingId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"mappingId\") REFERENCES outcomego_external_channel_mapping(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_external_outbound_delivery_runId_fkey",
+        "table": "outcomego_external_outbound_delivery",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_botId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_conversationId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_inbox_event_runId_fkey",
+        "table": "outcomego_inbox_event",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_memory_fact_writtenByBotId_fkey",
+        "table": "outcomego_memory_fact",
+        "definition": "FOREIGN KEY (\"writtenByBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_memory_review_lease_botId_fkey",
+        "table": "outcomego_memory_review_lease",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_botId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_conversationId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_message_runId_fkey",
+        "table": "outcomego_message",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_messages_allowed_recipient_machineId_fkey",
+        "table": "outcomego_messages_allowed_recipient",
+        "definition": "FOREIGN KEY (\"machineId\") REFERENCES outcomego_host_machine(\"machineId\") ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_notification_presence_authSessionId_fkey",
+        "table": "outcomego_notification_presence",
+        "definition": "FOREIGN KEY (\"authSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_botId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_currentRevisionId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"currentRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_planningDraftId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"planningDraftId\") REFERENCES outcomego_outcome_planning_draft(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_sourceExploreId_fkey",
+        "table": "outcomego_outcome",
+        "definition": "FOREIGN KEY (\"sourceExploreId\") REFERENCES outcomego_explore_idea(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_acceptance_criterion_contractRevisionId_fkey",
+        "table": "outcomego_outcome_acceptance_criterion",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_contract_revision_outcomeId_fkey",
+        "table": "outcomego_outcome_contract_revision",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_contractRevisionId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_outcomeId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_runId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_decision_workItemId_fkey",
+        "table": "outcomego_outcome_decision",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_contractRevisionId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_criterionId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"criterionId\") REFERENCES outcomego_outcome_acceptance_criterion(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_outcomeId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_outputId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"outputId\") REFERENCES outcomego_outcome_output(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_evidence_workItemId_fkey",
+        "table": "outcomego_outcome_evidence",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_action_card_requestedByWorkItemId_fkey",
+        "table": "outcomego_outcome_human_action_card",
+        "definition": "FOREIGN KEY (\"requestedByWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_action_card_workItemId_fkey",
+        "table": "outcomego_outcome_human_action_card",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_receipt_outcomeId_fkey",
+        "table": "outcomego_outcome_human_receipt",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_human_receipt_workItemId_fkey",
+        "table": "outcomego_outcome_human_receipt",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_outcomeId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_runId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_output_workItemId_fkey",
+        "table": "outcomego_outcome_output",
+        "definition": "FOREIGN KEY (\"workItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_planning_draft_botId_fkey",
+        "table": "outcomego_outcome_planning_draft",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_contractRevisionId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_criterionId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"criterionId\") REFERENCES outcomego_outcome_acceptance_criterion(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_review_outcomeId_fkey",
+        "table": "outcomego_outcome_review",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_contractRevisionId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"contractRevisionId\") REFERENCES outcomego_outcome_contract_revision(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_outcomeId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"outcomeId\") REFERENCES outcomego_outcome(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_reworkOfWorkItemId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"reworkOfWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_outcome_work_item_rootRunId_fkey",
+        "table": "outcomego_outcome_work_item",
+        "definition": "FOREIGN KEY (\"rootRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_botId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_connectionId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_activity_installationId_fkey",
+        "table": "outcomego_plugin_activity",
+        "definition": "FOREIGN KEY (\"installationId\") REFERENCES outcomego_plugin_installation(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_connection_installationId_fkey",
+        "table": "outcomego_plugin_connection",
+        "definition": "FOREIGN KEY (\"installationId\") REFERENCES outcomego_plugin_installation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_botId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_connectionId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"connectionId\") REFERENCES outcomego_plugin_connection(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_plugin_invocation_runId_fkey",
+        "table": "outcomego_plugin_invocation",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_process_secret_botId_fkey",
+        "table": "outcomego_process_secret",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_push_device_authSessionId_fkey",
+        "table": "outcomego_push_device",
+        "definition": "FOREIGN KEY (\"authSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_botId_fkey",
+        "table": "outcomego_routine",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_channelId_fkey",
+        "table": "outcomego_routine",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_channelMessageId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"channelMessageId\") REFERENCES outcomego_channel_message(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_routineId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_routineRevisionId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"routineRevisionId\") REFERENCES outcomego_routine_revision(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_execution_runId_fkey",
+        "table": "outcomego_routine_execution",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_routine_revision_routineId_fkey",
+        "table": "outcomego_routine_revision",
+        "definition": "FOREIGN KEY (\"routineId\") REFERENCES outcomego_routine(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_botId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_channelId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_conversationId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_deliveryId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"deliveryId\") REFERENCES outcomego_channel_delivery(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_outcomeWorkItemId_fkey",
+        "table": "outcomego_run",
+        "definition": "FOREIGN KEY (\"outcomeWorkItemId\") REFERENCES outcomego_outcome_work_item(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_run_item_runId_fkey",
+        "table": "outcomego_run_item",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_saved_skill_botId_fkey",
+        "table": "outcomego_saved_skill",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_session_userId_fkey",
+        "table": "outcomego_session",
+        "definition": "FOREIGN KEY (\"userId\") REFERENCES outcomego_user(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_childBotId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"childBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_parentBotId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"parentBotId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_requestRunId_fkey",
+        "table": "outcomego_subagent",
+        "definition": "FOREIGN KEY (\"requestRunId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_subagent_attempt_subagentId_fkey",
+        "table": "outcomego_subagent_attempt",
+        "definition": "FOREIGN KEY (\"subagentId\") REFERENCES outcomego_subagent(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_todo_item_botId_fkey",
+        "table": "outcomego_todo_item",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_botId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"botId\") REFERENCES outcomego_bot(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_channelId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"channelId\") REFERENCES outcomego_channel(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_conversationId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"conversationId\") REFERENCES outcomego_conversation(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_session_ownerSessionId_fkey",
+        "table": "outcomego_voice_session",
+        "definition": "FOREIGN KEY (\"ownerSessionId\") REFERENCES outcomego_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_turn_runId_fkey",
+        "table": "outcomego_voice_turn",
+        "definition": "FOREIGN KEY (\"runId\") REFERENCES outcomego_run(id) ON UPDATE CASCADE ON DELETE SET NULL",
+        "validated": true
+      },
+      {
+        "name": "outcomego_voice_turn_sessionId_fkey",
+        "table": "outcomego_voice_turn",
+        "definition": "FOREIGN KEY (\"sessionId\") REFERENCES outcomego_voice_session(id) ON UPDATE CASCADE ON DELETE CASCADE",
+        "validated": true
+      }
+    ],
+    "schemaMarker": "OutcomeGo schema ready: outcomego-v1:c468a7e773e3659701d1250f86aa94f13d4ce3d208aa59917e20761b93f2a431",
+    "portableDataSha256": "f4ebc159af3d9990d9b7b80f6fba192a8a241e044c6e2906b4e9e8d5e15a52d2"
+  },
+  "serviceViewSha256": "cfbf2098d791e952d437992337fdc69845143d949d422038a42b4f2864dca53b",
+  "restoredServiceViewSha256": "cfbf2098d791e952d437992337fdc69845143d949d422038a42b4f2864dca53b",
+  "limits": {
+    "inference": "fictional-deterministic-test-port",
+    "oldImageRollback": "PENDING",
+    "remoteProvider": "PENDING",
+    "volumesAndDeviceInstall": "NOT_EXECUTED"
+  }
+}

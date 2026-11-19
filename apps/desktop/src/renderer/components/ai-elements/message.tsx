@@ -120,12 +120,18 @@ export class MessageRendererBoundary extends Component<
   }
 }
 
-export const MessageResponse = memo(function MessageResponse({ children }: { children: string }) {
+export const MessageResponse = memo(function MessageResponse({
+  children,
+  textOnly = false,
+}: {
+  children: string;
+  textOnly?: boolean;
+}) {
   // Keep one component type per mounted message so finishing a preload never
   // remounts a message that is already showing.
   const [MarkdownMessageResponse] = useState(() => markdownRenderer ?? LazyMarkdownMessageResponse);
   const [AdvancedMessageResponse] = useState(() => advancedRenderer ?? LazyAdvancedMessageResponse);
-  const capabilities = advancedMessageCapabilitiesFor(children);
+  const capabilities = textOnly ? null : advancedMessageCapabilitiesFor(children);
   if (!messageContainsDesktopMarkup(children) && !capabilities) {
     return <span className="whitespace-pre-wrap">{children}</span>;
   }
@@ -160,7 +166,7 @@ export const MessageResponse = memo(function MessageResponse({ children }: { chi
           </span>
         }
       >
-        <MarkdownMessageResponse>{children}</MarkdownMessageResponse>
+        <MarkdownMessageResponse textOnly={textOnly}>{children}</MarkdownMessageResponse>
       </Suspense>
     </MessageRendererBoundary>
   );

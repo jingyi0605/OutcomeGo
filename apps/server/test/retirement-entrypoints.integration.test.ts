@@ -8,7 +8,7 @@ import { AgentDataStore, AgentMessaging, RoutineService, type ToolContext } from
 import { BotService } from "../src/services/bot-service";
 import { GroupAdministration } from "../src/services/channel/group-administration";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const gate = () => Promise.withResolvers<void>();
 
 async function fixture(idPrefixes?: readonly string[]) {

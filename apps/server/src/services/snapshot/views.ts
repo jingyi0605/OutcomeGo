@@ -16,6 +16,7 @@ export function channelViews<
     kind: string;
     name: string;
     description: string;
+    notificationsMuted?: boolean;
     avatarPath: string | null;
     directKey: string | null;
     workingDirectory: string | null;
@@ -35,6 +36,7 @@ export function channelViews<
     kind: channel.kind as Snapshot["channels"][number]["kind"],
     name: channel.name,
     description: channel.description,
+    notificationsMuted: channel.notificationsMuted,
     hasAvatar: Boolean(channel.avatarPath),
     directKey: channel.directKey,
     workingDirectory: channel.workingDirectory,

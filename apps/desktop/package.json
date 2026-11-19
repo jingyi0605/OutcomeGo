@@ -1,6 +1,6 @@
 {
   "name": "@outcomego/desktop",
-  "version": "0.1.0-beta.20",
+  "version": "0.1.0-beta.21",
   "license": "GPL-3.0-only",
   "author": "OutcomeGo contributors",
   "main": "dist-electron/main.js",
@@ -35,6 +35,7 @@
     "katex": "0.16.47",
     "libopus-wasm": "0.4.1",
     "libphonenumber-js": "1.13.13",
+    "linkedom": "0.18.13",
     "lucide-react": "1.34.0",
     "mammoth": "1.12.0",
     "pdfjs-dist": "5.4.296",
@@ -57,6 +58,9 @@
   },
   "build": {
     "appId": "dev.outcomego.desktop",
+    "protocols": [
+      { "name": "OutcomeGo", "schemes": ["outcomego"] }
+    ],
     "productName": "OutcomeGo",
     "executableName": "outcomego",
     "asar": true,
@@ -121,7 +125,7 @@
     "build:main": "bun build src/main/index.ts --outdir dist-electron --entry-naming main.js --chunk-naming 'chunks/[name]-[hash].[ext]' --splitting --target node --format esm --external electron --minify --keep-names",
     "build:utility": "bun build src/main/host/utility.ts --outfile dist-electron/host-utility.js --target node --format esm --external electron --minify",
     "build:server-updater": "bun build ../cli/src/main.ts --outfile dist-electron/outcomego-cli.js --target node --format esm --minify",
-    "build:preload": "bun build src/preload/index.ts --outfile dist-electron/preload.cjs --target node --format cjs --external electron --minify --keep-names && bun build src/preload/screenbot.ts --outfile dist-electron/screenbot-preload.cjs --target node --format cjs --external electron --minify --keep-names",
+    "build:preload": "bun build src/preload/index.ts --outfile dist-electron/preload.cjs --target node --format cjs --external electron --minify --keep-names && bun build src/preload/screenbot.ts --outfile dist-electron/screenbot-preload.cjs --target node --format cjs --external electron --minify --keep-names && bun build src/preload/botdock.ts --outfile dist-electron/botdock-preload.cjs --target node --format cjs --external electron --minify --keep-names",
     "build:electron": "bun run build:main && bun run build:utility && bun run build:server-updater && bun run build:preload && bun run build:native",
     "build": "bun run clean && vite build && bun run build:electron",
     "package": "bun run clean:release && bun run build && electron-builder --publish never && bun ../../scripts/performance/check-desktop-budgets.ts --release",

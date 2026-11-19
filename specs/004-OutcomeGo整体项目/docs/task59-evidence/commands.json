@@ -1,0 +1,69 @@
+[
+  {
+    "label": "routine-archive-barrier-red",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/routine-retirement-locks.integration.test.ts"
+    ],
+    "source": "58c097b820a79d21d909285aa49f1a211a6cc472",
+    "exit": 1,
+    "seconds": 2.79,
+    "sha256": "d700b66ad3c4a5d1c8e564fbe917fbc9542522498c01f6b50d109d40fdcd49a8"
+  },
+  {
+    "label": "routine-archive-barrier-green",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/routine-retirement-locks.integration.test.ts"
+    ],
+    "source": "30b46336ce2fc9cfa1b369d7bf00d066973af8d5",
+    "exit": 0,
+    "seconds": 0.876,
+    "sha256": "90c014aa5e164dbe8fc653702f61debc2e7f465f723b18a23f8687421066a31d"
+  },
+  {
+    "label": "routine-archive-compat-green",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/routine-stop-ordering.integration.test.ts",
+      "./apps/worker/test/typed-message-supersedes-turn.integration.test.ts",
+      "./apps/server/test/deletion-late-settlement.integration.test.ts",
+      "./apps/worker/test/outcome-claim-locks.integration.test.ts",
+      "./apps/worker/test/routine-275-regressions.integration.test.ts"
+    ],
+    "source": "30b46336ce2fc9cfa1b369d7bf00d066973af8d5",
+    "exit": 0,
+    "seconds": 15.396,
+    "sha256": "6ce9e312ef130e31517821cf5174f8c893178ed80eb4672c9e8a3bd55985f48a"
+  },
+  {
+    "label": "routine-archive-worker-types",
+    "args": [
+      "bunx",
+      "tsc",
+      "-p",
+      "apps/worker/tsconfig.json",
+      "--noEmit"
+    ],
+    "source": "30b46336ce2fc9cfa1b369d7bf00d066973af8d5",
+    "exit": 0,
+    "seconds": 6.681,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "label": "routine-archive-completion-compat-green",
+    "args": [
+      "bun",
+      "test",
+      "./apps/worker/test/wake-parent.integration.test.ts",
+      "./apps/worker/test/lifecycle.integration.test.ts"
+    ],
+    "source": "31432b65296bdd2c5e7a0b017333e19488e6ef61",
+    "exit": 0,
+    "seconds": 11.671,
+    "sha256": "585c269f7568ca29de4daec82794abfe55d1ed7d80a4ac69bccc994dcc35f4fb"
+  }
+]

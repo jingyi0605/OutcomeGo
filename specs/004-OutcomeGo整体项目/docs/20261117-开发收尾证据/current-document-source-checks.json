@@ -1,0 +1,372 @@
+{
+  "protectedTaskFields": {
+    "base": "93d5ff66510ddb77d1f8b7fb589c365fe4b537f1",
+    "taskIds": 122,
+    "done": 96,
+    "open": 26,
+    "originalDoneRetained": 72,
+    "acceptedOfOriginal50": 24,
+    "tableUniqueRows": 50,
+    "protectedFieldComparisons": 610,
+    "protectedFieldChanges": [],
+    "newThisDevelopmentPhase": [
+      "004/2.3",
+      "004.4/3.3",
+      "004.4/4.1",
+      "004.4/6.1"
+    ]
+  },
+  "markdownFiles": 24,
+  "brokenFileLinks": [],
+  "whitespaceChecks": [
+    {
+      "label": "current-tracked-diff-whitespace",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:apps/desktop/test/outcome-human-receipt-ui.test.tsx",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "apps/desktop/test/outcome-human-receipt-ui.test.tsx"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:apps/server/test/fixtures/outcome-decision-replay.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "apps/server/test/fixtures/outcome-decision-replay.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:apps/server/test/fixtures/outcome-recovery/populated-backup.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "apps/server/test/fixtures/outcome-recovery/populated-backup.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:apps/server/test/fixtures/outcome-recovery/product-replay.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "apps/server/test/fixtures/outcome-recovery/product-replay.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:apps/server/test/outcome-decision-full-replay.integration.test.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "apps/server/test/outcome-decision-full-replay.integration.test.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:apps/server/test/outcome-product-replay.integration.test.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "apps/server/test/outcome-product-replay.integration.test.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:scripts/backup.test.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "scripts/backup.test.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:scripts/outcome-recovery/populated-backup.test.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "scripts/outcome-recovery/populated-backup.test.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:scripts/outcome-recovery/product-replay.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "scripts/outcome-recovery/product-replay.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:scripts/test-outcome-populated-backup.ts",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "scripts/test-outcome-populated-backup.ts"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004-OutcomeGo整体项目/docs/20261117-开发任务收尾与验收边界.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004-OutcomeGo整体项目/docs/20261117-开发任务收尾与验收边界.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004-OutcomeGo整体项目/docs/20261117-逐项任务验收总表.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004-OutcomeGo整体项目/docs/20261117-逐项任务验收总表.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004-OutcomeGo整体项目/docs/final-replay.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004-OutcomeGo整体项目/docs/final-replay.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004-OutcomeGo整体项目/docs/release-decision.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004-OutcomeGo整体项目/docs/release-decision.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.1-项目更名与下一版本发布/docs/20261117-发布相关开发收尾记录.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.1-项目更名与下一版本发布/docs/20261117-发布相关开发收尾记录.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.1-项目更名与下一版本发布/docs/20261117-逐项任务验收记录.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.1-项目更名与下一版本发布/docs/20261117-逐项任务验收记录.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.2-Outcome规划执行与成果验收闭环/docs/20261117-主链路回放开发与对账.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.2-Outcome规划执行与成果验收闭环/docs/20261117-主链路回放开发与对账.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.2-Outcome规划执行与成果验收闭环/docs/20261117-逐项任务验收记录.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.2-Outcome规划执行与成果验收闭环/docs/20261117-逐项任务验收记录.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.3-Outcome收件箱与决策通知/docs/20261117-逐项任务验收记录.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.3-Outcome收件箱与决策通知/docs/20261117-逐项任务验收记录.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.3-Outcome收件箱与决策通知/docs/scenario-b-replay.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.3-Outcome收件箱与决策通知/docs/scenario-b-replay.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.4-现实任务与知识资料闭环/docs/20261117-人工任务全链路开发与对账.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.4-现实任务与知识资料闭环/docs/20261117-人工任务全链路开发与对账.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.4-现实任务与知识资料闭环/docs/20261117-回执表单交互开发与验证.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.4-现实任务与知识资料闭环/docs/20261117-回执表单交互开发与验证.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.4-现实任务与知识资料闭环/docs/20261117-逐项任务验收记录.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.4-现实任务与知识资料闭环/docs/20261117-逐项任务验收记录.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.4-现实任务与知识资料闭环/docs/human-task-replay.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.4-现实任务与知识资料闭环/docs/human-task-replay.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.5-运行时恢复与版本验收/docs/20261117-规划探索数据备份回放开发与验证.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.5-运行时恢复与版本验收/docs/20261117-规划探索数据备份回放开发与验证.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    },
+    {
+      "label": "new-file-whitespace:specs/004.5-运行时恢复与版本验收/docs/20261117-逐项任务验收记录.md",
+      "command": [
+        "git",
+        "diff",
+        "--no-index",
+        "--check",
+        "/dev/null",
+        "specs/004.5-运行时恢复与版本验收/docs/20261117-逐项任务验收记录.md"
+      ],
+      "exitCode": 1,
+      "output": ""
+    }
+  ],
+  "historicalBaselineWhitespace": "Previous full baseline had17diagnostics in3immutable rawlogs; none edited/recompressed. Current checks do not relabel that historical result."
+}

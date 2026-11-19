@@ -7,6 +7,8 @@ import type { PgBoss } from "pg-boss";
 import type { ComputerFetch } from "./service-utils";
 import { appendEvent } from "./service-utils";
 import { SUBAGENT_RECOVERY_RUN_STATUSES, subagentRestartError } from "./subagent/recovery";
+import { recoverOutcomeWorkItems } from "@outcomego/messaging";
+import { PLUGIN_RESTART_UNKNOWN_OUTCOME } from "./plugin/invocation-outcomes";
 
 export const RESTART_INTERRUPTED_NOTICE =
   "This reply was interrupted by a restart. Send your message again to continue.";
@@ -88,6 +90,16 @@ export async function recover(
           code: "runtime_restart",
           message: "Runtime restarted during this turn",
         },
+      },
+    });
+    // A stopped host cannot know whether its in-flight provider call completed.
+    // Keep completed receipts intact and never redrive an uncertain operation.
+    await tx.pluginInvocation.updateMany({
+      where: { status: "running", runId: { in: activeRunIds } },
+      data: {
+        status: "failed",
+        error: PLUGIN_RESTART_UNKNOWN_OUTCOME,
+        completedAt: now,
       },
     });
     const wokenParents = new Set<string>();
@@ -348,4 +360,11 @@ export async function recover(
     await boss.send("bot-wake", { botId }, { retryLimit: 5, retryDelay: 2, retryBackoff: true });
   }
   await messaging.recoverRounds();
+  // Ordinary chat/Task recovery finishes first. Outcome recovery only follows its own
+  // WorkItems and reuses their isolated thread and lease identity.
+  let outcomeCursor: string | null = null;
+  do {
+    const batch = await recoverOutcomeWorkItems(prisma, { messaging }, outcomeCursor);
+    outcomeCursor = batch.nextCursor;
+  } while (outcomeCursor);
 }

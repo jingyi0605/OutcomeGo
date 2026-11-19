@@ -175,7 +175,7 @@ describe("portable plugin packages", () => {
     expect(pluginIconUrl({})).toBeNull();
     expect(pluginIconUrl({ logoUrl: "javascript:alert(1)" })).toBeNull();
   });
-  test("accepts event polling only on packaged connectors with a known source", () => {
+  test("accepts event polling with a known source; email needs a packaged connector", () => {
     const definition = importPackage(files).definition;
     const local = definition.connections.find((connection) => connection.transport === "stdio")!;
     const remote = definition.connections.find((connection) => connection.transport === "http")!;
@@ -188,7 +188,24 @@ describe("portable plugin packages", () => {
     expect(() => withEvents(remote, { pollTool: "poll", source: "email" })).toThrow(
       "Only packaged (stdio) connectors can poll for events"
     );
+    // The generic `plugin` source works on remote MCP connections as well as packaged ones.
+    for (const connection of [local, remote])
+      expect(
+        withEvents(connection, { pollTool: "session_events", source: "plugin", intervalSeconds: 30 })
+          .connections[0]!.events
+      ).toEqual({ pollTool: "session_events", source: "plugin", intervalSeconds: 30 });
+    expect(withEvents(remote, { pollTool: "session_events", source: "plugin" }).connections[0]!.events).toEqual({
+      pollTool: "session_events",
+      source: "plugin",
+    });
+    expect(() => withEvents(remote, { source: "plugin" })).toThrow("event poll tool");
+    expect(() => withEvents(remote, { pollTool: "poll", source: "plugin", intervalSeconds: 29 })).toThrow(
+      "Event poll interval must be 30 to 3600 seconds"
+    );
     expect(() => withEvents(local, { pollTool: "poll", source: "fax" })).toThrow(
+      "Unknown event source: fax"
+    );
+    expect(() => withEvents(remote, { pollTool: "poll", source: "fax" })).toThrow(
       "Unknown event source: fax"
     );
     expect(() => withEvents(local, { source: "email" })).toThrow("event poll tool");

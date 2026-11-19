@@ -1,6 +1,7 @@
 package com.outcomego.mobile.core
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -33,6 +34,8 @@ data class OutcomeGoError(
     val message: String,
     val retryable: Boolean? = null,
     val requestId: String? = null,
+    /** Structured `error.details` from the server, e.g. the current state carried by a 409. */
+    val details: JsonElement? = null,
 )
 
 class OutcomeGoRequestException(val error: OutcomeGoError) : Exception(error.message)
@@ -52,6 +55,7 @@ fun MobileResponse.requireSuccess(json: Json = mobileJson): MobileResponse {
             ?: "Request failed ($status)",
         retryable = nested?.get("retryable")?.jsonPrimitive?.booleanOrNull,
         requestId = nested?.get("requestId")?.jsonPrimitive?.contentOrNull(),
+        details = nested?.get("details"),
     )
     throw OutcomeGoRequestException(error)
 }

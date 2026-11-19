@@ -58,12 +58,17 @@ const automationSection = (id: string, text: string): string => {
   return text;
 };
 
-const automationRunBase = (runSection: string) =>
-  baseSections(AUTOMATION_OMITTED_SECTIONS, automationSection)
+const automationRunBase = (runSection: string, omitted: ReadonlySet<string>) =>
+  baseSections(new Set([...AUTOMATION_OMITTED_SECTIONS, ...omitted]), automationSection)
     .flatMap((text, index) => (index === 0 ? [text, runSection] : [text]))
     .join("\n\n");
 
+/** The goal-management section; it is only part of the prompt while the owner has that module on. */
+export const OUTCOME_SECTION_ID = "native-outcome-records";
+
 export interface PlatformPromptFeatures {
+  /** Goal management is opt-in: without it the prompt carries no goal, Outcome or Explore guidance. */
+  outcomes?: boolean;
   /** An automation run's own section; the run drops the chat-turn sections it can't use. */
   automationRun?: string;
   managedSkills?: boolean;
@@ -74,8 +79,11 @@ export interface PlatformPromptFeatures {
 export function renderPlatformBaseSystemPrompt(features: PlatformPromptFeatures = {}): string {
   const skillified = features.managedSkills ?? process.env.OUTCOMEGO_MANAGED_SKILLS !== "false";
   const sharing = features.sharing ?? process.env.OUTCOMEGO_TEMPLATE_SHARING !== "false";
+  const omitted: ReadonlySet<string> = features.outcomes ? new Set() : new Set([OUTCOME_SECTION_ID]);
   return [
-    features.automationRun ? automationRunBase(features.automationRun) : PLATFORM_BASE_SYSTEM_PROMPT,
+    features.automationRun
+      ? automationRunBase(features.automationRun, omitted)
+      : baseSections(omitted).join("\n\n"),
     // Skillified, the <agent_skills> catalog in user_info is the only pointer, as in the reference.
     skillified ? "" : INLINE_WORKFLOWS,
     !skillified && sharing

@@ -8,7 +8,7 @@ import { AgentDataStore, AgentMessaging } from "@outcomego/messaging";
 import { BotService } from "../src/services/bot-service";
 import { ChannelService } from "../src/services/channel-service";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 
 test.skipIf(!url)("deletion includes a direct message accepted while it waits for the bot row", async () => {
   const db = createPrismaClient(url!);

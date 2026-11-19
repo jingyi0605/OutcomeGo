@@ -772,7 +772,8 @@ export class AssetStore {
 
   async prune(
     referencedAssetIds: ReadonlySet<string>,
-    graceMs = 24 * 60 * 60_000
+    graceMs = 24 * 60 * 60_000,
+    guard?: (assetId: string, remove: () => Promise<boolean>) => Promise<boolean>,
   ): Promise<number> {
     const entries = await readdir(this.root).catch(() => []);
     const cutoff = Date.now() - graceMs;
@@ -783,12 +784,18 @@ export class AssetStore {
       if (!assetId || referencedAssetIds.has(assetId)) continue;
       const info = await stat(join(this.root, entry)).catch(() => null);
       if (!info || info.mtimeMs > cutoff) continue;
-      await Promise.all([
-        rm(this.blobPath(assetId), { force: true }),
-        rm(this.metadataPath(assetId), { force: true }),
-      ]);
-      this.verifiedAssets.delete(assetId);
-      removed += 1;
+      const remove = async () => {
+        // Recheck the grace period after a publication guard has waited.
+        const current = await stat(join(this.root, entry)).catch(() => null);
+        if (!current || current.mtimeMs > cutoff) return false;
+        await Promise.all([
+          rm(this.blobPath(assetId), { force: true }),
+          rm(this.metadataPath(assetId), { force: true }),
+        ]);
+        this.verifiedAssets.delete(assetId);
+        return true;
+      };
+      if (await (guard ? guard(assetId, remove) : remove())) removed += 1;
     }
     return removed;
   }

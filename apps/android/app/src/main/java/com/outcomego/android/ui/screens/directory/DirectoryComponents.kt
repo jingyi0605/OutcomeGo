@@ -135,13 +135,12 @@ internal fun PinnedBotCard(
             ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ConversationAvatar(
+        DirectoryConversationAvatar(
             conversation = conversation,
             accountName = accountName,
             members = members,
             size = 76.dp,
-            showWorking = true,
-            ringColor = colors.canvasBase,
+            unread = unread,
         )
         Spacer(Modifier.height(8.dp))
         Row(
@@ -157,7 +156,7 @@ internal fun PinnedBotCard(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
-            if (unread) {
+            if (unread && !conversation.notificationsMuted) {
                 SpatialPulseOrb(color = colors.accent, size = 7.dp)
             }
         }
@@ -204,13 +203,12 @@ internal fun DirectoryConversationRow(
                 .padding(horizontal = 4.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ConversationAvatar(
+            DirectoryConversationAvatar(
                 conversation = row,
                 accountName = accountName,
                 members = members,
                 size = 50.dp,
-                showWorking = true,
-                ringColor = colors.canvasBase,
+                unread = unread,
             )
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -218,7 +216,7 @@ internal fun DirectoryConversationRow(
                     Text(
                         text = row.title,
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Medium,
+                            fontWeight = if (unread && !row.notificationsMuted) FontWeight.SemiBold else FontWeight.Medium,
                         ),
                         color = colors.textPrimary,
                         maxLines = 1,
@@ -238,12 +236,12 @@ internal fun DirectoryConversationRow(
                     Text(
                         text = row.preview ?: localizedText("No messages yet", "还没有消息"),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if (unread) colors.textPrimary.copy(alpha = 0.85f) else colors.textSecondary,
+                        color = if (unread && !row.notificationsMuted) colors.textPrimary.copy(alpha = 0.85f) else colors.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    if (unread) {
+                    if (unread && !row.notificationsMuted) {
                         Spacer(Modifier.width(8.dp))
                         SpatialPulseOrb(color = colors.accent, size = 8.dp)
                     }
@@ -278,6 +276,37 @@ internal fun DirectoryConversationRow(
             DropdownMenuItem(
                 text = { Text(localizedText("Unassigned", "未分组")) },
                 onClick = { onDismissMenu(); onMoveToSection(null) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DirectoryConversationAvatar(
+    conversation: Conversation,
+    accountName: String,
+    members: List<Conversation>,
+    size: Dp,
+    unread: Boolean,
+) {
+    val colors = SpatialTheme.colors
+    val showMutedUnread = unread && conversation.notificationsMuted
+    val unreadLabel = localizedText("Unread", "未读")
+    Box {
+        ConversationAvatar(
+            conversation = conversation,
+            accountName = accountName,
+            members = members,
+            size = size,
+            showWorking = !showMutedUnread,
+            ringColor = colors.canvasBase,
+        )
+        if (showMutedUnread) {
+            Box(
+                Modifier.align(Alignment.BottomEnd).size(12.dp)
+                    .background(colors.canvasBase, CircleShape).padding(2.dp)
+                    .background(colors.textTertiary, CircleShape)
+                    .semantics { contentDescription = unreadLabel },
             )
         }
     }

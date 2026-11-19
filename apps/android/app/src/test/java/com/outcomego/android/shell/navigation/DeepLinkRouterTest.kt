@@ -20,5 +20,6 @@ class DeepLinkRouterTest {
         assertNull(DeepLinkRouter.parse("https://chat/channel-42"))
         assertNull(DeepLinkRouter.parse("outcomego://chat"))
         assertNull(DeepLinkRouter.parse(null))
+        assertNull(DeepLinkRouter.parse("outcomego://app/v1/outcomes?id=11111111-1111-4111-8111-111111111111"))
     }
 }

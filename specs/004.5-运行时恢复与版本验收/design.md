@@ -1,12 +1,23 @@
 # 设计文档 - 运行时恢复与版本验收
 
-状态：Draft
+状态：Approved（2026-11-17，按子线程执行模型和 D17/D18 修订）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [tasks.md](tasks.md)
 
-## 1. Checkpoint
+## 1. 恢复依据（D17）
 
-Checkpoint 保存：
+不新增 `OutcomeCheckpoint` 表。恢复所需的信息由以下已有或 `004.2` 新增的字段组成：
+
+| 信息 | 来源 |
+|---|---|
+| Contract revision | `OutcomeWorkItem.contractRevisionId` |
+| 运行组 | `Run.outcomeWorkItemId` 相同的所有 Run 及其状态 |
+| 当前阻塞 | `OutcomeWorkItem.status`（`waiting_decision`/`waiting_human`）和开放的 Decision/人工 WorkItem |
+| 已产生输出 | `OutcomeOutput`、`OutcomeEvidence` |
+| 状态原因 | `OutcomeWorkItem.statusReason` 和 `outcome.work_item.updated` 事件 |
+| 重试计数 | `OutcomeWorkItem` 新增 `retryCount`、`recoveryCount`（本阶段任务 1.1） |
+
+下文保留原 Checkpoint 字段清单，作为“恢复时必须能回答的问题”，不是新的存储结构：
 
 - `outcome_id`
 - `contract_revision`
@@ -18,7 +29,7 @@ Checkpoint 保存：
 - 当前预算或重试计数（如果已有）
 - 外部动作回执（如果已有）
 
-Checkpoint 只服务于已有 Run 恢复，不作为新的任务系统。
+以上信息只服务于恢复，不作为新的任务系统。
 
 ## 2. 事件幂等
 
@@ -67,7 +78,7 @@ UNSUPPORTED
 ## 6. 最终验收顺序
 
 ```text
-旧版本升级
+新安装/手动备份导入
   → Outcome 规划
   → Contract 批准
   → OpenTeam 执行
@@ -87,13 +98,16 @@ UNSUPPORTED
 | 外发重试 | `OutboxDelivery`、`apps/worker/src/push-notifications.ts` | 只扩展 Outcome 通知或现有外部动作 |
 | Run lease | `BotRunLease`、`apps/worker` | 复用 heartbeat/expiry，恢复时重新检查 Run |
 | Run progress | `Run.requestProgress`、`requestRevision`、`requestNextCheckAt` | 若字段可表达 Checkpoint，优先扩展 JSON schema |
-| 启动恢复 | `apps/server/src/services/startup-recovery.ts` | 增加 Outcome/WorkItem 遗留状态扫描 |
+| 启动恢复 | `apps/server/src/services/startup-recovery.ts` | 增加 Outcome WorkItem 遗留状态扫描 |
+| 子线程运行组 | `packages/messaging/src/automation-results.ts`、`packages/messaging/src/outcome-threads.ts`（`004.2` 新增） | 重新结算未完成的运行组 |
 | Run 取消 | `apps/server/src/services/run-service.ts` | 使用现有 cancel/stop 语义，不增加新取消原因 |
 
-## 8. Checkpoint 数据合同
+## 8. 恢复视图（只读计算，不落表）
+
+恢复查询（`GET /recovery`）和启动扫描使用下面的只读结构，由 §1 的字段计算得到：
 
 ```ts
-interface OutcomeCheckpoint {
+interface OutcomeRecoveryView {
   id: string;
   outcomeId: string;
   contractRevision: number;
@@ -111,15 +125,14 @@ interface OutcomeCheckpoint {
 }
 ```
 
-如果使用 `Run.requestProgress` 保存，必须增加 runtime schema validator 和版本字段；如果需要跨多个 WorkItem 查询，新增 `OutcomeCheckpoint` 表。选择理由必须写入任务证据。
+`sequence` 取该 WorkItem 最近一条 `outcome.work_item.updated` 事件的 `Event.sequence`。不写入 `Run.requestProgress`，不新增表。
 
-Checkpoint 写入时机：
+WorkItem 状态写入时机（均在 `004.2`/`004.3`/`004.4` 的业务事务内完成，本阶段只补 `statusReason` 和计数）：
 
-1. WorkItem 开始前。
-2. WorkItem 成功并产生 Output 后。
-3. 创建 Decision 或 HumanAction 后。
-4. 触发需要回执的外部动作前后。
-5. Run 失败、取消和恢复完成时。
+1. 子线程根 Run 入队。
+2. 运行组结算（完成、失败、中断）。
+3. 创建 Decision 或人工 WorkItem。
+4. 恢复重新入队或进入 `needs_review`。
 
 ## 9. 幂等处理合同
 
@@ -144,24 +157,36 @@ hash 不一致返回 `409 idempotency_conflict`；已经完成返回第一次响
 
 ## 10. 恢复状态机
 
-本状态机就是父 design.md §42.2 的 Agent WorkItem 状态，不另起一套恢复状态。Human WorkItem 的等待由 `004.4` §16 的状态机表达，这里不重复定义 `waiting_human`。
+本状态机就是父 design.md §42.2 的 Agent WorkItem 状态，不另起一套恢复状态。人工 WorkItem 自身的状态由 `004.4` §16 表达；Agent WorkItem 等待人工 WorkItem 时为 `waiting_human`。
 
 ```text
 running
-  → retry_pending       （内部可重试失败）
-  → waiting_decision    （需要用户选择）
-  → needs_review        （外部副作用未知或状态不一致）
+  → retry_pending       （根 Run 入队失败等可重试错误）
+  → waiting_decision    （Agent 调用 RequestOutcomeDecision）
+  → waiting_human       （Agent 调用 RequestHumanAction）
+  → needs_review        （运行组中断且不能安全续跑，或状态不一致）
   → completed
   → failed
 
-retry_pending → running | failed | waiting_decision
+retry_pending → running | failed
 waiting_decision → running | cancelled（revision 被替代时）
+waiting_human → running | cancelled
 needs_review → running | cancelled | completed
 ```
 
-状态转换必须携带 `transitionReason` 和 `checkpointId`。恢复逻辑不依据 Agent 自报文本判断状态，只读取数据库状态、事件和回执。
+状态转换必须写入 `statusReason` 并产生 `outcome.work_item.updated` 事件。恢复逻辑不依据 Agent 自报文本判断状态，只读取数据库状态、事件和回执。
 
-## 11. 必要动作分流器
+## 11. WorkItem 下一步路由
+
+动作分流只回答“这个 WorkItem 下一步交给谁”，输入都来自已有的明确事实，不扫描或分类 Agent 的工具调用（Outcome 层看不到子线程内部的工具调用，也不需要看到）：
+
+| 事实 | 路由 |
+|---|---|
+| Agent 调用了 `RequestOutcomeDecision` | `NEEDS_USER_DECISION` → `004.3` |
+| Agent 调用了 `RequestHumanAction`，或 Decision 选了 `manual_action` | `MANUAL_ACTION` → `004.4` |
+| 运行组正常结束 | `ALLOW` → 进入验收 |
+| 运行组中断且不能安全续跑（§17.2） | `NEEDS_USER_DECISION`（`external_result_unknown`）或 `needs_review` |
+| WorkItem 的 executorType/kind 没有实现路径 | `UNSUPPORTED` |
 
 ```ts
 type ActionDecision =
@@ -171,23 +196,22 @@ type ActionDecision =
   | { kind: "UNSUPPORTED"; actionType: string; reason: string };
 ```
 
-分流输入是 `contractRevision`、WorkItem executor type、当前 action type 和已知回执。它不是模型生成的权限令牌，也不负责理解所有插件/MCP 工具。
+分流输入是上表的事实。它不是模型生成的权限令牌，也不负责理解插件/MCP 工具。
 
 ## 12. 运行时恢复流程
 
 ```text
-服务启动
-  → 找出非终态 Outcome/Run
-  → 读取最新 Checkpoint
-  → 检查 Contract revision 是否仍有效
-  → 检查 lease 是否过期
-  → 检查最后一个动作的回执
-  → queued / waiting / needs_review
-  → 写入 recovery event
-  → 唤醒现有 Worker 或生成 Decision
+服务启动（现有 startup-recovery 完成普通 Run 和租约清理之后）
+  → 找出状态为 queued/running/retry_pending 的 Agent WorkItem（分页）
+  → 读取其运行组
+  → 检查 Contract revision 是否仍为当前批准 revision
+  → 运行组仍有 queued/running Run：交给现有 Worker 处理，不动
+  → 运行组全部结束但未结算：重新调用 settleOutcomeWorkItem（幂等）
+  → 运行组以 interrupted 结束：按 §17.2 重新入队（同一子线程）或 needs_review
+  → 写 outcome.recovered 事件
 ```
 
-服务启动不得盲目重新执行所有 `running` Run。没有 Checkpoint、revision 已 superseded 或副作用状态 unknown 的 Run 进入 `needs_review`。
+服务启动不得盲目重新执行所有 `running` 的 WorkItem。revision 已 superseded 的进入 `cancelled`；无法判断的进入 `needs_review`。重新入队只使用 `outcome:<workItemId>` 租约，不触碰主对话租约。
 
 ## 13. 指标和查询
 
@@ -207,7 +231,7 @@ recoveryCount, duplicateEventCount, lastErrorCode
 
 必须按以下顺序执行：
 
-1. `004.1` 旧版本升级和 OutcomeGo 安装。
+1. `004.1` 已知 PENDING 项复核：OutcomeGo 新安装、手动备份导入、回滚演练。
 2. `004.2` 研究任务规划、批准、Run、Evidence 和 Review。
 3. `004.3` Decision 创建、通知、resolve 和恢复。
 4. `004.4` 资料、人工动作卡、回执和验收。
@@ -263,16 +287,19 @@ load non-terminal Outcome/Run
 
 | 条件 | 恢复分类 | 下一步 |
 |---|---|---|
-| 有最新 checkpoint，内部步骤未完成 | `resume_queued` | 重新排队同一 WorkItem |
-| 已创建 Decision | `waiting_decision` | 不重新排队，等待 resolve |
-| 已创建 HumanAction | `waiting_human` | 不重新排队，等待回执 |
-| lease 过期且无副作用 | `resume_queued` | 重新获取 lease |
-| 外部动作状态 confirmed | `resume_after_receipt` | 写入结果后继续 |
-| 外部动作状态 unknown | `needs_review` | 创建 Decision/人工检查 |
-| revision superseded | `needs_review` | 迁移到新 revision 或取消 |
-| 无 checkpoint 且 Run running | `needs_review` | 不猜测下一步 |
+| 运行组仍有 queued/running Run，租约有效 | 不处理 | 交给现有 Worker |
+| 运行组全部结束，WorkItem 未结算 | `resettle` | 重新调用 `settleOutcomeWorkItem` |
+| WorkItem 为 `waiting_decision`/`waiting_human` | 不处理 | 等待 resolve 或回执 |
+| 最后一个 Run 为 `interrupted`，`recoveryCount` < 2 | `resume_queued` | 在同一子线程入队一个续跑回合，提示 Agent 先检查已完成的工作再继续 |
+| 最后一个 Run 为 `interrupted`，`recoveryCount` ≥ 2 | `needs_review` | 创建 `external_result_unknown` Decision，由用户决定重试或取消 |
+| revision superseded | `cancelled` | 不重新入队 |
+| 状态组合非法（§34） | `needs_review` | 写 `state_inconsistent` |
+
+子线程内的 Agent 可能已经执行了外部动作（例如发送邮件），Outcome 层无法知道。因此中断后的续跑回合必须在执行说明中提示 Agent 先核对已完成的工作；连续中断两次后交给用户决定，不再自动续跑。
 
 ## 18. Checkpoint 持久化选择
+
+已决定（D17）：不新增表，也不写入 `Run.requestProgress`。以下两个方案保留为决策依据。
 
 ### 方案 A：扩展 `Run.requestProgress`
 
@@ -294,7 +321,7 @@ load non-terminal Outcome/Run
 
 优点：关系清晰、可索引、可测试。缺点：需要迁移和服务端关联。
 
-选择必须在 `0.1` 审计后写入 ADR，不允许同时长期维护两套权威 Checkpoint。
+子线程模型下，运行组和 WorkItem 已经能回答恢复问题，两种方案都不需要。
 
 ## 19. 事件处理器实现
 
@@ -313,7 +340,7 @@ receive event
   → perform async side effect
 ```
 
-如果现有 Event 表没有事件 ID 唯一约束，新增专用处理记录或使用已有 IdempotencyRecord；不得仅靠内存 Set 去重。
+事件去重使用 `IdempotencyRecord(scope="outcome-event:<handler>", key=eventId)`（D18、父 design §43），不新增处理记录表；不得仅靠内存 Set 去重。
 
 ### 19.2 乱序事件
 
@@ -422,7 +449,7 @@ checkpoint(outcomeId, input)
 recover(outcomeId, reason)
 classifyAction(input)
 markNeedsReview(outcomeId, reason)
-resumeWorkItem(workItemId, checkpointId)
+resumeWorkItem(workItemId, reason)
 reconcileRun(runId)
 ```
 
@@ -463,17 +490,14 @@ POST /api/v0/outcomes/:outcomeId/reconcile
 
 ### 26.1 事件计数
 
-每个计数通过事实事件或现有事件投影产生：
+不新增指标事件（父 design §14）。计数从目录中已有的事件和业务表派生：
 
-```text
-outcome.intervention.requested
-outcome.decision.resolved
-outcome.review.submitted
-outcome.retry.started
-outcome.recovery.started
-outcome.event.duplicate
-outcome.notification.created
-```
+| 计数 | 来源 |
+|---|---|
+| 用户介入 | `outcome.contract.revision_approved`、`outcome.decision.resolved`、`outcome.review.recorded`、`outcome.human_receipt.submitted` |
+| 重试、恢复 | `OutcomeWorkItem.retryCount`、`recoveryCount`；`outcome.recovered` |
+| 重复事件 | `outcome-event:*` scope 下被判定为重复的次数（处理器写日志计数） |
+| 通知 | `004.3` 的通知事实（`ChannelNotification`/`OutboxDelivery`） |
 
 ### 26.2 N/T/Q
 
@@ -521,7 +545,7 @@ outcome.notification.created
 
 ### Gate 4：父级回放
 
-- upgrade-from-beta-13。
+- fresh-install-import（新安装和手动备份导入）。
 - research outcome。
 - decision pending/resolved。
 - human action receipt。
@@ -587,16 +611,16 @@ outcome.notification.created
 
 ## 31. 设计决策记录
 
-实现前必须记录：
-
-- Checkpoint 存储方案。
-- Event 去重使用现有表还是专用处理记录。
-- 哪些 action type 进入第一版 `ALLOW`。
-- 哪些外部动作具备可信 receipt。
-- 恢复后旧 revision 的迁移规则。
-- 是否允许服务端启动时自动重排队 Run。
-- N/T/Q 的第一轮统计字段。
-- 哪些发布 Gate 是硬门槛，哪些仅记录 PENDING。
+| 问题 | 结论 |
+|---|---|
+| 恢复存储 | 不建 checkpoint 表（D17，§1） |
+| 事件去重 | `IdempotencyRecord`（D18） |
+| 动作分流 | 只按明确事实路由（§11），不分类工具 |
+| 外部动作回执 | Outcome 层不跟踪子线程内的外部动作；中断续跑提示 Agent 自查，连续中断交给用户（§17.2） |
+| 旧 revision | 恢复时 superseded 的 WorkItem 直接 `cancelled` |
+| 启动自动重排队 | 允许，最多 2 次（§17.2） |
+| N/T/Q | §40 |
+| 发布 Gate | §28 与 requirements “运行时发布硬门槛” |
 
 ## 32. Recovery service 的启动和停止
 
@@ -659,7 +683,8 @@ stop accepting new Outcome runs
 | queued | null/queued | approved/running | 等待提交 |
 | running | queued/running | running | 正常执行 |
 | waiting_decision | completed（Agent 回合已结束） | decision_pending | 不重新提交 |
-| retry_pending | failed/interrupted | running | 等待重试 |
+| waiting_human | completed（Agent 回合已结束） | human_action_pending | 不重新提交，等待人工 WorkItem |
+| retry_pending | null（根 Run 未能入队） | running | 等待重试 |
 | needs_review | interrupted/failed | running 或 review_pending | 等待人工核对 |
 | completed | completed | review_pending 或继续下一 WorkItem | 等待验收 |
 | failed | failed | failed/decision_pending | 显示原因 |
@@ -690,7 +715,7 @@ reconciliation 只在发现有事实依据时修正聚合状态，不修改 Cont
 load Run
 load lease
 load latest RunItems/events
-load OutcomeRunLink
+load OutcomeWorkItem via Run.outcomeWorkItemId
 classify active/completed/stale/unknown
 ```
 
@@ -712,7 +737,7 @@ classify active/completed/stale/unknown
 
 ```text
 BEGIN
-  insert EventProcess(eventId) if absent
+  insert IdempotencyRecord(scope="outcome-event:<handler>", key=eventId) if absent
   if duplicate: return stored result
   load Outcome/Run with row lock
   check current status and revision
@@ -723,7 +748,7 @@ COMMIT
 perform push/worker wakeup outside transaction
 ```
 
-如果当前 Event 表已经是事实日志而非处理记录，增加处理记录时要说明保留期限和清理方式。处理记录不能覆盖事实事件。
+`IdempotencyRecord` 的保留和清理沿用现有规则。处理记录不能覆盖事实事件。
 
 ## 38. 幂等 key 与业务对象
 
@@ -828,7 +853,7 @@ bun scripts/test-outcome-recovery.ts --scenario restart-running-run
 bun scripts/test-outcome-recovery.ts --scenario duplicate-finish-event
 bun scripts/test-outcome-recovery.ts --scenario unknown-external-receipt
 bun scripts/test-outcome-recovery.ts --scenario concurrent-decision
-bun scripts/test-outcome-recovery.ts --scenario upgrade-from-beta-13
+bun scripts/test-outcome-recovery.ts --scenario interrupted-thread-resume
 ```
 
 每个 scenario 输出 JSON：
@@ -924,24 +949,17 @@ bun scripts/test-outcome-recovery.ts --scenario upgrade-from-beta-13
 
 实际命令必须以仓库当前 package scripts 为准；如果某个 glob 没有匹配文件，任务需改成明确文件列表，不把空跑当成通过。
 
-## 47. 设计决策记录扩展
+## 47. 补充实现取舍
 
-实现前必须记录：
-
-- Checkpoint 的最终存储方式。
-- Recovery scanner 的启动位置和 batch size。
-- Event process marker 的存储方式。
-- 哪些内部失败可以自动重试。
-- 哪些外部动作有可信 receipt。
-- 是否提供人工 reconcile API。
-- Outcome capability 的启用顺序。
-- Release Gate 的 PASS/PENDING/FAIL 规则。
+- 恢复扫描挂在 `apps/server/src/services/startup-recovery.ts` 的 `recover` 之后，每批 100 个 WorkItem。
+- 提供 `POST /api/v0/outcomes/:id/reconcile`（§25），只走幂等的结算和分类路径，不提供强制成功。
+- 其他决策见 §31。
 
 ## 48. 数据库备份和迁移回退
 
-1. 每个新增 Outcome 表的 migration 在部署前执行 `pg_dump`（只针对测试和发布验证环境；不在用户生产环境自动执行），备份路径写入 `docs/release-decision.md`。
-2. 所有 Outcome migration 只新增表和可选列，回退方式是部署旧镜像并保留新表（父 design.md §16、§30），不执行破坏性 down migration。
-3. 发布验证必须包含一次“从备份恢复后旧版本可读”的演练。
+1. 每次包含 Outcome schema 变更的发布，在测试和发布验证环境部署前执行 `pg_dump`（不在用户生产环境自动执行），备份路径写入 `docs/release-decision.md`。
+2. Outcome schema 变更只新增表和可选列（父 design §16）。正式回滚方式是关闭 Outcome 入口、保留新镜像和新表。
+3. 发布验证必须演练两件事并记录实际结果：关闭入口后普通聊天、Routine 正常；在 Outcome 表有数据时回退旧镜像会发生什么（父 design §16 已知风险）。
 
 ## 49. 失败告警
 

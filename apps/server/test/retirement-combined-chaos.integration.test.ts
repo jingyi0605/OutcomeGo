@@ -10,7 +10,7 @@ import { WakeWorker } from "../../worker/src/worker";
 import { BotAgentStore } from "../../computer/src/bot-agent-store";
 import { NativeToolExecutor } from "../../computer/src/native-tool-executor";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 
 for (const seed of [1, 7, 29, 101, 284]) {
   test.skipIf(!url || process.platform === "win32")(`retirement survives concurrent late work and a cleanup outage, seed ${seed}`, async () => {

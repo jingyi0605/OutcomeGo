@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
@@ -65,6 +66,7 @@ databaseTest(
             archives: [],
           });
         if (path !== "/v1/turns") return Response.json({ ok: true, quarantined: [] });
+        return turnResponse(async () => {
         const input = (await request.json()) as TurnInput;
         const call = (tool: string, args: unknown) =>
           Effect.runPromise(
@@ -120,8 +122,7 @@ databaseTest(
           { type: "prompt.delivered", turnId: input.runId },
           { type: "turn.completed", turnId: input.runId, status: "completed" },
         ];
-        return new Response(events.map((event) => JSON.stringify(event)).join("\n") + "\n", {
-          headers: { "content-type": "application/x-ndjson" },
+        return events;
         });
       },
     });

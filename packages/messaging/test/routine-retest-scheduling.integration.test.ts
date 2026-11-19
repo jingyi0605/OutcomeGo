@@ -5,7 +5,7 @@ import { RoutineService } from "../src/routines";
 import { triggerIdentity } from "../src/automation-trigger";
 import { repairRoutineScheduling } from "../../../scripts/repair-routine-scheduling";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = url ? test : test.skip;
 const start = new Date("2026-01-01T00:00:00.123Z");
 const atMinute = (minutes: number) => new Date(start.getTime() + minutes * 60_000);
@@ -237,7 +237,7 @@ integration("additive scheduling columns remain nullable without defaults in the
   try {
     const columns = await db.$queryRaw<Array<{ column_name: string; is_nullable: string; column_default: string | null }>>(Prisma.sql`
       SELECT column_name, is_nullable, column_default FROM information_schema.columns
-      WHERE table_schema = current_schema() AND table_name = 'Routine'
+      WHERE table_schema = current_schema() AND table_name = 'outcomego_routine'
       AND column_name IN ('scheduleAnchorAt', 'validationError') ORDER BY column_name
     `);
     expect(columns).toEqual([

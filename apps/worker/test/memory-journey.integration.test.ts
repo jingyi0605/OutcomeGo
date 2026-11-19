@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { DynamicToolCallRequest, type ComputerTurnRequest } from "@outcomego/contracts";
 import { AppService } from "../../server/src/app-service";
 import { errorResponse, json, parseBody } from "../../server/src/http";
@@ -12,7 +13,7 @@ import { clientRoutes } from "../../server/src/routes/client";
 import { conversationRoutes } from "../../server/src/routes/conversation";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const oldFact = "My favourite football player is Ronaldo.";
 const currentFact = "My favourite player is now Messi.";
 const question = "Who is my favourite football player?";
@@ -35,7 +36,7 @@ test.skipIf(!databaseUrl)("a user remembers, corrects, recalls across fresh chat
   let worker: WakeWorker | undefined;
   let botId: string | undefined;
   let appStarts = 0;
-  const keys = ["DATABASE_URL", "OPENTEAM_COMPUTER_URL", "OPENTEAM_CONTROL_TOKEN", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT", "OPENTEAM_AUTH_MODE"] as const;
+  const keys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT", "OUTCOMEGO_AUTH_MODE"] as const;
   const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
 
   // Public routes are the same handlers main.ts dispatches. The internal tool
@@ -86,6 +87,7 @@ test.skipIf(!databaseUrl)("a user remembers, corrects, recalls across fresh chat
     if (path !== "/v1/turns") return Response.json({ ok: true, quarantined: [] });
     const input = await request.json() as ComputerTurnRequest;
     turns.push(input);
+    return turnResponse(async () => {
     try {
       const call = async (tool: string, args: unknown) => {
         const result = await http("/api/internal/tools/call", {
@@ -117,18 +119,19 @@ test.skipIf(!databaseUrl)("a user remembers, corrects, recalls across fresh chat
           : recall.includes(oldFact) ? "Your favourite football player is Ronaldo." : missingReply;
       }
       await call("SendToUser", { type: "text", content: reply });
-      return new Response([
+      return [
         { type: "session.attached", runtimeEngine: "pi", inferenceProvider: "openai-codex", contextSessionId: input.contextSessionId,
           sessionPath: input.sessionPath ?? `/var/lib/openteam/pi/${input.contextSessionId}.jsonl`, sessionId: input.contextSessionId, model: "controlled-memory-journey" },
         { type: "context.state", contextSessionId: input.contextSessionId, epoch: 0, archives: [] },
         { type: "turn.started", turnId: input.runId },
         { type: "prompt.delivered", turnId: input.runId },
         { type: "turn.completed", turnId: input.runId, status: "completed" },
-      ].map(event => JSON.stringify(event)).join("\n") + "\n", { headers: { "content-type": "application/x-ndjson" } });
+      ];
     } catch (error) {
       fixtureErrors.push(error);
-      return Response.json({ error: String(error) }, { status: 500 });
+      throw error;
     }
+    });
   } });
   const until = async (check: () => Promise<boolean>) => {
     for (let i = 0; i < 600; i++) {
@@ -165,8 +168,8 @@ test.skipIf(!databaseUrl)("a user remembers, corrects, recalls across fresh chat
     (await app!.prisma.contextPromptSnapshot.findUniqueOrThrow({ where: { contextSessionId } })).promptSections as Record<string, { render: string }>;
 
   try {
-    Object.assign(process.env, { DATABASE_URL: databaseUrl, OPENTEAM_COMPUTER_URL: computer.url.origin, OPENTEAM_CONTROL_TOKEN: token,
-      OPENTEAM_WORKSPACE_ROOT: root, OPENTEAM_AGENT_DATA_ROOT: join(root, "data"), OPENTEAM_AUTH_MODE: "disabled" });
+    Object.assign(process.env, { DATABASE_URL: databaseUrl, OUTCOMEGO_COMPUTER_URL: computer.url.origin, OUTCOMEGO_CONTROL_TOKEN: token,
+      OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"), OUTCOMEGO_AUTH_MODE: "disabled" });
     await start();
     await app!.agentData.writeInferenceSettings({ providerId: "openai-codex", modelId: "controlled-memory-journey", reasoning: "low" });
     const bot = await http<{ id: string; conversationId: string }>("/api/bots", { name: "Memory user journey", clientRequestId: crypto.randomUUID() });

@@ -16,3 +16,20 @@ export const APP_SETTINGS_ANCHORS = [
   "web-search-provider",
   "web-fetch-provider",
 ] as const;
+
+/** Outcome links contain object identity only; callers load content after authentication. */
+export const outcomeDeepLink = (outcomeId: string): string =>
+  `outcomego://app/v1/outcomes?id=${encodeURIComponent(outcomeId)}`;
+export const outcomeDecisionDeepLink = (decisionId: string): string =>
+  `outcomego://app/v1/outcomes/decision?id=${encodeURIComponent(decisionId)}`;
+export const parseOutcomeDeepLink = (value: string): { outcomeId?: string; decisionId?: string } | null => {
+  try {
+    const link = new URL(value);
+    if (link.protocol !== "outcomego:" || link.hostname !== "app" || link.username || link.port || link.hash || [...link.searchParams.keys()].some(key => key !== "id")) return null;
+    const id = link.searchParams.get("id");
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || link.searchParams.getAll("id").length !== 1) return null;
+    if (link.pathname === "/v1/outcomes") return { outcomeId: id };
+    if (link.pathname === "/v1/outcomes/decision") return { decisionId: id };
+    return null;
+  } catch { return null; }
+};

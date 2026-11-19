@@ -1,0 +1,23 @@
+[
+  {
+    "path": "specs/004.4-现实任务与知识资料闭环/docs/human-task-replay.md",
+    "artifact": "product-isolation/human-isolated.json",
+    "uuidCount": 23,
+    "missingIds": [],
+    "artifactSha256": "345e9147720b2e800dc5b55a7821b5c75cb22e46930a39c6a0ed41eccf7bf3b7"
+  },
+  {
+    "path": "specs/004.3-Outcome收件箱与决策通知/docs/scenario-b-replay.md",
+    "artifact": "decision-replay.json",
+    "uuidCount": 12,
+    "missingIds": [],
+    "artifactSha256": "c60239e76c27f64695f082813d3e6ea5400989960964d9f0a235dd68948d3e2f"
+  },
+  {
+    "path": "specs/004.2-Outcome规划执行与成果验收闭环/docs/acceptance-replay.md",
+    "artifact": "product-isolation/research-isolated.json",
+    "uuidCount": 23,
+    "missingIds": [],
+    "artifactSha256": "76befaab5cc4400398bac2a8745d7656956b66beb1be8480ab3019fe3a8f6e1a"
+  }
+]

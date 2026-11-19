@@ -125,7 +125,7 @@ fun SettingsScreen(
                     Modifier
                         .fillMaxSize()
                         .navigationBarsPadding()
-                        .pointerInput(Unit) {
+                        .pointerInput(haptic) {
                             // Mirror the way settings opens: dragging it back to the left closes it.
                             val trigger = 72.dp.toPx()
                             var total = 0f
@@ -134,6 +134,7 @@ fun SettingsScreen(
                                 total += delta
                                 if (!fired && total <= -trigger) {
                                     fired = true
+                                    haptic.play(HapticEffect.Medium)
                                     onBack()
                                 }
                             }

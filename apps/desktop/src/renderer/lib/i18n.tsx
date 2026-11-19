@@ -57,6 +57,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
+export const useOptionalI18n = (): ContextValue | null => useContext(Context);
+
 export const useI18n = (): ContextValue => {
   const value = useContext(Context);
   if (!value) throw new Error("useI18n must be used inside I18nProvider");

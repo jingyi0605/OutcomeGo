@@ -26,6 +26,25 @@ If a provider requires OAuth authorization extensions, set `configuration.oauthA
 
 `${FIELD_NAME}` substitutes a typed setup value. Declare credential fields with `secret: true`, no default, and use placeholders in the manifest. Configure actual secrets in Installed. Keep, replace and clear are distinct operations. Never include `.env`, credentials files, `node_modules`, or a real token in a contribution.
 
+## Event sources
+
+A connection can declare an event poll so routines can be woken by what its service reports:
+
+```json
+"events": { "pollTool": "session_events", "source": "plugin", "intervalSeconds": 60 }
+```
+
+`pollTool` names a tool on that connection. The host calls it every `intervalSeconds` (30–3600, default 60) with `{ "cursor": <last cursor or null> }`, hides it from Bots, and runs the matching routines for each returned event. `source: "plugin"` works for Remote MCP and packaged (stdio) connections; `source: "email"` is reserved for the Email plugin and needs a packaged connector. A remote call is cancelled after 30 seconds.
+
+The tool returns `{ "events": [...], "cursor": <any JSON> }`, as `structuredContent` or JSON text:
+
+- On the first call (`cursor` is null) return a baseline cursor and no events, so only what happens after the account is connected can wake a Bot.
+- Return events oldest first, at most 50 per call, and advance the cursor only as far as the last event you returned. The host runs the first 50 and drops the rest.
+- Each event has `id` (1–150 characters, the same every time the same event is returned), `kind` (up to 80, such as `session.completed`), and `text` (what a Bot reads). It may have `occurredAt`, `actor` and `resourceId` (for example a session ID).
+- The host saves the new cursor only after every event ran, so a failed batch comes back with the same IDs and runs once per routine. Return an MCP error result to keep the old cursor.
+
+The host sets each event's `source`, `plugin` and `account` and namespaces its `id`; whatever the tool returns for those is ignored. Bots subscribe by creating a routine with `{ "type": "plugin", "plugin": "<plugin key>", "resourceIds"?: [...], "actors"?: [...], "events"?: [...] }`. A trigger must name `resourceIds` or `actors`. `events` narrows it to kinds such as `session.completed`. The routine's wake carries the event in a `<plugin_event>` block. Describe your event kinds and resource IDs in the plugin's skill so Bots can write the trigger.
+
 ## Multiple provider accounts
 
 Gmail, Google Calendar, Google Drive, and the other account-based connectors support multiple accounts. In **Manage plugins → Installed**, select a plugin, enter a **New account name** (for example, `work` or `personal`), and choose **Add account**. Select the new account, configure it, authorize it in the browser. Each account keeps its own credentials, tools and activity. Gmail, Calendar, Drive, Docs, Sheets, and Slides are separate connectors; authorizing one does not authorize the others.

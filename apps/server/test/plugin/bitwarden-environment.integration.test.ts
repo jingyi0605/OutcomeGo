@@ -4,7 +4,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { pluginCatalog } from "@outcomego/plugins";
 import { PluginInstallations } from "../../src/services/plugin/installations";
 import { PluginQueries } from "../../src/services/plugin/queries";
-import { processEnvironment, protectedPluginEnvironment, retainPluginEnvironment } from "../../src/services/process-secrets";
+import { processEnvironment, protectedPluginEnvironment, retainPluginEnvironment, storePluginEnvironment } from "../../src/services/process-secrets";
 
 const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
@@ -45,13 +45,22 @@ test.skipIf(!databaseUrl)("Bitwarden runtime fields install, rotate, stay privat
     expect(await env()).not.toHaveProperty("BW_CLIENT_SECRET");
     expect(await protectedPluginEnvironment(db, plugin.key)).toMatchObject({ BW_CLIENT_SECRET: "fixture-rotated", BW_MASTER_PASSWORD: values.masterPassword });
     await db.processSecret.upsert({ where: { ownerKey_name: { ownerKey: `bot:${botId}`, name: "BW_EMAIL" } }, create: { ownerKey: `bot:${botId}`, name: "BW_EMAIL", value: "bot@example.test", botId }, update: { value: "bot@example.test" } });
-    expect((await env()).BW_EMAIL).toBe("bot@example.test");
+    expect(await env()).not.toHaveProperty("BW_EMAIL");
+    expect(await protectedPluginEnvironment(db, plugin.key)).toMatchObject({ BW_EMAIL: values.email });
+    // Ordinary fields retain plugin-to-Bot precedence; protected names never enter Shell.
+    await storePluginEnvironment(db, plugin.key, [["FIXTURE_CONTACT_EMAIL", values.email]]);
+    expect((await env()).FIXTURE_CONTACT_EMAIL).toBe(values.email);
+    await db.processSecret.create({ data: { ownerKey: `bot:${botId}`, name: "FIXTURE_CONTACT_EMAIL", value: "bot@example.test", botId } });
+    expect((await env()).FIXTURE_CONTACT_EMAIL).toBe("bot@example.test");
     await retainPluginEnvironment(db, plugin.key, ["BW_EMAIL"]);
     expect((await env()).BW_CLIENT_SECRET).toBeUndefined();
     await Effect.runPromise(installations.updateEnvironment(plugin.key, { clientSecret: "fixture-restored" }));
     await Effect.runPromise(installations.uninstall(plugin.key));
     expect((await env()).BW_CLIENT_SECRET).toBeUndefined();
-    expect((await env()).BW_EMAIL).toBe("bot@example.test");
+    expect(await env()).not.toHaveProperty("BW_EMAIL");
+    expect((await env()).FIXTURE_CONTACT_EMAIL).toBe("bot@example.test");
+    expect(await db.processSecret.findUnique({ where: { ownerKey_name: { ownerKey: `bot:${botId}`, name: "BW_EMAIL" } } }))
+      .toMatchObject({ value: "bot@example.test" });
     expect(await db.processSecret.count({ where: { ownerKey: `plugin:${plugin.key}` } })).toBe(0);
   } finally {
     await db.pluginInstallation.deleteMany({ where: { pluginKey: { in: keys } } });

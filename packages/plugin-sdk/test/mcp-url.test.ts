@@ -12,7 +12,10 @@ test("MCP URL fields normalize reachable schemes and reject credential-bearing o
     "http://localhost:3773/mcp",
     "http://127.0.0.1:3773/mcp",
     "http://[::1]:3773/mcp",
-  ]) {
+    "http://10.255.0.83:3773/mcp",
+    "http://172.31.8.4:3773/mcp",
+    "http://192.168.1.2:3773/mcp",
+    "http://[fd12:3456::83]:3773/mcp",  ]) {
     expect(
       validateValues(
         [{ key: "url", label: "MCP URL", format: "mcp-url", required: true, secret: false }],
@@ -24,8 +27,13 @@ test("MCP URL fields normalize reachable schemes and reject credential-bearing o
     "AUTO-example",
     "environment.example/mcp",
     "http://100.64.1.2:3773/mcp",
-    "http://192.168.1.2:3773/mcp",
-    "https://user:pass@example.com/mcp",
+    "http://8.8.8.8:3773/mcp",
+    "http://172.32.0.1:3773/mcp",
+    "http://[2001:db8::1]:3773/mcp",
+    "http://[fe80::1]:3773/mcp",
+    "http://169.254.169.254/mcp",
+    "http://environment.example/mcp",
+    "http://dsh.local/mcp",    "https://user:pass@example.com/mcp",
     "https://example.com/pair#code=private",
     "https://example.com/mcp#",
     "https://example.com/mcp?token=private",

@@ -1,0 +1,399 @@
+{
+  "source": "388085776eb6d25c16228aa8f8b972904ed04afb",
+  "command": [
+    "bun",
+    "test",
+    "--pass-with-no-tests"
+  ],
+  "cwd": "apps/server",
+  "databaseEndpoint": "127.0.0.1:55439/outcomego_w3_server2",
+  "canonicalOnly": true,
+  "pass": 1445,
+  "fail": 69,
+  "skip": 11,
+  "assertions": 9162,
+  "tests": 1525,
+  "files": 229,
+  "sha256": "f608ca886ee74c9f1de62896635ba0b8b2d51ef36cf63d2a7ca3adae15f8a798",
+  "failures": [
+    {
+      "file": "test/chat-deletion.integration.test.ts",
+      "identity": "(fail) a deleted group cannot return after event pruning or a failed directory cleanup",
+      "line": 348
+    },
+    {
+      "file": "test/chat-deletion.integration.test.ts",
+      "identity": "(fail) a restarted worker retries failed runtime cleanup after the directory has disappeared",
+      "line": 368
+    },
+    {
+      "file": "test/chat-deletion.integration.test.ts",
+      "identity": "(fail) worker retry disposes a permission-blocked directory after it has left the roster",
+      "line": 392
+    },
+    {
+      "file": "test/web-provider-settings.integration.test.ts",
+      "identity": "(fail) search and fetch keep separate providers, safe defaults and a secret-free public API",
+      "line": 525
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) simultaneous different user reactions leave only the last serialized emoji for that actor",
+      "line": 600
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) a different user emoji replaces the prior one and repeating it clears the user's reaction",
+      "line": 644
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) a user emoji replacement preserves every other actor's reactions and unrelated metadata",
+      "line": 684
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) legacy multiple user reactions normalize on the next \u2764\ufe0f tap without changing other actors",
+      "line": 720
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) legacy multiple user reactions normalize on the next \ud83d\udc4d tap without changing other actors",
+      "line": 748
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) replaying an older tap receipt returns the current message without restoring the old emoji or waking again",
+      "line": 776
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) one bot replacement call leaves one emoji and revokes the replaced emoji's notification",
+      "line": 805
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) a bot's old call retry cannot restore the emoji replaced by its newer call",
+      "line": 834
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) concurrent different bot emojis leave only the final serialized selection and its live notification",
+      "line": 863
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) a group bot's \u2764\ufe0f tap normalizes its legacy reactions while preserving other reactors",
+      "line": 904
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) a group bot's \ud83d\udc4d tap normalizes its legacy reactions while preserving other reactors",
+      "line": 937
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) a bot emoji replacement does not leave the replaced emoji's alert deliverable",
+      "line": 958
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) one group bot replacing its emoji preserves the peer bot's pill and live notification",
+      "line": 991
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) clearing a legacy bot selection revokes alerts for all its stored emojis",
+      "line": 1020
+    },
+    {
+      "file": "test/reaction-concurrency.integration.test.ts",
+      "identity": "(fail) replacement retires an old bot alert even when notifications are disabled before the new emoji",
+      "line": 1049
+    },
+    {
+      "file": "test/retirement-entrypoints.integration.test.ts",
+      "identity": "(fail) peer cannot leave a new queued wake behind target retirement",
+      "line": 1090
+    },
+    {
+      "file": "test/retirement-entrypoints.integration.test.ts",
+      "identity": "(fail) shell-callback cannot leave a new queued wake behind target retirement",
+      "line": 1107
+    },
+    {
+      "file": "test/retirement-entrypoints.integration.test.ts",
+      "identity": "(fail) an admitted room send cannot publish after its source agent was retired",
+      "line": 1121
+    },
+    {
+      "file": "test/retirement-entrypoints.integration.test.ts",
+      "identity": "(fail) late peer sends, routine launches, callbacks, and room output stay rejected after retirement",
+      "line": 1138
+    },
+    {
+      "file": "test/deletion-races.integration.test.ts",
+      "identity": "(fail) stale adoption snapshots must not recreate a group deleted by another worker",
+      "line": 1163
+    },
+    {
+      "file": "test/deletion-races.integration.test.ts",
+      "identity": "(fail) a delayed runtime acceptance must not start work after archive already returned",
+      "line": 1184
+    },
+    {
+      "file": "test/request-stop.integration.test.ts",
+      "identity": "(fail) a running completion cannot send to a connected channel after Stop",
+      "line": 1375
+    },
+    {
+      "file": "test/request-stop.integration.test.ts",
+      "identity": "(fail) a Stop during connected-channel attachment preparation refuses before remote dispatch",
+      "line": 1390
+    },
+    {
+      "file": "test/deletion-message-acceptance.integration.test.ts",
+      "identity": "(fail) deletion includes a direct message accepted while it waits for the bot row",
+      "line": 1430
+    },
+    {
+      "file": "test/retirement-combined-chaos.integration.test.ts",
+      "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 1",
+      "line": 1640
+    },
+    {
+      "file": "test/retirement-combined-chaos.integration.test.ts",
+      "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 7",
+      "line": 1758
+    },
+    {
+      "file": "test/retirement-combined-chaos.integration.test.ts",
+      "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 29",
+      "line": 1872
+    },
+    {
+      "file": "test/retirement-combined-chaos.integration.test.ts",
+      "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 101",
+      "line": 2004
+    },
+    {
+      "file": "test/retirement-combined-chaos.integration.test.ts",
+      "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 284",
+      "line": 2132
+    },
+    {
+      "file": "test/question-lifecycle.integration.test.ts",
+      "identity": "(fail) questions settle durably across normal sends, publication, retries, forks and races",
+      "line": 2320
+    },
+    {
+      "file": "test/notification-read-chaos.integration.test.ts",
+      "identity": "(fail) concurrent, duplicated and stale reads preserve newer messages and reactions",
+      "line": 2452
+    },
+    {
+      "file": "test/plugin/device-link.integration.test.ts",
+      "identity": "(fail) package update cannot orphan private storage by remove",
+      "line": 2617
+    },
+    {
+      "file": "test/plugin/device-link.integration.test.ts",
+      "identity": "(fail) package update cannot orphan private storage by disable",
+      "line": 2631
+    },
+    {
+      "file": "test/plugin/device-link.integration.test.ts",
+      "identity": "(fail) package update rolls back if account removal starts while its stop is pending",
+      "line": 2646
+    },
+    {
+      "file": "test/plugin/t3-chaos.integration.test.ts",
+      "identity": "(fail) SIGKILL after remote acceptance settles the local invocation as an unknown outcome without replay",
+      "line": 2755
+    },
+    {
+      "file": "test/plugin/t3-chaos.integration.test.ts",
+      "identity": "(fail) HTTP disconnect cancellation propagates through the real internal tool and plugin services",
+      "line": 2800
+    },
+    {
+      "file": "test/plugin/management.integration.test.ts",
+      "identity": "(fail) management preserves accounts, direct tool execution and snapshots through configuration, discovery and upgrades",
+      "line": 2892
+    },
+    {
+      "file": "test/plugin/management.integration.test.ts",
+      "identity": "(fail) sources refresh in place, installed snapshots survive removal, and the skill library is shared by the UI and every Bot",
+      "line": 2907
+    },
+    {
+      "file": "test/plugin/released-updates.integration.test.ts",
+      "identity": "(fail) plugins shipped with a release update with it and reconnect",
+      "line": 2926
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) 1password: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 2975
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) amap: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 2989
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) bitwarden: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3003
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) dingtalk-workspace: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3017
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) email: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3031
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) github: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3045
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) gmail: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3059
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) google-calendar: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3073
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) google-docs: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3087
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) google-drive: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3101
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) google-maps: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3115
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) google-sheets: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3129
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) google-slides: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3143
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) linear: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3158
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) openstreetmap: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3173
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) plaid: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3187
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) ramp: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3201
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) signal: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3215
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) slack: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3229
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) slack-stealth: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3243
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) t3-code: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3257
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) wechat: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3271
+    },
+    {
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "identity": "(fail) whatsapp: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "line": 3285
+    },
+    {
+      "file": "test/plugin/ramp.integration.test.ts",
+      "identity": "(fail) Ramp installs its playbooks and routes an authenticated MCP call through the Bot namespace",
+      "line": 3343
+    },
+    {
+      "file": "test/plugin/bitwarden-environment.integration.test.ts",
+      "identity": "(fail) Bitwarden runtime fields install, rotate, stay private, inherit, conflict and uninstall in a disposable DB",
+      "line": 3444
+    },
+    {
+      "file": "test/external-messaging/delivery.integration.test.ts",
+      "identity": "(fail) outbound delivery > outcomes > an answer of 'uncertain' is kept as uncertain",
+      "line": 3728
+    }
+  ],
+  "byFile": {
+    "test/chat-deletion.integration.test.ts": 3,
+    "test/web-provider-settings.integration.test.ts": 1,
+    "test/reaction-concurrency.integration.test.ts": 15,
+    "test/retirement-entrypoints.integration.test.ts": 4,
+    "test/deletion-races.integration.test.ts": 2,
+    "test/request-stop.integration.test.ts": 2,
+    "test/deletion-message-acceptance.integration.test.ts": 1,
+    "test/retirement-combined-chaos.integration.test.ts": 5,
+    "test/question-lifecycle.integration.test.ts": 1,
+    "test/notification-read-chaos.integration.test.ts": 1,
+    "test/plugin/device-link.integration.test.ts": 3,
+    "test/plugin/t3-chaos.integration.test.ts": 2,
+    "test/plugin/management.integration.test.ts": 2,
+    "test/plugin/released-updates.integration.test.ts": 1,
+    "test/plugin/catalog-lifecycle.integration.test.ts": 23,
+    "test/plugin/ramp.integration.test.ts": 1,
+    "test/plugin/bitwarden-environment.integration.test.ts": 1,
+    "test/external-messaging/delivery.integration.test.ts": 1
+  },
+  "causes": {
+    "error: expect(received).toBe(expected)": 11,
+    "TypeError: worker.reconcileRetiredAgents is not a function. (In 'worker.reconcileRetiredAgents()', 'worker.reconcileRetiredAgents' is undefined)": 2,
+    "error: expect(received).toMatchObject(expected)": 11,
+    "error: expect(received).toEqual(expected)": 13,
+    "error: expect(received).rejects.toThrow(expected)": 5,
+    "error: Unexpected fixture failure": 1,
+    "error: expect(received).toHaveProperty(path)": 1,
+    "PrismaClientKnownRequestError: ": 1,
+    "DriverAdapterError: TransactionWriteConflict": 1,
+    "error: expect(received).toContain(expected)": 1,
+    "error: expect(received).toHaveLength(expected)": 23,
+    "error: Plugin runtime cache is unavailable for ramp-66793e46-3cfb-48a2-b565-8de887ec8fef; reinstall or refresh the plugin": 1
+  }
+}

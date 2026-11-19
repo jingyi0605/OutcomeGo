@@ -78,6 +78,31 @@ class MobileDataTest {
     }
 
     @Test
+    fun goalNoticeCardIsRecognisedOnlyWhenThePlatformPostedIt() {
+        val outcome = "11111111-1111-4111-8111-111111111111"
+        fun notice(sender: String, source: String? = "outcome-update", outcomeId: String = outcome) = ChatMessage(
+            "notice-1", "System", "Goal · Clean storage · attention", sender = sender,
+            metadata = buildJsonObject {
+                put("type", "outcome-card")
+                if (source != null) put("source", source)
+                put("outcomeCard", buildJsonObject {
+                    put("stage", "attention")
+                    put("title", "Clean storage")
+                    put("outcomeId", outcomeId)
+                })
+            },
+        )
+
+        assertEquals(OutcomeUpdateCard(outcome, "Clean storage", "attention"), notice("system").outcomeUpdateCard)
+        assertNull(notice("agent").outcomeUpdateCard)
+        assertNull(notice("system", source = null).outcomeUpdateCard)
+        assertNull(notice("system", outcomeId = "not-a-uuid").outcomeUpdateCard)
+        assertEquals("review", OutcomeUpdateCard.stageForStatus("review_pending"))
+        assertEquals("attention", OutcomeUpdateCard.stageForStatus("human_action_pending"))
+        assertEquals("failed", OutcomeUpdateCard.stageForStatus("failed"))
+    }
+
+    @Test
     fun deletingSectionMovesConversationsToUnassigned() {
         val preferences = SidebarPreferences(
             sections = listOf(SidebarSection("work", "Work", collapsed = true)),
@@ -92,5 +117,51 @@ class MobileDataTest {
         assertFalse(result.sectionByChannel.containsKey("channel-1"))
         assertFalse(result.channelOrderByGroup.containsKey("work"))
         assertFalse(result.unassignedCollapsed)
+    }
+
+    @Test
+    fun sidebarVersionIsOnlyAtLeastWhenBothFieldsAreNotBehind() {
+        val known = SidebarVersion(3, "2026-11-18T10:00:00.000Z")
+
+        assertTrue(SidebarVersion(3, "2026-11-18T10:00:00.000Z").isAtLeast(known))
+        assertTrue(SidebarVersion(4, "2026-11-18T10:00:00.001Z").isAtLeast(known))
+        assertFalse(SidebarVersion(4, "2026-11-18T09:00:00.000Z").isAtLeast(known))
+        assertFalse(SidebarVersion(2, "2026-11-18T11:00:00.000Z").isAtLeast(known))
+        assertTrue(known.isAtLeast(SidebarVersion()))
+    }
+
+    @Test
+    fun serverLayoutReplacesPersistedFieldsButKeepsLocalOnes() {
+        val local = SidebarPreferences(
+            pinnedIds = listOf("old"),
+            unreadIds = listOf("unread"),
+            unassignedCollapsed = true,
+            channelOrderByGroup = mapOf("work" to listOf("a")),
+            version = SidebarVersion(1, "2026-11-18T09:00:00.000Z"),
+        )
+        val remote = SidebarPreferences(
+            pinnedIds = listOf("new"),
+            sections = listOf(SidebarSection("dev", "研发管理")),
+            sectionByChannel = mapOf("a" to "dev"),
+            version = SidebarVersion(2, "2026-11-18T10:00:00.000Z"),
+        )
+
+        val merged = local.withServerLayout(remote)
+
+        assertEquals(listOf("new"), merged.pinnedIds)
+        assertEquals(remote.sections, merged.sections)
+        assertEquals(remote.sectionByChannel, merged.sectionByChannel)
+        assertEquals(remote.version, merged.version)
+        assertEquals(listOf("unread"), merged.unreadIds)
+        assertTrue(merged.unassignedCollapsed)
+        assertEquals(local.channelOrderByGroup, merged.channelOrderByGroup)
+    }
+
+    @Test
+    fun localEditsKeepTheVersionTheyWereBasedOn() {
+        val base = SidebarPreferences(version = SidebarVersion(5, "2026-11-18T10:00:00.000Z"))
+
+        assertEquals(base.version, base.togglePin("a").version)
+        assertEquals(base.version, base.moveToSection("a", "dev").version)
     }
 }

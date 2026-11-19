@@ -7,12 +7,21 @@ final class FormValidationTests: XCTestCase {
   func json(_ value: String) throws -> JSON {
     try JSONDecoder().decode(JSON.self, from: Data(value.utf8))
   }
-  func testMCPURLSetupRequiresHTTPSOrLoopbackAndRejectsApprovalLinks() throws {
+  func testMCPURLSetupAllowsPrivateNetworkHTTPAndRejectsApprovalLinks() throws {
     let fields = try json(#"[{"key":"url","label":"MCP URL","format":"mcp-url","required":true}]"#).array
-    for value in ["https://environment.example/mcp", "http://localhost:3773/mcp", "http://127.0.0.1:3773/mcp", "http://[::1]:3773/mcp"] {
+    for value in [
+      "https://environment.example/mcp", "http://localhost:3773/mcp", "http://127.0.0.1:3773/mcp",
+      "http://[::1]:3773/mcp", "http://10.0.0.42:3773/mcp", "http://172.31.8.4/mcp",
+      "http://192.168.1.5/mcp", "http://[fd12:3456::83]/mcp",
+    ] {
       XCTAssertNoThrow(try FormValidation.fields(fields, values: ["url": .string(value)]))
     }
-    for value in ["AUTO-example", "http://192.168.1.5/mcp", "https://user:pass@example.com/mcp", "https://example.com/pair#token=private", "https://example.com/mcp?code=private"] {
+    for value in [
+      "AUTO-example", "http://8.8.8.8/mcp", "http://172.32.0.1/mcp", "http://100.64.1.2/mcp",
+      "http://192.168.1.5.example/mcp", "http://dsh.local/mcp", "http://[fe80::1]/mcp",
+      "https://user:pass@example.com/mcp", "https://example.com/pair#token=private",
+      "https://example.com/mcp?code=private",
+    ] {
       XCTAssertThrowsError(try FormValidation.fields(fields, values: ["url": .string(value)]))
     }
   }
@@ -79,5 +88,23 @@ final class FormValidationTests: XCTestCase {
     value["trigger"] = .null
     value["scheduleKind"] = .string("event")
     XCTAssertFalse(try value.decode(Routine.self).scheduleIsEditable)
+  }
+  func testEventRoutinesDescribeTheirTriggers() throws {
+    let base =
+      #"{"id":"r","name":"Routine","prompt":"Test","schedule":"Event: email","scheduleKind":"event","timezone":"UTC","enabled":true,"revision":1}"#
+    var value = try json(base)
+    XCTAssertEqual(try value.decode(Routine.self).scheduleSummary, "On an event")
+    value["trigger"] = .object(["type": .string("email"), "inbox": .string("a@b.com")])
+    XCTAssertEqual(try value.decode(Routine.self).scheduleSummary, "When email arrives at a@b.com")
+    value["trigger"] = .object([
+      "type": .string("group"),
+      "listeners": .array([
+        .object(["type": .string("webhook")]),
+        .object(["type": .string("slack"), "match": .object(["kind": .string("mention")])]),
+      ]),
+    ])
+    XCTAssertEqual(
+      try value.decode(Routine.self).scheduleSummary,
+      "When a webhook is called or When mentioned on Slack")
   }
 }

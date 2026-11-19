@@ -31,7 +31,8 @@ import {
   systemPreferences,
 } from "electron";
 import type { AppUpdater } from "electron-updater";
-import { applicationMenuTemplate, type ApplicationMenuLocale } from "./application-menu";
+import { withBotDockToggle, applicationMenuTemplate, type ApplicationMenuLocale } from "./application-menu";
+import { DesktopBotDock } from "./bot-dock";
 import { DesktopScreenBot } from "./screenbot";
 import { ScreenBotShortcutController, requestInputMonitoring } from "./screenbot-shortcut";
 import { desktopSignIn, desktopSignOut } from "./auth-client";
@@ -62,8 +63,11 @@ import {
   type DesktopNotificationSnapshot,
   parseNotificationChannels,
   parseNotificationTarget,
+  DesktopOutcomeNotificationManager,
+  parseOutcomeNotifications,
   parseNotificationReadState,
 } from "./notifications";
+import { parseDesktopOutcomeLink, type DesktopOutcomeTarget } from "../renderer/lib/outcome-target";
 import {
   createComputerSettingsStore,
   type ComputerSettings,
@@ -98,6 +102,21 @@ ipcMain.handle("outcomego:window-activity", (event) => {
 let authTokenStore: DesktopAuthTokenStore | null = null;
 let computerSettings: ComputerSettingsStore | null = null;
 let desktopNotifications: DesktopNotificationManager | null = null;
+let outcomeNotifications: DesktopOutcomeNotificationManager | null = null;
+let pendingOutcomeTarget: DesktopOutcomeTarget | null = null;
+const queueOutcomeTarget = (target: DesktopOutcomeTarget) => {
+  pendingOutcomeTarget = target;
+  mainWindow?.webContents.send("outcomego:outcomes:target-available");
+};
+ipcMain.handle("outcomego:outcomes:take-pending", event => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return null;
+  const target = pendingOutcomeTarget; pendingOutcomeTarget = null; return target;
+});
+ipcMain.on("outcomego:outcomes:notifications", (event, value: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return;
+  const parsed = parseOutcomeNotifications(value);
+  if (parsed) outcomeNotifications?.sync(parsed);
+});
 let durableSendJournals: DurableSendJournalStore | null = null;
 const activeNotifications = new Set<Notification>();
 const activityNotifications = new Map<string, Notification>();
@@ -908,7 +927,7 @@ ipcMain.on("outcomego:notifications:sync", (event, request: unknown) => {
 });
 
 ipcMain.on("outcomego:notifications:clear", (event) => {
-  if (mainWindow && event.sender === mainWindow.webContents) desktopNotifications?.clear();
+  if (mainWindow && event.sender === mainWindow.webContents) { desktopNotifications?.clear(); outcomeNotifications?.clear(); }
 });
 
 ipcMain.on("outcomego:notifications:read", (event, request: unknown) => {
@@ -1206,11 +1225,15 @@ const createWindow = async () => {
   mainWindow.webContents.on("render-process-gone", () => {
     screenBotShortcut.setRecording(false);
     screenbot.abandonRequests();
+    // The page that knew what to show is gone; the reloaded one publishes again.
+    botDock.reset();
   });
   mainWindow.once("closed", () => {
     disposeWindowActivity();
     screenBotShortcut.setRecording(false);
     screenbot.closeOverlay();
+    // Nothing is left to say, and on Windows and Linux the app quits with its last window.
+    botDock.reset();
     pluginOAuth.closeAll();
     mainWindow = null;
   });
@@ -1278,37 +1301,122 @@ const screenbot = new DesktopScreenBot({
   discardDelivery: (stagingId) => discardDeliveryFiles(deliveryStageDirectory(), [stagingId]),
 });
 
+// The native helper runs from app.asar.unpacked in packaged builds.
+const screenBotHelperPath =
+  process.platform === "darwin"
+    ? join(import.meta.dirname.replace(/app\.asar(?=[\\/]|$)/, "app.asar.unpacked"), "screenbot-keys")
+    : null;
+
+// The floating Bot capsule: unread messages (red) and goals waiting on the owner (yellow).
+const botDock = new DesktopBotDock({
+  preloadPath: join(import.meta.dirname, "botdock-preload.cjs"),
+  dragHelperPath: screenBotHelperPath,
+  settingsPath: join(app.getPath("userData"), "bot-dock-settings.json"),
+  loadPage: async (window, surface) => {
+    const rendererUrl = devRendererUrl();
+    if (rendererUrl) {
+      const url = new URL("botdock.html", rendererUrl.endsWith("/") ? rendererUrl : `${rendererUrl}/`);
+      url.searchParams.set("surface", surface);
+      await window.loadURL(url.href);
+    } else {
+      await window.loadFile(join(import.meta.dirname, "..", "dist", "botdock.html"), {
+        query: { surface },
+      });
+    }
+  },
+  mainWindow: () => mainWindow,
+  focusMainWindow: () => focusMainWindow(),
+  // The same navigation as a notification click: open the chat at its newest message.
+  openChat: (channelId) => {
+    focusMainWindow();
+    mainWindow?.webContents.send("outcomego:notification-click", { channelId });
+  },
+  openGoals: () => {
+    focusMainWindow();
+    queueOutcomeTarget({});
+  },
+  stageDelivery: (stagingId, bytes) =>
+    stageDeliveryFile(deliveryStageDirectory(), { stagingId, bytes }),
+  discardDelivery: (stagingId) => discardDeliveryFiles(deliveryStageDirectory(), [stagingId]),
+  locale: () => applicationMenuLocale,
+  onEnabledChange: () => {
+    mainWindow?.webContents.send("outcomego:botdock:enabled-changed", botDock.preferenceEnabled);
+    rebuildApplicationMenu();
+  },
+});
+
+const requireBotDockSettingsSender = (event: Electron.IpcMainInvokeEvent) => {
+  if (event.sender !== mainWindow?.webContents) throw new Error("Bot dock settings are unavailable");
+};
+
+const checkBotDockAccessibility = (prompt: boolean) => {
+  if (process.platform !== "darwin") return false;
+  const trusted = systemPreferences.isTrustedAccessibilityClient(prompt);
+  botDock.refreshGlobalDrag(trusted);
+  return trusted;
+};
+
+ipcMain.handle("outcomego:accessibility:check", (event) => {
+  requireBotDockSettingsSender(event);
+  return checkBotDockAccessibility(false);
+});
+
+ipcMain.handle("outcomego:accessibility:request", (event) => {
+  requireBotDockSettingsSender(event);
+  return checkBotDockAccessibility(true);
+});
+
+ipcMain.handle("outcomego:accessibility:open-settings", async (event) => {
+  requireBotDockSettingsSender(event);
+  if (process.platform !== "darwin") return;
+  await shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility");
+});
+
+ipcMain.handle("outcomego:botdock:get-enabled", (event) => {
+  requireBotDockSettingsSender(event);
+  return botDock.preferenceEnabled;
+});
+
+ipcMain.handle("outcomego:botdock:set-enabled", (event, enabled: unknown) => {
+  requireBotDockSettingsSender(event);
+  if (typeof enabled !== "boolean") throw new Error("Invalid bot dock setting");
+  botDock.setEnabled(enabled);
+});
+
 const rebuildApplicationMenu = () => {
   const shortcut = screenBotShortcut.status().shortcut;
+  const template = applicationMenuTemplate(
+    process.platform,
+    applicationMenuLocale,
+    (action) => {
+      if (action === "screenbot") {
+        void screenbot.take();
+        return;
+      }
+      focusMainWindow();
+      mainWindow?.webContents.send("outcomego:app-menu", action);
+      if (
+        action === "updates" &&
+        !["checking", "downloading", "downloaded", "installing"].includes(
+          desktopUpdateSnapshot.status
+        )
+      ) {
+        void checkForDesktopUpdate();
+      }
+    },
+    (action, window) => {
+      if (!computerClipboardActive || window !== mainWindow) return false;
+      mainWindow?.webContents.send("outcomego:computer-clipboard", action);
+      return true;
+    },
+    // A two-key chord can't be shown as a menu accelerator.
+    shortcut.kind === "accelerator" ? shortcut.accelerator : null,
+    keyboardShortcuts.get("settings")
+  );
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
-      applicationMenuTemplate(
-        process.platform,
-        applicationMenuLocale,
-        (action) => {
-          if (action === "screenbot") {
-            void screenbot.take();
-            return;
-          }
-          focusMainWindow();
-          mainWindow?.webContents.send("outcomego:app-menu", action);
-          if (
-            action === "updates" &&
-            !["checking", "downloading", "downloaded", "installing"].includes(
-              desktopUpdateSnapshot.status
-            )
-          ) {
-            void checkForDesktopUpdate();
-          }
-        },
-        (action, window) => {
-          if (!computerClipboardActive || window !== mainWindow) return false;
-          mainWindow?.webContents.send("outcomego:computer-clipboard", action);
-          return true;
-        },
-        // A two-key chord can't be shown as a menu accelerator.
-        shortcut.kind === "accelerator" ? shortcut.accelerator : null,
-        keyboardShortcuts.get("settings")
+      withBotDockToggle(template, applicationMenuLocale, botDock.enabled, (enabled) =>
+        botDock.setEnabled(enabled)
       )
     )
   );
@@ -1373,11 +1481,6 @@ const dictateFromFn = (event: string) => {
   );
 };
 
-// The macOS helper that detects both-key chords; packaged apps run it from app.asar.unpacked.
-const screenBotHelperPath =
-  process.platform === "darwin"
-    ? join(import.meta.dirname.replace(/app\.asar(?=[\\/]|$)/, "app.asar.unpacked"), "screenbot-keys")
-    : null;
 let lastShortcutMenu: string | null | undefined;
 const screenBotShortcut = new ScreenBotShortcutController({
   platform: process.platform,
@@ -1460,7 +1563,23 @@ ipcMain.handle("outcomego:application-menu-locale", (event, locale: unknown) => 
 // reuse the existing desktop instance instead of competing for its host bridge port.
 const hasSingleInstanceLock = !app.isPackaged || app.requestSingleInstanceLock();
 
-app.on("second-instance", focusMainWindow);
+app.on("second-instance", (_event, argv) => {
+  for (const argument of argv) {
+    const target = parseDesktopOutcomeLink(argument);
+    if (target) queueOutcomeTarget(target);
+  }
+  focusMainWindow();
+});
+app.on("open-url", (event, url) => {
+  const target = parseDesktopOutcomeLink(url);
+  if (!target) return;
+  event.preventDefault(); queueOutcomeTarget(target);
+  if (app.isReady()) focusMainWindow();
+});
+for (const argument of process.argv) {
+  const target = parseDesktopOutcomeLink(argument);
+  if (target) pendingOutcomeTarget = target;
+}
 app.on("child-process-gone", (_event, details) =>
   console.error("OutcomeGo child process exited", details)
 );
@@ -1471,6 +1590,7 @@ if (!hasSingleInstanceLock) {
   void app
     .whenReady()
     .then(async () => {
+      if (app.isPackaged) app.setAsDefaultProtocolClient("outcomego");
       rebuildApplicationMenu();
       localMachine.machineId = await loadMachineIdentity(
         join(app.getPath("userData"), "machine-id")
@@ -1530,6 +1650,7 @@ if (!hasSingleInstanceLock) {
       desktopNotifications = new DesktopNotificationManager({
         isFocused: () => mainWindow?.isFocused() ?? false,
         isSupported: () => Notification.isSupported(),
+        onMessagesArrived: () => botDock.notifyMessageArrival(),
         setBadge: (label) => app.dock?.setBadge(label),
         dismiss: (id) => {
           activityNotifications.get(id)?.close();
@@ -1577,6 +1698,30 @@ if (!hasSingleInstanceLock) {
               parseNotificationTarget(notificationEvent)
             );
           });
+          notification.show();
+        },
+      });
+      outcomeNotifications = new DesktopOutcomeNotificationManager({
+        isFocused: () => mainWindow?.isFocused() ?? false,
+        isSupported: () => Notification.isSupported(),
+        dismiss: id => { activityNotifications.get(`outcome:${id}`)?.close(); activityNotifications.delete(`outcome:${id}`); },
+        deliver: (id, target) => {
+          const notificationId = `outcome:${id}`;
+          const chinese = applicationMenuLocale === "zh-CN";
+          const notification = new Notification({
+            id: notificationId, groupId: `outcome:${target.outcomeId}`,
+            title: target.category === "completed" ? chinese ? "Outcome 已完成" : "Outcome completed" : chinese ? "一个 Outcome 需要你处理" : "An Outcome needs your attention",
+            body: target.category === "decision_pending" ? chinese ? "打开 OutcomeGo 决定下一步。" : "Open OutcomeGo to decide the next step."
+              : target.category === "failed" ? chinese ? "打开 OutcomeGo 查看停止的原因。" : "Open OutcomeGo to see why it stopped."
+              : target.category === "blocked" ? chinese ? "打开 OutcomeGo 查看阻塞的原因。" : "Open OutcomeGo to see what is blocking it."
+              : chinese ? "打开 OutcomeGo 查看结果。" : "Open OutcomeGo to view the outcome.",
+            silent: true,
+          });
+          activeNotifications.add(notification); activityNotifications.set(notificationId, notification);
+          const release = () => { activeNotifications.delete(notification); activityNotifications.delete(notificationId); };
+          notification.once("close", release);
+          notification.once("failed", release);
+          notification.on("click", () => { queueOutcomeTarget(target); focusMainWindow(); });
           notification.show();
         },
       });
@@ -1696,6 +1841,7 @@ app.on("before-quit", () => {
   pluginOAuth.closeAll();
   screenBotShortcut.dispose();
   screenbot.dispose();
+  botDock.dispose();
   isQuitting = true;
   mainWindow?.webContents.send("outcomego:notifications:activity-changed");
   if (desktopUpdateTimer) clearInterval(desktopUpdateTimer);

@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "commands": [
+    {
+      "command": [
+        "docker",
+        "exec",
+        "outcomego-task70-product-pg",
+        "psql",
+        "-U",
+        "outcomego",
+        "-d",
+        "postgres",
+        "-At",
+        "-c",
+        "SELECT count(*) FROM pg_stat_activity WHERE datname LIKE 'task70_%' AND pid <> pg_backend_pid();"
+      ],
+      "exitCode": 0,
+      "stdout": "0",
+      "stderr": "",
+      "seconds": 0.038
+    },
+    {
+      "command": [
+        "docker",
+        "rm",
+        "-f",
+        "outcomego-task70-product-pg"
+      ],
+      "exitCode": 0,
+      "stdout": "outcomego-task70-product-pg",
+      "stderr": "",
+      "seconds": 0.225
+    },
+    {
+      "command": [
+        "docker",
+        "ps",
+        "-a",
+        "--filter",
+        "name=^/outcomego-task70-product-pg$",
+        "--format",
+        "{{.Names}}"
+      ],
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.024
+    }
+  ],
+  "otherOwnersContainersTouched": false,
+  "reportsAndLogsRetained": true
+}

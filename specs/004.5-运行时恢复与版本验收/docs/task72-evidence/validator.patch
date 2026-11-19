@@ -1,0 +1,13 @@
+diff --git a/scripts/migration/validate-outcomego-backup.ts b/scripts/migration/validate-outcomego-backup.ts
+index 7c7345891..ff89ba177 100644
+--- a/scripts/migration/validate-outcomego-backup.ts
++++ b/scripts/migration/validate-outcomego-backup.ts
+@@ -62,7 +62,7 @@ const assertSha256 = (value: unknown, label: string): string => {
+ const assertRowCounts = (value: unknown): Record<string, number> => {
+   const rowCounts = assertObject(value, "backup.manifest.rowCounts");
+   for (const [table, count] of Object.entries(rowCounts)) {
+-    if (!Number.isSafeInteger(count) || count < 0) {
++    if (typeof count !== "number" || !Number.isSafeInteger(count) || count < 0) {
+       throw new Error(`backup.manifest.rowCounts.${table} must be a non-negative integer`);
+     }
+   }

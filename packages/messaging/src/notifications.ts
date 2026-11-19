@@ -1,3 +1,4 @@
+import { isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql } from "./outcome-decisions";
 import { normalizeRobotAvatarShape } from "@outcomego/contracts/robot-avatar";
 import {
   type AgentNotificationPayload,
@@ -5,6 +6,7 @@ import {
   type ChannelNotificationView,
   agentNotificationPresentation,
   truncateNotificationText,
+  outcomeNotificationPayload,
 } from "@outcomego/contracts";
 import { channelMessageSummary } from "@outcomego/product-core/channel-events";
 import { Prisma } from "@outcomego/db";
@@ -22,6 +24,9 @@ export const publishChannelNotification = async (
     title: truncateNotificationText(input.title),
     body: truncateNotificationText(input.body),
   };
+  // Serialize activity allocation with reads in this channel. NO KEY UPDATE is
+  // compatible with the foreign-key locks already held by message inserts.
+  await tx.$executeRaw`SELECT 1 FROM "outcomego_channel" WHERE id = ${input.channelId}::uuid FOR NO KEY UPDATE`;
   const [bot, channel] = await Promise.all([
     tx.bot.findUnique({ where: { id: input.botId } }),
     tx.channel.findUnique({ where: { id: input.channelId } }),
@@ -50,9 +55,6 @@ export const publishChannelNotification = async (
       color: /^#[0-9a-f]{6}$/i.test(bot.color) ? bot.color : "#4f7cff",
     },
   };
-  // Serialize activity allocation with reads in this channel. NO KEY UPDATE is
-  // compatible with the foreign-key locks already held by message inserts.
-  await tx.$executeRaw`SELECT 1 FROM "outcomego_channel" WHERE id = ${input.channelId}::uuid FOR NO KEY UPDATE`;
   const created = await tx.channelNotification.createMany({
     data: {
       key,
@@ -78,6 +80,7 @@ export const publishChannelNotification = async (
       payload: payload as unknown as Prisma.InputJsonValue,
     },
   });
+  if (channel.notificationsMuted) return;
   const disabledAuth = process.env.OUTCOMEGO_AUTH_MODE?.trim().toLowerCase() === "disabled";
   const devices = await tx.pushDevice.findMany({
     where: disabledAuth
@@ -199,6 +202,7 @@ export const channelNotificationStates = async (
         FROM (SELECT n.payload, n.sequence FROM "outcomego_channel_notification" n
           JOIN "outcomego_bot" bot ON bot.id = n."botId"
           WHERE n."channelId" = requested."channelId" AND NOT n.revoked
+            AND NOT channel."notificationsMuted" AND n.sequence > channel."mutedThroughNotificationSequence"
             AND n.kind IN ('message', 'reaction')
             AND bot."notificationsEnabled" AND NOT bot."hiddenFromSidebar"
             AND CASE WHEN n.kind = 'reaction'
@@ -210,6 +214,7 @@ export const channelNotificationStates = async (
         AND EXISTS (SELECT 1 FROM "outcomego_bot" b WHERE b.id = n."botId" AND b."notificationsEnabled" AND NOT b."hiddenFromSidebar")
         AND n.sequence > COALESCE(state."lastReadNotificationSequence", 0)) AS "activityUnreadCount"
     FROM unnest(${channelIds}::uuid[]) requested("channelId")
+    JOIN "outcomego_channel" channel ON channel.id = requested."channelId"
     LEFT JOIN "outcomego_channel_read_state" state ON state."channelId" = requested."channelId"
   `);
   return new Map(
@@ -225,3 +230,97 @@ export const channelNotificationStates = async (
     ])
   );
 };
+
+/** Outcome activity uses the Bot's existing channel but never creates a chat message. */
+export async function publishOutcomeNotification(
+  tx: Prisma.TransactionClient,
+  input: import("@outcomego/contracts/notification-content").OutcomeNotificationPayload
+): Promise<void> {
+  // Same channel lock as read markers; key is the business fact, never an event delivery ID.
+  await tx.$executeRaw`SELECT 1 FROM "outcomego_channel" WHERE id = ${input.channelId}::uuid FOR NO KEY UPDATE`;
+  const created = await tx.channelNotification.createMany({ data: {
+    key: input.factKey, channelId: input.channelId, botId: input.botId, kind: "outcome", payload: input as unknown as Prisma.InputJsonValue,
+  }, skipDuplicates: true });
+  if (!created.count) return;
+  const activity = await tx.channelNotification.findUniqueOrThrow({ where: { key: input.factKey } });
+  const payload = { ...input, notificationSequence: activity.sequence.toString() };
+  await tx.event.create({ data: { topic: "notification.created", entityId: input.channelId, payload: payload as unknown as Prisma.InputJsonValue } });
+  const disabledAuth = process.env.OUTCOMEGO_AUTH_MODE?.trim().toLowerCase() === "disabled";
+  const { notificationRouting } = await import("./notification-presence");
+  const routing = await notificationRouting(tx, disabledAuth ? "disabled" : "required");
+  const bot = await tx.bot.findUnique({ where: { id: input.botId } });
+  // Keep the durable fact even when existing preferences suppress proactive alerts.
+  if (!routing.smartEnabled || !bot?.notificationsEnabled) return;
+  const devices = await tx.pushDevice.findMany({ where: disabledAuth ? { enabled: true, authRequired: false } : {
+    enabled: true, authRequired: true, authSession: { is: { expiresAt: { gt: new Date() } } },
+  }, select: { id: true } });
+  // Decisions are independent actions, exempt from aggregation (004.3 §33/43).
+  const mergeable = input.priority < 4 && !input.decisionId;
+  let mergeSequence: bigint | null = null;
+  if (mergeable) {
+    const previous = await tx.channelNotification.findFirst({ where: {
+      channelId: input.channelId, kind: "outcome", key: { not: input.factKey }, revoked: false,
+      createdAt: { gte: new Date(activity.createdAt.getTime() - 60_000) },
+      AND: [ { payload: { path: ["outcomeId"], equals: input.outcomeId } }, { payload: { path: ["contractRevision"], equals: input.contractRevision } },
+        { payload: { path: ["category"], equals: input.category } }, { payload: { path: ["priority"], lt: 4 } } ],
+    }, orderBy: { sequence: "desc" } });
+    mergeSequence = previous?.sequence ?? null;
+  }
+  if (mergeSequence) {
+    const state = await tx.channelReadState.findUnique({ where: { channelId: input.channelId } });
+    const previousUnread = !state || mergeSequence > state.lastReadNotificationSequence;
+    const queued = previousUnread ? await tx.outboxDelivery.findMany({ where: {
+      topic: "push.notification", status: { in: ["pending", "failed"] },
+      target: { in: devices.map(device => device.id) },
+      AND: [{ payload: { path: ["notificationSequence"], equals: mergeSequence.toString() } }, { payload: { path: ["outcomeId"], equals: input.outcomeId } }],
+    } }) : [];
+    const mergedTargets = new Set(queued.map(delivery => delivery.target));
+    // Advance the surviving alert to the newest unread fact; never merge into read or absent delivery.
+    if (queued.length) await tx.outboxDelivery.updateMany({ where: { id: { in: queued.map(delivery => delivery.id) } }, data: { payload: payload as unknown as Prisma.InputJsonValue } });
+    const unmerged = devices.filter(device => !mergedTargets.has(device.id));
+    if (unmerged.length) await tx.outboxDelivery.createMany({ data: unmerged.map(device => ({
+      deliveryKey: `notification:outcome:${activity.sequence}:${device.id}`, topic: "push.notification", target: device.id,
+      payload: payload as unknown as Prisma.InputJsonValue, availableAt: new Date(Date.now() + 60_000),
+    })), skipDuplicates: true });
+    return;
+  }
+  if (devices.length) await tx.outboxDelivery.createMany({ data: devices.map(device => ({
+    deliveryKey: `notification:outcome:${activity.sequence}:${device.id}`, topic: "push.notification", target: device.id,
+    payload: payload as unknown as Prisma.InputJsonValue, availableAt: new Date(Date.now() + (mergeable ? 60_000 : 1_500)),
+  })), skipDuplicates: true });
+}
+
+
+/** Fact-backed projection also works after the originating Event has been pruned. */
+export async function publishRequiredDecisionNotification(tx: Prisma.TransactionClient, decisionId: string): Promise<boolean> {
+  const found = await tx.outcomeDecision.findUnique({ where: { id: decisionId }, select: { outcomeId: true } });
+  if (!found) return false;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
+  const decision = await tx.outcomeDecision.findUniqueOrThrow({ where: { id: decisionId }, include: { outcome: true, contractRevision: true } });
+  if (!["open", "presented"].includes(decision.status) || !await isOutcomeDecisionRevisionActive(tx, decision.outcomeId, decision.contractRevisionId, decision.workItemId) || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
+    (decision.expiresAt && decision.expiresAt <= new Date())) return false;
+  const channel = await tx.channel.findFirst({ where: { kind: "bot_dm", archivedAt: null, members: { some: { botId: decision.outcome.botId } } }, orderBy: { createdAt: "asc" } });
+  if (!channel) return false;
+  await publishOutcomeNotification(tx, outcomeNotificationPayload({ type: "outcome.decision.required", factKey: `decision.required:${decision.id}`,
+    outcomeId: decision.outcomeId, decisionId: decision.id, botId: decision.outcome.botId, channelId: channel.id,
+    contractRevision: decision.contractRevision.revision, urgent: decision.reasonCode === "external_result_unknown" }));
+  return true;
+}
+
+/** Bounded periodic reconciliation has no event high-water mark; eligibility precedes LIMIT. */
+export async function reconcileOutcomeDecisionNotifications(prisma: import("@outcomego/db").PrismaClient): Promise<number> {
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT d.id FROM "outcomego_outcome_decision" d
+    JOIN "outcomego_outcome" o ON o.id = d."outcomeId"
+    WHERE ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`d."contractRevisionId"`, Prisma.sql`d."workItemId"`)}
+      AND d.status IN ('open', 'presented') AND (d."expiresAt" IS NULL OR d."expiresAt" > CURRENT_TIMESTAMP)
+      AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
+      AND NOT EXISTS (SELECT 1 FROM "outcomego_channel_notification" n WHERE n.key = 'decision.required:' || d.id::text)
+      AND EXISTS (SELECT 1 FROM "outcomego_channel" c JOIN "outcomego_channel_member" m ON m."channelId" = c.id
+        WHERE c.kind = 'bot_dm' AND c."archivedAt" IS NULL AND m."botId" = o."botId")
+    ORDER BY d."createdAt", d.id LIMIT 100
+  `);
+  let projected = 0;
+  for (const row of rows) if (await prisma.$transaction(tx => publishRequiredDecisionNotification(tx, row.id))) projected++;
+  return projected;
+}

@@ -14,11 +14,19 @@ export const messageAddress = (message: ReplyTarget): string => {
   return typeof metadata.address === "string" ? metadata.address : message.id;
 };
 
+/** A quoted goal notice names its Outcome so the Bot can read the real goal with GetOutcome. */
+const replyGoalHint = (reply: ReplyTarget): string => {
+  const card = metadataRecord(metadataRecord(reply.metadata).outcomeCard);
+  return typeof card.outcomeId === "string" ? `; goal notice for Outcome ${card.outcomeId}` : "";
+};
+
 /** As in the reference, the address and each leading note sit on their own line above the message. */
 export const formatUserPrompt = (address: string, content: string, reply?: ReplyTarget | null) =>
   [
     `[${address}]`,
-    ...(reply ? [`[In reply to ${messageAddress(reply)}: ${JSON.stringify(reply.content)}]`] : []),
+    ...(reply
+      ? [`[In reply to ${messageAddress(reply)}: ${JSON.stringify(reply.content)}${replyGoalHint(reply)}]`]
+      : []),
     ...(content ? [content] : []),
   ].join("\n");
 

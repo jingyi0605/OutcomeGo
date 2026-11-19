@@ -126,11 +126,21 @@ for (const catalog of pluginCatalog) {
             callId: crypto.randomUUID(), toolName: "add", arguments: { a: 19, b: 23 },
           })).rejects.toMatchObject({ code: "plugin_connection_not_ready" });
           if (account.transport === "builtin") {
-            await Effect.runPromise(service.connect(account.id));
-            const result = await Effect.runPromise(
-              service.testTool(account.id, { toolName: "add", arguments: { a: 19, b: 23 } })
-            );
-            expect(JSON.stringify(result)).toContain("42");
+            const connector = catalog.connections.find(entry => entry.key === account.connectorKey)!;
+            if (connector.endpoint === "outcomego://bitwarden") {
+              expect(context.dynamicNamespaces.some(namespace =>
+                namespace.tools.some(tool => tool.connectionId === account.id))).toBe(false);
+              expect(await Effect.runPromise(Effect.either(service.connect(account.id))))
+                .toMatchObject({ _tag: "Left", left: { code: "plugin_configuration_required" } });
+              expect((await prisma.pluginConnection.findUniqueOrThrow({ where: { id: account.id } })).status)
+                .toBe(account.status);
+            } else {
+              await Effect.runPromise(service.connect(account.id));
+              const result = await Effect.runPromise(
+                service.testTool(account.id, { toolName: "add", arguments: { a: 19, b: 23 } })
+              );
+              expect(JSON.stringify(result)).toContain("42");
+            }
           }
         }
         await Effect.runPromise(service.uninstall(catalog.key));

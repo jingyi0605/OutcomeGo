@@ -25,6 +25,8 @@ import type {
   AddInferenceProviderResult,
   InferenceProviderPreset,
   UpdateUserTimeZoneInput,
+  FeatureSettingsView,
+  UpdateFeatureSettingsInput,
   UserTimeZoneView,
   ScreenClipboardInput,
   ScreenClipboardView,
@@ -72,7 +74,8 @@ import type {
   ServerSettingsView,
   SetChannelHiddenInput,
   SetChannelMembersInput,
-  SidebarPreferences,
+  SidebarPreferencesSaved,
+  SidebarPreferencesWrite,
   SystemVersionView,
   SystemActivityView,
   UpdateBotInput,
@@ -296,8 +299,8 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       transport.request<BotView[]>(`/api/v0/bots${includeHidden ? "?includeHidden=1" : ""}`),
     groups: (includeHidden = false) =>
       transport.request<ChannelView[]>(`/api/v0/groups${includeHidden ? "?includeHidden=1" : ""}`),
-    updateSidebarPreferences: (input: SidebarPreferences) =>
-      transport.request<SidebarPreferences>("/api/v0/settings/sidebar", {
+    updateSidebarPreferences: (input: SidebarPreferencesWrite) =>
+      transport.request<SidebarPreferencesSaved>("/api/v0/settings/sidebar", {
         method: "PATCH",
         body: JSON.stringify(input),
       }),
@@ -629,6 +632,11 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         }
       );
     },
+    setGroupNotificationMute: (channelId: string, muted: boolean) =>
+      transport.request<{ channelId: string; muted: boolean }>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/notification-mute`,
+        { method: "PATCH", body: JSON.stringify({ muted }) }
+      ),
     setChannelAvatar: (channelId: string, pngBase64: string | null) =>
       transport.request<ChannelView>(`/api/v0/channels/${encodeURIComponent(channelId)}/avatar`, {
         method: "PUT",
@@ -785,6 +793,9 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       transport.request(`/api/v0/notification-devices/${encodeURIComponent(installationId)}`, {
         method: "DELETE",
       }),
+    featureSettings: () => transport.request<FeatureSettingsView>("/api/v0/feature-settings"),
+    updateFeatureSettings: (input: UpdateFeatureSettingsInput) =>
+      transport.request<FeatureSettingsView>("/api/v0/feature-settings", { method: "PATCH", body: JSON.stringify(input) }),
     userTimeZone: () => transport.request<UserTimeZoneView>("/api/v0/time-zone"),
     /** Reports the zone this device detects, or sets/clears (null) the Settings override. */
     updateUserTimeZone: (input: UpdateUserTimeZoneInput) =>

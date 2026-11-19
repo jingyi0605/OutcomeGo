@@ -153,7 +153,11 @@ struct ChannelAvatar: View {
     }.overlay(alignment: .bottomTrailing) {
       if showsInboxActivity {
         let activity = InboxPresentation.activity(latest: store.latestMessage(channel.id), runs: inboxRuns, messages: store.messages(channel.id))
-        if activity != .idle {
+        if channel.notificationsMuted == true && store.isUnread(channel) {
+          Circle().fill(.gray).frame(width: 10, height: 10)
+            .background(NativePalette.background, in: Circle().inset(by: -2))
+            .offset(x: 2, y: 2).accessibilityLabel("Unread")
+        } else if activity != .idle {
           let diameter = activity == .needsAnswer
             ? min(22, max(13, size * 0.36)) : min(22, max(12, size * 0.273))
           Circle().fill(activity == .needsAnswer ? Color(hex: "FF9500") : Color(hex: "3FA264"))

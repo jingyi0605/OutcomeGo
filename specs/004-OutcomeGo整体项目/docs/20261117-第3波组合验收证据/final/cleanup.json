@@ -1,0 +1,21 @@
+{
+  "observedAt": "2026-11-17T10:03:35.090662+00:00",
+  "container": "outcomego-w3-acceptance-pg-20261117-runtime",
+  "endpoint": "127.0.0.1:55439",
+  "preRemovalOtherClientBackends": 0,
+  "removeExitCode": 0,
+  "exactContainerAbsent": true,
+  "ownedFixtureProcessIdsRemaining": [],
+  "replayTempDirectoriesRemaining": [],
+  "temporaryConfigNote": "No separate temporary config files were created by the final runner; per-fixture temporary directories are removed by fixture cleanup.",
+  "preserved": [
+    "all raw logs",
+    "populated-outcome.dump",
+    "baseline948 source export",
+    "APK artifacts owned by client lane",
+    "all independent worktrees"
+  ],
+  "dumpBytes": 333755,
+  "dumpSha256": "0e5f11d9b725efadd5d388a47c31f964d4ecd5e431077a0e07f4ed9e061baf69",
+  "otherOwnerResourcesTouched": false
+}

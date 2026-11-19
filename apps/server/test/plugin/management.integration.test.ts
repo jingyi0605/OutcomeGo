@@ -378,8 +378,11 @@ integration(
           (await Effect.runPromise(service.composer(id))).items.some((item) => item.id === skillId)
         ).toBe(true);
       await Effect.runPromise(service.management.deleteSkill(skillId));
+      const deletedSkillId = skillId;
       skillId = "";
       expect(await access(skillFile).then(() => true, () => false)).toBe(false);
+      for (const id of [botId, crypto.randomUUID()])
+        expect((await Effect.runPromise(service.composer(id))).items.some(item => item.id === deletedSkillId)).toBe(false);
     } finally {
       server.stop(true);
       if (sourceId) await prisma.pluginSource.deleteMany({ where: { id: sourceId } });

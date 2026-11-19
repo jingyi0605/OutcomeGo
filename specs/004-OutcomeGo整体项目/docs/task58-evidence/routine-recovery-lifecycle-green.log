@@ -1,0 +1,42 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/routine-275-regressions.integration.test.ts:
+(node:52472) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) Stop fences late shell callbacks and parent handoffs [219.37ms]
+(pass) a callback queued before handoff is cancelled without another model turn [82.82ms]
+(pass) Stop cancels a parent handoff still waiting in the queue [64.19ms]
+(pass) unknown callback context never falls into the foreground [28.15ms]
+(pass) a folded completion receipt cannot mask a failed processing turn [73.84ms]
+Unable to advance committed routine round f28f737c-bc9f-433b-b325-654eb09b7790
+(pass) periodic recovery retries a committed group round after its handoff failed [154.31ms]
+(pass) group overlap waits for a real background process and releases on its completion [263.91ms]
+(pass) Stop releases a completed group turn's outstanding shell wait [213.75ms]
+(pass) a folded group shell receipt waits for its processing consumer [122.95ms]
+(pass) recovery rotates past 100 live executions [828.76ms]
+Routine execution recovery deferred 069ad5c9-76a4-49a2-8f70-613dc4cd6095 505 |     );
+506 |     good.worker.routines = new RoutineService(
+507 |       harness.db,
+508 |       {
+509 |         enqueueWake: async (tx, input) => {
+510 |           if (input.botId === bad.botId) throw new Error("Transient follow-up launch failure");
+                                                         ^
+error: Transient follow-up launch failure
+      at enqueueWake (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:510:52)
+      at startEventFollowUp (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/packages/messaging/src/routines.ts:1417:36)
+
+(pass) one broken follow-up does not block another bot's settlement [117.99ms]
+(pass) repair preview is read-only; apply preserves pauses, due work and history and is idempotent [69.60ms]
+
+apps/worker/test/routine-retest-execution.integration.test.ts:
+(pass) single group shell receipt records its actual processing turn's completed outcome [200.64ms]
+(pass) single group shell receipt records its actual processing turn's failed outcome [113.99ms]
+(pass) folded group shell receipt records its actual processing turn's completed outcome [199.75ms]
+(pass) folded group shell receipt records its actual processing turn's failed outcome [216.23ms]
+(pass) legacy-folded group shell receipt records its actual processing turn's completed outcome [236.01ms]
+(pass) legacy-folded group shell receipt records its actual processing turn's failed outcome [189.29ms]
+
+ 18 pass
+ 0 fail
+ 79 expect() calls
+Ran 18 tests across 2 files. [3.73s]

@@ -32,6 +32,10 @@ Check what happens with missing credentials, service errors, and reconnecting. F
 
 Write clear tool descriptions and input schemas, since bots rely on them to pick the right tool. Make it clear when a tool changes data or sends information to an external service.
 
+## Report events to routines
+
+A plugin can wake bots when something happens in its service. Declare an event poll on the connection and provide a tool that returns new events; OutcomeGo calls it every 30 to 3600 seconds (60 by default) and starts the routines that watch those events. It works for Remote MCP and packaged connectors, and needs no public address. See [event sources](../../packages/plugins/README.md#event-sources) for the declaration and the tool's contract.
+
 ## Share it
 
 Choose **Export ZIP** to package the plugin. Exports never include connected accounts, credentials, so keep secrets in account setup rather than in plugin files.

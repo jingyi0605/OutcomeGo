@@ -1,0 +1,22 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/computer/test/read-transcript-screenshot.integration.test.ts:
+(pass) recovered canonical Computer receipts still lead to a readable screenshot without replaying private input [354.49ms]
+
+packages/messaging/test/read-transcript.integration.test.ts:
+(pass) scoped persisted history: stopped workers, paging, append, compaction and private boundaries [245.60ms]
+
+packages/messaging/test/read-transcript.test.ts:
+(pass) strict bounded selectors and cursors [0.56ms]
+(pass) projection excludes arguments, hidden fields, arbitrary details and held form results [0.05ms]
+(pass) credential redaction precedes truncation [0.05ms]
+(pass) long command observations retain their final result while redacting both ends [0.14ms]
+(pass) browser action observations survive history recovery without exposing input arguments or private details [0.11ms]
+(pass) browser form entry, arbitrary execution and approval results remain excluded [0.03ms]
+(pass) desktop history retains screenshot receipts after interruption without replaying inputs or images [0.05ms]
+(pass) first-party dynamic Computer receipts are observable without exposing other namespaces [0.06ms]
+
+ 10 pass
+ 0 fail
+ 135 expect() calls
+Ran 10 tests across 3 files. [1317.00ms]

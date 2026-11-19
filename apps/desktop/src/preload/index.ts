@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import { parseNotificationTarget } from "../main/notifications";
 import type { DesktopNotificationTarget } from "@outcomego/contracts/notification-content";
 import type { ApplicationMenuAction } from "../main/application-menu";
+import { parseDesktopOutcomeTarget } from "../renderer/lib/outcome-target";
 
 const appVersionArgument = process.argv.find((argument) =>
   argument.startsWith("--outcomego-app-version=")
@@ -138,6 +139,17 @@ interface ScreenBotDelivery {
 }
 
 contextBridge.exposeInMainWorld("outcomego", {
+  outcomes: {
+    takePendingTarget: async () => {
+      const value = await ipcRenderer.invoke("outcomego:outcomes:take-pending");
+      return value === null ? null : parseDesktopOutcomeTarget(value);
+    },
+    onTargetAvailable: (callback: () => void) => listen("outcomego:outcomes:target-available", () => callback()),
+    syncNotifications: (notifications: unknown[]) => {
+      if (!Array.isArray(notifications) || notifications.length > 100) throw new Error("Outcome notifications are invalid");
+      ipcRenderer.send("outcomego:outcomes:notifications", notifications);
+    },
+  },
   platform: process.platform,
   clipboard: {
     readText: (): Promise<string> => ipcRenderer.invoke("outcomego:computer-clipboard-read"),
@@ -363,6 +375,81 @@ contextBridge.exposeInMainWorld("outcomego", {
         if (typeof action === "string") callback(action);
       }),
   },
+  botDock: {
+    getEnabled: () => ipcRenderer.invoke("outcomego:botdock:get-enabled"),
+    setEnabled: (enabled: boolean) => ipcRenderer.invoke("outcomego:botdock:set-enabled", enabled),
+    onEnabledChange: (callback: (enabled: boolean) => void) =>
+      listen("outcomego:botdock:enabled-changed", (value) => {
+        if (typeof value === "boolean") callback(value);
+      }),
+    /** What the Bot floating window shows (Bots with unread messages or goals waiting), or
+     * null when there is nothing to show (signed out). */
+    publish: (state: unknown) =>
+      ipcRenderer.send(
+        "outcomego:botdock:state",
+        state === null ? null : record(state, "Bot dock state")
+      ),
+    /** Notify dock that a file drag started or ended in the main window. */
+    notifyDrag: (active: boolean) =>
+      ipcRenderer.send("outcomego:botdock:drag-hint", active === true),
+    /** A message typed into the floating window's composer, to be sent as this account. */
+    onDeliver: (
+      handler: (request: {
+        botId: string;
+        content: string;
+        nonce: string;
+        staged: Array<{
+          stagingId: string;
+          fileName: string;
+          mimeType: string;
+          byteSize: number;
+          width?: number;
+          height?: number;
+        }>;
+      }) => Promise<void>
+    ) => {
+      const listener = (_event: Electron.IpcRendererEvent, value: unknown) => {
+        const request = record(value, "Bot dock delivery");
+        const { requestId, botId, content, nonce, staged } = request;
+        if (
+          typeof requestId !== "string" ||
+          typeof botId !== "string" ||
+          typeof content !== "string" ||
+          typeof nonce !== "string" ||
+          !Array.isArray(staged) ||
+          staged.length > 16
+        )
+          return;
+        const files = staged.map((entry) => record(entry, "Bot dock attachment"));
+        const optionalNumber = (value: unknown) => value === undefined || typeof value === "number";
+        if (
+          !files.every(
+            (file) =>
+              typeof file.stagingId === "string" &&
+              typeof file.fileName === "string" &&
+              typeof file.mimeType === "string" &&
+              typeof file.byteSize === "number" &&
+              optionalNumber(file.width) &&
+              optionalNumber(file.height)
+          )
+        )
+          return;
+        const reply = (ok: boolean) =>
+          ipcRenderer.send("outcomego:botdock:delivered", { requestId, ok });
+        handler({
+          botId,
+          content,
+          nonce,
+          staged: files as unknown as Parameters<typeof handler>[0]["staged"],
+        }).then(
+          () => reply(true),
+          () => reply(false)
+        );
+      };
+      ipcRenderer.on("outcomego:botdock:deliver", listener);
+      return () => ipcRenderer.removeListener("outcomego:botdock:deliver", listener);
+    },
+  },
   screenbot: {
     /** Bots the floating screenbot composer can send to, most recent first. */
     publishRoster: (roster: unknown) =>
@@ -452,4 +539,9 @@ contextBridge.exposeInMainWorld("outcomego", {
     electron: process.versions.electron,
     chrome: process.versions.chrome,
   }),
+  accessibility: {
+    check: () => ipcRenderer.invoke("outcomego:accessibility:check"),
+    request: () => ipcRenderer.invoke("outcomego:accessibility:request"),
+    openSettings: () => ipcRenderer.invoke("outcomego:accessibility:open-settings"),
+  },
 });

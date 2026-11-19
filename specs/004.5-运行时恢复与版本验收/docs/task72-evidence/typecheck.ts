@@ -1,0 +1,10 @@
+import ts from 'typescript';
+import { resolve } from 'node:path';
+const root=process.cwd();
+const targets=['scripts/test-outcome-populated-backup.ts','scripts/outcome-recovery/populated-backup.test.ts','apps/server/test/fixtures/outcome-recovery/populated-backup.ts'].map(p=>resolve(root,p));
+const config=ts.readConfigFile(resolve(root,'tsconfig.base.json'),ts.sys.readFile);
+const parsed=ts.parseJsonConfigFileContent(config.config,ts.sys,root);
+const program=ts.createProgram(targets,{...parsed.options,noEmit:true,types:['bun']});
+const diagnostics=ts.getPreEmitDiagnostics(program);
+console.log(JSON.stringify({targetFiles:targets.length,diagnostics:diagnostics.map(d=>({file:d.file?.fileName.replace(root+'/',''),line:d.file?.getLineAndCharacterOfPosition(d.start??0).line!+1,code:d.code,message:ts.flattenDiagnosticMessageText(d.messageText,'\n')}))},null,2));
+process.exitCode=diagnostics.length?1:0;

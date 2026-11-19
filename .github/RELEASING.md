@@ -41,7 +41,7 @@ non-pre-release releases.
 
 | Job | Output |
 |---|---|
-| `images` / `merge-images` | `ghcr.io/<owner>/ai-teamos-{server,worker,migrate,computer}:<version>` for linux/amd64 and linux/arm64 |
+| `images` / `merge-images` | `ghcr.io/<owner>/outcomego-{server,worker,migrate,computer}:<version>` for linux/amd64 and linux/arm64 |
 | `verify-images` | Anonymous `docker pull` of every image by digest |
 | `cli-build` / `sign` | Five CLI binaries (raw and `.gz`), digest-pinned `outcomego-compose.yaml`, `install.sh`, `install.ps1`, and a `.sigstore.json` for the Compose file and each raw binary |
 | `desktop` | Linux AppImage and Windows installer, with `latest*.yml` |
@@ -53,7 +53,7 @@ non-pre-release releases.
 ## First-release checklist
 
 1. **GHCR visibility.** New packages are private. After the first push, set each of the four
-   `ai-teamos-*` packages to public (Package settings, Danger Zone). `verify-images` fails with
+   `outcomego-*` packages to public (Package settings, Danger Zone). `verify-images` fails with
    the link until you do; re-run the failed jobs afterwards.
 2. **Signing.** The CLI signs keylessly with the workflow's GitHub OIDC identity and verifies
    against `DEFAULT_REPOSITORY` in `apps/cli/src/constants.ts`. No private key exists. The

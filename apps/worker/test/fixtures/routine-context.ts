@@ -13,8 +13,8 @@ import {
 import { WakeWorker } from "../../src/worker";
 
 export async function createRoutineHarness() {
-  assert(process.env.OPENTEAM_TEST_DATABASE_URL);
-  const db = createPrismaClient(process.env.OPENTEAM_TEST_DATABASE_URL);
+  assert((process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL));
+  const db = createPrismaClient((process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL));
   const root = await mkdtemp(join(tmpdir(), "openteam-275-final-sweep-"));
   await db.userTimeZoneSettings.upsert({
     where: { id: "global" },

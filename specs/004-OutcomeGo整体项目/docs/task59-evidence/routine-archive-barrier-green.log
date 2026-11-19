@@ -1,0 +1,13 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/routine-retirement-locks.integration.test.ts:
+(node:57103) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) Routine failure and real archive finish without inverse lifecycle locks [263.27ms]
+(pass) Routine archive and real archive finish without inverse lifecycle locks [91.60ms]
+(pass) Routine recovery and real archive finish without inverse lifecycle locks [133.10ms]
+
+ 3 pass
+ 0 fail
+ 19 expect() calls
+Ran 3 tests across 1 file. [866.00ms]

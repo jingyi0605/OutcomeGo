@@ -45,6 +45,8 @@ import { openComputerHandoff } from "../../lib/computer-handoff";
 import { parseUserForm } from "@outcomego/contracts/user-forms";
 import { UserFormCard } from "./user-form-card";
 import { localizeComputerNetworkPolicyCard } from "../../lib/computer-network-policy-card";
+import { parseOutcomeChatCard } from "@outcomego/contracts/outcome-chat";
+import { OutcomeChatCardView } from "./outcomes/outcome-chat-card";
 
 const ExternalDraftCard = lazy(() =>
   import("./external-draft-card").then((module) => ({ default: module.ExternalDraftCard }))
@@ -698,6 +700,10 @@ function ComputerHandoffCard({
 export function RichMessage({ message, bot }: { message: ChannelMessageView; bot?: BotView }) {
   const { locale } = useI18n();
   const metadata = record(message.metadata);
+  if (metadata.type === "outcome-card") {
+    const card = parseOutcomeChatCard(metadata.outcomeCard);
+    return card ? <OutcomeChatCardView card={card} bot={bot} /> : <p>{message.content}</p>;
+  }
   if (
     metadata.type === "bot-template" &&
     metadata.template &&

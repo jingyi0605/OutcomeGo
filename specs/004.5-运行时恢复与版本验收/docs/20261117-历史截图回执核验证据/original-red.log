@@ -1,0 +1,22 @@
+bun test v1.4.4 (38afee6c8)
+
+packages/messaging/test/read-transcript.integration.test.ts:
+46 |   expect(bounded.rows[1]!.content).toContain('FINAL_RESULT=complete');
+47 |   expect(bounded.rows[1]!.content.length).toBeLessThan(2000);
+48 |   expect(bounded.rows.reduce((n,r)=>n+r.content.length,0)).toBeLessThan(63_000);
+49 |   await db.runItem.create({data:{runId:run.id,kind:'tool',status:'completed',content:{tool:'Computer',arguments:{action:'type',text:'PRIVATE_TYPED_INPUT'},result:{content:[{type:'text',text:'Screenshot saved to /workspace/shared/screenshots/stopped-worker.png'},{type:'image',data:'PRIVATE_IMAGE'}]}}}});
+50 |   const recovered=await readTranscript(db,context,{...target,limit:200});
+51 |   expect(recovered.rows.some(r=>r.content.includes('/workspace/shared/screenshots/stopped-worker.png'))).toBe(true);
+                                                                                                              ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-transcript-fix/packages/messaging/test/read-transcript.integration.test.ts:51:106)
+(fail) scoped persisted history: stopped workers, paging, append, compaction and private boundaries [179.37ms]
+
+ 0 pass
+ 1 fail
+ 20 expect() calls
+Ran 1 test across 1 file. [330.00ms]

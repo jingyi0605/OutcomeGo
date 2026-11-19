@@ -305,7 +305,12 @@ export function BotScreen({
     enabled && active && screen?.state === "ready" && !open
       ? api.screenFrameUrl(bot.id, frameRevision)
       : null,
-    { enabled: resourcesActive, retainPreviousFor: bot.id }
+    {
+      enabled: resourcesActive,
+      retainPreviousFor: bot.id,
+      decodeImage: true,
+      onError: () => setError(t("Screen preview is reconnecting")),
+    }
   );
   const retryConnection = () => {
     setError(null);
@@ -336,6 +341,7 @@ export function BotScreen({
               fetchPriority={active ? "high" : "low"}
               loading={active ? "eager" : "lazy"}
               onError={() => setError(t("Screen preview is reconnecting"))}
+              onLoad={() => setError(null)}
               src={frameSource}
             />
           ) : (
@@ -351,6 +357,14 @@ export function BotScreen({
                     : t("Starting {name}'s screen…", { name: bot.name }))}
               </ComputerConnectionStatus>
             </div>
+          )}
+          {error && frameSource && (
+            <span
+              className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-center text-[11px] text-white"
+              role="status"
+            >
+              {error}
+            </span>
           )}
         </Button>
       </div>

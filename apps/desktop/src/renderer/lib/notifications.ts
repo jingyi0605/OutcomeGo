@@ -5,6 +5,30 @@ import type {
   ChannelNotificationState,
   DesktopNotificationTarget,
 } from "@outcomego/contracts/notification-content";
+import type { OutcomeNotificationPayload } from "@outcomego/contracts/notification-content";
+
+/** Reads only the authenticated, preference-filtered notification projection. */
+export function startOutcomeNotificationSync(
+  read: () => Promise<{ outcomeNotifications?: OutcomeNotificationPayload[] }>,
+  publish: (items: OutcomeNotificationPayload[]) => void,
+): () => void {
+  let active = true;
+  let pending = false;
+  const refresh = async () => {
+    if (!active || pending) return;
+    pending = true;
+    try {
+      const state = await read();
+      if (active) publish(state.outcomeNotifications ?? []);
+    } catch { /* The durable notification facts survive reconnect; the next poll retries. */ }
+    finally { pending = false; }
+  };
+  void refresh();
+  const interval = window.setInterval(() => void refresh(), 15_000);
+  window.addEventListener("focus", refresh);
+  window.addEventListener("online", refresh);
+  return () => { active = false; window.clearInterval(interval); window.removeEventListener("focus", refresh); window.removeEventListener("online", refresh); };
+}
 
 /** Resolve legacy banners by sequence without downloading a channel's history. */
 export async function resolveNotificationMessage(
@@ -50,6 +74,7 @@ export const desktopNotificationSnapshot = (
     cursor: snapshot.cursor,
     channels: snapshot.channels.flatMap((channel) =>
       channel.notificationState &&
+      !channel.notificationsMuted &&
       !channel.hiddenFromSidebar &&
       channel.members.some((member) => !botById.get(member.botId)?.hiddenFromSidebar)
         ? [

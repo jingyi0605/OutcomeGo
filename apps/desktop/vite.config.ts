@@ -86,8 +86,9 @@ export default defineConfig({
     // Shared plugin primitives must not pull their parent screens into a detail
     // chunk. These modules declare components/functions without startup effects.
     rolldownOptions: {
-      // The floating screenbot composer is its own small page (src/renderer/screenbot).
-      input: { index: "index.html", screenbot: "screenbot.html" },
+      // The floating screenbot composer and the Bot capsule are their own small pages
+      // (src/renderer/screenbot, src/renderer/botdock).
+      input: { index: "index.html", screenbot: "screenbot.html", botdock: "botdock.html" },
       output: { codeSplitting: { groups: [{
       name: "plugin-common",
       test: /(?:plugins\/(?:plugin-ui|plugin-mark|plugin-authorization)|product-core\/src\/plugin-authorization|renderer\/lib\/plugin-settings-scale)\.(?:ts|tsx)$/,

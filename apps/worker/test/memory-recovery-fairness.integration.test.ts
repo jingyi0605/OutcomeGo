@@ -6,7 +6,7 @@ import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore } from "@outcomego/messaging";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const databaseTest = databaseUrl ? test : test.skip;
 const healthyFact = "The user's favorite tea is oolong.";
 
@@ -88,6 +88,52 @@ async function scanAndSettle(worker: RecoveryWorker) {
   await Promise.all([...worker.memoryReviews.values()]);
   expect(worker.memoryReviews.size).toBe(0);
 }
+
+databaseTest("memory recovery acknowledges historical automation and reaction intents without learning their business content", () => fixture(async ({ db, worker, addBot, addRun, inferenceCalls }) => {
+  const bot = await addBot("Memory execution isolation");
+  const excluded: string[] = [];
+  for (const [ordinal, origin] of (["outcome", "routine", "bootstrap"] as const).entries()) {
+    const runId = await addRun(bot, ordinal);
+    await db.run.update({ where: { id: runId }, data: { origin } });
+    excluded.push(runId);
+  }
+  const reaction = await addRun(bot, 3);
+  await db.inboxEvent.updateMany({ where: { runId: reaction }, data: { type: "user.reaction" } });
+  excluded.push(reaction);
+  const ordinary = await addRun(bot, 4);
+  for (let scan = 0; scan < 6; scan++) await scanAndSettle(worker);
+  expect(await db.run.count({ where: { id: { in: excluded }, status: "completed", memoryReviewPending: false } })).toBe(4);
+  expect(await db.memoryFact.count({ where: { turnId: { in: excluded } } })).toBe(0);
+  expect(inferenceCalls).toHaveLength(1);
+  expect(await db.memoryFact.findMany({ where: { writtenByBotId: bot.id }, select: { turnId: true, fact: true } }))
+    .toEqual([{ turnId: ordinary, fact: healthyFact }]);
+  expect(await db.botRunLease.count({ where: { botId: bot.id } })).toBe(0);
+}), 15_000);
+
+databaseTest("durable memory recovery retains visible answers and excludes voice narration", () => fixture(async ({ db, worker, addBot, addRun, inferenceCalls }) => {
+  const bot = await addBot("Memory voice filtering");
+  const runId = await addRun(bot, 0);
+  const channel = await db.channel.create({ data: {
+    kind: "bot_dm", name: "Memory voice filtering", members: { create: { botId: bot.id, ordinal: 0 } },
+  } });
+  try {
+    await db.channelMessage.create({ data: {
+      channelId: channel.id, sender: "agent", senderBotId: bot.id, sourceRunId: runId,
+      content: "The completed visible answer.", metadata: {},
+    } });
+    await db.channelMessage.create({ data: {
+      channelId: channel.id, sender: "agent", senderBotId: bot.id, sourceRunId: runId,
+      content: "PRIVATE_VOICE_PROGRESS", metadata: { type: "voice-narration" },
+    } });
+    await scanAndSettle(worker);
+    expect(inferenceCalls).toHaveLength(1);
+    expect(inferenceCalls[0]).toContain("The completed visible answer.");
+    expect(inferenceCalls[0]).not.toContain("PRIVATE_VOICE_PROGRESS");
+    expect((await db.run.findUniqueOrThrow({ where: { id: runId } })).memoryReviewPending).toBe(false);
+  } finally {
+    await db.channel.delete({ where: { id: channel.id } });
+  }
+}), 15_000);
 
 async function until(check: () => boolean) {
   const deadline = Date.now() + 5_000;

@@ -311,3 +311,28 @@ public struct API: Sendable {
     return try result["message"].decode(Message.self)
   }
 }
+
+public struct FeatureSettings: Decodable, Sendable {
+  public let outcomesEnabled: Bool?
+}
+
+extension API {
+  /// Only the missing collection route means that the server does not support Outcomes.
+  public func listOutcomes(cursor: String? = nil) async throws -> OutcomeListPage? {
+    var query = ["limit": "20"]
+    if let cursor { query["cursor"] = cursor }
+    do { return try await get("/api/v0/outcomes", as: OutcomeListPage.self, query: query) }
+    catch let error as APIError where error.status == 404 { return nil }
+  }
+
+  /// Whether the owner switched goal management on. Nil means the server predates the switch,
+  /// so the caller falls back to probing the Outcome collection itself.
+  public func outcomesEnabled() async throws -> Bool? {
+    do { return try await get("/api/v0/feature-settings", as: FeatureSettings.self).outcomesEnabled ?? false }
+    catch let error as APIError where error.status == 404 { return nil }
+  }
+
+  public func outcomeDetail(id: String) async throws -> OutcomeDetail {
+    try await get("/api/v0/outcomes/\(Self.segment(id))", as: OutcomeDetail.self)
+  }
+}

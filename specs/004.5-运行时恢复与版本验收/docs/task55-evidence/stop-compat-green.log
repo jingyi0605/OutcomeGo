@@ -1,0 +1,14 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/server/test/request-stop.integration.test.ts:
+(pass) a Stop committed during attachment preparation prevents publication by an already executing SendToUser [195.38ms]
+(pass) an active completion can deliver; a priority interruption does not stop the request [118.55ms]
+(pass) publication waits for a concurrent Stop transaction and reads its committed stop marker [143.59ms]
+(pass) publication waits for a concurrent retirement and Stop transaction and reads its committed stop marker [92.21ms]
+(pass) a fresh user turn can acknowledge Stop even when referencing the stopped request [86.31ms]
+
+ 5 pass
+ 16 filtered out
+ 0 fail
+ 11 expect() calls
+Ran 5 tests across 1 file. [987.00ms]

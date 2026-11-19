@@ -17,7 +17,7 @@
 | `python3 apps/ios/scripts/check-native-config.py` | 通过，version `0.1.0`、build `65`。|
 | `bun --filter @outcomego/ios generate` | 通过，生成 `OutcomeGoNative.xcodeproj`。|
 | `docker compose config --quiet` | 开发和生产 Compose 均通过；生产检查使用临时环境变量，不启动服务。|
-| preserve identifier scan | Runtime hits `aiTeamOS` Desktop userData, `aiTeamOS-*` Desktop asset prefix, GHCR `ai-teamos`, and Postgres channel `aiteamos_events` are documented preserves.|
+| preserve identifier scan | Runtime hits `aiTeamOS` Desktop userData, `aiTeamOS-*` Desktop asset prefix, and Postgres channel `aiteamos_events` are documented preserves.|
 | fresh database behavior | `deploy-schema.ts` rejects nonempty databases without exact `OutcomeGo schema target: outcomego-v1` schema comment, then applies only current Prisma schema and raw SQL; legacy conversion/deletion steps were removed. Fresh-schema and refusal integration tests are authored; execution awaits disposable PostgreSQL CI.|
 
 ## Android 包证据
@@ -42,7 +42,7 @@
 
 命令：`rg -n -i "aiteamos|aiTeamOS|ai-teamos" .`（排除依赖、构建产物和已记录的扫描证据文件）。
 
-结果：147 个命中，全部属于公开历史说明、`aiteamos` 同一 binary 命令别名、`ai-TeamOS` 默认分支、Desktop `userData`/artifact 固定标识、GHCR `ai-teamos` 路径、Postgres `aiteamos_events` 通道、历史 beta.13 资产或 upstream/迁移清单；未发现新的用户可见旧品牌运行字符串。分类依据：`docs/name-inventory.md`。
+结果：147 个命中，全部属于公开历史说明、`aiteamos` 同一 binary 命令别名、`ai-TeamOS` 默认分支、Desktop `userData`/artifact 固定标识、历史 GHCR `ai-teamos` 路径说明（该路径已于 2026 年 11 月 17 日改为 `outcomego`）、Postgres `aiteamos_events` 通道、历史 beta.13 资产或 upstream/迁移清单；未发现新的用户可见旧品牌运行字符串。分类依据：`docs/name-inventory.md`。
 
 ## 未执行项
 

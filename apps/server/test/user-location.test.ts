@@ -134,6 +134,8 @@ test("server tool dispatch matches contracts and refuses subagents and supplied 
       undefined,
       undefined,
       undefined,
+      {},
+      undefined,
       {
         readForTool: async () => {
           reads++;

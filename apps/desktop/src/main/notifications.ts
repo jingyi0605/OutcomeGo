@@ -9,6 +9,8 @@ import {
   type DesktopNotificationTarget,
   type NotificationReadState,
 } from "@outcomego/contracts/notification-content";
+import { parseDesktopOutcomeTarget, type DesktopOutcomeTarget } from "../renderer/lib/outcome-target";
+import { OUTCOME_NOTIFICATION_TYPES } from "@outcomego/contracts/notification-content";
 
 export const parseNotificationTarget = (value: unknown): DesktopNotificationTarget | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -125,6 +127,7 @@ export interface DesktopNotificationAdapter {
   deliver: (event: DesktopNotificationEvent) => void;
   /** Closes a delivered banner once its message is read on any device. */
   dismiss?: (notificationId: string) => void;
+  onMessagesArrived?: () => void;
   setBadge: (label: string) => void;
 }
 
@@ -300,6 +303,7 @@ export class DesktopNotificationManager {
     for (const [channelId, at] of this.lastAlertAt) {
       if (now - at >= NOTIFICATION_THROTTLE_MS) this.lastAlertAt.delete(channelId);
     }
+    if (pending.size > 0) this.adapter.onMessagesArrived?.();
     // While the window has focus, replies show in the app instead of as banners.
     if (this.adapter.isFocused()) {
       // Native focus can overtake the renderer's separate visible-channel IPC.
@@ -360,3 +364,49 @@ const alertEvent = (notification: ChannelNotificationView): DesktopNotificationE
   title: notification.title,
   body: truncateNotificationText(notification.body),
 });
+
+export interface DesktopOutcomeNotification extends DesktopOutcomeTarget { factKey: string }
+export function parseOutcomeNotifications(value: unknown): DesktopOutcomeNotification[] | null {
+  if (!Array.isArray(value) || value.length > 100) return null;
+  const result: DesktopOutcomeNotification[] = [];
+  for (const candidate of value) {
+    if (!candidate || typeof candidate !== "object") continue;
+    const input = candidate as Record<string, unknown>;
+    // Future payload versions and event kinds cannot break the existing chat projection.
+    if (input.schemaVersion !== 1 || input.kind !== "outcome" || !(OUTCOME_NOTIFICATION_TYPES as readonly unknown[]).includes(input.type)) continue;
+    const target = parseDesktopOutcomeTarget(input);
+    if (!target?.outcomeId || !target.category || !target.channelId || !target.notificationSequence ||
+      typeof input.factKey !== "string" || !input.factKey || input.factKey.length > 300) continue;
+    result.push({ ...target, factKey: input.factKey });
+  }
+  return result;
+}
+/** Separate channel from chat: only redacted identities from authenticated notification-state. */
+export class DesktopOutcomeNotificationManager {
+  private seen = new Set<string>();
+  private delivered = new Set<string>();
+  private initialized = false;
+  constructor(private adapter: {
+    isFocused: () => boolean; isSupported: () => boolean;
+    deliver: (id: string, target: DesktopOutcomeTarget) => void;
+    dismiss: (id: string) => void;
+  }) {}
+  sync(notifications: DesktopOutcomeNotification[]) {
+    const current = new Set(notifications.map(notification => notification.factKey));
+    for (const id of this.delivered) if (!current.has(id)) { this.adapter.dismiss(id); this.delivered.delete(id); }
+    for (const notification of notifications) {
+      if (this.seen.has(notification.factKey)) continue;
+      this.seen.add(notification.factKey);
+      if (this.initialized && !this.adapter.isFocused() && this.adapter.isSupported()) {
+        const { factKey, ...target } = notification;
+        this.adapter.deliver(factKey, target); this.delivered.add(factKey);
+      }
+    }
+    this.initialized = true;
+    while (this.seen.size > 1000) this.seen.delete(this.seen.values().next().value!);
+  }
+  clear() {
+    this.delivered.forEach(id => this.adapter.dismiss(id));
+    this.delivered.clear(); this.seen.clear(); this.initialized = false;
+  }
+}

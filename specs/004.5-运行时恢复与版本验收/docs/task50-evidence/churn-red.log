@@ -1,0 +1,42 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/memory-recovery-churn.integration.test.ts:
+93 |   const bot = await addBot();
+94 |   const suffix = crypto.randomUUID().slice(9);
+95 |   const ids = [1, 2, 3].map(index => `${index.toString(16).padStart(8, "0")}-${suffix}`);
+96 |   for (const marker of [3, 2, 1]) await addRun(bot, marker, ids[marker - 1]);
+97 |   for (let scan = 0; scan < 3; scan++) {
+98 |     await worker.recoverMemoryReviews(); await settle(worker);
+                      ^
+TypeError: worker.recoverMemoryReviews is not a function. (In 'worker.recoverMemoryReviews()', 'worker.recoverMemoryReviews' is undefined)
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-recovery-churn.integration.test.ts:98:18)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-recovery-churn.integration.test.ts:59:11)
+(fail) equal completion timestamps use UUID order even when runs were inserted in reverse [134.64ms]
+115 |       db.run.deleteMany({ where: { id: { in: selected.slice(0, 10).map(row => row.id) } } }),
+116 |       db.run.updateMany({ where: { id: { in: selected.slice(10, 21).map(row => row.id) } }, data: { status: "cancelled" } }),
+117 |       db.inboxEvent.updateMany({ where: { runId: { in: selected.slice(21).map(row => row.id) } }, data: { status: "pending" } }),
+118 |     ]);
+119 |   });
+120 |   await worker.recoverMemoryReviews(); await settle(worker);
+                     ^
+TypeError: worker.recoverMemoryReviews is not a function. (In 'worker.recoverMemoryReviews()', 'worker.recoverMemoryReviews' is undefined)
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-recovery-churn.integration.test.ts:120:16)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-recovery-churn.integration.test.ts:59:11)
+(fail) a full scan invalidated before dispatch still reaches later owners and wraps across lease-owner churn [451.28ms]
+148 |     const reached = Promise.withResolvers<void>(), release = Promise.withResolvers<void>();
+149 |     // The reviewer has already fetched the completed Run, inbox and exchange.
+150 |     // Pause at the final await before the real AgentDataStore lease claim.
+151 |     beforeClaim(async () => { reached.resolve(); await release.promise; });
+152 |     try {
+153 |       await worker.recoverMemoryReviews();
+                         ^
+TypeError: worker.recoverMemoryReviews is not a function. (In 'worker.recoverMemoryReviews()', 'worker.recoverMemoryReviews' is undefined)
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-recovery-churn.integration.test.ts:153:20)
+      at async fixture (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-recovery-churn.integration.test.ts:59:11)
+      at async <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/l6-memory-recovery-fix/apps/worker/test/memory-recovery-churn.integration.test.ts:145:84)
+(fail) a dispatch snapshot cannot learn after its run is cancelled, loses its completed inbox, or is deleted before claim [80.75ms]
+
+ 0 pass
+ 3 fail
+ 1 expect() calls
+Ran 3 tests across 1 file. [887.00ms]

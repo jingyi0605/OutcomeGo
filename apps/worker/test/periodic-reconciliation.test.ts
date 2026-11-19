@@ -149,6 +149,7 @@ describe("bounded periodic reconciliation", () => {
     ];
     const deleted: string[] = [];
     const adopted: string[] = [];
+    const markerLookups: unknown[] = [];
     const worker = Object.create(WakeWorker.prototype) as WakeWorker;
     Object.defineProperties(worker, {
       agentStoreEtag: { value: null, writable: true },
@@ -157,7 +158,10 @@ describe("bounded periodic reconciliation", () => {
         value: {
           bot: { findMany: async () => [] },
           channel: { findMany: async () => [] },
-          event: { findMany: async () => records.map(({ id }) => ({ entityId: id })) },
+          retiredAgent: { findMany: async (input: unknown) => {
+            markerLookups.push(input);
+            return records.map(({ id }) => ({ id }));
+          } },
           $transaction: async (work: (tx: unknown) => Promise<unknown>) => {
             adopted.push("transaction");
             return work({ $executeRaw: async () => 0 });
@@ -182,6 +186,10 @@ describe("bounded periodic reconciliation", () => {
     };
 
     expect(await reconcile.reconcileAgentStores(false)).toBe(0);
+    expect(markerLookups).toEqual([{
+      where: { id: { in: [deletedBotId, deletedGroupId] } },
+      select: { id: true },
+    }]);
     expect(adopted).toEqual([]);
     expect(deleted).toEqual([
       COMPUTER_API_PATHS.agentStore(deletedGroupId),

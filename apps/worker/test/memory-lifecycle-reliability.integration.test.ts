@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { DynamicToolCallRequest, type ComputerTurnRequest } from "@outcomego/contracts";
 import { createPrismaClient } from "@outcomego/db";
 import { AppService } from "../../server/src/app-service";
@@ -13,7 +14,7 @@ import { clientRoutes } from "../../server/src/routes/client";
 import { conversationRoutes } from "../../server/src/routes/conversation";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = databaseUrl ? test : test.skip;
 type ToolCall = (tool: string, args: unknown) => Promise<any>;
 type Bot = { id: string; conversationId: string; channelId: string };
@@ -37,7 +38,7 @@ async function fixture(body: (h: {
   tools: Array<{ runId: string; tool: string; result: unknown }>;
 }) => Promise<void>) {
   const root = await mkdtemp(join(tmpdir(), "memory-lifecycle-http-"));
-  const keys = ["DATABASE_URL", "OPENTEAM_COMPUTER_URL", "OPENTEAM_CONTROL_TOKEN", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT", "OPENTEAM_AUTH_MODE"] as const;
+  const keys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT", "OUTCOMEGO_AUTH_MODE"] as const;
   const previous = new Map(keys.map(key => [key, process.env[key]]));
   const bots: Bot[] = [], channels: string[] = [], releases: Array<() => void> = [];
   const turns: ComputerTurnRequest[] = [], reviews: string[] = [], errors: unknown[] = [];
@@ -97,15 +98,17 @@ async function fixture(body: (h: {
         tools.push({ runId: input.runId, tool, result });
         return result;
       };
+      return turnResponse(async () => {
       const reply = await onTurn(input, call);
       if (reply !== null) await call("SendToUser", { type: "text", content: reply });
-      return new Response([
+      return [
         { type: "session.attached", runtimeEngine: "pi", inferenceProvider: "openai-codex", contextSessionId: input.contextSessionId,
           sessionPath: input.sessionPath ?? `/var/lib/openteam/pi/${input.contextSessionId}.jsonl`, sessionId: input.contextSessionId, model: "controlled-lifecycle" },
         { type: "context.state", contextSessionId: input.contextSessionId, epoch: 0, archives: [] },
         { type: "turn.started", turnId: input.runId }, { type: "prompt.delivered", turnId: input.runId },
         { type: "turn.completed", turnId: input.runId, status: "completed" },
-      ].map(event => JSON.stringify(event)).join("\n") + "\n", { headers: { "content-type": "application/x-ndjson" } });
+      ];
+      });
     } catch (error) { errors.push(error); return Response.json({ error: String(error) }, { status: 500 }); }
   } });
   const until = async (check: () => Promise<boolean>) => {
@@ -121,8 +124,8 @@ async function fixture(body: (h: {
   const stopWorker = async () => { await worker?.stop(); worker = undefined; };
   const reviewed = (runId: string) => until(async () => await app!.prisma.run.count({ where: { id: runId, status: "completed", memoryReviewPending: false } }) === 1);
   try {
-    Object.assign(process.env, { DATABASE_URL: databaseUrl, OPENTEAM_COMPUTER_URL: computer.url.origin, OPENTEAM_CONTROL_TOKEN: token,
-      OPENTEAM_WORKSPACE_ROOT: root, OPENTEAM_AGENT_DATA_ROOT: join(root, "data"), OPENTEAM_AUTH_MODE: "disabled" });
+    Object.assign(process.env, { DATABASE_URL: databaseUrl, OUTCOMEGO_COMPUTER_URL: computer.url.origin, OUTCOMEGO_CONTROL_TOKEN: token,
+      OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data"), OUTCOMEGO_AUTH_MODE: "disabled" });
     await start();
     await body({
       app: () => app!, http, request, until, reviewed, stopWorker, turns, reviews, tools,

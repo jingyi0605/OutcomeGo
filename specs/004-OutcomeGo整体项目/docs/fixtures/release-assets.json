@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "fictional": true,
+  "owner": "owner:local",
+  "bot": "$bot",
+  "cleanup": {
+    "scope": "fixture-created-bot",
+    "preserveSourceInputs": true,
+    "remove": [
+      "scoped events and idempotency receipts",
+      "fixture Bot with cascaded Outcome facts",
+      "fixture-owned channel and workspace directory"
+    ]
+  },
+  "fixtureId": "release-assets",
+  "parentScenarios": [
+    "H"
+  ],
+  "input": {
+    "rootVersion": "$rootVersion",
+    "expectedBrand": "OutcomeGo",
+    "artifactSources": [
+      "desktop update manifest",
+      "CLI release manifest",
+      "Android signed APK",
+      "iOS application metadata"
+    ],
+    "rollbackModes": [
+      "disable-outcome-entry-keep-schema",
+      "old-image-with-populated-outcome-tables"
+    ]
+  },
+  "initialState": {
+    "releasePublished": false,
+    "remoteRebuilt": false
+  },
+  "requests": [
+    {
+      "action": "compare-repository-version-and-artifact-manifests"
+    },
+    {
+      "action": "verify-asset-signature-and-hash"
+    },
+    {
+      "action": "reject-cross-brand-or-wrong-platform-assets"
+    },
+    {
+      "action": "pg-dump-disposable-fixture-database"
+    },
+    {
+      "action": "record-both-rollback-results"
+    }
+  ],
+  "expectedStates": [
+    {
+      "entity": "release",
+      "values": [
+        "candidate",
+        "verified",
+        "pending-external-acceptance"
+      ]
+    }
+  ],
+  "idRelations": [
+    "artifact.version=root.version",
+    "manifest.sha256=artifact.sha256"
+  ],
+  "notificationCategories": [],
+  "assertions": [
+    "never publish or rebuild as a side effect of fixture validation",
+    "old-image db-push failure with populated Outcome tables is recorded, never repaired by deleting tables",
+    "formal rollback disables new entry/dispatch while keeping data",
+    "missing image/device/account evidence remains PENDING"
+  ]
+}

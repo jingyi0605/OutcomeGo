@@ -39,8 +39,14 @@ export const useAuthenticatedResource = (
   {
     enabled = true,
     retainPreviousFor,
+    decodeImage = false,
     onError,
-  }: { enabled?: boolean; retainPreviousFor?: string; onError?: (cause: unknown) => void } = {}
+  }: {
+    enabled?: boolean;
+    retainPreviousFor?: string;
+    decodeImage?: boolean;
+    onError?: (cause: unknown) => void;
+  } = {}
 ): string | null => {
   const failureHandler = useRef(onError);
   failureHandler.current = onError;
@@ -96,14 +102,25 @@ export const useAuthenticatedResource = (
     });
     leases.current.add(lease);
     void lease.ready
-      .then((url) => {
+      .then(async (url) => {
+        if (cancelled) return;
+        if (decodeImage) {
+          // Keep the displayed lease pinned until a replacement can actually paint.
+          const image = document.createElement("img");
+          image.src = url;
+          await image.decode();
+        }
         if (cancelled) return;
         delivered = true;
         setResolved({ generation, source, url, retentionKey, lease });
       })
       .catch((cause) => {
         if (!cancelled) {
-          setResolved(null);
+          setResolved((previous) =>
+            retentionKey && previous?.retentionKey === retentionKey ? previous : null
+          );
+          lease.release();
+          leases.current.delete(lease);
           reportFailure?.(cause);
         }
       });
@@ -114,7 +131,7 @@ export const useAuthenticatedResource = (
         leases.current.delete(lease);
       }
     };
-  }, [enabled, source, target, retentionKey, generation]);
+  }, [enabled, source, target, retentionKey, generation, decodeImage]);
 
   if (!enabled) return null;
   if (!target) return source;

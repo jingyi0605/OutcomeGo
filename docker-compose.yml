@@ -176,6 +176,7 @@ services:
       OUTCOMEGO_UPDATE_CHANNEL: ${OUTCOMEGO_UPDATE_CHANNEL:-beta}
       DATABASE_URL: postgresql://outcomego:outcomego-local-only@postgres:5432/outcomego
       OUTCOMEGO_PORT: 8787
+      OUTCOMEGO_OUTCOMES_ENABLED: ${OUTCOMEGO_OUTCOMES_ENABLED:-true}
       OUTCOMEGO_COMPUTER_URL: http://computer:8790
       OUTCOMEGO_CONTROL_TOKEN: ${OUTCOMEGO_CONTROL_TOKEN:-local-compose-only-change-me}
       OUTCOMEGO_AUTH_SECRET: ${OUTCOMEGO_AUTH_SECRET:-local-compose-auth-secret-change-me-now}
@@ -212,6 +213,7 @@ services:
       dockerfile: docker/app.Dockerfile
       target: worker
     environment:
+      OUTCOMEGO_OUTCOMES_ENABLED: ${OUTCOMEGO_OUTCOMES_ENABLED:-true}
       DATABASE_URL: postgresql://outcomego:outcomego-local-only@postgres:5432/outcomego
       OUTCOMEGO_COMPUTER_URL: http://computer:8790
       OUTCOMEGO_CONTROL_TOKEN: ${OUTCOMEGO_CONTROL_TOKEN:-local-compose-only-change-me}

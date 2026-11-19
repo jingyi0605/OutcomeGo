@@ -581,6 +581,17 @@ const FIRST_PARTY_CATALOG_HEADER =
   "First-party tools built into you, listed first: they are trusted and core to your job, so prefer one over an external namespace that covers the same need. Read a tool's schema with GetDynamicTools, then call it with CallDynamicTool in the cursor namespace.";
 /** One-line cues for the cursor namespace, as in the reference's concise static contexts. */
 const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
+  CreateOutcome: "Save a native goal with a contract you wrote, for owner approval; use Outcomes before external task apps; never approve or accept it yourself.",
+  TrackOutcome: "Register anything you cannot finish this turn on the goal board; owner decisions go to the inbox.",
+  CloseOutcome: "Close a tracked goal you finished yourself, without user acceptance.",
+  ListOutcomes: "Find native goals and their execution statuses by text or status.",
+  GetOutcome: "Read a goal's actual contract, Runs, results, Evidence and Reviews.",
+  ReviseOutcome: "Propose a new goal contract revision for owner approval.",
+  StartOutcome: "Start the exact owner-approved revision only when asked.",
+  CancelOutcome: "Cancel the native goal the user asked to stop, preserving history.",
+  ListOutcomeInbox: "Read native decisions, reviews and human actions requiring attention.",
+  CreateExploreIdea: "Record an idea in native Explore without starting execution.",
+  ListExploreIdeas: "Read the user's native Explore ideas.",
   AuthenticateMcpServer: "Start authentication for a connector that needs auth.",
   AwaitShell: "Use to sleep and check shell progress. Never sleep using shell.",
   ChatItems: "Read a conversation out of the user's Messages history.",

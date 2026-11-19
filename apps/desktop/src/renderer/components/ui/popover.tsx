@@ -17,10 +17,11 @@ export function PopoverContent({
   align = "center",
   className,
   sideOffset = 4,
+  portalContainer,
   ...props
-}: ComponentProps<typeof PopoverPrimitive.Content>) {
+}: ComponentProps<typeof PopoverPrimitive.Content> & { portalContainer?: HTMLElement | null }) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={portalContainer}>
       <PopoverPrimitive.Content
         align={align}
         className={cn(

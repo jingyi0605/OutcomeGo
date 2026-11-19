@@ -1,0 +1,11 @@
+{
+  "readOnly": true,
+  "database": "127.0.0.1:55439/outcomego_w3_final_server_20261117",
+  "timing": "after four package commands and six CLI, before any campaign database cleanup",
+  "badgeCount": 0,
+  "messages": [],
+  "notifications": [],
+  "runs": [],
+  "events": [],
+  "limitations": "Post-campaign surviving facts only; no timestamp snapshot at failing assertion, so producer attribution requires matching fixture evidence. No business message content or notification payload values exported."
+}

@@ -1,5 +1,7 @@
 package com.outcomego.platform
 
+import com.outcomego.mobile.core.OutcomeLinkTarget
+import com.outcomego.mobile.core.parseOutcomePushTarget
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -40,8 +42,10 @@ data class FcmNotification(
     val body: String,
     val badgeCount: Int,
     val readStateJson: String?,
+    val outcomeTarget: OutcomeLinkTarget? = null,
+    val mutedChannelId: String? = null,
 ) {
-    val isAlert: Boolean get() = kind == "message" || kind == "reaction"
+    val isAlert: Boolean get() = kind == "message" || kind == "reaction" || (kind == "outcome" && outcomeTarget != null)
     fun isForScope(expectedScope: String): Boolean =
         expectedScope.isNotBlank() && scope == expectedScope
 
@@ -53,11 +57,14 @@ data class FcmNotification(
             threadMessageId = data["threadMessageId"], title = data["title"].orEmpty(),
             body = data["body"].orEmpty(), badgeCount = data["badgeCount"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0,
             readStateJson = data["readState"],
+            outcomeTarget = parseOutcomePushTarget(data),
+            mutedChannelId = data["mutedChannelId"],
         )
     }
 }
 
 fun FcmNotification.deepLinkUri(): Uri {
+    outcomeTarget?.let { return Uri.parse(it.deepLink) }
     val message = threadMessageId ?: messageSequence
     val query = message?.let { "?message=${Uri.encode(it)}" }.orEmpty()
     return Uri.parse("outcomego://chat/${Uri.encode(channelId)}$query")
@@ -65,6 +72,13 @@ fun FcmNotification.deepLinkUri(): Uri {
 
 object AndroidNotificationTapIntent {
     fun create(context: Context, activityClass: Class<*>, notification: FcmNotification): PendingIntent {
+        if (notification.outcomeTarget != null) {
+            val uri = notification.deepLinkUri()
+            val intent = Intent(context, activityClass).setAction(Intent.ACTION_VIEW).setData(uri)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            return PendingIntent.getActivity(context, uri.toString().hashCode(), intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        }
         return createForChannel(context, activityClass, notification.channelId, notification.threadMessageId ?: notification.messageSequence)
     }
 
@@ -93,6 +107,7 @@ class NotificationChannels(context: Context) {
         const val REACTION = "reaction"
         const val VOICE = "realtime-voice"
         const val NETWORK = "network-sharing"
+        const val SYNC = "message-sync"
     }
     private val manager = context.getSystemService(NotificationManager::class.java)
 
@@ -102,6 +117,7 @@ class NotificationChannels(context: Context) {
             NotificationChannel(REACTION, "Reactions", NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(VOICE, "Realtime voice", NotificationManager.IMPORTANCE_LOW),
             NotificationChannel(NETWORK, "Network sharing", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(SYNC, "Background message sync", NotificationManager.IMPORTANCE_MIN),
         ))
     }
 }
@@ -114,7 +130,8 @@ class AndroidNotificationPresenter(private val context: Context) {
         val channel = if (notification.kind == "reaction") NotificationChannels.REACTION else NotificationChannels.AGENT
         showInternal(
             channel = channel,
-            channelId = notification.channelId,
+            channelId = notification.outcomeTarget?.decisionId ?: notification.outcomeTarget?.outcomeId ?: notification.channelId,
+            tag = if (notification.outcomeTarget == null) chatTag(notification.channelId) else null,
             title = notification.title.ifEmpty { "OutcomeGo" },
             body = notification.body,
             badgeCount = notification.badgeCount,
@@ -127,6 +144,7 @@ class AndroidNotificationPresenter(private val context: Context) {
         showInternal(
             channel = NotificationChannels.AGENT,
             channelId = channelId,
+            tag = chatTag(channelId),
             title = title.ifEmpty { "OutcomeGo" },
             body = body,
             badgeCount = 0,
@@ -134,9 +152,27 @@ class AndroidNotificationPresenter(private val context: Context) {
         )
     }
 
+    fun syncBadge(notification: FcmNotification) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val mutedTag = notification.mutedChannelId?.let(::chatTag)
+        for (item in manager.activeNotifications) {
+            if (item.tag?.startsWith("chat:") != true) continue
+            if (item.tag == mutedTag) {
+                manager.cancel(item.tag, item.id)
+            } else if (item.notification.number != notification.badgeCount) {
+                val updated = android.app.Notification.Builder.recoverBuilder(context, item.notification)
+                    .setNumber(notification.badgeCount).setOnlyAlertOnce(true).build()
+                manager.notify(item.tag, item.id, updated)
+            }
+        }
+    }
+
+    private fun chatTag(channelId: String) = "chat:$channelId"
+
     private fun showInternal(
         channel: String,
         channelId: String,
+        tag: String?,
         title: String,
         body: String,
         badgeCount: Int,
@@ -150,7 +186,7 @@ class AndroidNotificationPresenter(private val context: Context) {
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
             .setNumber(badgeCount)
-        NotificationManagerCompat.from(context).notify(channelId.hashCode().coerceAtLeast(ids.incrementAndGet()), builder.build())
+        NotificationManagerCompat.from(context).notify(tag, channelId.hashCode().coerceAtLeast(ids.incrementAndGet()), builder.build())
     }
 }
 
@@ -348,7 +384,7 @@ class NotificationReadLedger(private val scope: String) {
     }
 
     fun hasRead(notification: FcmNotification): Boolean {
-        if (notification.scope != scope || !notification.isAlert) return false
+        if (notification.outcomeTarget != null || notification.scope != scope || !notification.isAlert) return false
         val marker = markers[notification.channelId] ?: return false
         val value = if (notification.kind == "reaction") notification.notificationSequence else notification.messageSequence
         val read = if (notification.kind == "reaction") marker.lastReadNotificationSequence else marker.lastReadSequence
@@ -411,10 +447,11 @@ class FcmMessageHandler(
         if (!notification.isForScope(expectedScope)) return false
         if (notification.kind == "badge-sync") {
             ledger.mergeSync(notification.readStateJson)
+            presenter.syncBadge(notification)
             return false
         }
         if (ledger.hasRead(notification)) return false
-        if (foregroundChannelId == notification.channelId) return false
+        if (notification.outcomeTarget == null && foregroundChannelId == notification.channelId) return false
         if (notification.isAlert) presenter.show(notification, tapIntent(notification))
         return notification.isAlert
     }

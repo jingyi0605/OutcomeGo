@@ -62,7 +62,9 @@ import com.outcomego.android.ui.designsystem.SpatialTheme
 import com.outcomego.android.ui.designsystem.rememberSpatialGlassBackdrop
 import com.outcomego.android.ui.designsystem.spatialGlassBackdropSource
 import com.outcomego.android.ui.groupConversations
+import androidx.compose.material3.TextButton
 import com.outcomego.features.HapticEffect
+import com.outcomego.features.LocalAppHaptics
 import com.outcomego.features.localizedText
 
 @Composable
@@ -84,6 +86,7 @@ internal fun DirectoryScreen(
     onTogglePin: (String) -> Unit,
     onMoveToSection: (String, String?) -> Unit,
     onToggleSection: (String?) -> Unit,
+    onOutcomes: (() -> Unit)? = null,
 ) {
     var searchVisible by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -93,6 +96,7 @@ internal fun DirectoryScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val activity = LocalContext.current as? ComponentActivity
     val colors = SpatialTheme.colors
+    val haptic = LocalAppHaptics.current
 
     // Only manually pinned chats appear in the top row, and they are removed from the
     // grouped list below so each chat is shown in exactly one place.
@@ -137,9 +141,9 @@ internal fun DirectoryScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(searchVisible) {
+            .pointerInput(searchVisible, haptic) {
                 if (searchVisible) return@pointerInput
-                // Settings lives off the left edge: dragging the list to the right pulls it in.
+                // Settings lives off the left edge (drag right); Outcomes lives off the right edge (drag left).
                 val trigger = 72.dp.toPx()
                 var total = 0f
                 var fired = false
@@ -147,7 +151,12 @@ internal fun DirectoryScreen(
                     total += delta
                     if (!fired && total >= trigger) {
                         fired = true
+                        haptic.play(HapticEffect.Medium)
                         onSettings()
+                    } else if (!fired && total <= -trigger && onOutcomes != null) {
+                        fired = true
+                        haptic.play(HapticEffect.Medium)
+                        onOutcomes()
                     }
                 }
             },
@@ -324,6 +333,11 @@ internal fun DirectoryScreen(
                             }
                         }
                         Spacer(Modifier.weight(1f))
+                        onOutcomes?.let { open ->
+                            TextButton(onClick = open) {
+                                Text(localizedText("Outcomes", "成果"))
+                            }
+                        }
                         SpatialIconOrb(
                             icon = Icons.Default.Refresh,
                             contentDescription = localizedText("Outbox", "发件箱"),

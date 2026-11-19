@@ -79,6 +79,7 @@ function Fixture() {
         <Inspector channel={channels[0]!} botById={bots} active screenEnabled={false} mode="settings"
           onEnableScreen={noop} onModeChange={noop} onUpdateBot={async () => bots.get("bot-0")!}
           onRetryBot={async () => {}} onOutcomeGo={noop} onSetGroupAvatar={async () => {}}
+          onSetGroupNotificationMute={async () => {}}
           onSetMembers={async () => {}} onUpdateGroupProfile={async () => channels[0]!}
           onBotAction={noop} />
       </div>

@@ -24,7 +24,7 @@ OpenTeam Bot / Computer / Plugin / MCP
 人工执行与 KnowledgeProvider
 ```
 
-OutcomeGo 不创建第二套 Agent Runtime、第二套数据库或独立编排平台。
+OutcomeGo 不创建第二套 Agent Runtime、第二套数据库或独立编排平台。Agent WorkItem 在执行 Bot 下作为独立的 **Outcome 子线程** 运行，不进入用户与 Bot 的主对话线程，详见 §45。
 
 ## 3. 阶段关系
 
@@ -40,7 +40,7 @@ OutcomeGo 不创建第二套 Agent Runtime、第二套数据库或独立编排�
 004.5 恢复、幂等、指标和最终验收
 ```
 
-`004.2` 是第一条产品价值主链路。`004.5` 的最低运行能力可以在 `004.2` 执行期间并行实现。
+`004.2` 是第一条产品价值主链路。上图表达产品事实依赖；开发按 [接口冻结文档](docs/parallel-interfaces.md) 的任务级前置条件分波并行，不等待前一子规格的最终检查点。
 
 ## 4. 数据所有权
 
@@ -79,7 +79,7 @@ OutcomeGo 不创建第二套 Agent Runtime、第二套数据库或独立编排�
 |---|---|---|---|
 | 品牌、版本和发布 | 根工作区与发布 Workflow | `package.json`、`scripts/release/`、`.github/workflows/release.yml`、客户端发布配置 | 必须通过 `004.1` 的兼容矩阵 |
 | Outcome/Contract | Server + DB | `apps/server/src/services/`、`apps/server/src/routes/`、`packages/db/prisma/schema.prisma` | 不在客户端保存最终事实 |
-| OpenTeam Run | 现有 Channel/Worker/Computer 链路 | `apps/server/src/services/channel-service.ts`、`run-service.ts`、`apps/worker/src/worker.ts`、`apps/computer/src/runtime/` | 通过窄接口接入，不替换 Runtime |
+| OpenTeam Run | 现有 Worker/Computer 链路，按 Routine 的子线程模式运行（§45） | `packages/messaging/src/index.ts`（`enqueueWake`）、`packages/messaging/src/automation-results.ts`、`apps/worker/src/worker.ts`、`apps/computer/src/runtime/` | 通过窄接口接入，不替换 Runtime，不经过主对话的 `acceptDirectUserMessage` |
 | Inbox/通知 | Server 投影 + 现有通知通道 | `InboxEvent`、`ChannelNotification`、`apps/server/src/services/notification-service.ts`、`packages/messaging/src/notifications.ts` | 不复制完整消息系统 |
 | 现实任务 | Outcome WorkItem + KnowledgeProvider | `apps/server`、`packages/contracts`、客户端页面 | 人工动作不能伪装为 Agent Run |
 | 恢复和幂等 | 现有 Event/Outbox/IdempotencyRecord | `packages/db`、`apps/server/src/services/service-utils.ts`、`apps/worker` | 只扩展当前流程需要的字段和处理器 |
@@ -114,9 +114,9 @@ eventId / idempotencyKey
 
 ## 10. 版本和数据库策略
 
-- 下一版本品牌发布沿用当前版本线；发布前根版本为 `0.1.0-beta.13`，`004.1` 已将本地候选版本设为 `0.1.0-beta.14`，实际发布仍以版本脚本、tag 和 Release 证据为准。
+- 版本线：`004.1` 已于 `0.1.0-beta.14`（2026-11-12）启用 OutcomeGo，截至 2026-11-17 已发布到 `0.1.0-beta.19`。Outcome 功能沿同一 beta 版本线发布，实际版本以版本脚本、tag 和 Release 证据为准。
 - `004.1` 全量名称迁移的新实例直接从包含全部最新字段的单一 `outcomego-v1` Prisma/raw schema 初始化；不执行旧产品数据库字段、表名或 schema 的自动转换。
-- Outcome 产品功能新增的数据库字段仍按本父 Spec 的 API 和数据兼容规则设计；`004.1` 品牌迁移不要求对 beta.13 数据库原地升级。
+- Outcome 产品功能新增的表和字段按 §16 的方式加入同一份 schema；`004.1` 品牌迁移不要求对 beta.13 数据库原地升级。
 - Outcome 相关 Event 和 API 载荷必须有 `schemaVersion` 或明确的兼容解析分支。
 - 旧数据保留流程是用户手动备份后导入符合最新 schema 的备份；仓库校验器拒绝旧格式且不改写输入文件。
 - 所有发布验证必须记录构建版本、数据库迁移版本、客户端版本和测试环境。
@@ -196,28 +196,34 @@ interface OutcomeEventEnvelope<T> {
 }
 ```
 
-最小事件目录：
+最小事件目录。所有 Outcome 事件统一使用 `outcome.` 前缀，避免与 `Event` 表中已有的运行时主题（`run.started`、`run.completed`、`run.interrupted`、`run.cancelled`、`run_item.completed`、`inbox.completed` 等，由 `apps/worker/src/projection.ts`、`apps/server/src/services/run-service.ts` 等写入，`entityId` 为 runId）冲突：
 
 | 事件 | 产生阶段 | 消费阶段 | 是否创建主动通知 |
 |---|---|---|---|
 | `outcome.created` | `004.2` | 所有阶段 | 否 |
-| `contract.revision.created` | `004.2`/`004.3` | `004.2`、`004.3` | 否 |
-| `contract.revision.approved` | `004.2` | `004.2`、`004.5` | 否 |
-| `work_item.created` | `004.2`/`004.4` | Worker、Inbox | 否 |
-| `run.started` | `004.2` | `004.5` | 否 |
-| `run.finished` | `004.2` | Review、Inbox、恢复 | 通常否 |
-| `review.required` | `004.2`/`004.4` | `004.3` | 是，待验收 |
-| `review.recorded` | `004.2`/`004.4` | Outcome 状态计算、指标 | 否 |
-| `decision.required` | `004.3`/`004.5` | Inbox、客户端 | 是 |
-| `decision.resolved` | `004.3` | `004.2`、`004.5` | 否 |
-| `human_action.required` | `004.4` | Inbox、客户端 | 是 |
-| `human_receipt.submitted` | `004.4` | Review、Inbox | 否 |
+| `outcome.status_changed` | `004.2`（服务端重新计算） | Inbox、客户端、指标 | 否 |
+| `outcome.contract.revision_created` | `004.2`/`004.3` | `004.2`、`004.3` | 否 |
+| `outcome.contract.revision_approved` | `004.2` | `004.2`、`004.5` | 否 |
+| `outcome.work_item.created` | `004.2`/`004.4` | 子线程调度、Inbox | 否 |
+| `outcome.work_item.updated` | `004.2`/`004.4`/`004.5` | Inbox、恢复、指标 | 否；payload 含 `from`、`to`、`reason` |
+| `outcome.output.recorded` | `004.2` | Review、客户端 | 否 |
+| `outcome.review.required` | `004.2`/`004.4` | `004.3` | 是，待验收 |
+| `outcome.review.recorded` | `004.2`/`004.4` | Outcome 状态计算、指标 | 否 |
+| `outcome.decision.required` | `004.3`/`004.5` | Inbox、客户端 | 是 |
+| `outcome.decision.resolved` | `004.3` | `004.2`、`004.5` | 否 |
+| `outcome.decision.closed` | `004.3` | Inbox、客户端 | 否；payload `reason` 为 `expired` 或 `withdrawn` |
+| `outcome.human_action.required` | `004.4` | Inbox、客户端 | 是 |
+| `outcome.human_receipt.submitted` | `004.4` | Review、Inbox | 否 |
 | `outcome.accepted` | `004.2`/`004.4` | Inbox、指标、发布回放 | 是，结果 |
 | `outcome.recovered` | `004.5` | 查询、审计 | 否 |
 
+Outcome 服务只**读取**现有运行时主题（`run.completed`、`run.interrupted`、`run.cancelled`）来推进 WorkItem，不写入这些主题，也不改变它们的 payload。
+
 事件消费者必须能处理未知事件类型。未知事件可以进入事实日志，但不能改变现有业务状态。
 
-上表是唯一的事件名目录。子 Spec 不得为同一事实另起名字（例如不得使用 `contract.approved`、`run.submitted`、`review.updated`）；需要新事件时先在本表登记。
+上表是唯一的事件名目录。子 Spec 不得为同一事实另起名字，也不得新增指标专用事件（指标由上表事件和业务表派生，见 `004.5` §40）；需要新事件时先在本表登记。
+
+`apps/server/src/event-stream.ts` 只把 `snapshot.required` 等既有主题推给客户端；`outcome.*` 是否推送给客户端由 `004.3` 任务 0.1 核对后决定，默认不推送，客户端通过 Outcome API 和 Inbox 读取。
 
 ## 15. 全局错误合同
 
@@ -251,17 +257,22 @@ interface OutcomeEventEnvelope<T> {
 
 错误文本使用英文代码标识和项目现有 API 语言约定；面向用户的解释由客户端本地化层提供。
 
-## 16. 数据库迁移顺序
+## 16. 数据库 schema 变更方式
 
-跨阶段数据库迁移按以下顺序进行：
+仓库不使用 Prisma Migrate。当前机制（`packages/db/scripts/deploy-schema.ts`）：
 
-1. 先创建可选的新表和可选外键。
-2. 部署读路径，允许旧客户端继续工作。
-3. 部署写路径和事件投影。
-4. 运行历史数据核对和新数据回放。
-5. 在确认没有旧客户端写入冲突后，才增加必要的非空约束或索引。
+- `schema.prisma` 和 `prisma/sql/raw-schema.sql` 共同计算 schema 指纹，写入数据库 schema 注释 `OutcomeGo schema ready: outcomego-v1:<fingerprint>`。
+- 部署时（`bun --filter @outcomego/db db:push`）若指纹变化，执行 `prisma db push` 同步表结构，再应用 raw schema。`db push` 不带 `--accept-data-loss`，拒绝删除仍有数据的存储。
+- `prisma/migrations/<日期>_<名称>/migration.sql` 只用于记录**需要改写已有数据**的变更，不会被部署脚本执行；纯新增表和可选字段不需要写这类文件。
 
-禁止在 `004.1` 的品牌发布迁移中创建不可回滚的 Outcome 业务表。业务表迁移属于 `004.2` 或对应阶段，并且必须有独立 migration 名称和回退说明。
+Outcome 各阶段的数据库变更规则：
+
+1. 只新增表、可选列、索引和外键；不删除、不重命名现有表和列，不把现有可选列改为必填。
+2. 在 `schema.prisma` 中定义模型；部分唯一索引等 Prisma 表达不了的约束写入 `raw-schema.sql`。
+3. 验证：`bun --filter @outcomego/db db:generate`、db typecheck、在一次性 PostgreSQL 上执行 `db:push`，并扩展 `packages/db/test/fresh-schema.integration.test.ts` 覆盖新表。
+4. 禁止在 `004.1` 的品牌发布中创建 Outcome 业务表。
+
+已知风险（`004.5` 任务 8.2 验证）：回退到不含 Outcome 表的旧镜像时，旧镜像的 `db push` 会因新表有数据而拒绝执行，服务无法启动。因此 Outcome 的回滚方式是“关闭 Outcome 入口、保留新镜像”（§36 第 2 层），而不是回退镜像。
 
 ## 17. 跨阶段事务和异步边界
 
@@ -288,8 +299,8 @@ interface OutcomeEventEnvelope<T> {
 
 本项目不新增组织级 RBAC，但所有新 API 仍必须使用当前服务端 owner/session 鉴权。当前服务端是单 owner 模型，`OUTCOMEGO_AUTH_MODE=disabled` 时没有 session，具体规则见 §44：
 
-1. API 从当前认证上下文取得 owner identity，不能信任请求体中的 ownerId。
-2. Outcome、Decision、WorkItem、Evidence 和回执查询必须沿关系验证归属。
+1. API 从当前认证上下文生成 `actorRef`，不能信任请求体中的任何主体字段。
+2. Outcome、Decision、WorkItem、Evidence 和回执之间的关联（例如 Decision 属于该 Outcome、WorkItem 属于该 revision）必须在服务端校验；但不存在“另一个 owner 的 Outcome”，不做按 owner 过滤和越权测试。
 3. `actorId` 记录真实用户、Agent 或系统服务主体。
 4. 客户端只提交选择和回执，不能提交批准人、验收人或最终状态作为可信字段。
 5. 内部 Worker API 继续使用现有内部认证方式；不把内部 token 写入 Outcome payload。
@@ -312,11 +323,11 @@ Server
 Desktop
   └─ POST /runs
 Server
-  └─ WorkItem(queued) + existing Run
+  └─ WorkItem(queued) + Outcome 子线程首个 Run（origin=outcome，§45）
 Worker
-  └─ Run completed + ChannelMessage(sourceRunId)
+  └─ 子线程运行组（根 Run + 后续回合 + 子 Agent + 后台 shell）全部结束
 Server
-  └─ Output + ReviewPending
+  └─ 子线程最终结果 → Output + ReviewPending
 Desktop
   └─ POST /reviews
 Server
@@ -326,25 +337,27 @@ Server
 ## 20. 端到端序列：需要决策
 
 ```text
-Worker/Recovery
-  └─ action cannot continue in current Contract
+Outcome 子线程中的 Agent
+  └─ RequestOutcomeDecision（结束当前回合，不轮询）
 Server
-  └─ Checkpoint + Decision(open) + Outcome(DecisionPending)
+  └─ Decision(open) + WorkItem(waiting_decision) + Outcome(decision_pending)
 Inbox projection
   └─ decision_pending item + notification fact
 User
   └─ POST /decisions/:id/resolve
 Server
-  ├─ same revision: resume WorkItem
-  └─ changed scope: create revision N+1 pending approval
+  ├─ same revision: 在同一子线程上下文开启新回合，WorkItem → running
+  └─ changed scope: create revision N+1 pending approval，原 WorkItem → cancelled
 Worker
   └─ resume only after valid status
 ```
 
+主对话线程在整个过程中不被打断；只有需要主线程处理的交接（例如重新授权连接）才通过 `WakeParent` 进入主线程。
+
 ## 21. 端到端序列：人工任务
 
 ```text
-Agent/Planner
+Agent（RequestHumanAction 工具）或 Decision 的 manual_action 选项
   └─ WorkItem(executorType=human)
 Server
   └─ HumanActionPending + references
@@ -382,7 +395,7 @@ specs/004-OutcomeGo整体项目/docs/fixtures/
   decision-pending.json
   human-action.json
   duplicate-event.json
-  upgrade-from-beta-13.json
+  fresh-install-import.json
   release-assets.json
 ```
 
@@ -394,10 +407,10 @@ specs/004-OutcomeGo整体项目/docs/fixtures/
 |---|---:|---:|---:|---:|---:|---:|
 | Outcome 查询 | ✓ | - | ✓ | ✓ | ✓ | - |
 | Contract 批准 | ✓ | - | ✓ | 后续 | 后续 | - |
-| Agent Run | ✓ | ✓ | 触发 | 观察 | 观察 | - |
+| Agent 子线程执行 | ✓ | ✓ | 触发 | 观察 | 观察 | - |
 | Decision resolve | ✓ | ✓ | ✓ | ✓ | ✓ | - |
 | Human receipt | ✓ | - | ✓ | 后续 | 后续 | - |
-| 版本升级 | - | - | ✓ | ✓ | ✓ | ✓ |
+| 新安装和手动备份导入 | ✓ | - | ✓ | ✓ | 延期 | ✓ |
 
 阶段子规格必须说明自己覆盖的矩阵单元，并将未覆盖单元写入 Out of Scope，而不是隐含跳过。
 
@@ -427,17 +440,11 @@ specs/004-OutcomeGo整体项目/docs/fixtures/
 4. 记录已知限制、未执行的外部测试和回滚方法。
 5. 只有在所有必需证据齐全时将任务标记为 `DONE`。
 
-## 26. 需要保留的设计决策记录
+## 26. 设计决策记录的位置
 
-以下决策必须作为 ADR 或 `docs/` 记录保留：
+跨线函数、事件 payload 和实现负责人统一登记在 [接口冻结文档](docs/parallel-interfaces.md)。
 
-- 是否直接扩展现有 `Run` 还是使用 `OutcomeRunLink`。
-- Contract revision 是否单独建表或复用现有 JSON 字段。
-- Inbox 使用查询投影还是新增 `OutcomeInboxItem` 表。
-- Checkpoint 使用 `Run.requestProgress` 还是新增表。
-- 现实资料的第一个 provider 以及其项目范围来源。
-- 下一版本哪些内部标识保留，哪些内部标识迁移。
-- 哪些客户端能力进入第一轮 Beta。
+所有跨阶段决策只登记在 §39 的决策表中（包括原先分散在各子 Spec“设计决策记录”章节中的待定项）。子 Spec 的设计决策章节只能引用 §39 的编号，不再另列待定清单。新的待定项先加入 §39，标明默认基线和需要在哪个任务前确认。
 
 ## 27. Parent Spec 与子 Spec 的文件责任
 
@@ -465,11 +472,11 @@ specs/004-OutcomeGo整体项目/docs/fixtures/
        └─> 004.4 human work/evidence
             └─> 004.5 recovery of human work
 
-004.2 minimum Run/Checkpoint
+004.2 Outcome 子线程和 WorkItem 状态
   └─> 004.5 can implement recovery in parallel
 
-004.1 release candidate
-  └─> 004.5 final upgrade/release acceptance
+004.1 已发布版本（beta.14–beta.19）和已知 PENDING 项
+  └─> 004.5 final install/import/release acceptance
 ```
 
 不可并行的依赖：
@@ -520,16 +527,16 @@ specs/004-OutcomeGo整体项目/docs/fixtures/
 | Human WorkItem | ✓ | 按当前 schema 校验 | 不适用 | 保留源备份 |
 | Checkpoint | ✓ | 按当前 schema 校验 | 不适用 | 保留源备份 |
 
-每个 migration 任务必须记录：
+每个 schema 变更任务必须记录（方式见 §16）：
 
 ```text
-migration name
-apply command
-database version before/after
-row counts
-foreign-key checks
-old-client read result
-rollback/recovery result
+schema.prisma / raw-schema.sql 变更摘要
+schema 指纹 before/after
+db:push 输出（一次性 PostgreSQL）
+新表行数和外键检查
+fresh-schema 集成测试结果
+旧客户端读取结果
+回滚方式（关闭入口，保留新表）
 ```
 
 ## 31. 领域状态不变量总表
@@ -652,8 +659,8 @@ elapsedMs
 
 1. UI/文案回滚：撤销客户端和 README 变化。
 2. 功能入口回滚：关闭 Outcome/Decision 入口，保留数据和 API 读取。
-3. Worker 行为回滚：停止新 Outcome Run，保留普通聊天/Run。
-4. 服务端回滚：回到兼容旧数据库读取的镜像。
+3. Worker 行为回滚：停止派发新的 Outcome 子线程，保留普通聊天/Run。
+4. 服务端回滚：只在 Outcome 表为空时回退镜像；有数据时使用第 2、3 层（原因见 §16 已知风险）。
 5. 发布回滚：恢复旧 asset、tag、manifest 和安装说明。
 6. 数据修复：只有在有备份、脚本和审计记录时执行。
 
@@ -684,44 +691,48 @@ elapsedMs
 
 ## 38. 父级设计评审问题
 
-在 `004` 进入实施前，评审必须回答：
-
-- 当前 Run 是否能承载 Contract revision 关联。
-- WorkItem 是否需要新表。
-- Outcome owner 是否沿用当前用户身份（已决定，见 §44）。
-- Inbox 是否复用现有通知模型。
-- 第一版资料 provider 是什么。
-- Recovery checkpoint 存在哪里。
-- 哪些平台进入第一条真实试点。
-- 下一版本品牌和仓库 rename 的边界是什么。
-- 哪些测试需要真实账号、设备或发布环境。
-- 哪些失败可以记录 PENDING，哪些必须阻止发布。
+原评审问题已全部并入 §39 决策表（D09–D20），这里不再单独维护。
 
 
-## 39. 决策基线（原规划 D01–D08）
+## 39. 决策基线（D01–D20）
 
-原规划 §20.2 列出的八项决策在本项目中按下表执行。“已确认”来自用户明确要求；“默认基线”是本 Spec 为了先完整实现功能而采用的最简单方案，负责人可以在对应阶段开始前改写，改写后必须同步更新受影响的子 Spec。
+D09–D20 涉及的共享函数和分波依赖以 [接口冻结文档](docs/parallel-interfaces.md) 为实现合同；本文保留业务决策来源。
 
-| 决策 | 本项目结论 | 状态 | 影响的子 Spec |
-|---|---|---|---|
-| D01 规划自动化 | 第一版采用 A：每个 Outcome 都走三维规划和一次明确批准。B（模板复用）和 C（预授权自动规划）不在本项目实现。 | 默认基线 | `004.2` |
-| D02 公开名称和仓库 | 下一版本启用 OutcomeGo 用户可见名称；仓库 slug 为 `jingyi0605/OutcomeGo`，fork 默认分支命名为 `OutcomeGo`，上游 `main` 保持不变。 | 已确认；分支同步和默认分支切换随本次执行 | `004.1` |
-| D03 Contract Schema | Contract 只包含 goal、acceptance、boundaries 三部分，加可选 `budget`（不填默认值）和执行 Bot；批准人和验收人都是当前 owner；任何目标、验收、边界变化都生成新 revision。原规划六部分中的 Authority 和 Recovery 不进入 Contract。 | 默认基线 | `004.2` |
-| D04 权限动作矩阵 | 不实施，见 §40。 | 已确认（用户要求先完整实现功能） | 全部 |
-| D05 第一个试点 | Agent 试点：“比较两个备份方案并给出选型建议”（`004.2` 需求 10）。现实任务试点：`004.4` 的现场网络检查 fixture。两者都只使用虚构数据。 | 默认基线 | `004.2`、`004.4` |
-| D06 门禁覆盖路径 | 不实施，见 §40。 | 已确认 | 全部 |
-| D07 验收方式 | 所有必需条款的 PASS/FAIL 由 owner 提交。系统可以生成 AI 预审建议（`004.2` 需求 17），但建议只是 Evidence，不能写入 PASS。现实任务必须有人工回执。 | 默认基线 | `004.2`、`004.4` |
-| D08 品牌和 MVP 顺序 | 先完成 `004.1` 更名发布，再开发 Outcome 功能。 | 已确认 | `004.1`、`004.2` |
+原规划 §20.2 列出的八项决策（D01–D08）和实施中新增的决策（D09–D20）都登记在下表。“已确认”来自负责人明确要求；“默认基线”是为了先完整实现功能而采用的最简单方案，负责人可以在“确认时点”之前改写，改写后必须同步更新受影响的子 Spec。
+
+| 决策 | 本项目结论 | 状态 | 确认时点 | 影响的子 Spec |
+|---|---|---|---|---|
+| D01 规划自动化 | 第一版采用 A：每个 Outcome 都走三维规划和一次明确批准。B（模板复用）和 C（预授权自动规划）不在本项目实现。 | 已确认（负责人，2026-11-17） | — | `004.2` |
+| D02 公开名称和仓库 | 启用 OutcomeGo 用户可见名称；仓库 slug 为 `jingyi0605/OutcomeGo`，fork 默认分支为 `OutcomeGo`，上游 `main` 保持不变。 | 已确认；已随 beta.14 交付 | — | `004.1` |
+| D03 Contract Schema | Contract 只包含 goal、acceptance、boundaries 三部分，加可选 `budget`（不填默认值）和执行 Bot；批准人和验收人都是当前 owner；任何目标、验收、边界变化都生成新 revision。原规划六部分中的 Authority 和 Recovery 不进入 Contract。 | 已确认（负责人，2026-11-17） | — | `004.2` |
+| D04 权限动作矩阵 | 不实施，见 §40。 | 已确认（用户要求先完整实现功能） | — | 全部 |
+| D05 第一个试点 | Agent 试点：“比较两个备份方案并给出选型建议”（`004.2` 需求 10）。现实任务试点：`004.4` 的现场网络检查 fixture。两者都只使用虚构数据。 | 已确认（负责人，2026-11-17） | — | `004.2`、`004.4` |
+| D06 门禁覆盖路径 | 不实施，见 §40。 | 已确认 | — | 全部 |
+| D07 验收方式 | 所有必需条款的 PASS/FAIL 由 owner 提交。系统可以生成 AI 预审建议（`004.2` 需求 17），但建议只是 Evidence，不能写入 PASS。现实任务必须有人工回执。 | 已确认（负责人，2026-11-17） | — | `004.2`、`004.4` |
+| D08 品牌和 MVP 顺序 | 先完成 `004.1` 更名发布，再开发 Outcome 功能。 | 已确认；`004.1` 已于 2026-11-17 收尾 | — | `004.1`、`004.2` |
+| D09 Agent 执行模型 | Bot 保留一个主对话线程；每个 Agent WorkItem 作为独立的 Outcome 子线程运行，不打断主线程，也不被主线程打断，需要时再向主线程汇报（§45）。 | 已确认（负责人，2026-11-17） | — | 全部 |
+| D10 子线程身份 | 新增 `RunOrigin.outcome`；上下文会话 scope 为 `outcome`、scopeId 为 workItemId；运行租约 scope 为 `outcome:<workItemId>`。从 Routine 抽出共用的“运行组是否结束”判断。备选：直接复用 `routine` origin。 | 已采用（`004.2` 任务 0.3 审计确认，2026-11-17） | — | `004.2`、`004.3`、`004.5` |
+| D11 WorkItem 生成规则 | 不做自动拆分。`POST /runs` 为当前 revision 创建 1 个 Agent WorkItem；返工创建 1 个 `kind=rework` 的 WorkItem；Decision 的 `plan_only` 选项可以追加 1 个补充 WorkItem。`dependsOn` 只在追加 WorkItem 时由服务端写入。 | 已采用（`004.2` 任务 0.3 审计确认，2026-11-17） | — | `004.2`、`004.3` |
+| D12 人工 WorkItem 来源 | 只有两种来源：Agent 在子线程中调用 `RequestHumanAction` 工具，或用户在 Decision 中选择 `manual_action` 选项。不从 Contract 自动识别。 | 默认基线 | `004.4` 任务 0.1 | `004.3`、`004.4` |
+| D13 子线程并发 | 每个 Bot 同时运行的 Outcome 子线程上限为 2，超出排队；同一 Bot 的桌面操作（`computerUse`）同一时间只允许一个子线程使用；每个 WorkItem 的输出写入工作区 `outcomes/<outcomeId>/<workItemId>/`。 | 已采用（`004.2` 任务 0.3 审计确认，2026-11-17） | — | `004.2`、`004.5` |
+| D14 Run 关联方式 | 不建 `OutcomeRunLink`。`Run` 增加可选列 `outcomeWorkItemId`（带索引），子线程运行组内的每个 Run 都写入；WorkItem 保存 `rootRunId`。 | 已采用（`004.2` 任务 0.3 审计确认，2026-11-17） | — | `004.2`、`004.5` |
+| D15 Output 来源和主线程汇报 | Output 取自子线程运行组的最终结果，以及写入 WorkItem 输出目录的文件；子线程不向主对话发送可见消息。结果和决策通过 Outcome Inbox 和通知送达；只有需要主线程处理的交接（如重新授权连接）才用 `WakeParent`。 | 已采用（`004.2` 任务 0.3 审计确认，2026-11-17） | — | `004.2`、`004.3` |
+| D16 Inbox 存储 | 使用实时查询投影，不建 `OutcomeInboxItem` 表；通知复用 `ChannelNotification`、`OutboxDelivery`。查询性能不足时再加表（需先更新本表）。 | 默认基线 | `004.3` 任务 0.1 | `004.3` |
+| D17 恢复检查点 | 不新增 `OutcomeCheckpoint` 表。恢复依据 WorkItem 状态、子线程运行组状态和现有 Run 字段（`requestProgress` 等）。 | 默认基线 | `004.5` 任务 0.1 | `004.5` |
+| D18 事件去重 | 消费者使用 `IdempotencyRecord(scope="outcome-event:<handler>", key=eventId)`，不建专用处理记录表（§43）。 | 已确认（设计约束） | — | `004.3`、`004.5` |
+| D19 资料来源和 Explore | 第一版资料来源为 `FixtureKnowledgeProvider` 和 `ProjectFileKnowledgeProvider`。正式 scope 为 `bot:<Outcome.botId>`：`AgentFileState` 只保存元数据，正文经 server/computer 共用的 agent-data 挂载，由注入的 `AgentDataStore.root/botDirectory` 有界读取当前 Bot 的普通文本文件，并比较实际 SHA-256；无挂载、缺失或非文本返回 `unreadable_source`。`/v1/read` 实为 Desktop `HOST_BRIDGE_PATHS.read`，不是 computer 读取端。检索复用 `SearchDocument` 的消息/附件投影（先按 Bot/channel 关系限定再限制条数），另按路径检索受管文件；消息读 `ChannelMessage`，文本附件须经该消息关联后从 `AssetStore` 读取。Explore 轨道排在 `004.4` 最后阶段，可以整体延期。 | 已确认（负责人共享挂载读取路径，2026-11-17） | `004.4` 任务 0.1 | `004.4` |
+| D20 验收入口和 Decision 过期 | 验收只有一个入口 `POST /api/v0/outcomes/:id/reviews`，人工回执的验收也走它。Decision 默认不过期（`expiresAt` 为空），由创建方显式设置。 | 默认基线 | `004.3` 任务 1.1 | `004.2`、`004.3`、`004.4` |
 
 实现层面的补充决定：
 
 | 问题 | 结论 |
 |---|---|
-| Outcome 与 Bot 的关系 | 每个 Outcome 绑定一个执行 Bot，Agent WorkItem 通过该 Bot 的 DM 会话进入现有 Run。多 Bot 协作沿用该 Bot 现有的 subagent 能力，不在 Outcome 层编排。 |
+| Outcome 与 Bot 的关系 | 每个 Outcome 绑定一个执行 Bot，Agent WorkItem 在该 Bot 下作为 Outcome 子线程运行（D09、§45），不经过该 Bot 的 DM 主对话。多 Bot 协作沿用该 Bot 现有的 subagent 能力，不在 Outcome 层编排。 |
 | 资料项目范围 | 第一版 `projectScope = bot:<botId>`，与 `AgentFileState.botId` 对齐；不新增 Project 表。 |
 | 规划候选项来源 | 服务端调用 computer 现有 `/v1/infer`，新增 `kind="planning"`，见 `004.2` §31。 |
-| Agent 请求用户决策 | 新增内部工具 `RequestOutcomeDecision`，只在带 Outcome 上下文的 Run 中提供，见 `004.3` §41。 |
-| 深链格式 | 沿用现有 `outcomego://app/v1/...` scheme，见 `004.3` §10。 |
+| Agent 请求用户决策 | 新增内部工具 `RequestOutcomeDecision`，只在 Outcome 子线程中提供，见 `004.3` §41。 |
+| Agent 请求人工动作 | 新增内部工具 `RequestHumanAction`，只在 Outcome 子线程中提供，见 `004.4` §32。 |
+| 深链格式 | 使用 `004.1` 已启用的 `outcomego://app/v1/...` scheme，只增加路径，见 `004.3` §10。 |
 
 ## 40. 授权门禁处理决定
 
@@ -764,20 +775,25 @@ queued → running → completed
                  → failed
                  → cancelled
 running → waiting_decision → running | cancelled
+running → waiting_human → running | cancelled
 running → retry_pending → running | failed
 running → needs_review → running | cancelled | completed
 ```
 
-| Run 状态 | Agent WorkItem 状态 |
-|---|---|
-| `queued` | `queued` |
-| `running` | `running` |
-| `completed` | `completed`，随后由 Review 决定 Outcome 是否 Accepted |
-| `failed` | `failed`，或在 `004.5` 允许时进入 `retry_pending` |
-| `cancelled` | `cancelled` |
-| `interrupted` | 由 `004.5` 恢复逻辑判断：重新排队进入 `queued`，或进入 `needs_review` |
+一个 Agent WorkItem 对应一个 Outcome 子线程（§45），子线程内可能有多个 Run（根 Run、Agent 后续回合、子 Agent、后台 shell 唤醒的回合）。WorkItem 状态由**子线程运行组**决定，而不是由某一个 Run 决定：
 
-提交到 OpenTeam 失败时，可重试的失败进入 `retry_pending`，不可重试的进入 `failed`；不再使用 `submission_failed`。Human WorkItem 使用 `004.4` §16 的状态机。
+| 子线程情况 | Agent WorkItem 状态 |
+|---|---|
+| 根 Run 已入队，尚未取得租约 | `queued` |
+| 运行组中有 Run 在执行，或有子 Agent、后台 shell 未结束 | `running` |
+| Agent 调用了 `RequestOutcomeDecision`，且该 Decision 仍为 open/presented | `waiting_decision`（即使当前 Run 已 `completed`） |
+| Agent 调用了 `RequestHumanAction`，且对应人工 WorkItem 尚未 `accepted` | `waiting_human`（即使当前 Run 已 `completed`） |
+| 运行组全部结束，最后一个 Run 为 `completed`，且没有未解决的 Decision | `completed`，随后由 Review 决定 Outcome 是否 Accepted |
+| 运行组最后一个 Run 为 `failed` | `failed`，或在 `004.5` 允许时进入 `retry_pending` |
+| 运行组被取消 | `cancelled` |
+| 运行组中某个 Run 为 `interrupted` 且无后续 Run | 由 `004.5` 恢复逻辑判断：重新排队进入 `queued`，或进入 `needs_review` |
+
+提交子线程根 Run 失败时（例如执行 Bot 不可运行），可重试的失败进入 `retry_pending`，不可重试的进入 `failed`；不再使用 `submission_failed`。Human WorkItem 使用 `004.4` §16 的状态机。
 
 ### 42.3 Outcome
 
@@ -786,11 +802,14 @@ Outcome 状态使用 `004.2` §9.1 的取值。`decision_pending`、`human_actio
 Outcome 状态由服务端从 WorkItem、Decision 和 Review 重新计算，优先级为：
 
 ```text
-cancelled > accepted > decision_pending > human_action_pending
-  > review_pending > running > approved > pending_approval > planning > draft
+cancelled > accepted > paused > decision_pending > human_action_pending
+  > review_pending > failed > running > approved > pending_approval > planning > draft
 ```
 
-一个 WorkItem 等待 Decision 时，只阻塞它和依赖它的 WorkItem（`dependsOn`）；其他独立 WorkItem 继续执行。Inbox 的 `acceptance_pending` 类别对应 Outcome 的 `review_pending`。
+- `paused`：用户主动暂停 Outcome（第一版只保留状态值，暂停接口不在本项目实现）。
+- `failed`：当前 revision 的所有 Agent WorkItem 都已终止，且至少一个为 `failed`、没有任何 WorkItem 可以进入 Review。用户可以通过返工或新 revision 离开该状态。
+
+一个 WorkItem 等待 Decision 时，只阻塞它和依赖它的 WorkItem（`dependsOn`）；其他独立 WorkItem 在各自的子线程中继续执行（受 D13 并发上限约束）。Inbox 的 `acceptance_pending` 类别对应 Outcome 的 `review_pending`。
 
 ## 43. 事件存储
 
@@ -808,7 +827,8 @@ cancelled > accepted > decision_pending > human_action_pending
 1. 生产者使用 `apps/server/src/services/service-utils.ts` 的 `appendEvent`，与业务写入放在同一事务。业务写入本身由 `IdempotencyRecord` 或唯一约束去重，因此同一业务事实只产生一个事件。
 2. 消费者按 `sequence` 递增读取，使用 `IdempotencyRecord(scope="outcome-event:<handler>", key=eventId)` 记录已处理事件，重复投递不会重复生效。
 3. 新事件通过现有 `EventWakeup`（`apps/server/src/event-wakeup.ts`，LISTEN 通道 `aiteamos_events`）唤醒，不新增队列。该通道是固定保留的运行接口，数据库表和索引命名仍使用 OutcomeGo schema。
-4. 实现前必须核对 `apps/server/src/event-stream.ts` 对 topic 的过滤，确保新增的 `outcome.*` 等 topic 不改变现有客户端事件流的行为。
+4. 实现前必须核对 `apps/server/src/event-stream.ts` 对 topic 的过滤，确保新增的 `outcome.*` topic 不改变现有客户端事件流的行为。
+5. 所有 Outcome 事件的 topic 都以 `outcome.` 开头（§14），因此 `entityId = outcomeId` 不会与 `entityId = runId` 的运行时事件混淆。
 
 ## 44. 身份和归属
 
@@ -819,3 +839,69 @@ cancelled > accepted > decision_pending > human_action_pending
 3. 客户端不能提交 `actorRef`、批准人或验收人，服务端从请求上下文生成。
 4. 测试只覆盖“未认证请求被现有中间件拒绝”和“认证关闭模式下 actorRef 为 `owner:local`”，不编写多用户越权测试。
 5. 多用户或组织级归属不在本项目范围内。
+
+## 45. Outcome 子线程执行模型（主线程 + 子线程）
+
+本节落实 D09–D15。目标：Outcome 的 Agent 工作不打断用户与 Bot 的主对话，主对话也不打断 Outcome 工作；多个 WorkItem 可以并行；“工作是否完成”按整个子线程判断。
+
+### 45.1 线程划分
+
+| 线程 | 现有承载 | 用途 |
+|---|---|---|
+| 主线程 | Bot 的 `Conversation`，上下文 scope `home`，租约 scope `foreground` | 用户与 Bot 的日常对话，行为完全不变 |
+| 群聊线程 | 上下文 scope `channel` | 现有群聊，行为不变 |
+| Routine 线程 | 上下文 scope `automation`，租约 scope `automation:<rootRunId>` | 现有定时/事件自动化，行为不变 |
+| **Outcome 子线程（新增）** | 上下文 scope `outcome`、scopeId=workItemId；租约 scope `outcome:<workItemId>`；`RunOrigin.outcome` | 执行一个 Agent WorkItem |
+
+Bot 模型、`Conversation` 一对一关系都不改。“子线程”是同一个 Bot 下的独立上下文会话和独立运行租约，与 Routine 的做法相同：Routine 运行使用 `automation:<id>` 租约 scope（`apps/worker/src/worker.ts:1307`），因此可以与主对话并行而不互相顶替。
+
+### 45.2 生命周期
+
+```text
+POST /api/v0/outcomes/:id/runs（或返工、Decision 追加）
+  → 事务：创建 WorkItem(queued) + 通过 enqueueWake 入队子线程根 Run
+          （origin=outcome，payload.outcomeWorkItemId=<id>，不调用 acceptDirectUserMessage）
+  → Worker 取得 outcome:<workItemId> 租约，按 scope=outcome 选择上下文会话
+  → Agent 在子线程中工作，可以使用子 Agent、后台 shell
+  → 运行组全部结束（复用 Routine 的运行组判断）
+  → Outcome 服务读取运行组最终结果，写 Output，WorkItem → completed，Outcome → review_pending
+```
+
+- 入队时不设置 `interruptedRunId`，不会顶替任何正在运行的回合。
+- 子线程根 Run 及其后续 Run 都写入 `Run.outcomeWorkItemId`（D14）。
+- 主对话中不出现执行说明或任何 Outcome 可见消息（D15）。
+
+### 45.3 子线程内的工具
+
+子线程沿用 Routine worker 的工具约定（`apps/computer/src/runtime/tools.ts` 的 `workerTopLevelTools`），并增加：
+
+| 工具 | 作用 |
+|---|---|
+| `RequestOutcomeDecision` | 创建 Decision，WorkItem → `waiting_decision`，Agent 结束当前回合（`004.3` §41） |
+| `RequestHumanAction` | 创建人工 WorkItem，当前 WorkItem 按需要等待（`004.4` §32） |
+| `WakeParent`（已有） | 只用于主线程必须处理的交接，例如重新授权 MCP 连接 |
+
+主线程和普通 Run 的工具列表不变。
+
+### 45.4 汇报主线程
+
+- 结果、待验收、待决策、待人工处理都进入 Outcome Inbox 并按 `004.3` 发通知；主对话不自动收到 Outcome 结果消息，避免用户收到两遍通知。
+- `WakeParent` 唤醒主线程时沿用现有行为：等主线程空闲后再处理，不打断用户正在进行的回合（`packages/messaging/src/index.ts:279`）。
+- 用户可以在 Outcome 详情中只读查看子线程记录（复用现有 transcript 读取能力），但不能在子线程里直接对话；干预通过 Decision 完成。
+
+### 45.5 Decision 解决后的继续执行
+
+- 不改变范围：在**同一个子线程上下文**中入队一个新回合（origin=outcome，同一 workItemId），内容为用户的选择；Agent 能看到之前的工作。
+- 改变范围：创建 revision N+1，原 WorkItem → `cancelled`；新 revision 批准后在新的子线程中执行。
+
+### 45.6 并发和共享资源
+
+- 每个 Bot 同时运行的 Outcome 子线程不超过 2 个（D13），超出的 WorkItem 保持 `queued`，由子线程调度在有空位时入队。
+- 主线程、Routine 线程和 Outcome 子线程共用同一台 computer 和同一个工作区。每个 WorkItem 只写自己的输出目录 `outcomes/<outcomeId>/<workItemId>/`；同一 Bot 的桌面操作同一时间只允许一个子线程使用。
+- 并发上限和桌面互斥的具体实现位置由 `004.2` 任务 0.1 审计确定。
+
+### 45.7 不做的事情
+
+- 不新建 Bot、子 Bot 或独立 Agent Runtime（现有 `Subagent` 机制为每个子任务创建子 Bot，过重，不作为 Outcome 默认执行方式）。
+- 不改变主对话、群聊和 Routine 的租约、上下文和工具。
+- 不让子线程直接向主对话发送可见消息。

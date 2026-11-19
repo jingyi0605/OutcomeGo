@@ -21,8 +21,27 @@ export interface LegacyRootSidebarSection {
   isCollapsed: boolean;
 }
 
+/**
+ * Server-assigned version of the persisted sidebar layout. `revision` increases by one and
+ * `updatedAt` strictly increases on every accepted write, so a layout is only newer than another
+ * when it leads in both.
+ */
+export interface SidebarLayoutVersion {
+  revision: number;
+  updatedAt: string;
+}
+
+export const SIDEBAR_LAYOUT_CONFLICT_CODE = "sidebar_layout_conflict";
+
+/** Version of a server that has never stored a layout. */
+export const INITIAL_SIDEBAR_LAYOUT_VERSION: SidebarLayoutVersion = {
+  revision: 0,
+  updatedAt: "1970-01-01T00:00:00.000Z",
+};
+
 export interface RootSettingsView {
   settings: {
+    sidebarMeta?: SidebarLayoutVersion;
     sidebarPreferences?: SidebarPreferences;
     pinnedAgentIds?: string[];
     sidebarSections?: LegacyRootSidebarSection[];
@@ -220,9 +239,114 @@ export const sidebarPreferencesFromRootSettings = (
   };
 };
 
+/**
+ * True when two preference sets differ in the part the server persists: pins, sections and channel
+ * assignments. Unread marks, per-group order and the Unassigned collapse flag are client-local, so
+ * changing only those must neither be pushed nor treated as a remote change.
+ */
+export const sidebarLayoutChanged = (a: SidebarPreferences, b: SidebarPreferences): boolean => {
+  const key = (preferences: SidebarPreferences) => {
+    const sectionIds = new Set(preferences.sections.map((section) => section.id));
+    return JSON.stringify({
+      pinned: preferences.pinnedIds,
+      sections: preferences.sections.map((section) => [
+        section.id,
+        section.name,
+        section.collapsed,
+      ]),
+      assigned: Object.entries(preferences.sectionByChannel)
+        .filter(([, sectionId]) => sectionIds.has(sectionId))
+        .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0)),
+    });
+  };
+  return key(a) !== key(b);
+};
+
+export const parseSidebarLayoutVersion = (input: unknown): SidebarLayoutVersion | null => {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const value = input as Record<string, unknown>;
+  if (
+    typeof value.revision !== "number" ||
+    !Number.isSafeInteger(value.revision) ||
+    value.revision < 0 ||
+    typeof value.updatedAt !== "string" ||
+    Number.isNaN(Date.parse(value.updatedAt))
+  ) {
+    return null;
+  }
+  return { revision: value.revision, updatedAt: value.updatedAt };
+};
+
+/** The server's layout version, or the initial version when it predates versioning. */
+export const sidebarVersionFromRootSettings = (root: RootSettingsView): SidebarLayoutVersion =>
+  parseSidebarLayoutVersion(root.settings.sidebarMeta) ?? INITIAL_SIDEBAR_LAYOUT_VERSION;
+
+/** True only when `candidate` leads `known` in both revision and timestamp. */
+export const sidebarVersionLeads = (
+  candidate: SidebarLayoutVersion,
+  known: SidebarLayoutVersion
+): boolean =>
+  candidate.revision > known.revision &&
+  Date.parse(candidate.updatedAt) > Date.parse(known.updatedAt);
+
+export const sidebarVersionEquals = (a: SidebarLayoutVersion, b: SidebarLayoutVersion): boolean =>
+  a.revision === b.revision && a.updatedAt === b.updatedAt;
+
+/** The layout and version carried by a 409 `sidebar_layout_conflict` response. */
+export interface SidebarLayoutConflict {
+  preferences: SidebarPreferences;
+  version: SidebarLayoutVersion;
+}
+
+export const parseSidebarLayoutConflict = (details: unknown): SidebarLayoutConflict | null => {
+  if (!details || typeof details !== "object") return null;
+  const current = (details as Record<string, unknown>).current;
+  if (!current || typeof current !== "object") return null;
+  const value = current as Record<string, unknown>;
+  const version = parseSidebarLayoutVersion(value);
+  if (!version) return null;
+  try {
+    return { preferences: parseSidebarPreferences(value.preferences), version };
+  } catch {
+    return null;
+  }
+};
+
+/** PATCH body: the layout plus the server version it was edited from. */
+export type SidebarPreferencesWrite = SidebarPreferences & {
+  baseRevision: number;
+  baseUpdatedAt: string;
+};
+
+/** PATCH response: the stored layout plus its new server version. */
+export type SidebarPreferencesSaved = SidebarPreferences & SidebarLayoutVersion;
+
+export const withSidebarBase = (
+  preferences: SidebarPreferences,
+  base: SidebarLayoutVersion
+): SidebarPreferencesWrite => ({
+  ...preferences,
+  baseRevision: base.revision,
+  baseUpdatedAt: base.updatedAt,
+});
+
+/**
+ * Take the server-persisted part (pins, sections, assignments) from `remote` and keep everything
+ * the server does not store (unread marks, group order, Unassigned collapse) from `local`.
+ */
+export const mergeSidebarLayout = (
+  local: SidebarPreferences,
+  remote: SidebarPreferences
+): SidebarPreferences => ({
+  ...local,
+  pinnedIds: remote.pinnedIds,
+  sections: remote.sections,
+  sectionByChannel: remote.sectionByChannel,
+});
+
 export type SidebarSyncDecision =
-  | { action: "adopt"; preferences: SidebarPreferences }
-  | { action: "push"; preferences: SidebarPreferences }
+  | { action: "adopt"; preferences: SidebarPreferences; version: SidebarLayoutVersion }
+  | { action: "push"; preferences: SidebarPreferences; version: SidebarLayoutVersion }
   | { action: "none" };
 
 /**
@@ -235,11 +359,12 @@ export const resolveSidebarSync = (
   local: SidebarPreferences
 ): SidebarSyncDecision => {
   if (!root.valid) return { action: "none" };
+  const version = sidebarVersionFromRootSettings(root);
   const remote = sidebarPreferencesFromRootSettings(root, local);
-  if (remote) return { action: "adopt", preferences: remote };
+  if (remote) return { action: "adopt", preferences: remote, version };
   const hasLocalLayout =
     local.pinnedIds.length > 0 ||
     local.sections.length > 0 ||
     Object.keys(local.sectionByChannel).length > 0;
-  return hasLocalLayout ? { action: "push", preferences: local } : { action: "none" };
+  return hasLocalLayout ? { action: "push", preferences: local, version } : { action: "none" };
 };

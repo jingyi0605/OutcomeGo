@@ -11,8 +11,8 @@ import {
   type ExternalDraftApprovalMode,
   type ExternalDraftVerification,
 } from "@outcomego/contracts";
-import { type PrismaClient } from "@outcomego/db";
-import { type AgentMessaging, type ToolContext, PRIORITY } from "@outcomego/messaging";
+import { type Prisma, type PrismaClient } from "@outcomego/db";
+import { type AgentMessaging, type ToolContext, PRIORITY, lockAgentLifecycle } from "@outcomego/messaging";
 import { loadConnectionNamespaces } from "./plugin/namespaces";
 import type { PluginService } from "./plugin-service";
 import { definitionFromManifest } from "./plugin/values";
@@ -283,14 +283,18 @@ export class ExternalDraftService {
       if (!["save", "send", "cancel", "refresh"].includes(String(input.action)))
         return fail("Choose send, cancel, refresh or approval");
       const claim = await this.prisma.$transaction(async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rich-message:${messageId}`}))`;
+        await this.lockCard(tx, messageId);
         const message = await tx.channelMessage.findUnique({
           where: { id: messageId },
           include: { channel: true },
         });
         const metadata = metadataRecord(message?.metadata);
+        const owner = message?.senderBotId
+          ? await tx.bot.findUnique({ where: { id: message.senderBotId }, select: { status: true } })
+          : null;
         if (
           !message?.senderBotId ||
+          owner?.status !== "active" ||
           message.channel.archivedAt ||
           metadata.type !== "external-draft"
         )
@@ -498,13 +502,18 @@ export class ExternalDraftService {
   /** wake: start a turn for the outcome now. echoed: the outcome was already reported, so it is not repeated next turn. */
   private async settle(messageId: string, state: string, outcome: string, wake = true, echoed = !wake) {
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rich-message:${messageId}`}))`;
-      const message = await tx.channelMessage.findUniqueOrThrow({ where: { id: messageId } });
+      await this.lockCard(tx, messageId);
+      const message = await tx.channelMessage.findUniqueOrThrow({ where: { id: messageId }, include: { channel: true } });
       const metadata = metadataRecord(message.metadata);
       if (metadata.outcomeId)
         return { accepted: false, message: toChannelMessageView(message), runId: null };
       const outcomeId = createHash("sha256").update(`${messageId}:${state}`).digest("hex");
       const stored = metadataRecord(metadata.draft);
+      const owner = message.senderBotId
+        ? await tx.bot.findUnique({ where: { id: message.senderBotId }, select: { status: true } })
+        : null;
+      const canContinue = owner?.status === "active" && !message.channel.archivedAt &&
+        !!await tx.channelMember.count({ where: { channelId: message.channelId, botId: message.senderBotId! } });
       const updated = await tx.channelMessage.update({
         where: { id: messageId },
         data: {
@@ -517,11 +526,11 @@ export class ExternalDraftService {
               metadataRecord(stored.verification)
             )}`.slice(0, 10000),
             // An automatic send reports back in the DraftExternalMessage result instead of a wake.
-            outcomeEchoed: echoed,
+            outcomeEchoed: canContinue ? echoed : false,
           }),
         },
       });
-      const wakeRun = wake
+      const wakeRun = wake && canContinue
         ? await this.messaging.enqueueWake(tx, {
             botId: message.senderBotId!,
             channelId: message.channelId,
@@ -541,5 +550,11 @@ export class ExternalDraftService {
       await this.messaging.scheduleTranscriptProjection(tx, [message.senderBotId!]);
       return { accepted: true, message: toChannelMessageView(updated), runId: wakeRun?.run.id ?? null };
     });
+  }
+
+  private async lockCard(tx: Prisma.TransactionClient, messageId: string): Promise<void> {
+    const message = await tx.channelMessage.findUnique({ where: { id: messageId }, select: { senderBotId: true } });
+    if (message?.senderBotId) await lockAgentLifecycle(tx, message.senderBotId);
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`rich-message:${messageId}`}))`;
   }
 }

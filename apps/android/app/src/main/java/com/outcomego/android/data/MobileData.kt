@@ -39,6 +39,7 @@ data class Conversation(
     val avatarPath: String? = null,
     /** True while a run or async task is executing in this channel (the desktop's green dot). */
     val working: Boolean = false,
+    val notificationsMuted: Boolean = false,
 ) {
     /** Text shown under the title: the latest message, else the bot/channel description. */
     val preview: String?
@@ -79,6 +80,23 @@ data class SidebarSection(
  * Mirrors the cross-client sidebar preferences: which conversations are pinned to the
  * top, which are manually unread, and how the rest are grouped and ordered.
  */
+/** Server-assigned version of the pins and sections; the server only accepts edits based on its latest. */
+data class SidebarVersion(
+    val revision: Long = 0L,
+    /** UTC ISO-8601 with fixed millisecond precision, so plain string comparison orders it. */
+    val updatedAt: String = INITIAL_SIDEBAR_UPDATED_AT,
+) {
+    /** True when this version is not behind [other] in either revision or timestamp. */
+    fun isAtLeast(other: SidebarVersion): Boolean =
+        revision >= other.revision && updatedAt >= other.updatedAt
+}
+
+const val INITIAL_SIDEBAR_UPDATED_AT = "1970-01-01T00:00:00.000Z"
+
+/** The server rejected a sidebar edit because another client saved first; [current] is its layout. */
+class SidebarLayoutConflictException(val current: SidebarPreferences) :
+    Exception("The sidebar layout changed on another device.")
+
 data class SidebarPreferences(
     val pinnedIds: List<String> = emptyList(),
     val unreadIds: List<String> = emptyList(),
@@ -86,6 +104,8 @@ data class SidebarPreferences(
     val sections: List<SidebarSection> = emptyList(),
     val sectionByChannel: Map<String, String> = emptyMap(),
     val channelOrderByGroup: Map<String, List<String>> = emptyMap(),
+    /** The server version this copy was last confirmed against. */
+    val version: SidebarVersion = SidebarVersion(),
 ) {
     fun isPinned(conversationId: String): Boolean = pinnedIds.contains(conversationId)
 
@@ -122,6 +142,14 @@ data class SidebarPreferences(
 
     fun renameSection(sectionId: String, name: String): SidebarPreferences =
         copy(sections = sections.map { if (it.id == sectionId) it.copy(name = name.trim()) else it })
+
+    /** Takes the server-persisted layout and version from [remote]; unread and ordering stay local. */
+    fun withServerLayout(remote: SidebarPreferences): SidebarPreferences = copy(
+        pinnedIds = remote.pinnedIds,
+        sections = remote.sections,
+        sectionByChannel = remote.sectionByChannel,
+        version = remote.version,
+    )
 
     fun deleteSection(sectionId: String): SidebarPreferences =
         copy(
@@ -165,6 +193,19 @@ data class ChatMessage(
             val name = event["automationName"].text().orEmpty()
             if (action !in RoutineEvent.ACTIONS || id.isEmpty() || name.isEmpty()) return null
             return RoutineEvent(id, name, action)
+        }
+
+    /**
+     * A goal notice the platform posted into a Bot conversation. It is not a Bot message: the Bot is
+     * not woken and only sees it when the user quotes it in the main thread.
+     */
+    val outcomeUpdateCard: OutcomeUpdateCard?
+        get() {
+            if (sender != "system" || metadata["type"].text() != "outcome-card" || metadata["source"].text() != "outcome-update") return null
+            val card = metadata["outcomeCard"] as? JsonObject ?: return null
+            val outcomeId = card["outcomeId"].text().orEmpty()
+            if (!OutcomeUpdateCard.UUID.matches(outcomeId)) return null
+            return OutcomeUpdateCard(outcomeId, card["title"].text().orEmpty(), card["stage"].text().orEmpty())
         }
 
     /** A safe label for malformed or metadata-only messages. */
@@ -270,6 +311,25 @@ fun List<ChatMessage>.toChatRows(collapseAgentExchanges: Boolean = false): List<
         }
     }
     return rows
+}
+
+/** The saved [stage] is what was true when the notice was posted; the live Outcome status supersedes it. */
+data class OutcomeUpdateCard(val outcomeId: String, val title: String, val stage: String) {
+    companion object {
+        val UUID = Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+        /** Mirrors `outcomeCardStage` in the shared contracts. */
+        fun stageForStatus(status: String): String = when (status) {
+            "accepted", "cancelled", "failed" -> status
+            "review_pending" -> "review"
+            "approved" -> "ready"
+            "planning" -> "generating"
+            "decision_pending", "human_action_pending", "blocked", "paused" -> "attention"
+            "draft", "pending_approval" -> "draft"
+            "running" -> "running"
+            else -> "attention"
+        }
+    }
 }
 
 /** A routine change reported inline in the conversation, shown as a single tappable line. */

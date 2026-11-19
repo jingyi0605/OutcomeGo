@@ -40,6 +40,12 @@ Routines can also start when an event arrives from GitHub, Slack, Linear, Sentry
 
 Email is simpler: connect a mailbox with the [Email plugin](../integrations/email.md) and ask a bot to watch it. OutcomeGo checks the mailbox itself, so email routines need neither a public address nor a subscription.
 
+Some plugins report events themselves, such as DSH-WEB when a session finishes. Ask a bot to watch them:
+
+> When DSH-WEB session abc123 finishes or fails, summarize what happened here.
+
+The bot creates a routine with a plugin trigger that names the plugin and the resources (such as sessions) or actors to watch. OutcomeGo asks the plugin for new events about once a minute, so no public address is needed, and nothing wakes the bot until a matching event arrives. Only events that happen after the account is connected are reported. A watch always names what it follows; it can't subscribe to everything a plugin reports. Pause or delete the routine to stop watching.
+
 This is an advanced setup. You need:
 
 - A public HTTPS address for your server, so the service can reach it. See [remote access](../configuration/remote-access.md).

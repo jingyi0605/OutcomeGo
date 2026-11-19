@@ -10,7 +10,7 @@ import {
   type RoutineScheduleDraft,
   type RoutineView,
   routineIsRunning,
-  routineHasWebhookTrigger,
+  routineEventTriggerLabels,
   routineScheduleDrafts,
   routineSummaryProjectionEqual,
 } from "../../lib/routines";
@@ -82,19 +82,11 @@ export function RoutinesSummary({
     };
   }, [active, ownerId, ownerKind, visible]);
 
+  // Every routine is listed, including event-triggered ones (email, Slack, GitHub, webhook, ...).
   const sorted = useMemo(
     () => [
-      ...(routines?.filter(
-        (routine) =>
-          (routine.scheduleKind !== "event" || routineHasWebhookTrigger(routine.trigger)) &&
-          routine.enabled
-      ) ?? []),
-      ...(routines?.filter(
-        (routine) =>
-          (routine.scheduleKind !== "event" || routineHasWebhookTrigger(routine.trigger)) &&
-          !routine.enabled
-      ) ??
-        []),
+      ...(routines?.filter((routine) => routine.enabled) ?? []),
+      ...(routines?.filter((routine) => !routine.enabled) ?? []),
     ],
     [routines]
   );
@@ -171,13 +163,19 @@ function RoutineRows({
       {routines.map((routine) => {
         const running = routineIsRunning(routine);
         const schedules = routineScheduleDrafts(routine);
-        const webhook = routineHasWebhookTrigger(routine.trigger);
+        const eventLabels = routineEventTriggerLabels(routine.trigger).map(({ key, params }) =>
+          t(key, params)
+        );
+        const parts = [
+          ...(schedules.length > 0 ? [describeRoutineSchedules(schedules)] : []),
+          ...eventLabels,
+        ];
         const detail = routine.enabled
-          ? schedules.length > 0
-            ? describeRoutineSchedules(schedules)
-            : webhook
-              ? t("When a webhook is called")
-            : describeRoutineSchedule(cloneDefaultSchedule())
+          ? parts.length > 0
+            ? parts.join(" · ")
+            : routine.scheduleKind === "event"
+              ? t("On an event")
+              : describeRoutineSchedule(cloneDefaultSchedule())
           : t("Paused");
         return (
           <li key={routine.id}>

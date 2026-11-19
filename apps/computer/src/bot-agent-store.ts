@@ -4,7 +4,8 @@ import type {
 } from "@outcomego/contracts/service-protocol";
 import type { Database } from "bun:sqlite";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { chmod, mkdir, rename, rm, stat } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { chmod, mkdir, readdir, rename, rm, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import {
   AgentDirectoryInventory,
@@ -67,6 +68,7 @@ const ensureSharedAgentDirectory = async (directory: string): Promise<void> => {
  * conversation envelopes and prompt snapshots exposed by the bot host.
  */
 export class BotAgentStore {
+  private readonly retiring = new Map<string, Promise<boolean>>();
   private readonly directories: AgentDirectoryInventory;
 
   private readonly root: string;
@@ -654,24 +656,46 @@ export class BotAgentStore {
    */
   async deleteAgent(agentId: string): Promise<boolean> {
     safeId(agentId);
-    await this.closeAgent(agentId).catch((error) =>
-      console.warn(`agent store close before delete failed: ${String(error)}`)
-    );
+    const existing = this.retiring.get(agentId);
+    if (existing) return existing;
+    // API retries and worker replicas share one physical close/rename/disposal.
+    const pending = this.deleteAgentDirectory(agentId).finally(() => {
+      if (this.retiring.get(agentId) === pending) this.retiring.delete(agentId);
+    });
+    this.retiring.set(agentId, pending);
+    return pending;
+  }
+
+  private async deleteAgentDirectory(agentId: string): Promise<boolean> {
+    await this.closeAgent(agentId);
     const directory = this.agentDirectory(agentId);
-    if (!(await stat(directory).catch(() => null))) return false;
-    await ensureSharedAgentDirectory(this.orphanRoot);
-    const retired = join(this.orphanRoot, `${agentId}.${this.now().toString(36)}`);
-    try {
-      await rename(directory, retired);
-    } catch (error) {
-      console.warn(`agent directory ${agentId} could not be moved out of the roster: ${String(error)}`);
-      await rm(directory, { recursive: true, force: true });
-      return true;
+    const present = await stat(directory).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    let removed = false;
+    if (present) {
+      await ensureSharedAgentDirectory(this.orphanRoot);
+      const retired = join(this.orphanRoot, `${agentId}.${this.now().toString(36)}.${randomUUID()}`);
+      try {
+        await rename(directory, retired);
+      } catch (error) {
+        console.warn(`agent directory ${agentId} could not be moved out of the roster: ${String(error)}`);
+        await rm(directory, { recursive: true, force: true });
+      }
+      removed = true;
     }
-    await rm(retired, { recursive: true, force: true }).catch((error) =>
-      console.warn(`retired agent directory ${agentId} could not be discarded: ${String(error)}`)
-    );
-    return true;
+    // Disposal errors must reach the durable retry queue. The original roster
+    // entry can already be gone when a later process retries this operation.
+    const entries = await readdir(this.orphanRoot).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return [];
+      throw error;
+    });
+    for (const entry of entries.filter((name) => name.startsWith(`${agentId}.`))) {
+      await rm(join(this.orphanRoot, entry), { recursive: true, force: true });
+      removed = true;
+    }
+    return removed;
   }
 
   async closeAgent(agentId: string): Promise<void> {

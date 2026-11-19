@@ -136,7 +136,9 @@ describe("push notification content", () => {
       apnsClient(async () => {
         sends += 1;
         return { status: 200 };
-      })
+      }),
+      undefined,
+      async () => undefined
     );
 
     await dispatcher.drain();
@@ -212,7 +214,9 @@ describe("push notification content", () => {
       apnsClient(async () => {
         sends += 1;
         return { status: 200 };
-      })
+      }),
+      undefined,
+      async () => undefined
     );
 
     await dispatcher.drain();
@@ -281,7 +285,9 @@ describe("push notification content", () => {
         sendStarted.resolve();
         await releaseSend.promise;
         return { status: 200 };
-      })
+      }),
+      undefined,
+      async () => undefined
     );
 
     const draining = dispatcher.drain();
@@ -387,7 +393,9 @@ describe("push notification content", () => {
       apnsClient(async () => {
         sends += 1;
         return { status: 200 };
-      })
+      }),
+      undefined,
+      async () => undefined
     );
 
     await dispatcher.drain();

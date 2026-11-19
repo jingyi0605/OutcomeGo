@@ -24,6 +24,7 @@ const stubExports = [
   "Pause",
   "X",
   "Webhook",
+  "Zap",
   "Button",
   "ButtonPrimitive",
   "DropdownMenu",

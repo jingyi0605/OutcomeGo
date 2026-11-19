@@ -142,7 +142,9 @@ export const RunOrigin = Schema.Literal(
   "connector",
   "background_revival",
   "handoff_resume",
-  "broadcast"
+  "broadcast",
+  "outcome",
+  "outcome_thread"
 );
 export type RunOrigin = typeof RunOrigin.Type;
 
@@ -266,9 +268,10 @@ export interface BadgeSyncNotificationPayload {
   kind: "badge-sync";
   badgeCount: number;
   readState?: NotificationReadState;
+  mutedChannelId?: string;
 }
 
-export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload;
+export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload | import("./notification-content").OutcomeNotificationPayload;
 
 /** Transient multimodal payload used only between trusted OutcomeGo services. */
 export const RuntimeInlineImage = Schema.Struct({
@@ -368,6 +371,8 @@ export const SetChannelHiddenInput = Schema.Struct({
   clientId: Schema.String.pipe(Schema.minLength(8), Schema.maxLength(120)),
 });
 export type SetChannelHiddenInput = typeof SetChannelHiddenInput.Type;
+
+export const SetChannelNotificationMuteInput = Schema.Struct({ muted: Schema.Boolean });
 
 export const RenameChannelInput = Schema.Struct({
   name: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(80)),
@@ -1560,6 +1565,10 @@ export const ComputerTurnRequest = Schema.Struct({
   todoUpdate: Schema.optional(Schema.NullOr(Schema.String)),
   resetSelfSummaryCount: Schema.optional(Schema.Boolean),
   requestSource: Schema.optional(RuntimeRequestSource),
+  /** Set by the worker only for an Outcome sub-thread; routine and ordinary turns omit it. */
+  outcomeThread: Schema.optional(Schema.Struct({ workItemId: Schema.String })),
+  /** Set by the worker only for a turn of a goal's own thread (specs/004.8). */
+  goalThread: Schema.optional(Schema.Struct({ threadId: Schema.String, outcomeId: Schema.String, purpose: Schema.Literal("plan", "owner_message") })),
   channelId: Schema.String,
   deliveryId: Schema.NullOr(Schema.String),
   runtimeProfile: Schema.optional(Schema.Literal("agent", "subagent")),
@@ -1568,6 +1577,8 @@ export const ComputerTurnRequest = Schema.Struct({
   readOnly: Schema.optional(Schema.Boolean),
   /** The user's IANA time zone; the computer sets the box clock to it before the turn runs. */
   timeZone: Schema.optional(Schema.String),
+  /** Goal management is an opt-in module; without it the turn gets no Outcome or Explore tools. */
+  outcomesEnabled: Schema.optional(Schema.Boolean),
   model: Schema.String,
   reasoning: Schema.Literal(...PI_REASONING_LEVELS),
   fileAttachments: Schema.optional(Schema.Array(Schema.String)),
@@ -1742,6 +1753,7 @@ export interface ChannelView {
   kind: ChannelKind;
   name: string;
   description: string;
+  notificationsMuted?: boolean;
   hasAvatar: boolean;
   directKey: string | null;
   workingDirectory: string | null;
@@ -2083,6 +2095,7 @@ export class ApiError extends Error {
 }
 export * from "./external-draft";
 export * from "./messages-send";
+export * from "./outcomes";
 export * from "./bot-recipe";
 
 export * from "./web-search";
@@ -2099,3 +2112,18 @@ export const UpdateNotificationPresenceInput = Schema.Struct({
   ),
 });
 export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: Schema.Boolean });
+
+/** Optional product modules, switched on in Settings → General. Every module is off by default. */
+export interface FeatureSettingsView {
+  /** Goal management: the Outcomes entry, quick ideas, and the bots' goal tools and prompt. */
+  outcomesEnabled: boolean;
+}
+export const UpdateFeatureSettingsInput = Schema.Struct({
+  outcomesEnabled: Schema.optional(Schema.Boolean),
+});
+export type UpdateFeatureSettingsInput = typeof UpdateFeatureSettingsInput.Type;
+
+export * from "./outcome-inbox";
+export * from "./knowledge";
+export * from "./human-work";
+export * from "./explore";

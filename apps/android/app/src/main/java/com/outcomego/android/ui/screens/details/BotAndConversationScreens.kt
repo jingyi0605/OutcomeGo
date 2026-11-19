@@ -35,6 +35,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -441,6 +443,7 @@ internal fun ConversationProfileScreen(
     voiceProvider: String = "volcengine",
     onSaveBot: (Conversation, String, String, String, String, String, String?, String?, Boolean) -> Unit,
     onSaveGroup: (Conversation, String, String, List<String>) -> Unit,
+    onGroupNotificationMute: (Conversation, Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
     val haptic = LocalAppHaptics.current
@@ -535,6 +538,15 @@ internal fun ConversationProfileScreen(
                     }
                     SpatialGlassTextField(description, { description = it }, label = localizedText("Description", "描述"), singleLine = false)
                     if (conversation.isGroup) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val label = localizedText("Do Not Disturb", "消息免打扰")
+                            Text(label, modifier = Modifier.weight(1f), color = colors.textPrimary)
+                            Switch(
+                                checked = conversation.notificationsMuted,
+                                onCheckedChange = { onGroupNotificationMute(conversation, it) },
+                                modifier = Modifier.semantics { contentDescription = label },
+                            )
+                        }
                         Text(
                             localizedText("Members", "成员"),
                             fontWeight = FontWeight.SemiBold,

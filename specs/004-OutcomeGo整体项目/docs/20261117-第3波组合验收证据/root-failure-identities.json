@@ -1,0 +1,1823 @@
+{
+  "source": "af6e9bf6a09c0c532358a81e7fe3f25d351ea656",
+  "rootSha256": "5e0c67c7316cd39b569bb7c62a49d5db6bdb9507be2ea851ef2013f1cebf2f7d",
+  "results": {
+    "computer": {
+      "rawNamedFailureOccurrences": 4,
+      "failures": [
+        {
+          "file": "test/memory-runtime.integration.test.ts",
+          "identity": "(fail) real computer/Pi memory tools serialize write, correction and history for profile",
+          "line": 2627
+        },
+        {
+          "file": "test/memory-runtime.integration.test.ts",
+          "identity": "(fail) real computer/Pi memory tools serialize write, correction and history for journal",
+          "line": 2646
+        },
+        {
+          "file": "test/memory-runtime.integration.test.ts",
+          "identity": "(fail) real computer/Pi memory tools serialize write, correction and history for shared_profile",
+          "line": 2665
+        },
+        {
+          "file": "test/memory-runtime.integration.test.ts",
+          "identity": "(fail) real computer/Pi memory tools serialize write, correction and history for shared_journal",
+          "line": 2684
+        }
+      ],
+      "causeOccurrences": {}
+    },
+    "messaging": {
+      "rawNamedFailureOccurrences": 2,
+      "failures": [
+        {
+          "file": "test/routine-retest-scheduling.integration.test.ts",
+          "identity": "(fail) additive scheduling columns remain nullable without defaults in the deployed schema",
+          "line": 6634
+        },
+        {
+          "file": "test/read-transcript.integration.test.ts",
+          "identity": "(fail) scoped persisted history: stopped workers, paging, append, compaction and private boundaries",
+          "line": 6650
+        }
+      ],
+      "causeOccurrences": {
+        "error: expect(received).toEqual(expected)": 1,
+        "error: expect(received).toBe(expected)": 1
+      }
+    },
+    "server": {
+      "rawNamedFailureOccurrences": 294,
+      "failures": [
+        {
+          "file": "test/request-progress.integration.test.ts",
+          "identity": "(fail) Stop accepts a turn that finished during a failed cancellation",
+          "line": 9082
+        },
+        {
+          "file": "test/deletion-late-settlement.integration.test.ts",
+          "identity": "(fail) a late failure cannot overwrite deletion after reading a running turn",
+          "line": 9154
+        },
+        {
+          "file": "test/deletion-late-settlement.integration.test.ts",
+          "identity": "(fail) parent deletion and a child's failure settle without a run/subagent deadlock",
+          "line": 9169
+        },
+        {
+          "file": "test/external-draft-lifecycle.integration.test.ts",
+          "identity": "(fail) archive-first preserves late known outcomes without waking the retired bot",
+          "line": 9366
+        },
+        {
+          "file": "test/external-draft-lifecycle.integration.test.ts",
+          "identity": "(fail) a late confirmed send to an archived channel persists without queuing another turn",
+          "line": 9380
+        },
+        {
+          "file": "test/external-draft-lifecycle.integration.test.ts",
+          "identity": "(fail) settlement-first holds retirement until its wake is in the cancellation snapshot",
+          "line": 9381
+        },
+        {
+          "file": "test/external-draft-lifecycle.integration.test.ts",
+          "identity": "(fail) retirement-first refuses a discard already waiting on the lifecycle lock",
+          "line": 9393
+        },
+        {
+          "file": "test/routine-validation.integration.test.ts",
+          "identity": "(fail) bot and group routine routes reject invalid schedules without changing saved routines",
+          "line": 9475
+        },
+        {
+          "file": "test/chat-deletion.integration.test.ts",
+          "identity": "(fail) a deleted group cannot return after event pruning or a failed directory cleanup",
+          "line": 9495
+        },
+        {
+          "file": "test/chat-deletion.integration.test.ts",
+          "identity": "(fail) a restarted worker retries failed runtime cleanup after the directory has disappeared",
+          "line": 9515
+        },
+        {
+          "file": "test/chat-deletion.integration.test.ts",
+          "identity": "(fail) worker retry disposes a permission-blocked directory after it has left the roster",
+          "line": 9539
+        },
+        {
+          "file": "test/web-provider-settings.integration.test.ts",
+          "identity": "(fail) search and fetch keep separate providers, safe defaults and a secret-free public API",
+          "line": 9672
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) simultaneous retries of one user reaction return one receipt and create one wake",
+          "line": 9800
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a simultaneous reaction retry with changed arguments is rejected without a second toggle",
+          "line": 9816
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) two independent simultaneous taps of the same emoji toggle it back off",
+          "line": 9833
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) user and bot tapbacks on one user message preserve both actors",
+          "line": 9848
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) simultaneous retries of one bot tapback do not toggle it off or duplicate its event",
+          "line": 9894
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) distinct concurrent bot taps toggle off and revoke the first reaction notification",
+          "line": 9909
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a bot cannot add a tapback after its target chat is archived",
+          "line": 9932
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) feedback on a former group member's message does not wake that bot back into the group",
+          "line": 9974
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a provider call id reused in a later run is a new bot tapback, not an old receipt",
+          "line": 9998
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a reused provider call id cannot replay another channel's bot tapback receipt",
+          "line": 10023
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) reused call ids produce a fresh notification after an add/remove/add across runs",
+          "line": 10060
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a legacy receipt older than the current run cannot suppress its new tapback",
+          "line": 10084
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) an owned in-flight legacy tapback replays without undoing it and records its scoped receipt",
+          "line": 10098
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) ambiguous in-flight legacy receipts fail honestly without undoing a reaction",
+          "line": 10113
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a legacy notification from a different run cannot authorize receipt replay",
+          "line": 10129
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a different user emoji replaces the prior one and repeating it clears the user's reaction",
+          "line": 10158
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a user emoji replacement preserves every other actor's reactions and unrelated metadata",
+          "line": 10196
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) legacy multiple user reactions normalize on the next \u2764\ufe0f tap without changing other actors",
+          "line": 10232
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) legacy multiple user reactions normalize on the next \ud83d\udc4d tap without changing other actors",
+          "line": 10260
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) replaying an older tap receipt returns the current message without restoring the old emoji or waking again",
+          "line": 10288
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) one bot replacement call leaves one emoji and revokes the replaced emoji's notification",
+          "line": 10317
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a bot's old call retry cannot restore the emoji replaced by its newer call",
+          "line": 10346
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) concurrent different bot emojis leave only the final serialized selection and its live notification",
+          "line": 10361
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a group bot's \u2764\ufe0f tap normalizes its legacy reactions while preserving other reactors",
+          "line": 10402
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a group bot's \ud83d\udc4d tap normalizes its legacy reactions while preserving other reactors",
+          "line": 10435
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) a bot emoji replacement does not leave the replaced emoji's alert deliverable",
+          "line": 10456
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) one group bot replacing its emoji preserves the peer bot's pill and live notification",
+          "line": 10489
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) clearing a legacy bot selection revokes alerts for all its stored emojis",
+          "line": 10518
+        },
+        {
+          "file": "test/reaction-concurrency.integration.test.ts",
+          "identity": "(fail) replacement retires an old bot alert even when notifications are disabled before the new emoji",
+          "line": 10547
+        },
+        {
+          "file": "test/retirement-entrypoints.integration.test.ts",
+          "identity": "(fail) peer cannot leave a new queued wake behind target retirement",
+          "line": 10588
+        },
+        {
+          "file": "test/retirement-entrypoints.integration.test.ts",
+          "identity": "(fail) shell-callback cannot leave a new queued wake behind target retirement",
+          "line": 10605
+        },
+        {
+          "file": "test/retirement-entrypoints.integration.test.ts",
+          "identity": "(fail) an admitted room send cannot publish after its source agent was retired",
+          "line": 10619
+        },
+        {
+          "file": "test/retirement-entrypoints.integration.test.ts",
+          "identity": "(fail) late peer sends, routine launches, callbacks, and room output stay rejected after retirement",
+          "line": 10636
+        },
+        {
+          "file": "test/deletion-races.integration.test.ts",
+          "identity": "(fail) stale adoption snapshots must not recreate a group deleted by another worker",
+          "line": 10661
+        },
+        {
+          "file": "test/deletion-races.integration.test.ts",
+          "identity": "(fail) a delayed runtime acceptance must not start work after archive already returned",
+          "line": 10682
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) actual Stop of a completed legacy root fences an already-running completion and preserves siblings",
+          "line": 10854
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) failed actual cancellation of an active legacy root still fences its running completion",
+          "line": 10869
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) all Stop finds legacy roots through already-running completion contexts without marking unrelated history",
+          "line": 10884
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) bot Stop finds legacy roots through already-running completion contexts without marking unrelated history",
+          "line": 10899
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) a running completion cannot deliver after Stop (legacy request)",
+          "line": 10922
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) a running completion cannot deliver after Stop (tracked request)",
+          "line": 10937
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) a Stop committed during attachment preparation prevents publication by an already executing SendToUser",
+          "line": 10952
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) publication waits for a concurrent Stop transaction and reads its committed stop marker",
+          "line": 10968
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) publication waits for a concurrent retirement and Stop transaction and reads its committed stop marker",
+          "line": 10983
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) a running completion cannot send to a connected channel after Stop",
+          "line": 10999
+        },
+        {
+          "file": "test/request-stop.integration.test.ts",
+          "identity": "(fail) a Stop during connected-channel attachment preparation refuses before remote dispatch",
+          "line": 11014
+        },
+        {
+          "file": "test/deletion-message-acceptance.integration.test.ts",
+          "identity": "(fail) deletion includes a direct message accepted while it waits for the bot row",
+          "line": 11054
+        },
+        {
+          "file": "test/human-receipt.integration.test.ts",
+          "identity": "(fail) human action sources, receipts and unified review > agent creates one human card and acceptance atomically resumes the same real Outcome thread",
+          "line": 11080
+        },
+        {
+          "file": "test/human-receipt.integration.test.ts",
+          "identity": "(fail) human action sources, receipts and unified review > decision creates one human card and acceptance atomically resumes the same real Outcome thread",
+          "line": 11095
+        },
+        {
+          "file": "test/retirement-combined-chaos.integration.test.ts",
+          "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 1",
+          "line": 11292
+        },
+        {
+          "file": "test/retirement-combined-chaos.integration.test.ts",
+          "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 7",
+          "line": 11408
+        },
+        {
+          "file": "test/retirement-combined-chaos.integration.test.ts",
+          "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 29",
+          "line": 11538
+        },
+        {
+          "file": "test/retirement-combined-chaos.integration.test.ts",
+          "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 101",
+          "line": 11664
+        },
+        {
+          "file": "test/retirement-combined-chaos.integration.test.ts",
+          "identity": "(fail) retirement survives concurrent late work and a cleanup outage, seed 284",
+          "line": 11796
+        },
+        {
+          "file": "test/a2a-contract.integration.test.ts",
+          "identity": "(fail) source-verified Bot A2A errors, group rows, and channel updates run end to end",
+          "line": 11912
+        },
+        {
+          "file": "test/memory-management.integration.test.ts",
+          "identity": "(fail) client \u2192 routes \u2192 real AppService uses the same memory as tool save and RecallMemory",
+          "line": 11950
+        },
+        {
+          "file": "test/memory-management.integration.test.ts",
+          "identity": "(fail) clear invalidates populated main/fork caches, retains the conversation, excludes shared and peer stores",
+          "line": 11963
+        },
+        {
+          "file": "test/memory-management.integration.test.ts",
+          "identity": "(fail) list shows one entry per fact, and deleting it removes every copy",
+          "line": 11976
+        },
+        {
+          "file": "test/memory-management.integration.test.ts",
+          "identity": "(fail) clear covers more than the visible list limit",
+          "line": 11989
+        },
+        {
+          "file": "test/memory-management.integration.test.ts",
+          "identity": "(fail) changes produce content-free events across stores; no-op reads and empty clear stay silent",
+          "line": 12002
+        },
+        {
+          "file": "test/memory-management.integration.test.ts",
+          "identity": "(fail) automatic learning becomes visible only after inference and commit finish",
+          "line": 12015
+        },
+        {
+          "file": "test/memory-management.integration.test.ts",
+          "identity": "(fail) a real PostgreSQL commit reaches the portable client over the product SSE stream",
+          "line": 12028
+        },
+        {
+          "file": "test/question-lifecycle.integration.test.ts",
+          "identity": "(fail) questions settle durably across normal sends, publication, retries, forks and races",
+          "line": 12072
+        },
+        {
+          "file": "test/notification-read-chaos.integration.test.ts",
+          "identity": "(fail) concurrent, duplicated and stale reads preserve newer messages and reactions",
+          "line": 12204
+        },
+        {
+          "file": "test/plugin/manual-oauth.integration.test.ts",
+          "identity": "(fail) HTTP defaults to manual completion through the authenticated API and refreshes on the server",
+          "line": 12360
+        },
+        {
+          "file": "test/plugin/manual-oauth.integration.test.ts",
+          "identity": "(fail) manual completion is session-bound, expires, rejects issuer mismatch, and handles cancellation",
+          "line": 12374
+        },
+        {
+          "file": "test/plugin/manual-oauth.integration.test.ts",
+          "identity": "(fail) HTTPS selects a stable deployment callback and resolves the connection from state",
+          "line": 12388
+        },
+        {
+          "file": "test/plugin/manual-oauth.integration.test.ts",
+          "identity": "(fail) provider setup is distinct from installation and unsupported manual callbacks are blocked",
+          "line": 12402
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) computer outage recovery through a fresh host resumes persisted state without new approval (still linked: %s)",
+          "line": 12417
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) computer outage recovery through a fresh host resumes persisted state without new approval (still linked: %s)",
+          "line": 12430
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) configuration save cannot erase another service's failed-removal gate",
+          "line": 12443
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) package update cannot orphan private storage by remove",
+          "line": 12456
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) package update cannot orphan private storage by disable",
+          "line": 12469
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) package update rolls back if account removal starts while its stop is pending",
+          "line": 12482
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) compatible updates preserve private state and subsequent removal still deletes it",
+          "line": 12495
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) durable recovery state resumes through a fresh host service without provisioning",
+          "line": 12508
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) regenerating a pending QR stops its old waiter and returns a fresh code immediately",
+          "line": 12521
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) uninstall fences delayed MCP discovery and every sibling before deleting persistent state",
+          "line": 12534
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) public status exposes only the QR projection and interrupted links clear after process restart",
+          "line": 12547
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) background polling of an interrupted link leaves a stopped MCP process stopped",
+          "line": 12560
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) account removal rejects another service before RPC while forget acknowledgement is withheld",
+          "line": 12573
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) account removal fences an already-dispatched discovery without recreating deleted state",
+          "line": 12586
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) failed account stop keeps the database gate across services until removal is retried",
+          "line": 12599
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) failed account forget keeps the database gate across services until removal is retried",
+          "line": 12612
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) failed uninstall cleanup does not expose an interrupted QR through public status",
+          "line": 12625
+        },
+        {
+          "file": "test/plugin/device-link.integration.test.ts",
+          "identity": "(fail) rotating challenge and image-free bootstrap survive a fresh host service without restarting approval",
+          "line": 12638
+        },
+        {
+          "file": "test/plugin/local-runtime-restart.integration.test.ts",
+          "identity": "(fail) a working local connector survives a computer restart and starts on its next call",
+          "line": 12652
+        },
+        {
+          "file": "test/plugin/direct-actions.test.ts",
+          "identity": "(fail) plugin management without review > executes immediately and replays the stored receipt without another install",
+          "line": 12667
+        },
+        {
+          "file": "test/plugin/direct-actions.test.ts",
+          "identity": "(fail) plugin management without review > concurrent callers execute an action once",
+          "line": 12680
+        },
+        {
+          "file": "test/plugin/direct-actions.test.ts",
+          "identity": "(fail) plugin management without review > cancellation prevents starting work and uncertain writes are not repeated",
+          "line": 12693
+        },
+        {
+          "file": "test/plugin/direct-actions.test.ts",
+          "identity": "(fail) plugin installs on turns the user did not start > only typed user turns install; every other wake gets the refusal and installs nothing",
+          "line": 12706
+        },
+        {
+          "file": "test/plugin/direct-actions.test.ts",
+          "identity": "(fail) plugin installs on turns the user did not start > a group-room turn is refused as a room turn, pointing to the 1:1 chat",
+          "line": 12719
+        },
+        {
+          "file": "test/plugin/direct-actions.test.ts",
+          "identity": "(fail) plugin installs on turns the user did not start > the refusal leaves other plugin actions alone and still reports unknown plugins first",
+          "line": 12732
+        },
+        {
+          "file": "test/plugin/local-runtime-health.test.ts",
+          "identity": "(fail) background MCP health observes processes and resumes stopped connections on next use",
+          "line": 12746
+        },
+        {
+          "file": "test/plugin/local-runtime-health.test.ts",
+          "identity": "(fail) a connection the computer could not answer for returns to ready, and a pending sign-in still says it was interrupted",
+          "line": 12758
+        },
+        {
+          "file": "test/plugin/agent-oauth-handoff.integration.test.ts",
+          "identity": "(fail) agent manual OAuth hands off without creating or replacing a session; signed-in UI completes",
+          "line": 12779
+        },
+        {
+          "file": "test/plugin/agent-oauth-handoff.integration.test.ts",
+          "identity": "(fail) signed-in UI cancels its own attempt but not another user's",
+          "line": 12794
+        },
+        {
+          "file": "test/plugin/agent-oauth-handoff.integration.test.ts",
+          "identity": "(fail) immediate replacement changes ownership and PKCE; stale cancellation cannot erase the new attempt",
+          "line": 12809
+        },
+        {
+          "file": "test/plugin/agent-oauth-handoff.integration.test.ts",
+          "identity": "(fail) reset and cancellation cannot replace a claimed exchange",
+          "line": 12824
+        },
+        {
+          "file": "test/plugin/agent-oauth-handoff.integration.test.ts",
+          "identity": "(fail) auth-disabled manual OAuth still supports direct agent initiation and completion",
+          "line": 12839
+        },
+        {
+          "file": "test/plugin/agent-oauth-handoff.integration.test.ts",
+          "identity": "(fail) agent server OAuth still starts directly; desktop OAuth returns a UI handoff",
+          "line": 12854
+        },
+        {
+          "file": "test/plugin/oauth-lifecycle.integration.test.ts",
+          "identity": "(fail) OAuth lifecycle covers DCR, PKCE, independent accounts, refresh, cancellation and live tool changes",
+          "line": 12882
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) revoked no-refresh grants require explicit sign-in and recover without an orphan OAuth attempt",
+          "line": 12916
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) temporary MCP outages preserve the grant and recover without signing in again",
+          "line": 12931
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) temporary refresh-server failure preserves a remote grant and a later retry refreshes successfully",
+          "line": 12946
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a rejected remote refresh grant becomes needs_auth instead of silently restarting OAuth",
+          "line": 12961
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) an authorization callback cannot restore a disconnected account",
+          "line": 12976
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a stale authorization failure cannot erase a newer successful sign-in",
+          "line": 12991
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a late tools-changed callback cannot overwrite a newer account generation",
+          "line": 13006
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a revoked grant fails an agent invocation without dispatching the tool",
+          "line": 13021
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a provider error echoing a credential cannot expose it through the settings API",
+          "line": 13036
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) an error after token refresh redacts the newly issued credential",
+          "line": 13051
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) provider errors are redacted before they enter invocation history",
+          "line": 13066
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a browser callback survives replacement of the host service",
+          "line": 13081
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a host interruption after token persistence can recover discovery without another sign-in",
+          "line": 13096
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) duplicate browser callbacks redeem a one-time code only once",
+          "line": 13111
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a prepared call respects a later disconnect",
+          "line": 13126
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a prepared call respects a later endpoint_change",
+          "line": 13141
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a prepared call respects a later unavailable",
+          "line": 13156
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a prepared call respects a later remove_tool",
+          "line": 13171
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a prepared call respects a later uninstall",
+          "line": 13186
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a prepared call respects a later reauthorize",
+          "line": 13201
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) SIGKILL after remote acceptance settles the local invocation as an unknown outcome without replay",
+          "line": 13224
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) cancellation reaches an in-flight HTTP invocation through the plugin service",
+          "line": 13247
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) HTTP disconnect cancellation propagates through the real internal tool and plugin services",
+          "line": 13270
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) result persistence failure before_commit cannot replay or erase the remote outcome",
+          "line": 13293
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) result persistence failure after_commit cannot replay or erase the remote outcome",
+          "line": 13316
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a removed invocation cannot overwrite a replacement that reuses its call ID",
+          "line": 13339
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a failed verifier write cannot expose credentials that were never persisted",
+          "line": 13362
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) a failed tokens write cannot expose credentials that were never persisted",
+          "line": 13385
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) active invocation cleanup during reset_last_account settles without replay or storage errors",
+          "line": 13408
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) active invocation cleanup during remove_sibling_account settles without replay or storage errors",
+          "line": 13431
+        },
+        {
+          "file": "test/plugin/t3-chaos.integration.test.ts",
+          "identity": "(fail) active invocation cleanup during uninstall settles without replay or storage errors",
+          "line": 13454
+        },
+        {
+          "file": "test/plugin/external-files.integration.test.ts",
+          "identity": "(fail) native delivery executes directly, binds staged bytes, and cannot replay sends",
+          "line": 13512
+        },
+        {
+          "file": "test/plugin/oauth-handoff.integration.test.ts",
+          "identity": "(fail) plugin HTTP handoff resumes, cancels, expires and rejects stale callbacks without leaking provider errors",
+          "line": 13564
+        },
+        {
+          "file": "test/plugin/packaged-oauth.integration.test.ts",
+          "identity": "(fail) packaged OAuth keeps account tokens isolated, serializes refresh, and passes only access tokens to the computer",
+          "line": 13578
+        },
+        {
+          "file": "test/plugin/environment.integration.test.ts",
+          "identity": "(fail) plugin setup secrets reach every Bot's processes, rotate, and leave with the plugin",
+          "line": 13661
+        },
+        {
+          "file": "test/plugin/local-runtime-auth.test.ts",
+          "identity": "(fail) connect distinguishes provider authentication from runtime failure: Authentication failed: Slack rejected the saved browser session (invalid_auth). Replace both credentials, then reconnect.",
+          "line": 13675
+        },
+        {
+          "file": "test/plugin/local-runtime-auth.test.ts",
+          "identity": "(fail) connect distinguishes provider authentication from runtime failure: MCP error -32000: Connection closed",
+          "line": 13687
+        },
+        {
+          "file": "test/plugin/management.integration.test.ts",
+          "identity": "(fail) management preserves accounts, direct tool execution and snapshots through configuration, discovery and upgrades",
+          "line": 13701
+        },
+        {
+          "file": "test/plugin/management.integration.test.ts",
+          "identity": "(fail) saved secrets never leave configuration or export and new accounts do not copy account credentials",
+          "line": 13713
+        },
+        {
+          "file": "test/plugin/management.integration.test.ts",
+          "identity": "(fail) sources refresh in place, installed snapshots survive removal, and the skill library is shared by the UI and every Bot",
+          "line": 13725
+        },
+        {
+          "file": "test/plugin/management.integration.test.ts",
+          "identity": "(fail) package defaults and changed requirements survive install and updates",
+          "line": 13737
+        },
+        {
+          "file": "test/plugin/management.integration.test.ts",
+          "identity": "(fail) a disconnected account cannot be resurrected by stale discovery; empty tools and outage are distinct",
+          "line": 13749
+        },
+        {
+          "file": "test/plugin/released-updates.integration.test.ts",
+          "identity": "(fail) plugins shipped with a release update with it and reconnect",
+          "line": 13763
+        },
+        {
+          "file": "test/plugin/settings-scale.test.ts",
+          "identity": "(fail) bounded plugin settings projections > initial settings use bounded installation and activity projections",
+          "line": 13778
+        },
+        {
+          "file": "test/plugin/settings-scale.test.ts",
+          "identity": "(fail) bounded plugin settings projections > status polling uses one bounded query without package files or artwork",
+          "line": 13791
+        },
+        {
+          "file": "test/plugin/settings-scale.test.ts",
+          "identity": "(fail) bounded plugin settings projections > status polling skips empty work and caps defensive direct callers",
+          "line": 13804
+        },
+        {
+          "file": "test/plugin/settings-scale.test.ts",
+          "identity": "(fail) bounded plugin settings projections > agent-facing status loads installations without Bot access tables",
+          "line": 13817
+        },
+        {
+          "file": "test/plugin/local-runtime-login.integration.test.ts",
+          "identity": "(fail) real database and child process preserve one pending login through caller timeout, health probes and retries",
+          "line": 13848
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) 1password: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13869
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) amap: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13881
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) bitwarden: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13893
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) dingtalk-workspace: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13905
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) email: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13917
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) github: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13929
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) gmail: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13941
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) google-calendar: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13953
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) google-docs: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13965
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) google-drive: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13977
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) google-maps: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 13989
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) google-sheets: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14001
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) google-slides: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14013
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) linear: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14026
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) openstreetmap: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14039
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) plaid: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14051
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) ramp: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14063
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) signal: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14075
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) slack: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14087
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) slack-stealth: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14099
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) t3-code: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14111
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) wechat: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14123
+        },
+        {
+          "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+          "identity": "(fail) whatsapp: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+          "line": 14135
+        },
+        {
+          "file": "test/plugin/hybrid-lifecycle.integration.test.ts",
+          "identity": "(fail) hybrid skill sync and OAuth recover independently on one installation",
+          "line": 14149
+        },
+        {
+          "file": "test/plugin/routine-plugin-actions.integration.test.ts",
+          "identity": "(fail) a routine run manages installed plugins with nobody watching",
+          "line": 14163
+        },
+        {
+          "file": "test/plugin/local-runtime-stress.integration.test.ts",
+          "identity": "(fail) disconnect wins over a discovery request delayed before reaching the computer",
+          "line": 14186
+        },
+        {
+          "file": "test/plugin/local-runtime-stress.integration.test.ts",
+          "identity": "(fail) 30 overlapping restarts during browser consent share one replacement",
+          "line": 14199
+        },
+        {
+          "file": "test/plugin/local-runtime-stress.integration.test.ts",
+          "identity": "(fail) disconnect permits a fresh login without waiting for a delayed old RPC",
+          "line": 14212
+        },
+        {
+          "file": "test/plugin/local-runtime-stress.integration.test.ts",
+          "identity": "(fail) restart permits a fresh login without waiting for a delayed old RPC",
+          "line": 14225
+        },
+        {
+          "file": "test/plugin/local-runtime-stress.integration.test.ts",
+          "identity": "(fail) 200 connect requests plus 500 health ticks preserve one waiting login",
+          "line": 14238
+        },
+        {
+          "file": "test/plugin/local-runtime-stress.integration.test.ts",
+          "identity": "(fail) two independent server instances share one computer login",
+          "line": 14251
+        },
+        {
+          "file": "test/plugin/invocation-concurrency.integration.test.ts",
+          "identity": "(fail) plugin result retries cannot cross bot, run, account, or tool boundaries",
+          "line": 14266
+        },
+        {
+          "file": "test/plugin/invocation-concurrency.integration.test.ts",
+          "identity": "(fail) concurrent identical plugin requests execute once and replay after completion",
+          "line": 14279
+        },
+        {
+          "file": "test/plugin/lifecycle.integration.test.ts",
+          "identity": "(fail) plugin install, connection, discovery, direct call, and removal lifecycle",
+          "line": 14293
+        },
+        {
+          "file": "test/plugin/tool-arguments.integration.test.ts",
+          "identity": "(fail) direct authentication replays the exact newly created account",
+          "line": 14307
+        },
+        {
+          "file": "test/plugin/tool-arguments.integration.test.ts",
+          "identity": "(fail) account labels match case-insensitively and unknown names get the reference texts",
+          "line": 14319
+        },
+        {
+          "file": "test/plugin/desktop-oauth.integration.test.ts",
+          "identity": "(fail) desktop listener \u2192 backend routes \u2192 provider \u2192 database completes and refreshes without desktop",
+          "line": 14366
+        },
+        {
+          "file": "test/plugin/desktop-oauth.integration.test.ts",
+          "identity": "(fail) desktop callback is bound to session/redirect/state; public callback cannot redeem it; duplicate completion claims once",
+          "line": 14411
+        },
+        {
+          "file": "test/plugin/desktop-oauth.integration.test.ts",
+          "identity": "(fail) API rejects arbitrary redirect addresses and expired/replaced attempts; configuration persists callback mode",
+          "line": 14456
+        },
+        {
+          "file": "test/plugin/ramp.integration.test.ts",
+          "identity": "(fail) Ramp installs its playbooks and routes an authenticated MCP call through the Bot namespace",
+          "line": 14470
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) revoked packaged grant commits needs_auth independent of description: Token has been expired or revoked.",
+          "line": 14495
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) revoked packaged grant commits needs_auth independent of description: empty",
+          "line": 14518
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) revoked packaged grant commits needs_auth independent of description: Le jeton a expir\u00e9. fixture-secret",
+          "line": 14541
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) non-grant failure preserves credentials: server_error",
+          "line": 14564
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) non-grant failure preserves credentials: access_denied",
+          "line": 14587
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) non-grant failure preserves credentials: invalid_client",
+          "line": 14610
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) a stale successful connect cannot overwrite a rejected grant or a newer sign-in",
+          "line": 14633
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) concurrent refresh rejection persists once and pending sign-in survives stale requests",
+          "line": 14656
+        },
+        {
+          "file": "test/plugin/oauth-recovery.integration.test.ts",
+          "identity": "(fail) HTTP OAuth can explicitly reauthorize an error account and resume tools",
+          "line": 14679
+        },
+        {
+          "file": "test/plugin/t3-code.integration.test.ts",
+          "identity": "(fail) resolved URL setup never exposes credential placeholders in legacy endpoints",
+          "line": 14726
+        },
+        {
+          "file": "test/plugin/t3-code.integration.test.ts",
+          "identity": "(fail) T3 plugin validates URLs, authorizes public OAuth without refresh tokens, and isolates environments",
+          "line": 14771
+        },
+        {
+          "file": "test/plugin/bitwarden-multi-instance.test.ts",
+          "identity": "(fail) Bitwarden instance only becomes ready after computer bw.sh status succeeds and defaults alias to email",
+          "line": 14787
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > concurrent connects share one start; linking clears the QR and metadata hides host tools",
+          "line": 14806
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > disconnect fences a delayed linked status and reconnect obtains a new code",
+          "line": 14820
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > connect accepts an account recovered between the status check and QR start",
+          "line": 14834
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > a running collector's recovery is observed after the host leaves ready without provisioning",
+          "line": 14848
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > a previously ready account resumes after a computer outage ({\"state\":\"ready\",\"recovering\":false}) without provisioning",
+          "line": 14862
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > a previously ready account resumes after a computer outage ({\"state\":\"stopped\",\"recovering\":false}) without provisioning",
+          "line": 14876
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > a previously ready account resumes after a computer outage ({\"state\":\"ready\",\"recovering\":true}) without provisioning",
+          "line": 14890
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > a previously ready account resumes after a computer outage ({\"state\":\"stopped\",\"recovering\":true}) without provisioning",
+          "line": 14904
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > outage recovery waits through collector startup and does not provision an unlinked account",
+          "line": 14918
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > an outage-labelled error cannot resume an interrupted approval",
+          "line": 14932
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > recovery polling observes stopped runtimes without starting them",
+          "line": 14946
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > recovery polling observes error runtimes without starting them",
+          "line": 14960
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > disconnect clears collector recovery state and fences a delayed recovered status",
+          "line": 14974
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > disconnect clears computer recovery state and fences a delayed recovered status",
+          "line": 14988
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > a delayed recovery success cannot clear a newer QR at the same generation",
+          "line": 15002
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > expiration cancels the matching session and prevents Bot invocation",
+          "line": 15016
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > stale QR cancellation cannot disconnect a newer linking session",
+          "line": 15030
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > QR cancellation closes the process before a concurrent reconnect starts",
+          "line": 15044
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > explicit reconnect recovers when finish failed after QR persistence",
+          "line": 15058
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > reconnect after computer restart replaces the QR whose in-memory session was lost",
+          "line": 15072
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > manifest-declared lifecycle tools stay absent from Bot discovery even without MCP metadata",
+          "line": 15086
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > Bot invocation cannot execute any manifest-declared lifecycle tool from a polluted tool snapshot",
+          "line": 15100
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > offline removal never provisions a runtime and reports inability to delete state",
+          "line": 15114
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > removal durably gates another service before stop and through forget acknowledgement, then keeps the fenced generation",
+          "line": 15128
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > failed removal stop keeps the durable gate and skips deletion until a successful retry",
+          "line": 15142
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > account removal waits for deletion and subsequent reset before permitting reconnect",
+          "line": 15156
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > uninstall fences every account before cleanup and rejects reconnect from another service",
+          "line": 15170
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > failed uninstall cleanup retains the fenced installation for a successful retry",
+          "line": 15184
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > uninstall cannot delete account state or installation after a failed runtime stop",
+          "line": 15198
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > disconnect surfaces http503, clears the code, and remains retryable",
+          "line": 15212
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > disconnect surfaces transport, clears the code, and remains retryable",
+          "line": 15226
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > disconnect surfaces abort, clears the code, and remains retryable",
+          "line": 15240
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > poll clears an interrupted QR without starting another link and explicit connect recovers",
+          "line": 15254
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > explicit poll passively clears a QR when runtime state is stopped without any host call",
+          "line": 15268
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > background poll passively clears a QR when runtime state is stopped without any host call",
+          "line": 15282
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > explicit poll passively clears a QR when runtime state is error without any host call",
+          "line": 15296
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > background poll passively clears a QR when runtime state is error without any host call",
+          "line": 15310
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > a delayed stopped-runtime probe cannot clear a newer QR at the same generation",
+          "line": 15324
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) generic device link host lifecycle (fake DB/computer) > interrupted status from an old poll cannot clear a newer QR at the same generation",
+          "line": 15338
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > a newer challenge replaces the image within the same session without restarting approval",
+          "line": 15354
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > invalidation clears only the image and a later generation can restore it",
+          "line": 15369
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > expired images keep bootstrap polling active until the matching session completes",
+          "line": 15384
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > equal and older challenge generations cannot overwrite a newer image or its deadline",
+          "line": 15399
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > a foreign session cannot replace, complete or cancel the current approval",
+          "line": 15414
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > connect cannot complete an active dynamic approval using an absent or foreign status session",
+          "line": 15429
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > connect cancels an expired dynamic approval before accepting its matching linked status",
+          "line": 15444
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > failed setup cannot recover using a foreign session's linked status",
+          "line": 15459
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > failed setup cannot recover after the matching approval deadline elapses",
+          "line": 15474
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > dynamic approval status without its session ID cannot complete or mutate setup",
+          "line": 15489
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > status cannot extend the overall approval deadline",
+          "line": 15504
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > a late rotation cannot overwrite the replacement session created by restart",
+          "line": 15518
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > Get new code replaces a dynamic session and fences its late successful status",
+          "line": 15532
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > malformed challenge (negative generation) cannot mutate a valid approval",
+          "line": 15547
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > malformed challenge (fractional generation) cannot mutate a valid approval",
+          "line": 15562
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > malformed challenge (string generation) cannot mutate a valid approval",
+          "line": 15577
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > malformed challenge (non-PNG image) cannot mutate a valid approval",
+          "line": 15592
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > malformed challenge (oversized image) cannot mutate a valid approval",
+          "line": 15607
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > malformed challenge (invalid expiry) cannot mutate a valid approval",
+          "line": 15622
+        },
+        {
+          "file": "test/plugin/device-link.test.ts",
+          "identity": "(fail) rotating device approval challenges > malformed challenge (expiry beyond session deadline) cannot mutate a valid approval",
+          "line": 15637
+        },
+        {
+          "file": "test/plugin/bitwarden-environment.integration.test.ts",
+          "identity": "(fail) Bitwarden runtime fields install, rotate, stay private, inherit, conflict and uninstall in a disposable DB",
+          "line": 15684
+        },
+        {
+          "file": "test/external-messaging/poller.integration.test.ts",
+          "identity": "(fail) inbound poller > (unnamed)",
+          "line": 15825
+        },
+        {
+          "file": "test/external-messaging/poller.integration.test.ts",
+          "identity": "(fail) inbound poller > (unnamed)",
+          "line": 15835
+        },
+        {
+          "file": "test/external-messaging/reminder.integration.test.ts",
+          "identity": "(fail) daily reminder > (unnamed)",
+          "line": 15904
+        },
+        {
+          "file": "test/external-messaging/reminder.integration.test.ts",
+          "identity": "(fail) daily reminder > (unnamed)",
+          "line": 15914
+        },
+        {
+          "file": "test/external-messaging/wechat.integration.test.ts",
+          "identity": "(fail) WeChat through the Server's external messaging > (unnamed)",
+          "line": 15950
+        },
+        {
+          "file": "test/external-messaging/wechat.integration.test.ts",
+          "identity": "(fail) WeChat through the Server's external messaging > (unnamed)",
+          "line": 15960
+        },
+        {
+          "file": "test/external-messaging/inbound.integration.test.ts",
+          "identity": "(fail) inbound acceptance > (unnamed)",
+          "line": 15996
+        },
+        {
+          "file": "test/external-messaging/inbound.integration.test.ts",
+          "identity": "(fail) inbound acceptance > (unnamed)",
+          "line": 16006
+        },
+        {
+          "file": "test/external-messaging/binding.integration.test.ts",
+          "identity": "(fail) messaging binding > (unnamed)",
+          "line": 16048
+        },
+        {
+          "file": "test/external-messaging/binding.integration.test.ts",
+          "identity": "(fail) messaging binding > (unnamed)",
+          "line": 16058
+        },
+        {
+          "file": "test/external-messaging/redaction.test.ts",
+          "identity": "(fail) external messaging redaction > (unnamed)",
+          "line": 16094
+        },
+        {
+          "file": "test/external-messaging/redaction.test.ts",
+          "identity": "(fail) external messaging redaction > (unnamed)",
+          "line": 16104
+        },
+        {
+          "file": "test/external-messaging/delivery.integration.test.ts",
+          "identity": "(fail) outbound delivery > (unnamed)",
+          "line": 16140
+        },
+        {
+          "file": "test/external-messaging/delivery.integration.test.ts",
+          "identity": "(fail) outbound delivery > (unnamed)",
+          "line": 16150
+        },
+        {
+          "file": "test/external-messaging/reply-routing.integration.test.ts",
+          "identity": "(fail) SendToUser from and to an external chat > (unnamed)",
+          "line": 16186
+        },
+        {
+          "file": "test/external-messaging/reply-routing.integration.test.ts",
+          "identity": "(fail) SendToUser from and to an external chat > (unnamed)",
+          "line": 16196
+        },
+        {
+          "file": "test/external-messaging/channel-kind-regression.integration.test.ts",
+          "identity": "(fail) a Bot with earlier external conversations > (unnamed)",
+          "line": 16237
+        },
+        {
+          "file": "test/external-messaging/channel-kind-regression.integration.test.ts",
+          "identity": "(fail) a Bot with earlier external conversations > (unnamed)",
+          "line": 16247
+        },
+        {
+          "file": "test/external-messaging/inbound-media.integration.test.ts",
+          "identity": "(fail) inbound media > (unnamed)",
+          "line": 16283
+        },
+        {
+          "file": "test/external-messaging/inbound-media.integration.test.ts",
+          "identity": "(fail) inbound media > (unnamed)",
+          "line": 16293
+        }
+      ],
+      "causeOccurrences": {
+        "ApiError: Some work could not be stopped. Try Stop again.": 1,
+        "error: expect(received).toEqual(expected)": 12,
+        "error: expect(received).toBe(expected)": 11,
+        "error: expect(received).toBeUndefined()": 1,
+        "error: Retirement neither committed nor reached the lifecycle lock": 1,
+        "error: OUTCOMEGO_AUTH_MODE must be either \"required\" or \"disabled\"": 148,
+        "TypeError: worker.reconcileRetiredAgents is not a function. (In 'worker.reconcileRetiredAgents()', 'worker.reconcileRetiredAgents' is undefined)": 3,
+        "error: expect(received).toMatchObject(expected)": 16,
+        "PrismaClientKnownRequestError: ": 11,
+        "DriverAdapterError: UniqueConstraintViolation": 2,
+        "error: expect(received).toContain(expected)": 1,
+        "error: expect(received).toHaveLength(expected)": 6,
+        "error: expect(received).rejects.toThrow(expected)": 12,
+        "error: Unexpected fixture failure": 1,
+        "OutcomeGoClientError: undefined is not an object (evaluating 'definitionFromManifest(install.manifest)?.components.some')": 30,
+        "OutcomeGoClientError: ": 20,
+        "DriverAdapterError: TooManyConnections": 19,
+        "PrismaClientKnownRequestError: Too many database connections opened: sorry, too many clients already": 10,
+        "TypeError: undefined is not an object (evaluating 'h.cleanup')": 10
+      }
+    },
+    "worker": {
+      "rawNamedFailureOccurrences": 51,
+      "failures": [
+        {
+          "file": "test/memory-recovery-churn.integration.test.ts",
+          "identity": "(fail) equal completion timestamps use UUID order even when runs were inserted in reverse",
+          "line": 16675
+        },
+        {
+          "file": "test/memory-recovery-churn.integration.test.ts",
+          "identity": "(fail) a full scan invalidated before dispatch still reaches later owners and wraps across lease-owner churn",
+          "line": 16686
+        },
+        {
+          "file": "test/memory-recovery-churn.integration.test.ts",
+          "identity": "(fail) a dispatch snapshot cannot learn after its run is cancelled, loses its completed inbox, or is deleted before claim",
+          "line": 16698
+        },
+        {
+          "file": "test/routine-retest-execution.integration.test.ts",
+          "identity": "(fail) single group shell receipt records its actual processing turn's completed outcome",
+          "line": 16716
+        },
+        {
+          "file": "test/routine-retest-execution.integration.test.ts",
+          "identity": "(fail) single group shell receipt records its actual processing turn's failed outcome",
+          "line": 16730
+        },
+        {
+          "file": "test/routine-retest-execution.integration.test.ts",
+          "identity": "(fail) folded group shell receipt records its actual processing turn's completed outcome",
+          "line": 16744
+        },
+        {
+          "file": "test/routine-retest-execution.integration.test.ts",
+          "identity": "(fail) folded group shell receipt records its actual processing turn's failed outcome",
+          "line": 16758
+        },
+        {
+          "file": "test/routine-retest-execution.integration.test.ts",
+          "identity": "(fail) legacy-folded group shell receipt records its actual processing turn's completed outcome",
+          "line": 16772
+        },
+        {
+          "file": "test/routine-retest-execution.integration.test.ts",
+          "identity": "(fail) legacy-folded group shell receipt records its actual processing turn's failed outcome",
+          "line": 16786
+        },
+        {
+          "file": "test/typed-message-supersedes-turn.integration.test.ts",
+          "identity": "(fail) an explicit Stop wins over an earlier typed interruption of a agent wake after its durable cancellation",
+          "line": 16839
+        },
+        {
+          "file": "test/typed-message-supersedes-turn.integration.test.ts",
+          "identity": "(fail) an explicit Stop wins over an earlier typed interruption of a agent wake before cancellation is recorded",
+          "line": 16880
+        },
+        {
+          "file": "test/typed-message-supersedes-turn.integration.test.ts",
+          "identity": "(fail) an explicit Stop wins over an earlier typed interruption of a connector wake after its durable cancellation",
+          "line": 16921
+        },
+        {
+          "file": "test/typed-message-supersedes-turn.integration.test.ts",
+          "identity": "(fail) an explicit Stop wins over an earlier typed interruption of a connector wake before cancellation is recorded",
+          "line": 16962
+        },
+        {
+          "file": "test/typed-message-supersedes-turn.integration.test.ts",
+          "identity": "(fail) an explicit Stop wins over an earlier typed interruption of a background_revival wake after its durable cancellation",
+          "line": 17003
+        },
+        {
+          "file": "test/typed-message-supersedes-turn.integration.test.ts",
+          "identity": "(fail) an explicit Stop wins over an earlier typed interruption of a background_revival wake before cancellation is recorded",
+          "line": 17044
+        },
+        {
+          "file": "test/wake-parent.integration.test.ts",
+          "identity": "(fail) routine \u2192 isolated automation \u2192 WakeParent \u2192 channel delivery, including silent results and delegated continuation",
+          "line": 17116
+        },
+        {
+          "file": "test/routine-stop-ordering.integration.test.ts",
+          "identity": "(fail) Stop of a routine root fences delivery by a parent handoff that was already claimed",
+          "line": 17146
+        },
+        {
+          "file": "test/routine-stop-ordering.integration.test.ts",
+          "identity": "(fail) a claimed routine handoff can notify a peer normally but cannot publish after Stop",
+          "line": 17163
+        },
+        {
+          "file": "test/memory-restart.integration.test.ts",
+          "identity": "(fail) a worker killed at before-memory recovers the settled exchange without another turn",
+          "line": 17191
+        },
+        {
+          "file": "test/memory-restart.integration.test.ts",
+          "identity": "(fail) a worker killed at inference recovers the settled exchange without another turn",
+          "line": 17205
+        },
+        {
+          "file": "test/memory-restart.integration.test.ts",
+          "identity": "(fail) a worker killed at inference-natural-expiry recovers the settled exchange without another turn",
+          "line": 17219
+        },
+        {
+          "file": "test/memory-restart.integration.test.ts",
+          "identity": "(fail) a worker killed at before-publication recovers the settled exchange without another turn",
+          "line": 17247
+        },
+        {
+          "file": "test/memory-restart.integration.test.ts",
+          "identity": "(fail) a worker killed at before-ack recovers the settled exchange without another turn",
+          "line": 17261
+        },
+        {
+          "file": "test/memory-multiworker.integration.test.ts",
+          "identity": "(fail) two worker processes serialize each bot's review backlog and recover a killed owner after the real lease TTL",
+          "line": 17292
+        },
+        {
+          "file": "test/reaction-claim-availability.integration.test.ts",
+          "identity": "(fail) queued \ud83d\udc4d feedback cannot claim after the author is removed from its group",
+          "line": 17350
+        },
+        {
+          "file": "test/reaction-claim-availability.integration.test.ts",
+          "identity": "(fail) queued \ud83d\udc4d feedback cannot claim after its chat is archived",
+          "line": 17395
+        },
+        {
+          "file": "test/reaction-claim-availability.integration.test.ts",
+          "identity": "(fail) queued \ud83d\udc4e feedback cannot claim after the author is removed from its group",
+          "line": 17439
+        },
+        {
+          "file": "test/reaction-claim-availability.integration.test.ts",
+          "identity": "(fail) queued \ud83d\udc4e feedback cannot claim after its chat is archived",
+          "line": 17482
+        },
+        {
+          "file": "test/reaction-claim-availability.integration.test.ts",
+          "identity": "(fail) discarding unavailable group feedback does not block an independent home-chat user message",
+          "line": 17536
+        },
+        {
+          "file": "test/reaction-claim-availability.integration.test.ts",
+          "identity": "(fail) feedback claim waits for an in-flight group membership edit and checks its committed result",
+          "line": 17551
+        },
+        {
+          "file": "test/memory-recovery-fairness.integration.test.ts",
+          "identity": "(fail) a leased bot's 33 older pending reviews cannot starve another healthy bot across recovery scans",
+          "line": 17603
+        },
+        {
+          "file": "test/memory-recovery-fairness.integration.test.ts",
+          "identity": "(fail) recovery rotates past more than 32 leased bots to reach a later healthy bot",
+          "line": 17615
+        },
+        {
+          "file": "test/memory-recovery-fairness.integration.test.ts",
+          "identity": "(fail) an in-flight local oldest review prevents launching the bot's later review during recovery",
+          "line": 17626
+        },
+        {
+          "file": "test/memory-recovery-fairness.integration.test.ts",
+          "identity": "(fail) an oldest pending review without a completed inbox cannot permanently gate the bot's later eligible review",
+          "line": 17638
+        },
+        {
+          "file": "test/memory-recovery-fairness.integration.test.ts",
+          "identity": "(fail) background recovery keeps at most 32 slow reviews active across scans and uses released capacity",
+          "line": 17649
+        },
+        {
+          "file": "test/lifecycle.integration.test.ts",
+          "identity": "(fail) durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group rounds",
+          "line": 17681
+        },
+        {
+          "file": "test/routine-275-regressions.integration.test.ts",
+          "identity": "(fail) a callback queued before handoff is cancelled without another model turn",
+          "line": 17765
+        },
+        {
+          "file": "test/routine-275-regressions.integration.test.ts",
+          "identity": "(fail) Stop cancels a parent handoff still waiting in the queue",
+          "line": 17807
+        },
+        {
+          "file": "test/routine-275-regressions.integration.test.ts",
+          "identity": "(fail) periodic recovery retries a committed group round after its handoff failed",
+          "line": 17824
+        },
+        {
+          "file": "test/routine-275-regressions.integration.test.ts",
+          "identity": "(fail) group overlap waits for a real background process and releases on its completion",
+          "line": 17838
+        },
+        {
+          "file": "test/routine-275-regressions.integration.test.ts",
+          "identity": "(fail) Stop releases a completed group turn's outstanding shell wait",
+          "line": 17852
+        },
+        {
+          "file": "test/routine-275-regressions.integration.test.ts",
+          "identity": "(fail) a folded group shell receipt waits for its processing consumer",
+          "line": 17866
+        },
+        {
+          "file": "test/routine-275-regressions.integration.test.ts",
+          "identity": "(fail) recovery rotates past 100 live executions",
+          "line": 17880
+        },
+        {
+          "file": "test/routine-275-regressions.integration.test.ts",
+          "identity": "(fail) one broken follow-up does not block another bot's settlement",
+          "line": 17891
+        },
+        {
+          "file": "test/memory-inference-outage.integration.test.ts",
+          "identity": "(fail) a real unavailable inference outage retains review intent and cannot replay an older turn over a newer correction",
+          "line": 17944
+        },
+        {
+          "file": "test/memory-inference-outage.integration.test.ts",
+          "identity": "(fail) a real malformed-json inference outage retains review intent and cannot replay an older turn over a newer correction",
+          "line": 17994
+        },
+        {
+          "file": "test/memory-journey.integration.test.ts",
+          "identity": "(fail) a user remembers, corrects, recalls across fresh chats and restart, then forgets through HTTP",
+          "line": 18098
+        },
+        {
+          "file": "test/memory-lifecycle-reliability.integration.test.ts",
+          "identity": "(fail) clearing the memory panel after correction fences the delayed review and its cached prompt",
+          "line": 18139
+        },
+        {
+          "file": "test/memory-lifecycle-reliability.integration.test.ts",
+          "identity": "(fail) rejected hiding and idempotent unhiding preserve review work, while archive survives restart without replaying its backlog",
+          "line": 18170
+        },
+        {
+          "file": "test/memory-lifecycle-reliability.integration.test.ts",
+          "identity": "(fail) switching into a shared chat and widening membership cannot expose shared-owner facts from a delayed private review",
+          "line": 18201
+        },
+        {
+          "file": "test/memory-routing.integration.test.ts",
+          "identity": "(fail) in a group room the worker gives each bot only its own memory, and saved and learned facts are bot-wide",
+          "line": 18214
+        }
+      ],
+      "causeOccurrences": {
+        "TypeError: worker.recoverMemoryReviews is not a function. (In 'worker.recoverMemoryReviews()', 'worker.recoverMemoryReviews' is undefined)": 7,
+        "error: expect(received).toBe(expected)": 12,
+        "error: expect(received).toBeNull()": 12,
+        "error: expect(received).toStartWith(expected)": 2,
+        "error: expect(received).rejects.toMatchObject(expected)": 2,
+        "error: Memory worker fixture timed out:": 4,
+        "PrismaClientKnownRequestError: ": 1,
+        "error: Worker memory-worker-a exited: 673 |     });": 1,
+        "TypeError: ECONNREFUSED: Unable to connect. Is the computer able to access the url?": 11,
+        "error: expect(received).toMatchObject(expected)": 1,
+        "TypeError: worker.reviewMemoryRun is not a function. (In 'worker.reviewMemoryRun(oldest)', 'worker.reviewMemoryRun' is undefined)": 1,
+        "error: expect(received).toHaveLength(expected)": 1,
+        "error: Transient follow-up launch failure": 1,
+        "error: Memory worker fixture timed out": 1
+      }
+    }
+  }
+}

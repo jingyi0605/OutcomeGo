@@ -1,5 +1,6 @@
 import { Button } from "../../ui/button";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "../../../lib/i18n";
 import {
   SectionLabel,
   SettingsGroup,
@@ -93,18 +94,19 @@ export const shortcutKeycaps = (shortcut: Shortcut): string[] =>
     ? [MODIFIER_SYMBOL[shortcut.modifier], MODIFIER_SYMBOL[shortcut.modifier]]
     : shortcut.accelerator.split("+").map(keycap);
 
-export const describeShortcut = (shortcut: Shortcut): string =>
-  shortcut.kind === "chord"
-    ? `Both ${MODIFIER_NAME[shortcut.modifier]} keys`
-    : shortcutKeycaps(shortcut).join(mac() ? "" : "+");
+export const shortcutErrorText = (cause: unknown) =>
+  cause instanceof Error
+    ? cause.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "")
+    : "That shortcut can’t be used.";
 
 /** While a shortcut is recorded: the keys held so far as keycaps, or a keycap-sized prompt. */
 export function RecordingKeys({ keys }: { keys: string[] }) {
+  const { t } = useI18n();
   return keys.length ? (
     <Keycaps keys={keys} chord={false} />
   ) : (
     <span className="inline-flex h-[22px] items-center rounded-[6px] border border-dashed border-[var(--control-accent)] px-2 text-[12px] leading-none text-[var(--control-accent)]">
-      Type shortcut
+      {t("Type shortcut")}
     </span>
   );
 }
@@ -136,6 +138,7 @@ void window.outcomego?.screenbot?.shortcut
 
 /** Settings › Keyboard › ScreenBot: the shortcut, with Change and Reset. */
 export function ScreenBotShortcutSettings() {
+  const { t } = useI18n();
   const bridge = window.outcomego?.screenbot?.shortcut;
   const [status, setStatus] = useState<Status | null>(() => lastStatus);
   const [recording, setRecording] = useState(false);
@@ -173,11 +176,7 @@ export function ScreenBotShortcutSettings() {
         setStatus(await bridge.set(shortcut));
         setError(null);
       } catch (cause) {
-        setError(
-          cause instanceof Error
-            ? cause.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "")
-            : "That shortcut can’t be used."
-        );
+        setError(shortcutErrorText(cause));
       }
     },
     [bridge]
@@ -262,7 +261,7 @@ export function ScreenBotShortcutSettings() {
             description={<SkeletonText width={318} />}
             control={
               <div
-                aria-label="Loading the ScreenBot shortcut"
+                aria-label={t("Loading the ScreenBot shortcut")}
                 className="flex items-center gap-2"
                 role="status"
               >
@@ -279,9 +278,20 @@ export function ScreenBotShortcutSettings() {
       </>
     );
   }
-  const chord = status.shortcut.kind === "chord";
+  const shortcut = status.shortcut;
+  const chord = shortcut.kind === "chord";
+  const keycaps = shortcutKeycaps(shortcut);
+  const shortcutLabel = chord
+    ? t("Both {modifier} keys", { modifier: MODIFIER_NAME[shortcut.modifier] })
+    : keycaps.join(mac() ? "" : "+");
+  const captureHint = chord
+    ? t("Press both {modifier} keys to capture your screen and send it to a Bot.", {
+        modifier: MODIFIER_NAME[shortcut.modifier],
+      })
+    : t("Press {shortcut} to capture your screen and send it to a Bot.", { shortcut: shortcutLabel });
   const preview = held.map(keycap);
   const needsAccess = chord && status.mode === "poll";
+  const warning = error ?? status.error;
 
   return (
     <>
@@ -297,7 +307,7 @@ export function ScreenBotShortcutSettings() {
                 "Press a shortcut. Esc cancels."
               )
             ) : (
-              <SettingsReveal>{`Press ${describeShortcut(status.shortcut).replace(/^Both/, "both")} to capture your screen and send it to a Bot.`}</SettingsReveal>
+              <SettingsReveal>{captureHint}</SettingsReveal>
             )
           }
           control={
@@ -306,15 +316,15 @@ export function ScreenBotShortcutSettings() {
                 aria-live="polite"
                 aria-label={
                   recording
-                    ? "Recording a shortcut"
-                    : `Current shortcut: ${describeShortcut(status.shortcut)}`
+                    ? t("Recording a shortcut")
+                    : t("Current shortcut: {shortcut}", { shortcut: shortcutLabel })
                 }
                 className="px-1.5 py-1"
               >
                 {recording ? (
                   <RecordingKeys keys={preview} />
                 ) : (
-                  <Keycaps keys={shortcutKeycaps(status.shortcut)} chord={chord} />
+                  <Keycaps keys={keycaps} chord={chord} />
                 )}
               </span>
               <Button
@@ -332,7 +342,7 @@ export function ScreenBotShortcutSettings() {
                   }
                 }}
               >
-                {recording ? "Cancel" : "Change…"}
+                {t(recording ? "Cancel" : "Change…")}
               </Button>
               <Button
                 size="xs"
@@ -340,7 +350,7 @@ export function ScreenBotShortcutSettings() {
                 type="button"
                 className={settingsSecondaryButton}
                 disabled={status.isDefault || recording}
-                title="Reset to both ⌘ keys"
+                title={t("Restore the default shortcut")}
                 onClick={() =>
                   void bridge.reset().then((next) => {
                     setStatus(next);
@@ -348,19 +358,17 @@ export function ScreenBotShortcutSettings() {
                   })
                 }
               >
-                Reset
+                {t("Reset")}
               </Button>
             </div>
           }
         />
-        {(error || status.error || needsAccess) && (
+        {(warning || needsAccess) && (
           <div className="flex items-center gap-3 border-t border-black/[0.065] py-2.5 text-[12px] leading-4 text-foreground-secondary dark:border-white/[0.07]">
-            <span className={error || status.error ? "text-[#d70015] dark:text-[#ff6961]" : ""}>
-              {error ??
-                status.error ??
-                "If pressing both keys does nothing, allow OpenTeam in Input Monitoring."}
+            <span className={warning ? "text-[#d70015] dark:text-[#ff6961]" : ""}>
+              {t(warning ?? "If pressing both keys does nothing, allow OutcomeGo in Input Monitoring.")}
             </span>
-            {!error && !status.error && needsAccess && (
+            {!warning && needsAccess && (
               <Button
                 size="xs"
                 variant="secondary"
@@ -372,7 +380,7 @@ export function ScreenBotShortcutSettings() {
                   void bridge.requestAccess().finally(() => setAsking(false));
                 }}
               >
-                Allow…
+                {t("Allow…")}
               </Button>
             )}
           </div>

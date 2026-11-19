@@ -1,0 +1,64 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/routine-stop-ordering.integration.test.ts:
+(node:57111) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) actual Stop during a routine continuation stops its original context and fences later callbacks [220.79ms]
+(pass) Stop of a routine root fences delivery by a parent handoff that was already claimed [72.89ms]
+(pass) ordinary claimed parent handoffs still deliver when the routine has not been stopped [72.11ms]
+(pass) stopping a completed continuation also stops workers still owned by its original routine [81.33ms]
+(pass) concurrent repair callers cover multiple pages exactly once without altering protected rows [1050.47ms]
+(pass) a claimed routine handoff can notify a peer normally but cannot publish after Stop [148.76ms]
+
+apps/worker/test/typed-message-supersedes-turn.integration.test.ts:
+(pass) reacting 👍 during active work queues feedback without interrupting the command, and retry/removal create no duplicate wake [2183.94ms]
+(pass) reacting 👎 during active work queues feedback without interrupting the command, and retry/removal create no duplicate wake [2073.46ms]
+(pass) a typed message during a running Shell cancels the turn, kills the command, and the new turn carries the unfinished-tasks reminder [3952.48ms]
+(pass) a message that arrives before the turn dispatched queues behind it, unless it carries that plain typed input for recovery [537.01ms]
+(pass) an explicit Stop wins over an earlier typed interruption of a agent wake after its durable cancellation [32.00ms]
+(pass) an explicit Stop wins over an earlier typed interruption of a agent wake before cancellation is recorded [26.19ms]
+(pass) an explicit Stop wins over an earlier typed interruption of a connector wake after its durable cancellation [66.46ms]
+(pass) an explicit Stop wins over an earlier typed interruption of a connector wake before cancellation is recorded [107.34ms]
+(pass) an explicit Stop wins over an earlier typed interruption of a background_revival wake after its durable cancellation [105.84ms]
+(pass) an explicit Stop wins over an earlier typed interruption of a background_revival wake before cancellation is recorded [26.56ms]
+
+apps/server/test/deletion-late-settlement.integration.test.ts:
+(pass) a late completion cannot overwrite deletion after reading a running turn [77.75ms]
+(pass) a late failure cannot overwrite deletion after reading a running turn [80.78ms]
+(pass) a buffered completion preserves the deletion reason after cancellation committed [52.70ms]
+(pass) parent deletion and a child's failure settle without a run/subagent deadlock [154.79ms]
+
+apps/worker/test/outcome-claim-locks.integration.test.ts:
+(pass) Outcome claim lock order > real multi-Outcome Stop and reverse-priority claim both commit [262.29ms]
+(pass) Outcome claim lock order > a contended higher-priority Outcome cannot hold up foreground input [167.10ms]
+
+apps/worker/test/routine-275-regressions.integration.test.ts:
+(pass) Stop fences late shell callbacks and parent handoffs [226.07ms]
+(pass) a callback queued before handoff is cancelled without another model turn [74.72ms]
+(pass) Stop cancels a parent handoff still waiting in the queue [51.60ms]
+(pass) unknown callback context never falls into the foreground [26.93ms]
+(pass) a folded completion receipt cannot mask a failed processing turn [73.72ms]
+Unable to advance committed routine round 00f392a0-ca35-45c2-8b46-c31976afc6f3
+(pass) periodic recovery retries a committed group round after its handoff failed [161.75ms]
+(pass) group overlap waits for a real background process and releases on its completion [199.50ms]
+(pass) Stop releases a completed group turn's outstanding shell wait [138.45ms]
+(pass) a folded group shell receipt waits for its processing consumer [115.32ms]
+(pass) recovery rotates past 100 live executions [849.57ms]
+Routine execution recovery deferred 0775fc69-8090-4a24-b81a-7f93b17363a3 505 |     );
+506 |     good.worker.routines = new RoutineService(
+507 |       harness.db,
+508 |       {
+509 |         enqueueWake: async (tx, input) => {
+510 |           if (input.botId === bad.botId) throw new Error("Transient follow-up launch failure");
+                                                         ^
+error: Transient follow-up launch failure
+      at enqueueWake (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:510:52)
+      at startEventFollowUp (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/packages/messaging/src/routines.ts:1417:36)
+
+(pass) one broken follow-up does not block another bot's settlement [209.08ms]
+(pass) repair preview is read-only; apply preserves pauses, due work and history and is idempotent [48.54ms]
+
+ 34 pass
+ 0 fail
+ 145 expect() calls
+Ran 34 tests across 5 files. [15.39s]

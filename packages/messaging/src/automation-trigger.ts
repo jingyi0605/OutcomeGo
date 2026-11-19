@@ -27,6 +27,7 @@ const ORIGIN_EXCLUSIONS = new Set([
   "sentry",
   "pagerduty",
   "email",
+  "plugin",
   "webhook",
 ]);
 
@@ -119,6 +120,44 @@ const parseEmail = (trigger: Record<string, unknown>): Record<string, unknown> =
     inbox,
     ...(from.length ? { from: [...new Set(from)] } : {}),
     ...(trigger.requireAuthPass === false ? { requireAuthPass: false } : {}),
+  };
+};
+
+const PLUGIN_KEY = /^[a-z0-9](?:[a-z0-9.-]{0,158}[a-z0-9])?$/;
+
+/** Unlike stringList, an oversized list or entry is refused rather than silently cut. */
+const strictList = (value: unknown, label: string, maximumItems: number, maximumLength: number): string[] => {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error(`${label} must be a list of strings`);
+  const result: string[] = [];
+  for (const candidate of value) {
+    if (typeof candidate !== "string") throw new Error(`${label} must be a list of strings`);
+    const normalized = candidate.trim();
+    if (!normalized) continue;
+    if (normalized.length > maximumLength)
+      throw new Error(`${label} entries must be at most ${maximumLength} characters`);
+    if (!result.includes(normalized)) result.push(normalized);
+  }
+  if (result.length > maximumItems) throw new Error(`${label} may contain at most ${maximumItems} entries`);
+  return result;
+};
+
+/** A subscription to a plugin's events. It must name resources or actors so it never wakes
+ * a Bot for everything a plugin reports. */
+const parsePlugin = (trigger: Record<string, unknown>): Record<string, unknown> => {
+  const plugin = line(trigger.plugin, "trigger.plugin", 160);
+  if (!PLUGIN_KEY.test(plugin)) throw new Error("plugin trigger plugin must be a plugin key such as dsh-web");
+  const events = strictList(trigger.events, "plugin trigger events", 50, 80);
+  const resourceIds = strictList(trigger.resourceIds, "plugin trigger resourceIds", 50, 200);
+  const actors = strictList(trigger.actors, "plugin trigger actors", 50, 200);
+  if (!resourceIds.length && !actors.length)
+    throw new Error("plugin trigger needs resourceIds or actors, so it does not wake on every event");
+  return {
+    type: "plugin",
+    plugin,
+    ...(events.length ? { events } : {}),
+    ...(resourceIds.length ? { resourceIds } : {}),
+    ...(actors.length ? { actors } : {}),
   };
 };
 
@@ -266,7 +305,7 @@ const validateGroup = (listeners: Array<Record<string, unknown>>): Record<string
   const types = new Set(listeners.map((entry) => entry.type));
   if (types.has("origin") && [...types].some((type) => ORIGIN_EXCLUSIONS.has(String(type)))) {
     throw new Error(
-      "origin cannot be grouped with Teams, Linear, Sentry, PagerDuty, email, or webhook triggers"
+      "origin cannot be grouped with Teams, Linear, Sentry, PagerDuty, email, plugin, or webhook triggers"
     );
   }
   const onlyListener = listeners.length === 1 ? listeners[0] : undefined;
@@ -309,6 +348,7 @@ export const parseStoredTrigger = (input: unknown): Record<string, unknown> => {
     return parseCaseTrigger(trigger, type);
   }
   if (type === "email") return parseEmail(trigger);
+  if (type === "plugin") return parsePlugin(trigger);
   if (type === "webhook") return { type };
   throw new Error(`unsupported automation trigger type: ${type}`);
 };

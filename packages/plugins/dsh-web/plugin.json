@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "key": "dsh-web",
+  "version": "0.1.4",
+  "name": "Codingns4DSH",
+  "icon": "assets/icon.png",
+  "description": "在 DSH-WEB 工作区中管理会话、查看文件与 Git 状态，并跟踪消息队列。",
+  "publisher": "OpenTeam",
+  "category": "Agent Orchestration",
+  "featured": false,
+  "components": ["mcp", "skills"],
+  "setup": {
+    "kind": "none",
+    "connectionKey": "dsh-web",
+    "title": "连接 Codingns4DSH",
+    "description": "配置 DSH-WEB MCP 服务地址及服务端要求的 API Key。",
+    "documentationUrl": "https://github.com/jingyi0605/OutcomeGo/tree/OutcomeGo/packages/plugins/dsh-web",
+    "steps": [
+      "在 DSH-WEB 中启用 MCP 服务，并复制完整的 MCP HTTP 端点地址。",
+      "填写服务端签发的 API Key；OutcomeGo 会按账号隔离保存地址和密钥。",
+      "保存后连接账号。OutcomeGo 会从 MCP 服务发现当前可用工具。",
+      "局域网私有 IP 或 localhost 可使用 HTTP；公网 IP 和域名必须使用 HTTPS。"
+    ],
+    "fields": [
+      {
+        "key": "mcpUrl",
+        "label": "DSH-WEB MCP URL",
+        "format": "mcp-url",
+        "required": true,
+        "secret": false,
+        "placeholder": "https://your-dsh-web.example.com/mcp",
+        "helpText": "填写包含 /mcp 的完整地址。HTTP 仅支持局域网私有 IP 或 localhost。"
+      },
+      {
+        "key": "token",
+        "label": "API Key",
+        "placeholder": "粘贴 DSH-WEB API Key",
+        "required": true,
+        "secret": true,
+        "helpText": "按服务端约定作为 Bearer Token 发送。"
+      }
+    ],
+    "requiredScopes": []
+  },
+  "skills": [
+    {
+      "name": "dsh-web",
+      "description": "通过 DSH-WEB MCP 工具操作工作区、管理会话及消息队列、回答问题和检查终端。",
+      "path": "skills/dsh-web"
+    }
+  ],
+  "connections": [
+    {
+      "key": "dsh-web",
+      "name": "Codingns4DSH",
+      "transport": "http",
+      "auth": "token",
+      "endpoint": "${mcpUrl}",
+      "tools": [],
+      "events": {
+        "pollTool": "session_events",
+        "source": "plugin",
+        "intervalSeconds": 60
+      }
+    }
+  ],
+  "installationSteps": [
+    "安装插件并在账号设置中配置 DSH-WEB MCP URL 与 API Key。",
+    "连接账号并确认 MCP 工具发现成功，再将该账号授权给需要使用的 Bot。"
+  ]
+}

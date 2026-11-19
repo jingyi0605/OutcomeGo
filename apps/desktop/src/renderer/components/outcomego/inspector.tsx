@@ -18,6 +18,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { ButtonPrimitive } from "../ui/button-primitive";
 import { api } from "../../client/outcomego-api";
@@ -368,11 +369,13 @@ function GroupSettings({
   botById,
   channel,
   onSetAvatar,
+  onSetNotificationMute,
   onUpdate,
 }: {
   botById: ReadonlyMap<string, BotView>;
   channel: ChannelView;
   onSetAvatar: (pngBase64: string | null) => Promise<void>;
+  onSetNotificationMute: (muted: boolean) => Promise<unknown>;
   onUpdate: (name: string, description: string) => Promise<ChannelView>;
 }) {
   const { t } = useI18n();
@@ -381,6 +384,7 @@ function GroupSettings({
     description: channel.description,
   }));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "error">("idle");
+  const [savingMute, setSavingMute] = useState(false);
   const draftRef = useRef(draft);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revision = useRef(0);
@@ -485,6 +489,26 @@ function GroupSettings({
             {t("Could not save. Your draft is still here.")}
           </p>
         )}
+        {channel.kind === "group" && (
+          <div className="flex items-center justify-between gap-3 px-2 py-2">
+            <Label htmlFor={`group-notification-mute-${channel.id}`}>{t("Do Not Disturb")}</Label>
+            <Switch
+              id={`group-notification-mute-${channel.id}`}
+              checked={channel.notificationsMuted === true}
+              disabled={savingMute}
+              onCheckedChange={async (muted) => {
+                setSavingMute(true);
+                try {
+                  await onSetNotificationMute(muted);
+                } catch {
+                  return;
+                } finally {
+                  setSavingMute(false);
+                }
+              }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -504,6 +528,7 @@ export const Inspector = memo(function Inspector({
   onRetryBot,
   onOutcomeGo,
   onSetGroupAvatar,
+  onSetGroupNotificationMute,
   onSetMembers,
   onUpdateGroupProfile,
   onBotAction,
@@ -522,6 +547,7 @@ export const Inspector = memo(function Inspector({
   onRetryBot: (botId: string) => Promise<void>;
   onOutcomeGo: (botId: string) => void;
   onSetGroupAvatar: (channelId: string, pngBase64: string | null) => Promise<void>;
+  onSetGroupNotificationMute: (channelId: string, muted: boolean) => Promise<unknown>;
   onSetMembers: (channelId: string, botIds: string[]) => Promise<void>;
   onUpdateGroupProfile: (
     channelId: string,
@@ -607,6 +633,7 @@ export const Inspector = memo(function Inspector({
           channel={channel}
           key={channel.id}
           onSetAvatar={(pngBase64) => onSetGroupAvatar(channel.id, pngBase64)}
+          onSetNotificationMute={(muted) => onSetGroupNotificationMute(channel.id, muted)}
           onUpdate={(name, description) => onUpdateGroupProfile(channel.id, name, description)}
         />
       </aside>

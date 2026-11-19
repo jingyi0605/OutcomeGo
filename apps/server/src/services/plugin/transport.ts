@@ -13,6 +13,7 @@ import {
 } from "../../plugins/packaged-oauth";
 import { toJson } from "../service-utils";
 import { PLUGIN_UNSAVED_UNKNOWN_OUTCOME } from "./invocation-outcomes";
+import { assertConnectedPublicationAllowed } from "./connected-publication";
 import {
   bitwardenInstanceEnvironment,
   boundPluginResult,
@@ -84,18 +85,28 @@ export class PluginTransport {
       );
       if (!tool && !hostTools.includes(invocation.toolName))
         throw new ApiError(404, "plugin_tool_not_found", "The tool is no longer available");
+      const connected = invocation.callId.startsWith("connected-channel:");
+      // Resolve packaged credentials before the publication claim, outside its locks.
+      const preparedRuntime = connected && current.transport === "stdio"
+        ? await this.stdioRuntime(current) : undefined;
       // Claim once, including simultaneous requests from multiple clients.
-      const claim = await this.prisma.pluginInvocation.updateMany({
-        where: { id: invocation.id, status: "running", OR: [{ error: null }, { error: { not: "Executing" } }] },
+      const claimInput = {
+        where: { id: invocation.id, status: "running" as const, OR: [{ error: null }, { error: { not: "Executing" } }] },
         data: { error: "Executing" },
-      });
+      };
+      const claim = connected
+        ? await this.prisma.$transaction(async tx => {
+          await assertConnectedPublicationAllowed(tx, invocation);
+          return tx.pluginInvocation.updateMany(claimInput);
+        })
+        : await this.prisma.pluginInvocation.updateMany(claimInput);
       if (!claim.count)
         throw new ApiError(409, "plugin_call_replayed", "This call is already executing");
       const rawResult =
         current.transport === "builtin"
           ? await this.invokeBuiltin(invocation.toolName, invocation.arguments, invocation)
           : current.transport === "stdio"
-            ? await this.callStdio(current, invocation.toolName, invocation.arguments, signal)
+            ? await this.callStdio(current, invocation.toolName, invocation.arguments, signal, preparedRuntime)
             : await this.callHttp(
                 current,
                 invocation.toolName,
@@ -140,7 +151,10 @@ export class PluginTransport {
         : await this.redactError(error, invocation.connection);
       const message = safe.message;
       await this.prisma.pluginInvocation.updateMany({
-        where: { id: invocation.id, status: "running" },
+        where: { id: invocation.id, status: "running",
+          ...(safe instanceof ApiError && ["request_stopped", "tool_context_invalid"].includes(safe.code)
+            ? { OR: [{ error: null }, { error: { not: "Executing" } }] } : {}),
+        },
         data: { status: "failed", error: message.slice(0, 2_000), completedAt: new Date() },
       }).catch(() => undefined); // A failed diagnostic write must not replace the primary outcome.
       throw safe;
@@ -167,7 +181,13 @@ export class PluginTransport {
     const beforeRequest = async (method?: string, toolName?: string) => {
       const current = await this.prisma.pluginConnection.findUnique({
         where: { id: connection.id },
-        select: { runtimeGeneration: true, status: true, toolSnapshot: true, installation: { select: { status: true } } },
+        select: {
+          runtimeGeneration: true,
+          status: true,
+          toolSnapshot: true,
+          connectorKey: true,
+          installation: { select: { status: true, manifest: true } },
+        },
       });
       if (!current || current.installation.status !== "installed" ||
         (connection.runtimeGeneration !== undefined && current.runtimeGeneration !== connection.runtimeGeneration))
@@ -175,7 +195,13 @@ export class PluginTransport {
       if (method === "tools/call") {
         if (current.status !== "ready")
           throw new ApiError(403, "plugin_access_revoked", "Connection access was revoked before this call could run.");
-        if (!toolSnapshot(current.toolSnapshot).some(tool => tool.name === toolName))
+        // Host tools such as an event poll are kept out of the Bot-visible snapshot but the server may call them.
+        const hostTools = connectorHostTools(
+          definitionFromManifest(current.installation.manifest)?.connections.find(
+            (connector) => connector.key === current.connectorKey
+          )
+        );
+        if (!hostTools.includes(toolName ?? "") && !toolSnapshot(current.toolSnapshot).some(tool => tool.name === toolName))
           throw new ApiError(404, "plugin_tool_not_found", "The tool is no longer available.");
       }
     };
@@ -436,13 +462,34 @@ export class PluginTransport {
   }
 
   /** Calls a packaged connector tool for the server itself, outside any Bot run. */
-  callHostTool(
+  /** A server-initiated call to a tool the connector declares for the host. A connection
+   * that says it is `http` is called through its MCP client with the account's own
+   * credentials; every other caller keeps its packaged (stdio) runtime. */
+  async callHostTool(
     connection: { id: string; configuration: Prisma.JsonValue; credentials?: Prisma.JsonValue; runtimeGeneration?: number;
+      transport?: string; connectorKey?: string; endpoint?: string | null; authType?: string;
     },
     toolName: string,
-    args: unknown
+    args: unknown,
+    signal?: AbortSignal
   ): Promise<unknown> {
-    return this.callStdio(connection, toolName, args);
+    if (connection.transport !== "http") return this.callStdio(connection, toolName, args, signal);
+    if (!connection.connectorKey || !connection.authType)
+      throw new Error("A remote host tool call needs the connection's connector key and authentication type");
+    const remote = {
+      id: connection.id,
+      connectorKey: connection.connectorKey,
+      endpoint: connection.endpoint ?? null,
+      authType: connection.authType,
+      configuration: connection.configuration,
+      credentials: connection.credentials ?? null,
+      runtimeGeneration: connection.runtimeGeneration,
+    };
+    try {
+      return await this.redactValue(await this.callHttp(remote, toolName, args, signal), remote);
+    } catch (error) {
+      throw await this.redactError(error, remote);
+    }
   }
 
   private async callStdio(
@@ -450,9 +497,10 @@ export class PluginTransport {
     },
     toolName: string,
     args: unknown,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    preparedRuntime?: Awaited<ReturnType<PluginTransport["stdioRuntime"]>>,
   ): Promise<unknown> {
-    const { configuration, runtimeGeneration } = await this.stdioRuntime(connection);
+    const { configuration, runtimeGeneration } = preparedRuntime ?? await this.stdioRuntime(connection);
     const response = await this.callComputer(`/v1/mcp/connections/${connection.id}/call`, {
       configuration,
       runtimeGeneration,

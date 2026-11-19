@@ -1,0 +1,15 @@
+$ python3 scripts/android/live-parity.py --contract
+exit=0
+outcomeGo live parity harness: contract
+PASS auth config (required)
+PASS contract login
+PASS client bootstrap (channel contract-channel)
+PASS history pagination (1 messages)
+PASS attachment upload
+PASS attachment download
+PASS message send
+PASS long-poll/reconnect sync (1 events from cursor 0)
+PASS delivery reconciliation (accepted)
+PASS OAuth callback rejection
+PASS contract route coverage (11 requests)
+PASS all checks (11)

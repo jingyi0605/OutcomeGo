@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { createPrismaClient } from "@outcomego/db";
+import { channelNotificationStates, unreadChannelCount } from "@outcomego/messaging";
 import { Effect } from "effect";
 import { NotificationService } from "../src/services/notification-service";
 
@@ -22,6 +23,22 @@ test.skipIf(!databaseUrl)("concurrent, duplicated and stale reads preserve newer
       apnsEnvironment: "development", apnsTopic: "dev.openteam.mobile.swift",
       notificationScope: "cd".repeat(32), authRequired: false,
     } });
+    const service = new NotificationService(prisma, "disabled");
+    const initialSnapshot = await Effect.runPromise(service.snapshot());
+    // Global badges include other conversations, including fixtures that ran first.
+    const unrelatedChannel = await prisma.channel.create({ data: {
+      kind: "bot_dm", name: "Unrelated unread conversation",
+      members: { create: { botId: bot.id, ordinal: 0 } },
+    } });
+    channelIds.push(unrelatedChannel.id);
+    const unrelatedMessage = await prisma.channelMessage.create({ data: {
+      channelId: unrelatedChannel.id, sender: "agent", senderBotId: bot.id, content: "Keep this reply unread",
+    } });
+    const unrelatedReaction = await prisma.channelNotification.create({ data: {
+      key: crypto.randomUUID(), channelId: unrelatedChannel.id, botId: bot.id, kind: "reaction", payload: {},
+    } });
+    const backgroundSnapshot = await Effect.runPromise(service.snapshot());
+    expect(backgroundSnapshot.badgeCount).toBe(initialSnapshot.badgeCount + 2);
     for (let index = 0; index < 2; index++) {
       const channel = await prisma.channel.create({ data: {
         kind: "bot_dm", name: `Notification chaos ${index}`,
@@ -35,9 +52,8 @@ test.skipIf(!databaseUrl)("concurrent, duplicated and stale reads preserve newer
         key: crypto.randomUUID(), channelId: channel.id, botId: bot.id, kind: "reaction", payload: {},
       })) });
     }
-    const service = new NotificationService(prisma, "disabled");
-    const channelId = fixtureAt(channelIds, 0);
-    const otherChannelId = fixtureAt(channelIds, 1);
+    const channelId = fixtureAt(channelIds, 1);
+    const otherChannelId = fixtureAt(channelIds, 2);
     const messages = await prisma.channelMessage.findMany({ where: { channelId }, orderBy: { sequence: "asc" } });
     const reactions = await prisma.channelNotification.findMany({ where: { channelId }, orderBy: { sequence: "asc" } });
     const targetMessage = fixtureAt(messages, 7).sequence.toString();
@@ -52,7 +68,13 @@ test.skipIf(!databaseUrl)("concurrent, duplicated and stale reads preserve newer
     expect(persisted.lastReadNotificationSequence.toString()).toBe(targetActivity);
     expect(await prisma.channelReadState.findUnique({ where: { channelId: otherChannelId } })).toBeNull();
     const snapshot = await Effect.runPromise(service.snapshot());
-    expect(snapshot.badgeCount).toBe(26); // Seven unread in the first chat, nineteen in the second.
+    // Seven unread in the first chat and nineteen in the second contribute exactly 26.
+    expect((await Effect.runPromise(service.markChannelRead(channelId, targetMessage, targetActivity))).unreadCount).toBe(7);
+    const otherActivity = (await channelNotificationStates(prisma, [otherChannelId])).get(otherChannelId);
+    expect(await unreadChannelCount(prisma, otherChannelId, 0n)).toBe(12);
+    expect(otherActivity?.activityUnreadCount).toBe(7);
+    expect(snapshot.badgeCount - backgroundSnapshot.badgeCount).toBe(26);
+    expect(snapshot.badgeCount).toBe(initialSnapshot.badgeCount + 2 + 26);
     const eventCount = await prisma.event.count({ where: { topic: "channel.read", entityId: channelId } });
     const outboxCount = await prisma.outboxDelivery.count({ where: { target: device.id } });
     expect(eventCount).toBeGreaterThan(0);
@@ -70,6 +92,11 @@ test.skipIf(!databaseUrl)("concurrent, duplicated and stale reads preserve newer
     expect(stale.lastReadSequence).toBe(messages.at(-1)!.sequence.toString());
     expect(stale.unreadCount).toBe(1);
     expect(BigInt(stale.lastReadSequence)).toBeLessThan(next.sequence);
+    // Reads retire only this conversation; the other nineteen and background two survive.
+    expect((await Effect.runPromise(service.snapshot())).badgeCount).toBe(backgroundSnapshot.badgeCount + 19 + 1);
+    expect(await prisma.channelReadState.findUnique({ where: { channelId: unrelatedChannel.id } })).toBeNull();
+    expect(await prisma.channelMessage.findUnique({ where: { id: unrelatedMessage.id } })).toEqual(unrelatedMessage);
+    expect(await prisma.channelNotification.findUnique({ where: { sequence: unrelatedReaction.sequence } })).toEqual(unrelatedReaction);
     const deliveries = await prisma.outboxDelivery.findMany({ where: { target: device.id } });
     expect(deliveries.every(delivery => (delivery.payload as { kind: string }).kind === "badge-sync")).toBe(true);
   } finally {

@@ -1,6 +1,6 @@
 # 设计文档 - 现实任务与知识资料闭环
 
-状态：Draft
+状态：Approved（2026-11-17 修订）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [tasks.md](tasks.md)
 
@@ -36,7 +36,7 @@ interface HumanActionCard {
   inputs: string[];
   expectedEvidence: EvidenceRequirement[];
   references: KnowledgeReference[];
-  status: 'pending' | 'in_progress' | 'submitted' | 'accepted' | 'rejected';
+  status: HumanWorkItemStatus; // 取值见 §16
 }
 ```
 
@@ -74,7 +74,8 @@ Acceptance review
 
 | 现有能力 | 可能位置 | 设计用途 |
 |---|---|---|
-| Agent 文件状态 | `apps/computer/src/agent-store/`、`packages/db` 的 `AgentFileState` | 读取项目资料的来源和 digest |
+| Agent 文件状态 | `apps/computer/src/agent-store/`、`packages/db` 的 `AgentFileState`（只有路径、digest，不含内容） | 资料来源和 digest；内容需通过 computer 读取（D19，任务 0.1 确认读取路径） |
+| 站内搜索 | `apps/server/src/services/search-service.ts`、`SearchDocument`（kind 含 `file`、`message`） | ProjectFile provider 的检索候选 |
 | 文件/附件 | `packages/messaging/src/asset-store.ts`、`apps/server/src/services/asset-service.ts` | 保存人工回执和大文件引用 |
 | 消息附件 | `apps/server/src/services/channel-service.ts`、`packages/contracts/src/messages-send.ts` | 将用户提交材料写入现有路径 |
 | 用户/项目身份 | `Bot`、`Channel`、`Conversation`、现有 settings | 形成项目范围，不新增组织 RBAC |
@@ -118,18 +119,23 @@ Provider 适配器必须返回稳定来源 ID和摘要。它不得返回无来�
 
 ## 8. Human WorkItem 和回执模型
 
-```text
-HumanWorkItem:
-id, outcomeId, contractRevisionId, title, purpose, prerequisites,
-steps JSON, inputRefs JSON, expectedEvidence JSON,
-executorId, status, startedAt, submittedAt, acceptedAt
+人工 WorkItem 复用 `004.2` 的 `OutcomeWorkItem` 表（`executorType=human`、`kind=human_action`），不另建 WorkItem 表。动作卡专用内容放在一对一的扩展表中：
 
-HumanReceipt:
-id, workItemId, outcomeId, submittedBy, payload JSON,
-assetRefs JSON, sourceRefs JSON, submittedAt, status, reviewComment
+```text
+OutcomeHumanActionCard（workItemId 主键，1:1 OutcomeWorkItem）:
+purpose, prerequisites JSON, steps JSON, inputFields JSON,
+evidenceRequirements JSON, references JSON（创建时的资料快照）,
+requestedByWorkItemId nullable（调用 RequestHumanAction 的 Agent WorkItem）,
+sourceDecisionId nullable, draft JSON nullable（pause 时保存）,
+startedBy actorRef nullable, startedAt, submittedAt, acceptedAt
+
+OutcomeHumanReceipt:
+id, workItemId, outcomeId, sequence, submittedBy actorRef, payload JSON,
+assetRefs JSON, sourceRefs JSON, observations JSON,
+submittedAt, status(submitted|accepted|rejected), reviewComment
 ```
 
-如果现有 WorkItem 模型可以容纳 `executorType=human`，优先扩展它；否则新增最小表并通过 `workItemId` 与 Outcome 关联。不得在 `ChannelMessage.content` 中编码完整的动作卡状态。
+不得在 `ChannelMessage.content` 中编码完整的动作卡状态。
 
 ## 9. 人工动作卡接口
 
@@ -137,9 +143,11 @@ assetRefs JSON, sourceRefs JSON, submittedAt, status, reviewComment
 GET  /api/v0/outcomes/:outcomeId/work-items
 GET  /api/v0/work-items/:workItemId
 POST /api/v0/work-items/:workItemId/start
+POST /api/v0/work-items/:workItemId/pause
 POST /api/v0/work-items/:workItemId/receipts
-POST /api/v0/work-items/:workItemId/review
 ```
+
+验收不单独设接口，统一使用 `004.2` 的 `POST /api/v0/outcomes/:id/reviews`（D20），请求中的 `results` 指向人工 WorkItem 关联的条款，`evidenceIds` 指向回执生成的 Evidence。
 
 回执请求示例：
 
@@ -165,7 +173,7 @@ Delivery Outcome:
 draft → planning → pending_approval → approved → running → accepted
 ```
 
-转换操作创建新 Outcome 或新 Contract revision，不能把探索记录直接改造成已批准交付对象。
+`propose` 只创建新的 PlanningDraft；用户通过既有三维确认流程创建独立 Outcome 和 revision，再明确批准。不能把探索记录直接改造成已批准交付对象，也不修改来源 Outcome 的 Contract。
 
 ## 11. 文件影响清单
 
@@ -275,6 +283,7 @@ pending
   → accepted
 
 in_progress → paused | cancelled
+paused → in_progress | cancelled
 submitted → review_pending | rejected
 review_pending → accepted | rejected
 rejected → in_progress | cancelled
@@ -359,21 +368,11 @@ asset upload
 
 ## 20. Reviewer 和验收
 
-Reviewer 只能审阅其有权访问的 Outcome。Review 请求必须带：
+单 owner 系统中 Reviewer 就是当前 owner（D07、父 design §44）。验收使用 `004.2` design §19.7 的 `POST /api/v0/outcomes/:id/reviews`：
 
-```json
-{
-  "workItemId":"<id>",
-  "contractRevision":1,
-  "criterionResults":[
-    {"criterionId":"<id>","result":"PASS","evidenceIds":["<id>"],"comment":"..."}
-  ],
-  "decision":"accept",
-  "comment":"..."
-}
-```
-
-服务端重新加载条款和 Evidence，不能信任客户端提交的 criterion statement、required 标志或 revision 内容。
+- 回执提交时，服务端为每个满足要求的材料创建 `credibility=human_confirmed` 的 Evidence，并把人工 WorkItem 置为 `review_pending`。
+- Review 中人工 WorkItem 关联的必需条款全部 PASS 时，人工 WorkItem → `accepted`，最新回执 → `accepted`；任一 FAIL 时人工 WorkItem → `rejected`，回执 → `rejected`，并保存缺口说明。
+- 服务端重新加载条款和 Evidence，不能信任客户端提交的 criterion statement、required 标志或 revision 内容。
 
 ## 21. Explore/Delivery 数据流
 
@@ -482,15 +481,18 @@ interface WorkItemView {
 
 ## 27. 设计决策记录
 
-实现前必须记录：
+本阶段决策登记在父 design §39：
 
-- 第一版实际使用哪个 KnowledgeProvider。
-- 项目 scope 从哪个现有实体解析。
-- Human WorkItem 是扩展 `WorkItem` 还是新建表。
-- 大文件是否复用现有 asset store。
-- Android/iOS 是否进入第一版人工闭环。
-- Reviewer 是否必须是用户本人，还是沿用当前唯一用户身份。
-- ExploreIdea 是否作为数据库模型，还是以现有记录/草稿模型表示。
+| 问题 | 结论 |
+|---|---|
+| 资料 provider | Fixture + ProjectFile（D19） |
+| 项目 scope | `bot:<botId>`（§15） |
+| Human WorkItem 存储 | 复用 `OutcomeWorkItem` + `OutcomeHumanActionCard` 扩展表（§8） |
+| 人工 WorkItem 来源 | `RequestHumanAction` 或 Decision `manual_action`（D12、§32） |
+| 大文件 | 复用现有 asset store |
+| 移动端 | 只读动作卡（父 §41、需求 18） |
+| Reviewer | 当前唯一 owner（D07） |
+| ExploreIdea | 数据库模型，排在最后阶段，可整体延期（D19） |
 
 ## 28. KnowledgeProvider 的第一版实现
 
@@ -574,18 +576,36 @@ Agent context 只包含选中的引用和有界摘要：
 
 Agent 不自动获得 provider 的访问 token 或任意项目文件路径。需要读取全文时由服务端按 reference ID 提供已授权内容。
 
-## 32. HumanActionCard 创建流程
+## 32. HumanActionCard 创建流程（D12）
+
+人工 WorkItem 只有两个来源，不从 Contract 自动识别：
 
 ```text
-approved Contract
-  → identify executorType=human
-  → create HumanWorkItem
-  → resolve references
-  → create action card snapshot
-  → publish human_action.required
+来源 A：Outcome 子线程中的 Agent 调用 RequestHumanAction
+来源 B：用户在 Decision 中选择 manual_action 选项（004.3 §29）
+  → 事务：
+      create OutcomeWorkItem(executorType=human, kind=human_action, status=pending)
+      create OutcomeHumanActionCard（步骤、所需材料、关联条款、资料引用快照）
+      来源 A：调用方 Agent WorkItem → waiting_human（父 design §42.2）
+      写 outcome.work_item.created、outcome.human_action.required
+  → 资料引用解析完成后 → ready
 ```
 
-动作卡快照保存生成时的 steps、references 和 evidence requirements。资料更新不会静默改变已经开始的动作卡；需要变化时创建新 revision 或 Decision。
+`RequestHumanAction` 工具参数：
+
+```ts
+interface RequestHumanActionInput {
+  title: string;
+  purpose: string;
+  steps: string[];                         // 1..20，每步由人执行
+  evidenceRequirements: Array<{ criterionOrdinal: number; label: string; kind: "text" | "asset" | "sourceReference" | "observation" }>;
+  referenceIds?: string[];                 // KnowledgeProvider 返回的引用 ID
+}
+```
+
+- 工具只在 Outcome 子线程中提供；调用后 Agent 结束当前回合。幂等键 `human-action-request:<runId>:<sha256(input)>`。
+- 人工 WorkItem 被接受后，服务端在调用方 Agent WorkItem 的**同一子线程**中开启新回合，内容为回执摘要，Agent WorkItem → `running`。
+- 动作卡快照保存生成时的 steps、references 和 evidence requirements。资料更新不会静默改变已经开始的动作卡；需要变化时创建新 revision 或 Decision。
 
 ## 33. Human WorkItem API
 
@@ -686,22 +706,25 @@ Review 时服务端检查：
 ExploreIdea:
 id, botId nullable, title, note, status,
 sourceOutcomeId nullable, sourceReferences JSON,
-budget JSON nullable, proposedOutcomeId nullable,
+budget JSON nullable, planningDraftId nullable, proposedOutcomeId nullable,
 createdAt, updatedAt, discardedAt nullable
 ```
 
-ExploreIdea 的 `proposedOutcomeId` 是转换结果，不是对现有 Outcome 的可变引用。转换操作必须生成新的 PlanningDraft/Outcome。
+ExploreIdea 的 `planningDraftId` 仅关联待确认的 `OutcomePlanningDraft`；`proposedOutcomeId` 仅保存真实新 Outcome 的转换结果，不能放草案 ID。既有 Outcome 创建事务从真实草案关联识别 Explore，同时写新 Outcome 的 `sourceExploreId`、Explore 的真实转换 Outcome ID 和 converted 状态。失败时全部回滚，不修改来源 Outcome。
 
 ## 38. Explore/Delivery API
 
 ```text
 POST /api/v0/explore
 GET  /api/v0/explore
+GET  /api/v0/explore/:id
 POST /api/v0/explore/:id/propose
 POST /api/v0/explore/:id/discard
 ```
 
 `propose` 请求只创建 PlanningDraft，不直接批准或运行。`discard` 不删除引用过的资料和历史事件。
+
+2026-11-17 负责人批准额外只读详情 GET，支持真实刷新/重新打开，和列表共用 View 与现有认证。正式请求/响应见父冻结接口 §12 和 `@outcomego/contracts/explore`。模型调用不持有业务事务；最终写草案与 Explore 关联必须同事务，并重新检查未 discarded/converted。重复提议复用仍有效的同 Bot 草案；并发不同 Bot 的输家返回冲突，不悄悄改写执行主体。
 
 ## 39. UI 页面结构
 
@@ -809,15 +832,7 @@ apps/desktop/test/human-action-card.test.tsx
 | `review_revision_conflict` | revision 已变化 | 重新读取动作卡 |
 | `human_evidence_missing` | 必需材料缺失 | 显示缺口 |
 
-## 45. 设计决策记录扩展
+## 45. 补充实现取舍
 
-实现前必须记录：
-
-- 第一版 provider 是否只支持 fixture/project files。
-- 项目 scope 使用 channel、bot、project 还是独立实体。
-- Human WorkItem 是否和 Agent WorkItem 共享表。
-- asset upload 是否复用现有 attachment/asset store。
-- Receipt 是否允许多个版本同时处于 submitted。
-- Review 是否由当前唯一用户主体完成。
-- ExploreIdea 是否进入数据库还是现有草稿机制。
-- Android/iOS 是否进入可提交回执范围。
+- 同一人工 WorkItem 同一时间只允许一条 `submitted` 状态的回执；新回执提交时旧的未验收回执标记为被替代（历史保留）。
+- 其他决策见 §27 和父 design §39。

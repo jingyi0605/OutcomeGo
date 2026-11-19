@@ -1,5 +1,7 @@
 package com.outcomego.features
 
+import com.outcomego.mobile.core.OutcomeDetail
+import com.outcomego.mobile.core.OutcomeListPage
 import kotlinx.serialization.json.JsonObject
 
 /** Shared UI state used by feature screens while live operations are in flight. */
@@ -218,7 +220,60 @@ data class Routine(
     val revision: Int = 0,
     val nextRunAt: String? = null,
     val executions: List<RoutineExecution> = emptyList(),
+    /** Every cron/interval schedule of the routine; [schedule] is the first one, the only one the editor changes. */
+    val schedules: List<RoutineSchedule> = emptyList(),
+    /** Event triggers (email, Slack, GitHub, webhook, ...). They are authored by the agent and read-only here. */
+    val eventTriggers: List<RoutineEventTrigger> = emptyList(),
+    /** False for event-only or composite triggers: the editor must not send [schedule] back, or it would flatten them. */
+    val scheduleEditable: Boolean = true,
 )
+
+/** One non-cron listener of a routine trigger. [detail] and [extra] depend on [type]; see [summary]. */
+data class RoutineEventTrigger(val type: String, val detail: String = "", val extra: String = "") {
+    /** English description, e.g. "When email arrives at a@b.com". */
+    fun summary(): String = when (type) {
+        "webhook" -> "When a webhook is called"
+        "email" -> when {
+            detail.isBlank() -> "When an email arrives"
+            extra.isBlank() -> "When email arrives at $detail"
+            else -> "When email arrives at $detail from $extra"
+        }
+        "slack" -> when (detail) {
+            "mention" -> "When mentioned on Slack"
+            "keyword" -> "When \"$extra\" is mentioned on Slack"
+            "reaction" -> "On a Slack reaction"
+            else -> "On a Slack message"
+        }
+        "github", "origin" -> if (detail.isBlank()) "On GitHub activity" else "On GitHub activity in $detail"
+        "microsoftTeams" -> "On a Microsoft Teams message"
+        "linear" -> "On a Linear event"
+        "sentry" -> "On a Sentry event"
+        "pagerduty" -> "On a PagerDuty event"
+        else -> "On an event"
+    }
+
+    /** Chinese description matching [summary]. */
+    fun summaryZh(): String = when (type) {
+        "webhook" -> "Webhook 被调用时"
+        "email" -> when {
+            detail.isBlank() -> "收到邮件时"
+            extra.isBlank() -> "收到发往 $detail 的邮件时"
+            else -> "收到发往 $detail、来自 $extra 的邮件时"
+        }
+        "slack" -> when (detail) {
+            "mention" -> "在 Slack 被 @ 时"
+            "keyword" -> "Slack 中提到「$extra」时"
+            "reaction" -> "Slack 出现表情回应时"
+            else -> "收到 Slack 消息时"
+        }
+        "github", "origin" -> if (detail.isBlank()) "有 GitHub 动态时" else "$detail 有 GitHub 动态时"
+        "microsoftTeams" -> "收到 Microsoft Teams 消息时"
+        "linear" -> "Linear 有事件时"
+        "sentry" -> "Sentry 有事件时"
+        "pagerduty" -> "PagerDuty 有事件时"
+        else -> "有事件发生时"
+    }
+}
 
 data class RoutineExecution(val id: String, val status: String, val createdAt: String)
 
@@ -407,6 +462,67 @@ data class Plugin(
 )
 
 interface FeatureGateway {
+    suspend fun outcomeInbox(category: String? = null, cursor: String? = null): Result<com.outcomego.mobile.core.OutcomeInboxPage?> =
+        Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
+    suspend fun outcomeDecision(id: String): Result<com.outcomego.mobile.core.OutcomeDecision> =
+        Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
+    suspend fun resolveOutcomeDecision(id: String, input: com.outcomego.mobile.core.ResolveOutcomeDecision): Result<com.outcomego.mobile.core.OutcomeDecisionResolution> =
+        Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
+    suspend fun outcomeHumanWorkItem(id: String): Result<com.outcomego.mobile.core.OutcomeHumanWorkItem> =
+        Result.failure(UnsupportedOperationException("Human actions are not available for this session."))
+
+    /**
+     * Whether the owner switched goal management on in Settings. Null means the server predates the
+     * switch, so the caller falls back to probing the Outcome API itself.
+     */
+    suspend fun outcomesEnabled(): Result<Boolean?> =
+        Result.failure(UnsupportedOperationException("Feature settings are not available for this session."))
+
+    suspend fun listOutcomes(cursor: String? = null, status: String? = null, query: String? = null): Result<OutcomeListPage?> =
+        Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
+    suspend fun outcomeDetail(id: String): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
+    /** Null denotes a server without the read-only brief route; the detail page then falls back to saved records. */
+    suspend fun outcomeBrief(id: String): Result<com.outcomego.mobile.core.OutcomeBrief?> =
+        Result.failure(UnsupportedOperationException("Outcome brief is not available for this session."))
+    /** Hand a new goal to the chosen bot in the owner's own words; returns at once while the bot plans. */
+    suspend fun createOutcomeThread(input: com.outcomego.mobile.core.CreateOutcomeThreadRequest): Result<com.outcomego.mobile.core.CreatedOutcomeThread> =
+        Result.failure(UnsupportedOperationException("Outcome threads are not available for this session."))
+    suspend fun outcomeThread(id: String): Result<com.outcomego.mobile.core.OutcomeThreadView> =
+        Result.failure(UnsupportedOperationException("Outcome threads are not available for this session."))
+    /** Send the owner's words to the goal's bot unchanged. */
+    suspend fun sendOutcomeThreadMessage(id: String, input: com.outcomego.mobile.core.SendOutcomeThreadMessageRequest): Result<com.outcomego.mobile.core.OutcomeThreadTurn> =
+        Result.failure(UnsupportedOperationException("Outcome threads are not available for this session."))
+    suspend fun reviseOutcome(id: String, input: com.outcomego.mobile.core.CreateContractRevisionRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome revision is not available for this session."))
+    suspend fun approveOutcomeRevision(id: String, revision: Int, input: com.outcomego.mobile.core.ApproveContractRevisionRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome approval is not available for this session."))
+    suspend fun startOutcomeRun(id: String, input: com.outcomego.mobile.core.StartOutcomeRunRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome run control is not available for this session."))
+    suspend fun cancelOutcome(id: String, input: com.outcomego.mobile.core.CancelOutcomeRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome cancellation is not available for this session."))
+    suspend fun submitOutcomeReview(id: String, input: com.outcomego.mobile.core.SubmitOutcomeReviewRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome review is not available for this session."))
+    suspend fun reworkOutcome(id: String, input: com.outcomego.mobile.core.OutcomeReworkRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome rework is not available for this session."))
+    suspend fun outcomeWorkItemTranscript(outcomeId: String, workItemId: String, before: Int? = null): Result<kotlinx.serialization.json.JsonElement> =
+        Result.failure(UnsupportedOperationException("Outcome transcript is not available for this session."))
+    suspend fun startHumanWorkItem(id: String, input: com.outcomego.mobile.core.HumanWorkMutationRequest): Result<com.outcomego.mobile.core.OutcomeHumanWorkItem> =
+        Result.failure(UnsupportedOperationException("Human actions are not available for this session."))
+    suspend fun pauseHumanWorkItem(id: String, input: com.outcomego.mobile.core.HumanWorkPauseRequest): Result<com.outcomego.mobile.core.OutcomeHumanWorkItem> =
+        Result.failure(UnsupportedOperationException("Human actions are not available for this session."))
+    suspend fun submitHumanReceipt(id: String, input: com.outcomego.mobile.core.HumanReceiptRequest): Result<com.outcomego.mobile.core.OutcomeHumanReceipt> =
+        Result.failure(UnsupportedOperationException("Human receipts are not available for this session."))
+    suspend fun searchOutcomeKnowledge(outcomeId: String, text: String): Result<List<com.outcomego.mobile.core.OutcomeKnowledgeReference>> =
+        Result.failure(UnsupportedOperationException("Knowledge search is not available for this session."))
+    suspend fun readOutcomeKnowledge(outcomeId: String, reference: com.outcomego.mobile.core.OutcomeKnowledgeReference): Result<com.outcomego.mobile.core.OutcomeKnowledgeDocument> =
+        Result.failure(UnsupportedOperationException("Knowledge read is not available for this session."))
+    suspend fun listExploreIdeas(cursor: String? = null): Result<com.outcomego.mobile.core.ExploreIdeaPage?> =
+        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
+    suspend fun createExploreIdea(input: com.outcomego.mobile.core.CreateExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> =
+        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
+    suspend fun discardExploreIdea(id: String, input: com.outcomego.mobile.core.DiscardExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> =
+        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
     suspend fun submitRichAction(messageId: String, actionId: String, values: Map<String, String> = emptyMap()): Result<Unit>
     suspend fun uploadAttachment(uri: String): Result<Attachment>
     suspend fun downloadAttachment(attachmentId: String): Result<String>

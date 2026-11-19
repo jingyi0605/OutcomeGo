@@ -1,19 +1,32 @@
+import ipaddr from "ipaddr.js";
 import type { ConfigValue, PluginDefinition, PluginField, SecretEdit } from "./types";
 
 export const isSecretKey = (key: string): boolean =>
   /token|secret|password|authorization|api.?key|cookie|credential/i.test(key);
 
-/** OAuth endpoints can receive credentials; never accept userinfo or remote plain HTTP. */
+/** HTTP is allowed only for literal loopback or private-network IP destinations. */
+function isLocalNetworkAddress(host: string): boolean {
+  if (host === "localhost") return true;
+  const literal = host.startsWith("[") ? host.slice(1, -1) : host;
+  try {
+    const address = ipaddr.parse(literal);
+    const range = address.range();
+    return range === "loopback" || range === "private" || range === "uniqueLocal";
+  } catch {
+    return false;
+  }
+}
+
+/** Reject embedded credentials and require HTTPS outside local networks. */
 export function validateMcpUrl(value: string): string {
   let url: URL;
   try {
     url = new URL(value.trim());
   } catch {
-    throw new Error("Enter the complete MCP URL, including https:// and its endpoint path.");
+    throw new Error("Enter the complete MCP URL, including the scheme and its endpoint path.");
   }
-  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) {
-    throw new Error("Use an HTTPS MCP URL, or HTTP on localhost for a server on the same computer.");
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalNetworkAddress(url.hostname))) {
+    throw new Error("Use HTTPS for public IP addresses and domain names. HTTP is allowed only for localhost or private-network IP addresses.");
   }
   const credentialQuery = [...url.searchParams.keys()].some(
     key => isSecretKey(key) || /^(code|approval_code|pairing_code|state)$/i.test(key)

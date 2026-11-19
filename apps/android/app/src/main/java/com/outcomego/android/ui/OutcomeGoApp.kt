@@ -30,6 +30,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import com.outcomego.features.OutcomeBotOption
+import com.outcomego.features.OutcomeWorkspaceScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -125,6 +129,7 @@ private const val COMPUTER = "bot/{conversationId}/computer"
 private const val MARKETPLACE = "marketplace"
 private const val ROUTINES = "routines"
 private const val ROUTINE_EDITOR = "routines/editor"
+private const val OUTCOMES = "outcomes"
 private const val SETTINGS = "settings"
 private const val NETWORK_SHARING_DETAILS = "network-sharing-details"
 private const val PROVIDERS = "providers"
@@ -312,6 +317,44 @@ fun OutcomeGoApp(
         return
     }
 
+    var outcomeOpening by remember(state.session) { mutableStateOf<com.outcomego.mobile.core.OutcomeLinkTarget?>(null) }
+    var outcomeOpeningGeneration by remember(state.session) { mutableStateOf(0) }
+    val outcomeGateway = appViewModel.outcomeReadGateway
+    var outcomesSupported by remember(state.session, outcomeGateway) { mutableStateOf(false) }
+    // True only once the server said goal management is off; until then a pending link may still open.
+    var outcomesTurnedOff by remember(state.session, outcomeGateway) { mutableStateOf(false) }
+    var resumeCount by remember { mutableStateOf(0) }
+    // The switch lives in Desktop settings, so look again whenever the app returns to the foreground.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { resumeCount += 1 }
+    LaunchedEffect(state.session, outcomeGateway, resumeCount) {
+        if (state.session == null) return@LaunchedEffect
+        // Goal management is opt-in: off (or unreadable) hides the entry. A server without the switch
+        // answers 404 and keeps the older behaviour of probing the Outcome API.
+        val enabled = outcomeGateway.outcomesEnabled().fold(
+            onSuccess = { it },
+            onFailure = { if (it is UnsupportedOperationException) null else false },
+        )
+        outcomesTurnedOff = enabled == false
+        if (enabled == false && navController.currentDestination?.route == OUTCOMES) navController.popBackStack()
+        outcomesSupported = if (enabled == false) false else outcomeGateway.listOutcomes().fold(
+            onSuccess = { it != null },
+            onFailure = { it !is UnsupportedOperationException },
+        )
+    }
+    LaunchedEffect(state.pendingOutcomeLink, state.session, outcomesTurnedOff) {
+        val target = state.pendingOutcomeLink ?: return@LaunchedEffect
+        if (state.session == null) return@LaunchedEffect
+        if (outcomesTurnedOff) {
+            appViewModel.consumeOutcomeDeepLink()
+            return@LaunchedEffect
+        }
+        outcomeOpening = target
+        outcomeOpeningGeneration += 1
+        navController.navigate(OUTCOMES) { launchSingleTop = true }
+        appViewModel.consumeOutcomeDeepLink()
+    }
+
+
     val liveVoiceActive = state.liveVoice.state != AndroidLiveVoiceState.Idle &&
         state.liveVoiceConversationId != null
     val liveVoiceBackdrop = rememberSpatialGlassBackdrop()
@@ -362,6 +405,7 @@ fun OutcomeGoApp(
                         },
                         onRoutines = { navController.navigate(CREATE) },
                         onOutbox = { navController.navigate(OUTBOX) },
+                        onOutcomes = if (outcomesSupported) ({ outcomeOpening = null; navController.navigate(OUTCOMES) { launchSingleTop = true } }) else null,
                         onSettings = { navController.navigate(SETTINGS) { launchSingleTop = true } },
                         onSearch = appViewModel::search,
                         onClearSearch = appViewModel::clearSearch,
@@ -471,6 +515,7 @@ fun OutcomeGoApp(
                             appViewModel.updateGroup(current, name, description, botIds)
                             navController.popBackStack()
                         },
+                        onGroupNotificationMute = appViewModel::setGroupNotificationMute,
                         onBack = { navController.popBackStack() },
                     )
                 }
@@ -537,6 +582,14 @@ fun OutcomeGoApp(
                             conversation?.botId?.let(appViewModel::loadRoutinesForBot)
                             navController.navigate(ROUTINES)
                         },
+                        onOpenOutcome = { outcomeId ->
+                            if (!outcomesTurnedOff) {
+                                outcomeOpening = com.outcomego.mobile.core.OutcomeLinkTarget(outcomeId = outcomeId)
+                                outcomeOpeningGeneration += 1
+                                navController.navigate(OUTCOMES) { launchSingleTop = true }
+                            }
+                        },
+                        loadOutcomeStatus = { outcomeId -> outcomeGateway.outcomeDetail(outcomeId).getOrNull()?.status },
                         error = state.error,
                         onBack = { navController.popBackStack() },
                         onBotDetails = {
@@ -626,6 +679,31 @@ fun OutcomeGoApp(
                             onBack = { navController.popBackStack() },
                             onDelete = routine.id.takeIf(String::isNotBlank)?.let { { appViewModel.deleteRoutine() } },
                             operation = state.features.operation,
+                        )
+                    }
+                }
+                spatialComposable(OUTCOMES) {
+                    val outcomeBots = remember(state.conversations) {
+                        state.conversations
+                            .filter { !it.isGroup && (it.isBot || !it.botId.isNullOrBlank()) }
+                            .map { OutcomeBotOption(id = it.botId ?: it.id, name = it.title) }
+                            .distinctBy { it.id }
+                    }
+                    key(state.session, outcomeGateway, outcomeOpeningGeneration, outcomeOpening) {
+                        OutcomeWorkspaceScreen(
+                            gateway = outcomeGateway,
+                            bots = outcomeBots,
+                            initialTarget = outcomeOpening,
+                            onAuthenticationRequired = { target ->
+                                if (appViewModel.requireOutcomeAuthentication(target, state.session, outcomeGateway)) {
+                                    navController.navigate(LOGIN) { popUpTo(navController.graph.id) { inclusive = true } }
+                                }
+                            },
+                            onBack = { navController.popBackStack() },
+                            onUnsupported = {
+                                outcomesSupported = false
+                                navController.popBackStack()
+                            },
                         )
                     }
                 }

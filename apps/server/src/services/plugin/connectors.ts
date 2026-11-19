@@ -7,6 +7,7 @@ import { Effect } from "effect";
 import type { McpHttpClientManager } from "../../plugins/mcp-client-manager";
 import { toJson } from "../service-utils";
 import type { PluginTransport } from "./transport";
+import { assertConnectedPublicationAllowed } from "./connected-publication";
 import {
   channelDeliveryArguments,
   channelDeliveryTool,
@@ -124,11 +125,14 @@ export class PluginConnectors {
       if(previous&&(previous.connectionId!==connection.id||previous.botId!==input.botId||previous.runId!==input.runId||canonicalJson(previous.arguments)!==canonicalJson(argumentsValue)))throw new Error("Delivery account, recipient, content or file bytes changed after staging; start a new delivery");
       if(previous?.status==="completed")return {connectionId:previous.connectionId,toolName,result:previous.result};
       if(previous)throw new Error("This delivery's outcome is uncertain; inspect the destination before retrying");
-      if(!previous)await this.prisma.pluginInvocation.create({data:{callId,connectionId:connection.id,botId:input.botId,runId:input.runId,toolName,arguments:toJson(argumentsValue)}});
-      // A legacy staged transfer has not executed yet. Claim it once without review.
+      const token = await this.providerToken(connection.id);
+      await this.prisma.$transaction(async tx => {
+        await assertConnectedPublicationAllowed(tx, input);
+        await tx.pluginInvocation.create({data:{callId,connectionId:connection.id,botId:input.botId,runId:input.runId,toolName,arguments:toJson(argumentsValue),error:"Executing"}});
+      });
       try {
-        const result=await deliverExternalFiles(connection.installation.pluginKey,await this.providerToken(connection.id),chat,input.content,input.files);
-        await this.prisma.pluginInvocation.update({where:{callId},data:{status:"completed",result:toJson(result),completedAt:new Date()}});
+        const result=await deliverExternalFiles(connection.installation.pluginKey,token,chat,input.content,input.files);
+        await this.prisma.pluginInvocation.update({where:{callId},data:{status:"completed",error:null,result:toJson(result),completedAt:new Date()}});
         return {connectionId:connection.id,toolName,result};
       } catch(error) {await this.prisma.pluginInvocation.update({where:{callId},data:{status:"failed",error:"Native file delivery failed; inspect destination before retrying",completedAt:new Date()}});throw error;}
     }

@@ -1,0 +1,266 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/worker/test/routine-275-regressions.integration.test.ts:
+(node:47239) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead.
+(Use `bun --trace-warnings ...` to show where the warning was created)
+(pass) Stop fences late shell callbacks and parent handoffs [203.59ms]
+ 98 |         message: "Complete",
+ 99 |       });
+100 |       await terminal(root);
+101 |       expect((await f.worker.claim(f.botId))?.runId).toBe(wake.run_id);
+102 |       await terminal(wake.run_id);
+103 |       expect(await f.worker.claim(f.botId)).toBeNull();
+                                                  ^
+error: expect(received).toBeNull()
+
+Received: {
+  runChannelId: "43af212a-704a-4fc8-99c8-94e97c58f61f",
+  inboxId: "460422fd-1c97-4890-9ab7-1ec5c271aad5",
+  inboxType: "shell.completed",
+  runId: "417e1152-0d26-48e9-9634-f1f6ffa63a62",
+  botId: "c29402b1-e0e5-45aa-a67c-9246f41f5946",
+  contextSessionId: "455655fb-584e-45c8-94b2-2b633815f1ec",
+  screenBotId: "c29402b1-e0e5-45aa-a67c-9246f41f5946",
+  pluginBotId: "c29402b1-e0e5-45aa-a67c-9246f41f5946",
+  conversationId: "55b283e2-52a5-45f7-93c7-37a37428519e",
+  ownerId: "7aada704-ab80-46f5-9093-3a0509ad3146",
+  content: "<timestamp>Tuesday, Nov 17, 2026, 9:13 AM (UTC+0)</timestamp>\n<user_query>\n[SAND_HIDDEN_PROMPT][A background task just completed] A background task you started has finished.\n\nBackground task \"Finished\" (shell) finished:\nFull output: /tmp/ea72615c-59f1-4936-b99c-41dd1065df90.log\n(You started this during your routine \"Final audit\" (folder final-audit), and nobody is waiting on it.)\n\nPick the work back up. Everything above came out of your own quiet routine(s). The user did not ask to hear about it, so the saved instruction's delivery rule governs. If the outcome is a genuine change, a new actionable result, or a real blocker the user must know about, tell them once with a single useful SendToUser. If it amounts to no change, nothing new, or still waiting, end the turn with no SendToUser at all and no \"still waiting\" or progress notes; if the routine says to keep watching, just keep the watch going quietly. Keep your status current, and clear it once everything is done and you're idle. Never message the user just to say that nothing has changed.\n</user_query>",
+  interruptedRunId: null,
+  images: [],
+  clientId: "shell-completion:c29402b1-e0e5-45aa-a67c-9246f41f5946:1072c9dc-d192-41c5-b22d-87de6c4e5bc8",
+  cwd: "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/openteam-275-final-sweep-uigiZV",
+  instructions: "",
+  sessionPath: null,
+  channelId: "43af212a-704a-4fc8-99c8-94e97c58f61f",
+  deliveryId: null,
+  origin: "routine",
+  outcomeWorkItemId: null,
+  runtimeProfile: "agent",
+  subagentType: null,
+  readOnly: false,
+  inferenceParentRunId: null,
+  taskConfiguration: null,
+  attachmentOwnerBotId: "c29402b1-e0e5-45aa-a67c-9246f41f5946",
+  fileAttachments: [],
+}
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:103:45)
+(fail) a callback queued before handoff is cancelled without another model turn [71.61ms]
+124 |     const wake = await wakeAutomationParent(f.messaging, context(f, root), {
+125 |       message: "Result awaiting delivery",
+126 |     });
+127 |     await terminal(root);
+128 |     await harness.db.$transaction((tx) => stopRequestProgress(tx, f.botId, root));
+129 |     expect(await f.worker.claim(f.botId)).toBeNull();
+                                                ^
+error: expect(received).toBeNull()
+
+Received: {
+  runChannelId: "12bf1cb4-d38f-4969-8677-c9483e3417f2",
+  inboxId: "c1fc3ccc-02d3-43cb-9191-b8d8001d9cf5",
+  inboxType: "automation.wake_parent",
+  runId: "cdf5dd11-a11c-4c88-9348-28c4df39bcf5",
+  botId: "c3e3cf87-8691-4c04-b619-bc2929315e6f",
+  contextSessionId: "ddddf6ec-fde9-4990-98dd-f9e924147c45",
+  screenBotId: "c3e3cf87-8691-4c04-b619-bc2929315e6f",
+  pluginBotId: "c3e3cf87-8691-4c04-b619-bc2929315e6f",
+  conversationId: "c9adfc5e-2284-4fa7-a864-7699008b0c27",
+  ownerId: "b265790b-9e9b-4d7e-ac30-66508949fc4f",
+  content: "<timestamp>Tuesday, Nov 17, 2026, 9:13 AM (UTC+0)</timestamp>\n<user_query>\n[SAND_HIDDEN_PROMPT][A background task just completed] A background task you started has finished.\n\nResult awaiting delivery\n\nAn automation explicitly handed this work to you because only the parent can communicate outside its isolated run. Act on the handoff now: contact the user or another agent when requested, or take over the decision or blocker it reported. Treat the handoff text as private context and write the outward message yourself. Never message the user just to say that nothing has changed. If the handoff tells you to draft an email or Slack message, call DraftExternalMessage with the recipient, the channel or connector, the thread or other context, and the proposed text it includes. Do not send that message through a connector yourself.\nThis handoff is still owed even if the user has sent you something new since it arrived: deliver it in this turn, in the same reply as your answer to their message, and do not drop it because the routine ran at an unexpected time.\n</user_query>",
+  interruptedRunId: null,
+  images: [],
+  clientId: "automation:ef345c24-2c68-4cdc-9039-ff1277d8c324:wake-parent",
+  cwd: "/var/folders/q5/5jq71t9d131d8p_8l01rth400000gn/T/openteam-275-final-sweep-uigiZV",
+  instructions: "",
+  sessionPath: null,
+  channelId: "12bf1cb4-d38f-4969-8677-c9483e3417f2",
+  deliveryId: null,
+  origin: "background_revival",
+  outcomeWorkItemId: null,
+  runtimeProfile: "agent",
+  subagentType: null,
+  readOnly: false,
+  inferenceParentRunId: null,
+  taskConfiguration: null,
+  attachmentOwnerBotId: "c3e3cf87-8691-4c04-b619-bc2929315e6f",
+  fileAttachments: [],
+}
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:129:43)
+(fail) Stop cancels a parent handoff still waiting in the queue [49.86ms]
+(pass) unknown callback context never falls into the foreground [26.43ms]
+(pass) a folded completion receipt cannot mask a failed processing turn [64.81ms]
+Unable to advance committed routine round 3f95e6dc-4980-4bed-aa15-801b2b471cbe
+207 |         (
+208 |           await harness.db.channelRound.findFirstOrThrow({
+209 |             where: { rootMessageId: execution.channelMessageId! },
+210 |           })
+211 |         ).status
+212 |       ).toBe("running");
+              ^
+error: expect(received).toBe(expected)
+
+Expected: "running"
+Received: "queued"
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:212:9)
+(fail) periodic recovery retries a committed group round after its handoff failed [64.29ms]
+256 |           (
+257 |             await harness.db.$transaction((tx) =>
+258 |               groupRoutineState(tx, execution.channelMessageId!)
+259 |             )
+260 |           ).active
+261 |         ).toBe(true);
+                ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:261:11)
+(fail) group overlap waits for a real background process and releases on its completion [87.56ms]
+335 |     await terminal(claimed!.runId);
+336 |     await f.messaging.completeDelivery(claimed!.deliveryId, "completed");
+337 |     expect(
+338 |       (await harness.db.$transaction((tx) => groupRoutineState(tx, execution.channelMessageId!)))
+339 |         .active
+340 |     ).toBe(true);
+            ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:340:7)
+(fail) Stop releases a completed group turn's outstanding shell wait [78.58ms]
+404 |     expect(consumer).not.toBeNull();
+405 |     expect(
+406 |       await harness.db.inboxEvent.count({
+407 |         where: { botId: f.botId, payload: { path: ["batchedIntoRunId"], equals: consumer!.runId } },
+408 |       })
+409 |     ).toBe(1);
+            ^
+error: expect(received).toBe(expected)
+
+Expected: 1
+Received: 0
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:409:7)
+(fail) a folded group shell receipt waits for its processing consumer [82.96ms]
+467 |         (await harness.db.routineExecution.findUniqueOrThrow({ where: { id: ids[100] } })).status
+468 |       ).toBe("queued");
+469 |       await f.worker.recoverRoutineExecutions();
+470 |       expect(
+471 |         (await harness.db.routineExecution.findUniqueOrThrow({ where: { id: ids[100] } })).status
+472 |       ).toBe("completed");
+              ^
+error: expect(received).toBe(expected)
+
+Expected: "completed"
+Received: "queued"
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:472:9)
+(fail) recovery rotates past 100 live executions [844.21ms]
+505 |     );
+506 |     good.worker.routines = new RoutineService(
+507 |       harness.db,
+508 |       {
+509 |         enqueueWake: async (tx, input) => {
+510 |           if (input.botId === bad.botId) throw new Error("Transient follow-up launch failure");
+                                                         ^
+error: Transient follow-up launch failure
+      at enqueueWake (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-275-regressions.integration.test.ts:510:52)
+      at startEventFollowUp (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/packages/messaging/src/routines.ts:1417:36)
+(fail) one broken follow-up does not block another bot's settlement [104.41ms]
+(pass) repair preview is read-only; apply preserves pauses, due work and history and is idempotent [55.25ms]
+
+apps/worker/test/routine-retest-execution.integration.test.ts:
+55 |             (
+56 |               await harness.db.$transaction((tx) =>
+57 |                 groupRoutineState(tx, execution.channelMessageId!)
+58 |               )
+59 |             ).active
+60 |           ).toBe(true);
+                 ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-retest-execution.integration.test.ts:60:13)
+(fail) single group shell receipt records its actual processing turn's completed outcome [107.77ms]
+55 |             (
+56 |               await harness.db.$transaction((tx) =>
+57 |                 groupRoutineState(tx, execution.channelMessageId!)
+58 |               )
+59 |             ).active
+60 |           ).toBe(true);
+                 ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-retest-execution.integration.test.ts:60:13)
+(fail) single group shell receipt records its actual processing turn's failed outcome [58.79ms]
+55 |             (
+56 |               await harness.db.$transaction((tx) =>
+57 |                 groupRoutineState(tx, execution.channelMessageId!)
+58 |               )
+59 |             ).active
+60 |           ).toBe(true);
+                 ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-retest-execution.integration.test.ts:60:13)
+(fail) folded group shell receipt records its actual processing turn's completed outcome [58.66ms]
+55 |             (
+56 |               await harness.db.$transaction((tx) =>
+57 |                 groupRoutineState(tx, execution.channelMessageId!)
+58 |               )
+59 |             ).active
+60 |           ).toBe(true);
+                 ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-retest-execution.integration.test.ts:60:13)
+(fail) folded group shell receipt records its actual processing turn's failed outcome [57.49ms]
+55 |             (
+56 |               await harness.db.$transaction((tx) =>
+57 |                 groupRoutineState(tx, execution.channelMessageId!)
+58 |               )
+59 |             ).active
+60 |           ).toBe(true);
+                 ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-retest-execution.integration.test.ts:60:13)
+(fail) legacy-folded group shell receipt records its actual processing turn's completed outcome [57.93ms]
+55 |             (
+56 |               await harness.db.$transaction((tx) =>
+57 |                 groupRoutineState(tx, execution.channelMessageId!)
+58 |               )
+59 |             ).active
+60 |           ).toBe(true);
+                 ^
+error: expect(received).toBe(expected)
+
+Expected: true
+Received: false
+
+      at <anonymous> (/Users/jackson/Code/openteam-spec004-worktrees/w3-worker-boundaries/apps/worker/test/routine-retest-execution.integration.test.ts:60:13)
+(fail) legacy-folded group shell receipt records its actual processing turn's failed outcome [56.17ms]
+
+ 4 pass
+ 14 fail
+ 38 expect() calls
+Ran 18 tests across 2 files. [2.44s]

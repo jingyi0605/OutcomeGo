@@ -2,7 +2,7 @@ import type { BotView, ChannelView } from "@outcomego/contracts";
 import { DEFAULT_BOT_AVATAR } from "@outcomego/contracts/bot-avatar";
 import { type BotAvatarMode, normalizeRobotAvatarShape } from "@outcomego/contracts/robot-avatar";
 import { Avatar as AvatarPrimitive } from "radix-ui";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { API_BASE } from "../../client/http";
 import { useAuthenticatedResource } from "../../hooks/use-authenticated-resource";
 import { useResourceActive } from "../../hooks/resource-activity";
@@ -35,7 +35,12 @@ export const BotAvatar = memo(function BotAvatar({
     bot?.hasAvatar && bot.id && bot.updatedAt
       ? `${API_BASE}/api/v0/bots/${bot.id}/avatar?v=${encodeURIComponent(bot.updatedAt)}`
       : null;
-  const avatarSource = useAuthenticatedResource(avatarUrl, { enabled: resourcesActive });
+  const avatarSource = useAuthenticatedResource(avatarUrl, {
+    enabled: resourcesActive,
+    retainPreviousFor: bot?.id ? `bot-avatar:${bot.id}` : undefined,
+  });
+  const [failedSource, setFailedSource] = useState<string>();
+  const showPhoto = avatarSource && avatarSource !== failedSource;
   return (
     <AvatarPrimitive.Root
       className={cn(
@@ -49,16 +54,18 @@ export const BotAvatar = memo(function BotAvatar({
         className
       )}
     >
-      {avatarSource && (
-        <AvatarPrimitive.Image
+      {/* Keep the decoded image mounted while the same Bot's photo is refreshed. */}
+      {showPhoto && (
+        <img
           alt=""
           className="size-full rounded-full object-cover"
           decoding="async"
           loading="lazy"
           src={avatarSource}
+          onError={() => setFailedSource(avatarSource)}
         />
       )}
-      <AvatarPrimitive.Fallback className="grid size-full place-items-center">
+      {!showPhoto && <AvatarPrimitive.Fallback className="grid size-full place-items-center">
         <BotAvatarGlyph
           mode={mode ?? activityMode}
           className="size-full"
@@ -66,7 +73,7 @@ export const BotAvatar = memo(function BotAvatar({
           color={bot?.color ?? DEFAULT_BOT_AVATAR.color}
           shape={normalizeRobotAvatarShape(bot?.icon)}
         />
-      </AvatarPrimitive.Fallback>
+      </AvatarPrimitive.Fallback>}
     </AvatarPrimitive.Root>
   );
 });

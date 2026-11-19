@@ -4,10 +4,11 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const databaseTest = databaseUrl ? test : test.skip;
 for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
   `a real ${fault} inference outage retains review intent and cannot replay an older turn over a newer correction`,
@@ -49,6 +50,7 @@ for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
       }
       if (path !== "/v1/turns") return Response.json({ ok: true, quarantined: [] });
       const input = await request.json() as { runId: string; botId: string; conversationId: string; channelId: string; deliveryId: string | null; content: string };
+      return turnResponse(async () => {
       const call = (tool: string, args: unknown) => Effect.runPromise(app!.handleDynamicTool({
         runId: input.runId, botId: input.botId, conversationId: input.conversationId,
         channelId: input.channelId, deliveryId: input.deliveryId, callId: crypto.randomUUID(), tool, arguments: args,
@@ -66,12 +68,13 @@ for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
         events.push("corrected");
         recovered = true;
       }
-      return new Response([
+      return [
         { type: "turn.started", turnId: input.runId }, { type: "prompt.delivered", turnId: input.runId },
         { type: "turn.completed", turnId: input.runId, status: "completed" },
-      ].map(event => JSON.stringify(event)).join("\n") + "\n", { headers: { "content-type": "application/x-ndjson" } });
+      ];
+      });
     } });
-    const keys = ["DATABASE_URL", "OPENTEAM_COMPUTER_URL", "OPENTEAM_CONTROL_TOKEN", "OPENTEAM_WORKSPACE_ROOT", "OPENTEAM_AGENT_DATA_ROOT"] as const;
+    const keys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT"] as const;
     const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
     const until = async (check: () => Promise<boolean>) => {
       const deadline = Date.now() + 30_000;
@@ -79,8 +82,8 @@ for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
       throw new Error("Memory outage journey timed out");
     };
     try {
-      Object.assign(process.env, { DATABASE_URL: databaseUrl, OPENTEAM_COMPUTER_URL: computer.url.origin,
-        OPENTEAM_CONTROL_TOKEN: "isolated-memory-outage", OPENTEAM_WORKSPACE_ROOT: root, OPENTEAM_AGENT_DATA_ROOT: join(root, "data") });
+      Object.assign(process.env, { DATABASE_URL: databaseUrl, OUTCOMEGO_COMPUTER_URL: computer.url.origin,
+        OUTCOMEGO_CONTROL_TOKEN: "isolated-memory-outage", OUTCOMEGO_WORKSPACE_ROOT: root, OUTCOMEGO_AGENT_DATA_ROOT: join(root, "data") });
       app = new AppService();
       await Effect.runPromise(app.boot());
       await app.agentData.writeInferenceSettings({ providerId: "openai-codex", modelId: "synthetic-outage-fixture", reasoning: "low" });

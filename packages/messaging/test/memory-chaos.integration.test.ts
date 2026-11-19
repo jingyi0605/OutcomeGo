@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createPrismaClient, type Prisma } from "@outcomego/db";
 import { AgentDataStore } from "../src/agent-data";
 
-const url = process.env.OPENTEAM_TEST_DATABASE_URL;
+const url = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const dbTest = url ? test : test.skip;
 
 async function fixture(run: (f: { prisma: ReturnType<typeof createPrismaClient>; store: AgentDataStore; botId: string; root: string }) => Promise<void>) {

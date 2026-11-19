@@ -100,6 +100,17 @@ private fun RoutineSchedule.localizedSummary(): String {
     } + " ($timeZone)"
 }
 
+/** Every trigger of the routine: its schedules plus event triggers such as email, Slack or a webhook. */
+@Composable
+internal fun Routine.localizedTriggerSummary(): String {
+    val parts = schedules.map { it.localizedSummary() } +
+        eventTriggers.map { localizedText(it.summary(), it.summaryZh()) }
+    return parts.joinToString(localizedText(" or ", " 或 ")).ifEmpty {
+        // Older servers send no trigger detail; fall back to the single schedule, or a generic event label.
+        if (scheduleEditable) schedule.localizedSummary() else localizedText("On an event", "有事件发生时")
+    }
+}
+
 @Composable
 fun RoutinesScreen(
     state: FeatureLoadState<List<Routine>>,
@@ -158,7 +169,7 @@ fun RoutinesScreen(
                                 )
                             }
                             Text(
-                                routine.schedule.localizedSummary(),
+                                routine.localizedTriggerSummary(),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = SpatialTheme.colors.textSecondary,
                             )
@@ -248,7 +259,30 @@ fun RoutineEditorScreen(
                     maxLines = 8,
                 )
             }
-            item {
+            if (!routine.scheduleEditable) item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        localizedText("When to run", "触发条件"),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SpatialTheme.colors.textPrimary,
+                    )
+                    Text(
+                        routine.localizedTriggerSummary(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SpatialTheme.colors.textSecondary,
+                    )
+                    Text(
+                        localizedText(
+                            "This trigger is set up by your bot and can't be changed on mobile.",
+                            "此触发条件由机器人设置，暂不支持在手机上修改。",
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = SpatialTheme.colors.textTertiary,
+                    )
+                }
+            }
+            if (routine.scheduleEditable) item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         localizedText("Frequency", "频率"),
@@ -285,7 +319,7 @@ fun RoutineEditorScreen(
                     }
                 }
             }
-            item {
+            if (routine.scheduleEditable) item {
                 val useChinese = localizedText("en", "zh") == "zh"
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     SearchableTimeZoneSelector(

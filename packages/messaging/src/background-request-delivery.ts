@@ -2,6 +2,7 @@ import { ApiError } from "@outcomego/contracts";
 import type { Prisma } from "@outcomego/db";
 import type { ToolContext } from "./index";
 import { requestIsStopped } from "./request-state";
+import { lockAgentLifecycle } from "./agent-lifecycle";
 
 /** A completion may already be running when Stop's transport cancellation fails.
  * Serialize publication with Stop, rather than relying only on wake claim time.
@@ -11,6 +12,7 @@ export async function assertBackgroundRequestDeliveryAllowed(
   context: Pick<ToolContext, "botId" | "runId" | "origin">
 ) {
   if (context.origin !== "background_revival") return;
+  await lockAgentLifecycle(tx, context.botId);
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${context.botId}`}))`;
   const source = await tx.run.findUnique({
     where: { id: context.runId },

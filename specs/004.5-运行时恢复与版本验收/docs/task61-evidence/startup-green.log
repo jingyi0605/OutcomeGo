@@ -1,0 +1,14 @@
+bun test v1.4.4 (38afee6c8)
+
+apps/server/test/startup-task-recovery.integration.test.ts:
+(pass) startup preserves uncheckpointed obligations and schedules one reconciliation [424.78ms]
+(pass) startup fences new queue claims while it stops old Pi contexts [339.23ms]
+(pass) an exhausted foreground recovery posts one resend notice instead of another continuation [335.64ms]
+(pass) a failed context stop rolls recovery back without queuing duplicate work [297.66ms]
+(pass) recovery exhaustion leaves an explicit parent-owned blocker with no automatic timer [268.77ms]
+(pass) a parked helper never holds an update and resumes after the restart that update causes [326.66ms]
+
+ 6 pass
+ 0 fail
+ 32 expect() calls
+Ran 6 tests across 1 file. [2.22s]

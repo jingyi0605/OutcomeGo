@@ -21,6 +21,7 @@ const menuText = (locale: ApplicationMenuLocale) =>
         view: "显示",
         window: "窗口",
         screenbot: "打开 ScreenBot",
+        botDock: "显示机器人浮窗",
         undo: "撤销",
         redo: "重做",
         cut: "剪切",
@@ -43,6 +44,7 @@ const menuText = (locale: ApplicationMenuLocale) =>
         view: "View",
         window: "Window",
         screenbot: "Open ScreenBot",
+        botDock: "Show Bot Floating Window",
         undo: "Undo",
         redo: "Redo",
         cut: "Cut",
@@ -81,7 +83,9 @@ export function applicationMenuTemplate(
   settings?: unknown
 ): MenuItemConstructorOptions[] {
   const legacy = typeof localeOrAction === "function";
-  const locale: ApplicationMenuLocale = legacy ? "en-US" : (localeOrAction as ApplicationMenuLocale);
+  const locale: ApplicationMenuLocale = legacy
+    ? "en-US"
+    : (localeOrAction as ApplicationMenuLocale);
   const onAction = (legacy ? localeOrAction : actionOrClipboard) as (
     action: ApplicationMenuAction
   ) => void;
@@ -172,4 +176,29 @@ export function applicationMenuTemplate(
     { role: "viewMenu", label: text.view },
     { role: "windowMenu", label: text.window },
   ];
+}
+
+/**
+ * Adds the "Show Bot Floating Window" switch to the File menu, right after ScreenBot (the other
+ * floating window). Kept apart from the template so the template's positional arguments stay put.
+ */
+export function withBotDockToggle(
+  template: MenuItemConstructorOptions[],
+  locale: ApplicationMenuLocale,
+  enabled: boolean,
+  onToggle: (enabled: boolean) => void
+): MenuItemConstructorOptions[] {
+  const text = menuText(locale);
+  return template.map((item) => {
+    if (item.label !== text.file || !Array.isArray(item.submenu)) return item;
+    const submenu = [...item.submenu];
+    const anchor = submenu.findIndex((entry) => entry.label === text.screenbot);
+    submenu.splice(anchor + 1, 0, {
+      label: text.botDock,
+      type: "checkbox",
+      checked: enabled,
+      click: (entry) => onToggle(entry.checked),
+    });
+    return { ...item, submenu };
+  });
 }

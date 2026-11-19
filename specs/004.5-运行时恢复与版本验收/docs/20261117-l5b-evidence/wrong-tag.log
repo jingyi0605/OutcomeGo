@@ -1,0 +1,4 @@
+$ bun --no-install scripts/release/version.ts check --tag v0.1.0-beta.13
+exit=1
+Version check failed:
+- tag v0.1.0-beta.13 does not match version v0.1.0-beta.19

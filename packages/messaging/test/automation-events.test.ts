@@ -62,3 +62,43 @@ test('email triggers reject malformed inboxes, senders, and flags', () => {
  expect(() => parseStoredTrigger({ type: 'email', inbox: 'bot@example.com', requireAuthPass: 'no' })).toThrow('requireAuthPass');
  expect(() => parseStoredTrigger({ type: 'group', listeners: [{ type: 'origin', repo: 'o/r', events: ['pr-opened'] }, { type: 'email', inbox: 'bot@example.com' }] })).toThrow('email');
 });
+test('plugin triggers subscribe to a plugin\'s resources and actors, with optional event kinds', () => {
+ const reply = { id: 'plugin:dsh-web:c1:e1', source: 'plugin' as const, plugin: 'dsh-web', account: 'work', kind: 'session.completed', text: 'Done', resourceId: 's1', actor: 'bot-1' };
+ const bySession = parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: [' s1 ', 's1', 's2'] });
+ expect(bySession).toEqual({ type: 'plugin', plugin: 'dsh-web', resourceIds: ['s1', 's2'] });
+ expect(match(bySession, reply)).toBe(true);
+ expect(match(bySession, { ...reply, resourceId: 's3' })).toBe(false);
+ expect(match(bySession, { ...reply, resourceId: undefined })).toBe(false);
+ expect(match(bySession, { ...reply, plugin: 'other' })).toBe(false);
+ expect(match(bySession, { ...reply, source: 'webhook' })).toBe(false);
+ const byActor = parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', actors: ['bot-1'], events: ['session.completed', 'session.failed'] });
+ expect(byActor).toEqual({ type: 'plugin', plugin: 'dsh-web', actors: ['bot-1'], events: ['session.completed', 'session.failed'] });
+ expect(match(byActor, reply)).toBe(true);
+ expect(match(byActor, { ...reply, kind: 'session.message_queued' })).toBe(false);
+ expect(match(byActor, { ...reply, actor: 'bot-2' })).toBe(false);
+ // Both filters must hold when both are given.
+ const both = parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: ['s1'], actors: ['bot-2'] });
+ expect(match(both, reply)).toBe(false);
+ expect(match(both, { ...reply, actor: 'bot-2' })).toBe(true);
+ expect(match({ type: 'group', listeners: [{ type: 'cron', schedule: '@daily' }, bySession] }, reply)).toBe(true);
+});
+test('plugin triggers must name resources or actors and refuse oversized or malformed input', () => {
+ expect(() => parseStoredTrigger({ type: 'plugin' })).toThrow('trigger.plugin');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'DSH Web', resourceIds: ['s1'] })).toThrow('plugin key');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web' })).toThrow('resourceIds or actors');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', events: ['session.completed'] })).toThrow('resourceIds or actors');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: ['  '] })).toThrow('resourceIds or actors');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: 's1' })).toThrow('list of strings');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: [1] })).toThrow('list of strings');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: ['x'.repeat(201)] })).toThrow('at most 200');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: Array.from({ length: 51 }, (_, i) => `s${i}`) })).toThrow('at most 50');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: ['s1'], events: ['x'.repeat(81)] })).toThrow('at most 80');
+ // Origin has its own scheduling authority, as with email and webhook.
+ expect(() => parseStoredTrigger({ type: 'group', listeners: [{ type: 'origin', repo: 'o/r', events: ['pr-opened'] }, { type: 'plugin', plugin: 'dsh-web', resourceIds: ['s1'] }] })).toThrow('origin cannot be grouped');
+});
+test('plugin events carry the plugin, account and resource, within the usual limits', () => {
+ const parsed = parseAutomationEvent({ id: 'e', source: 'plugin', kind: 'session.completed', text: '', plugin: 'dsh-web', account: 'work', resourceId: 's1', actor: 'bot-1', occurredAt: '2026-11-19T00:00:00Z' });
+ expect(parsed).toMatchObject({ source: 'plugin', plugin: 'dsh-web', account: 'work', resourceId: 's1', actor: 'bot-1' });
+ expect(() => parseAutomationEvent({ id: 'e', source: 'plugin', kind: 'k', text: '', resourceId: 'x'.repeat(513) })).toThrow('resourceId');
+ expect(() => parseAutomationEvent({ id: 'e', source: 'plugin', kind: 'k', text: '', plugin: 5 })).toThrow('plugin');
+});

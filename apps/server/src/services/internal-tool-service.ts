@@ -1,6 +1,6 @@
 import { TaskProgressInput, RequestProgressInput } from "@outcomego/contracts/task-progress";
 import { reportTaskProgress, reportRequestProgress, requestProgressSnapshot } from "@outcomego/messaging";
-import { readAgentActivity, readTranscript } from "@outcomego/messaging";
+import { readAgentActivity, readOutcomesEnabled, readTranscript } from "@outcomego/messaging";
 import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { subagentUsesParentConnectors } from "@outcomego/contracts/task-configuration";
 import {
@@ -26,7 +26,7 @@ import {
   isStateTool,
 } from "@outcomego/contracts";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId } from "@outcomego/messaging";
+import { type AgentMessaging, validateSendToUserInput, wakeAutomationParent, automationContextRunId, assertBackgroundRequestDeliveryAllowed, publishMessageNotification } from "@outcomego/messaging";
 import { Schema } from "effect";
 import type { DurableStateService } from "../update-state";
 import { formatMemoryToolResult } from "../memory-tool-result";
@@ -43,10 +43,36 @@ import { bitwardenInstanceEnvironment, jsonObject } from "./plugin/values";
 import { toJson } from "./service-utils";
 import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
+import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
+import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
+import type { OutcomeChatTools } from "./outcome-chat-tools";
+import { isOutcomeThreadTool, type OutcomeThreadTools } from "./outcome-thread-tools";
+import { findOutcomeCredentialGrant } from "./outcome-credential-approval";
+
+export interface OutcomeThreadToolContext {
+  runId: string;
+  workItemId: string;
+  botId: string;
+}
+
+export type OutcomeThreadToolHandler = (
+  request: DynamicToolCallRequest,
+  context: OutcomeThreadToolContext
+) => Promise<unknown>;
+
+/** Line 3 and line 4 supply handlers from their independent service files. */
+export interface OutcomeThreadToolHandlers {
+  RequestOutcomeDecision?: OutcomeThreadToolHandler;
+  RequestHumanAction?: OutcomeThreadToolHandler;
+  ReportOutcomeProgress?: OutcomeThreadToolHandler;
+  /** Step approval for Bitwarden reads; called with already validated candidates, never with agent input. */
+  RequestBitwardenReadApproval?: OutcomeThreadToolHandler;
+}
 import { GET_USER_LOCATION_TOOL } from "@outcomego/contracts/user-location";
 import type { UserLocationService } from "./user-location";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const isBackgroundOrigin = (origin: string) => origin === "routine" || origin === "outcome" || origin === "outcome_thread";
 const bitwardenCandidate = (
   value: unknown
 ): { connectionId: string; itemId: string; title: string; hostname: string } => {
@@ -94,7 +120,10 @@ export class InternalToolService {
     private readonly onSpeechChunk?: (runId: string, callId: string, text: string) => Promise<boolean>,
     private readonly computerNetworkPolicy?: ComputerNetworkPolicyService,
     private readonly externalDelivery?: ExternalDeliveryService,
-    private readonly userLocations?: UserLocationService
+    private readonly outcomeThreadTools: OutcomeThreadToolHandlers = {},
+    private readonly outcomeChatTools?: OutcomeChatTools,
+    private readonly userLocations?: UserLocationService,
+    private readonly goalThreadTools?: OutcomeThreadTools
   ) {}
 
   /**
@@ -145,6 +174,14 @@ export class InternalToolService {
       ) {
         throw new ApiError(409, "tool_context_invalid", "Dynamic tool context is not active");
       }
+      if ((OUTCOME_THREAD_TOOL_NAMES as readonly string[]).includes(request.tool)) {
+        if (run.origin !== "outcome" || !run.outcomeWorkItemId)
+          throw new ApiError(400, "outcome_thread_required", "This tool requires an Outcome sub-thread");
+        const handler = this.outcomeThreadTools[request.tool as keyof OutcomeThreadToolHandlers];
+        if (!handler)
+          throw new ApiError(503, "outcome_thread_tool_unavailable", `Outcome tool ${request.tool} has not been registered`);
+        return handler(request, { runId: run.id, workItemId: run.outcomeWorkItemId, botId: run.botId });
+      }
       const inboxPayload = run.inboxEvents[0]?.payload as Record<string, unknown> | undefined;
       const context = {
         runId: request.runId,
@@ -163,6 +200,24 @@ export class InternalToolService {
         where: { childBotId: request.botId },
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
+      const backgroundRun = isBackgroundOrigin(run.origin);
+      // A goal's own thread has its own small tool set, bound to that goal (specs/004.8).
+      if (run.origin === "outcome_thread" && isOutcomeThreadTool(request.tool)) {
+        if (!this.goalThreadTools)
+          throw new ApiError(503, "outcome_thread_tool_unavailable", `Goal thread tool ${request.tool} has not been registered`);
+        return this.goalThreadTools.execute(request, context, signal);
+      }
+      if (request.tool === "SaveOutcomeContract")
+        throw new ApiError(400, "outcome_thread_required", "This tool belongs to a goal's own thread");
+      if ((OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(request.tool)) {
+        if (childIdentity || backgroundRun)
+          throw new ApiError(403, "outcome_chat_required", "Manage native goals from the user-facing Bot conversation");
+        if (!(await readOutcomesEnabled(this.prisma)))
+          throw new ApiError(403, "outcomes_disabled", "Goal management is turned off. The user can enable it in Settings → General");
+        if (!this.outcomeChatTools)
+          throw new ApiError(503, "outcome_chat_unavailable", "Native Outcome conversation tools are not available");
+        return this.outcomeChatTools.execute(request, context, signal);
+      }
       if (request.tool === GET_USER_LOCATION_TOOL.name) {
         if (childIdentity)
           throw new ApiError(403, "user_location_unavailable", "Only the deployment owner's parent bot can read location");
@@ -177,8 +232,10 @@ export class InternalToolService {
       if (request.tool === "RefreshToolCatalog") return {namespaces:await this.plugins.dynamicNamespaces(childIdentity?.parentBotId ?? request.botId)};
       if (request.tool === "ReadProcessSecrets") return { environment: await processEnvironment(this.prisma, request.botId) };
       const bitwardenCallerAllowed = !childIdentity || childIdentity.subagentType === "computerUse";
+      // An Outcome turn has an owner to ask through a step approval; a routine run has nobody to answer.
+      const outcomeRun = run.origin === "outcome" && !!run.outcomeWorkItemId;
       if (["SearchBitwardenItems", "RequestBitwardenReadApproval", "ReadBitwardenCredential", "ConsumeBitwardenReadLease", "ConsumeBitwardenSearchLease"].includes(request.tool) &&
-          (!bitwardenCallerAllowed || run.origin === "routine"))
+          (!bitwardenCallerAllowed || (backgroundRun && !outcomeRun)))
         throw new ApiError(403, "bitwarden_tool_forbidden", "Bitwarden reads are available only to the user-facing agent");
       if (request.tool === "SearchBitwardenItems") {
         const input = jsonObject(request.arguments);
@@ -251,6 +308,16 @@ export class InternalToolService {
           ...candidate,
           instanceName: aliasMap.get(candidate.connectionId.toLowerCase())!,
         }));
+        if (outcomeRun) {
+          // No chat widget exists here: the owner answers a step approval that stays valid for the whole Outcome.
+          const handler = this.outcomeThreadTools.RequestBitwardenReadApproval;
+          if (!handler)
+            throw new ApiError(503, "outcome_credential_approval_unavailable", "Bitwarden step approvals have not been registered");
+          return handler(
+            { ...request, arguments: { candidates: enriched } },
+            { runId: run.id, workItemId: run.outcomeWorkItemId!, botId: run.botId },
+          );
+        }
         const single = enriched.length === 1 ? enriched[0]! : null;
         const approval = await this.prisma.bitwardenReadApproval.create({
           data: {
@@ -266,6 +333,7 @@ export class InternalToolService {
             expiresAt: new Date(Date.now() + 15 * 60_000),
           },
         });
+        let linked = false;
         try {
           const sent = await this.messaging.sendVisible(context, {
             type: "widget",
@@ -280,11 +348,21 @@ export class InternalToolService {
                 value: `${candidate.connectionId}:${candidate.itemId}`,
               })),
             },
+          }, async (tx, messageId) => {
+            await tx.bitwardenReadApproval.update({
+              where: { id: approval.id },
+              data: { widgetMessageId: messageId },
+            });
+            // A publication callback suppresses the default notice for external
+            // delivery. This owner approval still needs its original notice.
+            await publishMessageNotification(
+              tx, await tx.channelMessage.findUniqueOrThrow({ where: { id: messageId } }),
+            );
+            linked = true;
           });
           const messageId = sent.acknowledgement && typeof sent.acknowledgement === "object" && typeof sent.acknowledgement.message_id === "string"
             ? sent.acknowledgement.message_id : null;
-          if (!messageId) throw new Error("Bitwarden approval widget was not persisted");
-          await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { widgetMessageId: messageId } });
+          if (!messageId || !linked) throw new Error("Bitwarden approval widget was not persisted");
           return { sent: true, waiting_for_user: true };
         } catch (error) {
           await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { status: "denied" } }).catch(() => undefined);
@@ -303,27 +381,40 @@ export class InternalToolService {
           throw new ApiError(400, "bitwarden_read_invalid", "A Bitwarden itemId and field are required");
         if (connectionId && !UUID.test(connectionId))
           throw new ApiError(400, "bitwarden_read_invalid", "The Bitwarden connectionId is invalid");
-        const payload = run.inboxEvents[0]?.payload as Record<string, unknown> | undefined;
-        const reference = approvalReference(payload?.content);
-        if (!reference) throw new ApiError(403, "bitwarden_read_not_approved", "User approval is required before reading this Bitwarden item");
-        const approval = await this.prisma.bitwardenReadApproval.findUnique({ where: { id: reference } });
-        if (approval?.status === "approved" && approval.expiresAt <= new Date()) {
-          await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { status: "expired" } });
+        let approvedConnectionId: string;
+        if (outcomeRun) {
+          const grant = await findOutcomeCredentialGrant(this.prisma, run.outcomeWorkItemId!, itemId, connectionId);
+          if (!grant)
+            throw new ApiError(
+              403,
+              "bitwarden_read_not_approved",
+              "The owner has not approved reading this Bitwarden item for this goal. Call RequestBitwardenReadApproval with its connectionId and itemId, then wait for the next turn.",
+            );
+          approvedConnectionId = grant.connectionId;
+        } else {
+          const payload = run.inboxEvents[0]?.payload as Record<string, unknown> | undefined;
+          const reference = approvalReference(payload?.content);
+          if (!reference) throw new ApiError(403, "bitwarden_read_not_approved", "User approval is required before reading this Bitwarden item");
+          const approval = await this.prisma.bitwardenReadApproval.findUnique({ where: { id: reference } });
+          if (approval?.status === "approved" && approval.expiresAt <= new Date()) {
+            await this.prisma.bitwardenReadApproval.update({ where: { id: approval.id }, data: { status: "expired" } });
+          }
+          if (
+            !approval ||
+            approval.botId !== request.botId ||
+            approval.channelId !== request.channelId ||
+            approval.status !== "approved" ||
+            !approval.connectionId ||
+            approval.itemId?.toLowerCase() !== itemId.toLowerCase() ||
+            (connectionId && approval.connectionId.toLowerCase() !== connectionId.toLowerCase()) ||
+            approval.expiresAt <= new Date()
+          )
+            throw new ApiError(403, "bitwarden_read_not_approved", "User approval is missing, expired, or for a different Bitwarden item or instance");
+          approvedConnectionId = approval.connectionId!;
         }
-        if (
-          !approval ||
-          approval.botId !== request.botId ||
-          approval.channelId !== request.channelId ||
-          approval.status !== "approved" ||
-          !approval.connectionId ||
-          approval.itemId?.toLowerCase() !== itemId.toLowerCase() ||
-          (connectionId && approval.connectionId.toLowerCase() !== connectionId.toLowerCase()) ||
-          approval.expiresAt <= new Date()
-        )
-          throw new ApiError(403, "bitwarden_read_not_approved", "User approval is missing, expired, or for a different Bitwarden item or instance");
         const readyConnection = await this.prisma.pluginConnection.findFirst({
           where: {
-            id: approval.connectionId,
+            id: approvedConnectionId,
             connectorKey: "bitwarden",
             status: "ready",
             installation: { pluginKey: "bitwarden", status: "installed" },
@@ -339,7 +430,7 @@ export class InternalToolService {
             botId: request.botId,
             channelId: request.channelId,
             sourceRunId: request.runId,
-            connectionId: approval.connectionId,
+            connectionId: approvedConnectionId,
             itemId,
             title: "__lease__",
             hostname: String(field),
@@ -349,7 +440,7 @@ export class InternalToolService {
             leaseExpiresAt: new Date(Date.now() + 30_000),
           },
         });
-        return { leaseToken, connectionId: approval.connectionId };
+        return { leaseToken, connectionId: approvedConnectionId };
       }
       if (request.tool === "ConsumeBitwardenReadLease") {
         const input = jsonObject(request.arguments);
@@ -421,12 +512,12 @@ export class InternalToolService {
         });
         return { instances };
       }
-      if (run.origin === "routine" && AUTOMATION_PARENT_ONLY_TOOLS.has(request.tool)) {
+      if (backgroundRun && AUTOMATION_PARENT_ONLY_TOOLS.has(request.tool)) {
         throw new ApiError(403, "automation_tool_forbidden", AUTOMATION_RUN_VISIBLE_TRANSCRIPT_BLOCKED);
       }
       request={...request,arguments:normalizeMainToolArguments(request.tool,request.arguments)};
       if (request.tool === "ReportRequestProgress") {
-        if (childIdentity || run.origin === "routine") throw new ApiError(403, "request_progress_unavailable", "Only the user-facing parent may track a request");
+        if (childIdentity || backgroundRun) throw new ApiError(403, "request_progress_unavailable", "Only the user-facing parent may track a request");
         const result = await reportRequestProgress(this.prisma, context, Schema.decodeUnknownSync(RequestProgressInput)(request.arguments));
         return { ...(result as Record<string, unknown>), requests: await requestProgressSnapshot(this.prisma, request.botId, request.channelId) };
       }
@@ -445,8 +536,8 @@ export class InternalToolService {
         await Promise.allSettled(children.map((child) => this.subagents.stop(request.botId, request.callId, { subagent_id: botSubagentId(child.id) })));
         return woken;
       }
-      if (run.origin === "routine" && request.tool !== "AcknowledgeCardOutcomes" &&
-        (await this.prisma.automationResult.findUnique({ where: { runId: automationContextRunId(run.id, inboxPayload) }, select: { wakeRunId: true } }))?.wakeRunId) {
+      if (backgroundRun && request.tool !== "AcknowledgeCardOutcomes" &&
+        (await this.prisma.automationResult.findUnique({ where: { runId: run.origin === "outcome" ? run.id : automationContextRunId(run.id, inboxPayload) }, select: { wakeRunId: true } }))?.wakeRunId) {
         throw new ApiError(409, "automation_turn_ended", "This automation already handed control to its parent");
       }
       if (request.tool === "PrepareConnectorTransfer" || request.tool === "ExecuteConnectorTransfer") {
@@ -460,7 +551,7 @@ export class InternalToolService {
         return { acknowledged: true };
       }
       if (request.tool === "UpdateComputerNetworkPolicy") {
-        if (childIdentity || run.origin === "routine")
+        if (childIdentity || backgroundRun)
           throw new ApiError(403, "computer_network_policy_bot_forbidden", "Only an owner bot can request a firewall change.");
         if (!this.computerNetworkPolicy)
           throw new ApiError(503, "computer_network_policy_unavailable", "Firewall policy control is unavailable.");
@@ -560,14 +651,14 @@ export class InternalToolService {
 
       // Private to the computer: a finished sentence of a SendToUser message still being written, spoken at once.
       if (request.tool === "VoiceSpeak") {
-        if (childIdentity || run.origin === "routine") throw new ApiError(403, "speech_unavailable", "Only the user-facing parent may speak");
+        if (childIdentity || backgroundRun) throw new ApiError(403, "speech_unavailable", "Only the user-facing parent may speak");
         const input = (request.arguments ?? {}) as { callId?: unknown; text?: unknown };
         if (typeof input.callId !== "string" || typeof input.text !== "string" || !input.text.trim()) throw new ApiError(400, "invalid_speech", "A call id and text are required");
         return { spoken: this.onSpeechChunk ? await this.onSpeechChunk(request.runId, input.callId, input.text.slice(0, 2_000)) : false };
       }
       // Private to the computer's narrator, never registered in any model catalog.
       if (request.tool === "VoiceNarration") {
-        if (childIdentity || run.origin === "routine") throw new ApiError(403, "narration_unavailable", "Only the user-facing parent may narrate");
+        if (childIdentity || backgroundRun) throw new ApiError(403, "narration_unavailable", "Only the user-facing parent may narrate");
         const text = (request.arguments as { text?: unknown } | null)?.text;
         if (typeof text !== "string") throw new ApiError(400, "invalid_narration", "Narration text is required");
         const { acknowledgement } = await this.messaging.sendNarration(context, text);
@@ -700,10 +791,7 @@ export class InternalToolService {
         if (typeof input.connectionId !== "string" || typeof input.toolName !== "string") {
           throw new ApiError(400, "invalid_plugin_call", "Plugin call is missing identifiers");
         }
-        const automationChild = childIdentity && (await this.prisma.run.findUnique({
-          where: { id: childIdentity.parentRunId }, select: { origin: true },
-        }))?.origin === "routine";
-        return withConnectorDraftCardReminder(this.prisma, { connectionId: input.connectionId, toolName: input.toolName }, !childIdentity && run.origin !== "routine", await this.plugins.invoke({
+        return withConnectorDraftCardReminder(this.prisma, { connectionId: input.connectionId, toolName: input.toolName }, !childIdentity && !backgroundRun, await this.plugins.invoke({
           connectionId: input.connectionId,
           namespace: typeof input.namespace === "string" ? input.namespace : undefined,
           botId:
@@ -712,7 +800,7 @@ export class InternalToolService {
           callId: request.callId,
           toolName: input.toolName,
           arguments: input.arguments ?? {},
-        }));
+        }, signal));
       }
       if (isStateTool(request.tool)) {
         const result = await this.durableState.executeTool(
@@ -757,7 +845,8 @@ export class InternalToolService {
         return this.subagents.stop(
           request.botId,
           request.callId,
-          Schema.decodeUnknownSync(StopSubagentInput)(request.arguments)
+          Schema.decodeUnknownSync(StopSubagentInput)(request.arguments),
+          context.runId
         );
       }
       if (request.tool === "CreateAgent") {
@@ -843,11 +932,20 @@ export class InternalToolService {
               const asset = await this.messaging.assets.ingestSource(source);
               return {assetId:asset.assetId,name:asset.fileName,mimeType:asset.mimeType,bytes:Buffer.from(await Bun.file(this.messaging.assets.contentPath(asset.assetId)).arrayBuffer())};
             }));
+            const address = input.channel;
+            if (context.origin === "background_revival") {
+              const receipt = await this.prisma.pluginInvocation.findUnique({
+                where: { callId: `connected-channel:${request.callId}` },
+                select: { status: true, botId: true, runId: true },
+              });
+              if (receipt?.status !== "completed" || receipt.botId !== request.botId || receipt.runId !== request.runId)
+                await this.prisma.$transaction(tx => assertBackgroundRequestDeliveryAllowed(tx, context));
+            }
             const delivery = await this.plugins.deliverConnectedChannel({
               botId: request.botId,
               runId: request.runId,
               callId: request.callId,
-              address: input.channel,
+              address,
               content,
               files,
             });
@@ -861,6 +959,7 @@ export class InternalToolService {
               interruptRunId: null,
             };
           } catch (error) {
+            if (error instanceof ApiError && ["request_stopped", "tool_context_invalid"].includes(error.code)) throw error;
             if(error instanceof ApiError&&error.code==="external_file_review_required")throw error;
             // Nothing left the box for these, so refuse now with the reason.
             if (error instanceof ApiError && error.code === "connected_channel_address_invalid")

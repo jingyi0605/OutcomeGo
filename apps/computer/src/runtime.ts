@@ -90,7 +90,7 @@ export const isDeliveryOwed = (
 export class ComputerRuntime {
   private readonly tools: RuntimeTools;
   get userForms() { return this.tools.userForms; }
-  stopBackgroundShells(botId: string) { return this.tools.stopBackgroundShells(botId); }
+  stopBackgroundShells(botId: string, runIds?: readonly string[]) { return this.tools.stopBackgroundShells(botId, runIds); }
 
   private readonly activeByRun = new Map<string, ActiveTurn>();
   private readonly activeByContext = new Map<string, ActiveTurn>();
@@ -340,6 +340,9 @@ export class ComputerRuntime {
       todoUpdate: request.todoUpdate ?? null,
       resetSelfSummaryCount: request.resetSelfSummaryCount !== false,
       requestSource: request.requestSource ?? "turn",
+      outcomeThread: request.outcomeThread,
+      goalThread: request.goalThread,
+      outcomesEnabled: request.outcomesEnabled === true,
       turnId: request.runId,
       session: null,
       sessionPath: null,

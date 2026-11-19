@@ -9,7 +9,7 @@ import { Effect } from "effect";
 import { recover } from "../../src/services/startup-recovery";
 import { InternalToolService } from "../../src/services/internal-tool-service";
 
-const databaseUrl = process.env.OPENTEAM_TEST_DATABASE_URL;
+const databaseUrl = (process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL);
 const integration = test.skipIf(!databaseUrl);
 
 async function setup(refreshTokens = false) {
@@ -384,9 +384,13 @@ integration("HTTP disconnect cancellation propagates through the real internal t
   const entered = gate(), release = gate(), settled = gate();
   const { bot, run, callId } = await invocation(f);
   let server: ReturnType<typeof Bun.serve> | undefined;
+  let pendingInvocation: Promise<unknown> | undefined;
   try {
     const plugins = Object.create(f.service) as PluginService;
-    plugins.invoke = (...args) => f.service.invoke(...args).finally(settled.release);
+    plugins.invoke = (...args) => {
+      pendingInvocation = f.service.invoke(...args);
+      return pendingInvocation.finally(settled.release);
+    };
     const internal = new InternalToolService(f.db, {} as never, {} as never, async () => {}, {} as never, {} as never, {} as never, plugins);
     f.provider.setBeforeToolReply(async () => { entered.release(); await release.promise; });
     server = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(request) {
@@ -408,7 +412,9 @@ integration("HTTP disconnect cancellation propagates through the real internal t
     expect(f.provider.observations.calls).toBe(1);
   } finally {
     release.release(); server?.stop(true);
-    await f.db.bot.deleteMany({ where: { id: bot.id } }); await f.close();
+    await pendingInvocation?.catch(() => undefined);
+    try { await f.db.bot.deleteMany({ where: { id: bot.id } }); }
+    finally { await f.close(); }
   }
 });
 

@@ -1,0 +1,589 @@
+/* The Bot floating window: a horizontal glass capsule. The page is transparent; the frame's
+   padding leaves room for the capsule's shadow, and main sizes the window to the frame. */
+
+:root {
+  --dock-bg: rgb(250 250 252 / 88%);
+  --dock-edge: rgb(0 0 0 / 10%);
+  --dock-shadow: 0 4px 14px rgb(0 0 0 / 22%), 0 1px 3px rgb(0 0 0 / 14%);
+  --dock-ink: #1d1d1f;
+  --dock-home-bg: rgb(120 120 128 / 14%);
+  --dock-home-hover: rgb(120 120 128 / 24%);
+  --dock-badge-ring: rgb(250 250 252);
+  --dock-red: #ff3b30;
+  --dock-yellow: #ffcc00;
+  --dock-yellow-ink: #3d2f00;
+  --dock-invitation-rgb: 94 143 223;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --dock-bg: rgb(44 44 48 / 88%);
+    --dock-edge: rgb(255 255 255 / 12%);
+    --dock-shadow: 0 4px 14px rgb(0 0 0 / 50%), 0 1px 3px rgb(0 0 0 / 36%);
+    --dock-ink: #f5f5f7;
+    --dock-home-bg: rgb(120 120 128 / 30%);
+    --dock-home-hover: rgb(120 120 128 / 44%);
+    --dock-badge-ring: rgb(44 44 48);
+    --dock-red: #ff453a;
+    --dock-yellow: #ffd60a;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --dock-bg: rgb(44 44 48 / 88%);
+  --dock-edge: rgb(255 255 255 / 12%);
+  --dock-shadow: 0 4px 14px rgb(0 0 0 / 50%), 0 1px 3px rgb(0 0 0 / 36%);
+  --dock-ink: #f5f5f7;
+  --dock-home-bg: rgb(120 120 128 / 30%);
+  --dock-home-hover: rgb(120 120 128 / 44%);
+  --dock-badge-ring: rgb(44 44 48);
+  --dock-red: #ff453a;
+  --dock-yellow: #ffd60a;
+  color-scheme: dark;
+}
+
+html,
+body {
+  overflow: hidden;
+  background: transparent;
+  font:
+    12px / 1 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Microsoft YaHei UI",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+.dock-frame {
+  box-sizing: border-box;
+  width: max-content;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  position: relative;
+}
+
+.dock-frame[data-standby="true"] {
+  zoom: 1.2;
+}
+
+.dock-composer-frame {
+  padding: 10px 22px;
+}
+
+.dock-drop-target {
+  transition: scale 160ms ease-out;
+  transform-origin: var(--dock-composer-x, right) var(--dock-composer-y, bottom);
+}
+
+.dock-drop-target[data-composer-x="left"] {
+  --dock-composer-x: left;
+}
+
+.dock-drop-target[data-composer-y="top"] {
+  --dock-composer-y: top;
+}
+
+.dock-frame[data-standby="true"] .dock-drop-target[data-composer-open] {
+  scale: calc(1 / 1.2);
+}
+
+.dock-capsule {
+  --dock-capsule-size: 44px;
+  --dock-surface-shadow: var(--dock-shadow), inset 0 0 0 0.5px var(--dock-edge);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--dock-capsule-size);
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--dock-bg);
+  box-shadow: var(--dock-surface-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+  color: var(--dock-ink);
+  white-space: nowrap;
+  touch-action: none;
+}
+
+.dock-capsule:has(> .dock-home:only-child) {
+  --dock-surface-shadow: var(--dock-shadow);
+  width: var(--dock-capsule-size);
+  padding: 1.5px;
+}
+
+/* :where keeps the reset weaker than the button classes below. */
+:where(.dock-capsule) button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+
+.dock-home {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 50%;
+}
+
+.dock-home:only-child {
+  width: 100%;
+  height: 100%;
+}
+
+.dock-home:hover::before {
+  filter: brightness(1.1);
+}
+
+.dock-home::before {
+  content: "";
+  width: 100%;
+  height: 100%;
+  background: center / cover no-repeat url("./dock-mascot.png?inline");
+  transition: filter 120ms ease;
+}
+
+.dock-frame[data-dock-side="right"] .dock-home::before {
+  transform: scaleX(-1);
+}
+
+.dock-bots {
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+}
+
+/* Overlapped avatars: each one tucks under the one before it. */
+.dock-bot {
+  --dock-surface-shadow: 0 0 0 2px var(--dock-badge-ring);
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 50%;
+  box-shadow: var(--dock-surface-shadow);
+  animation: dock-pop 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.dock-bot + .dock-bot {
+  margin-left: -8px;
+}
+
+/* The chip sits clear of the last avatar and its badges. */
+.dock-bot + .dock-more {
+  margin-left: 12px;
+}
+
+.dock-bot > svg,
+.dock-avatar-image {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.dock-more {
+  position: relative;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--dock-home-bg);
+  box-shadow: 0 0 0 2px var(--dock-badge-ring);
+  font-weight: 600;
+}
+
+.dock-badge {
+  position: absolute;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--dock-badge-ring);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* Messages are red, top right; goals waiting on the owner are yellow, bottom right. */
+.dock-badge-messages {
+  top: -5px;
+  background: var(--dock-red);
+  color: #fff;
+}
+
+.dock-badge-goals {
+  bottom: -5px;
+  background: var(--dock-yellow);
+  color: var(--dock-yellow-ink);
+}
+
+@keyframes dock-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-bot {
+    animation: none;
+  }
+}
+
+/* The composer panel: an input, the "@" list, and a bar with the target chip and Send. */
+.dock-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 320px;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--dock-bg);
+  box-shadow:
+    var(--dock-shadow),
+    inset 0 0 0 0.5px var(--dock-edge);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+  color: var(--dock-ink);
+}
+
+.dock-composer-frame[data-visible] .dock-composer {
+  animation: dock-pop 160ms ease-out both;
+}
+
+.dock-composer button {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: default;
+}
+
+.dock-composer-empty {
+  margin: 0;
+  padding: 8px 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+.dock-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 64px;
+  max-height: 140px;
+  resize: none;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  outline: none;
+  background: var(--dock-home-bg);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  user-select: text;
+  cursor: text;
+}
+
+.dock-input::placeholder {
+  color: inherit;
+  opacity: 0.5;
+}
+
+.dock-input:disabled {
+  opacity: 0.6;
+}
+
+.dock-composer-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dock-mini {
+  display: block;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.dock-target {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 160px;
+  height: 28px;
+  padding: 0 10px 0 4px;
+  border-radius: 999px;
+  background: var(--dock-home-bg);
+  font-size: 12px;
+  transition: background-color 120ms ease;
+}
+
+.dock-target:hover {
+  background: var(--dock-home-hover);
+}
+
+.dock-target-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dock-status {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.dock-status[data-status="failed"],
+.dock-status[data-status="invalid"] {
+  color: var(--dock-red);
+  opacity: 1;
+}
+
+.dock-send {
+  flex: none;
+  height: 28px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #0a84ff;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dock-send:disabled {
+  opacity: 0.4;
+}
+
+.dock-picker {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 168px;
+  overflow-y: auto;
+  border-radius: 12px;
+  background: var(--dock-home-bg);
+}
+
+.dock-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.dock-picker-item[data-active="true"] {
+  background: var(--dock-home-hover);
+}
+
+.dock-picker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Pasted or dropped files wait here until the message is sent: pictures as small thumbnails,
+   other files as a chip with the name and size. Many files scroll instead of growing the panel. */
+.dock-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 112px;
+  padding: 6px 6px 0 0;
+  overflow-y: auto;
+}
+
+.dock-attachment {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 56px;
+  border-radius: 10px;
+  background: var(--dock-home-bg);
+  box-shadow: inset 0 0 0 0.5px var(--dock-edge);
+}
+
+.dock-attachment[data-kind="image"] {
+  width: 56px;
+}
+
+.dock-attachment[data-kind="file"] {
+  max-width: 100%;
+  min-width: 112px;
+  padding: 0 14px 0 10px;
+}
+
+.dock-attachment > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.dock-file-icon {
+  flex: none;
+  opacity: 0.7;
+}
+
+.dock-file-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dock-file-name {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.dock-file-size {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.dock-composer .dock-attachment-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--dock-ink);
+  color: var(--dock-badge-ring);
+  box-shadow: 0 0 0 2px var(--dock-badge-ring);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.dock-composer .dock-attachment-remove:disabled {
+  opacity: 0.4;
+}
+
+/* The invitation grows the frame once. The shake moves only the capsule so its bounds
+   do not affect the window size or the drop target. */
+.dock-frame[data-dropping="true"] {
+  zoom: 1.95;
+}
+
+.dock-frame[data-invitation-visible] .dock-capsule {
+  animation: dock-flash 700ms ease-in-out infinite;
+}
+
+.dock-frame[data-invitation-visible]:where([data-drop-target="true"]:not([data-message-shake="true"]))
+  .dock-capsule {
+  animation: dock-flash 700ms ease-in-out infinite, dock-shake 3s ease-in-out infinite;
+}
+
+.dock-frame[data-message-shake="true"] .dock-message-motion {
+  animation: dock-shake 3s ease-in-out 2;
+}
+
+@keyframes dock-shake {
+  0%,
+  15%,
+  100% {
+    transform: translateX(0);
+  }
+  3% {
+    transform: translateX(-3px);
+  }
+  6% {
+    transform: translateX(3px);
+  }
+  9% {
+    transform: translateX(-2px);
+  }
+  12% {
+    transform: translateX(2px);
+  }
+}
+
+.dock-frame[data-invitation-visible] .dock-bot {
+  animation: dock-flash 700ms ease-in-out infinite;
+}
+
+@keyframes dock-flash {
+  0%,
+  100% {
+    box-shadow:
+      var(--dock-surface-shadow),
+      0 0 8px 2px rgb(var(--dock-invitation-rgb) / 55%);
+  }
+  50% {
+    box-shadow:
+      var(--dock-surface-shadow),
+      0 0 12px 4px rgb(var(--dock-invitation-rgb));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-composer-frame[data-visible] .dock-composer {
+    animation: none;
+  }
+  .dock-drop-target {
+    transition: none;
+  }
+  .dock-frame[data-message-shake="true"] .dock-message-motion {
+    animation-duration: 0s;
+  }
+  .dock-frame[data-invitation-visible] :is(.dock-capsule, .dock-bot) {
+    animation: none;
+    box-shadow:
+      var(--dock-surface-shadow),
+      0 0 10px 3px rgb(var(--dock-invitation-rgb) / 90%);
+  }
+}

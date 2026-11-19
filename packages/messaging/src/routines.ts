@@ -218,6 +218,7 @@ const EVENT_BLOCKS: Record<AutomationEvent["source"], string> = {
   sentry: "sentry_event",
   pagerduty: "pagerduty_event",
   email: "email_received",
+  plugin: "plugin_event",
   webhook: "webhook_event",
 };
 const eventBlock = (event: AutomationEvent) => {
@@ -233,6 +234,7 @@ const EVENT_SOURCE_LABELS: Record<AutomationEvent["source"], string> = {
   sentry: "Sentry",
   pagerduty: "PagerDuty",
   email: "Email",
+  plugin: "Plugin",
   webhook: "Webhook",
 };
 const escapeEventText = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -246,6 +248,8 @@ const describeWakeEvent = (event: AutomationEvent): string => {
     const subject = event.text.match(/^Subject: (.*)$/m)?.[1]?.trim() ?? text;
     return `Email from ${event.actor ?? "an unknown sender"} to ${event.channel ?? "your inbox"}: "${subject.length > 120 ? `${subject.slice(0, 119)}…` : subject}"`;
   }
+  if (event.source === "plugin")
+    return `${event.plugin ?? EVENT_SOURCE_LABELS.plugin} ${event.kind}${event.resourceId ? ` for ${event.resourceId}` : ""}${text ? `: "${text}"` : ""}${event.actor ? ` by ${event.actor}` : ""}`;
   const where = event.repo ?? event.channel ?? event.channelId;
   return `${EVENT_SOURCE_LABELS[event.source]} ${event.kind}${where ? ` in ${where}` : ""}${text ? `: "${text}"` : ""}${event.actor ? ` by ${event.actor}` : ""}`;
 };

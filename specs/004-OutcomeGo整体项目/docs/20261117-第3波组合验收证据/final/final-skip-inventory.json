@@ -1,0 +1,3796 @@
+{
+  "totalPackageSkips": 82,
+  "skips": [
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/file-watcher-runtime.test.ts",
+      "title": "file watcher drains a burst and receives later changes without spinning",
+      "rawLine": 78,
+      "source": "apps/computer/test/file-watcher-runtime.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "test.skipIf(process.platform !== \"linux\")(\"file watcher drains a burst and receives later changes without spinning\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/box-clock.integration.test.ts",
+      "title": "the box clock runs in the configured time zone",
+      "rawLine": 101,
+      "source": "apps/computer/test/box-clock.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "const zone = process.env.OUTCOMEGO_TEST_TIME_ZONE;"
+        },
+        {
+          "sourceLine": 10,
+          "condition": "const inImage = Boolean(process.env.OUTCOMEGO_COMPUTER_TEST_URL && zone);"
+        },
+        {
+          "sourceLine": 33,
+          "condition": "test.skipIf(inImage)(\"the computer image ships the clock script and zone data\", async () => {"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!inImage)(\"the box clock runs in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 50,
+          "condition": "test.skipIf(!inImage)(\"file mtimes read in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 61,
+          "condition": "test.skipIf(!inImage)(\"the clock script resolves letter case and refuses unknown zones\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/box-clock.integration.test.ts",
+      "title": "file mtimes read in the configured time zone",
+      "rawLine": 102,
+      "source": "apps/computer/test/box-clock.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "const zone = process.env.OUTCOMEGO_TEST_TIME_ZONE;"
+        },
+        {
+          "sourceLine": 10,
+          "condition": "const inImage = Boolean(process.env.OUTCOMEGO_COMPUTER_TEST_URL && zone);"
+        },
+        {
+          "sourceLine": 33,
+          "condition": "test.skipIf(inImage)(\"the computer image ships the clock script and zone data\", async () => {"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!inImage)(\"the box clock runs in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 50,
+          "condition": "test.skipIf(!inImage)(\"file mtimes read in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 61,
+          "condition": "test.skipIf(!inImage)(\"the clock script resolves letter case and refuses unknown zones\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/box-clock.integration.test.ts",
+      "title": "the clock script resolves letter case and refuses unknown zones",
+      "rawLine": 103,
+      "source": "apps/computer/test/box-clock.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "const zone = process.env.OUTCOMEGO_TEST_TIME_ZONE;"
+        },
+        {
+          "sourceLine": 10,
+          "condition": "const inImage = Boolean(process.env.OUTCOMEGO_COMPUTER_TEST_URL && zone);"
+        },
+        {
+          "sourceLine": 33,
+          "condition": "test.skipIf(inImage)(\"the computer image ships the clock script and zone data\", async () => {"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!inImage)(\"the box clock runs in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 50,
+          "condition": "test.skipIf(!inImage)(\"file mtimes read in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 61,
+          "condition": "test.skipIf(!inImage)(\"the clock script resolves letter case and refuses unknown zones\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-stream.integration.test.ts",
+      "title": "live computer video produces continuous JPEGs and releases encoders on cancel",
+      "rawLine": 147,
+      "source": "apps/computer/test/screen-stream.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_CUA_DESKTOP_TESTS !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-process-linux.test.ts",
+      "title": "dropped child identity, private-file denial, cancellation and scoped ownership",
+      "rawLine": 160,
+      "source": "apps/computer/test/agent-process-linux.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 11,
+          "condition": "const enabled = process.platform === \"linux\" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === \"1\";"
+        },
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(!enabled)(\"dropped child identity, private-file denial, cancellation and scoped ownership\", async () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "test.skipIf(!enabled)(\"restricted file transfer writes intact bytes and cancels without replacing a destination\", async () => {"
+        },
+        {
+          "sourceLine": 82,
+          "condition": "test.skipIf(!enabled)(\"native shell keeps its dropped identity and persists environment through a host-private capture\", async () => {"
+        },
+        {
+          "sourceLine": 99,
+          "condition": "test.skipIf(!enabled)(\"actual restricted desktop starts VNC and Chrome and destroys its child processes\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-process-linux.test.ts",
+      "title": "restricted file transfer writes intact bytes and cancels without replacing a destination",
+      "rawLine": 161,
+      "source": "apps/computer/test/agent-process-linux.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 11,
+          "condition": "const enabled = process.platform === \"linux\" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === \"1\";"
+        },
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(!enabled)(\"dropped child identity, private-file denial, cancellation and scoped ownership\", async () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "test.skipIf(!enabled)(\"restricted file transfer writes intact bytes and cancels without replacing a destination\", async () => {"
+        },
+        {
+          "sourceLine": 82,
+          "condition": "test.skipIf(!enabled)(\"native shell keeps its dropped identity and persists environment through a host-private capture\", async () => {"
+        },
+        {
+          "sourceLine": 99,
+          "condition": "test.skipIf(!enabled)(\"actual restricted desktop starts VNC and Chrome and destroys its child processes\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-process-linux.test.ts",
+      "title": "native shell keeps its dropped identity and persists environment through a host-private capture",
+      "rawLine": 162,
+      "source": "apps/computer/test/agent-process-linux.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 11,
+          "condition": "const enabled = process.platform === \"linux\" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === \"1\";"
+        },
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(!enabled)(\"dropped child identity, private-file denial, cancellation and scoped ownership\", async () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "test.skipIf(!enabled)(\"restricted file transfer writes intact bytes and cancels without replacing a destination\", async () => {"
+        },
+        {
+          "sourceLine": 82,
+          "condition": "test.skipIf(!enabled)(\"native shell keeps its dropped identity and persists environment through a host-private capture\", async () => {"
+        },
+        {
+          "sourceLine": 99,
+          "condition": "test.skipIf(!enabled)(\"actual restricted desktop starts VNC and Chrome and destroys its child processes\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-process-linux.test.ts",
+      "title": "actual restricted desktop starts VNC and Chrome and destroys its child processes",
+      "rawLine": 163,
+      "source": "apps/computer/test/agent-process-linux.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 11,
+          "condition": "const enabled = process.platform === \"linux\" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === \"1\";"
+        },
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(!enabled)(\"dropped child identity, private-file denial, cancellation and scoped ownership\", async () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "test.skipIf(!enabled)(\"restricted file transfer writes intact bytes and cancels without replacing a destination\", async () => {"
+        },
+        {
+          "sourceLine": 82,
+          "condition": "test.skipIf(!enabled)(\"native shell keeps its dropped identity and persists environment through a host-private capture\", async () => {"
+        },
+        {
+          "sourceLine": 99,
+          "condition": "test.skipIf(!enabled)(\"actual restricted desktop starts VNC and Chrome and destroys its child processes\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/task-capabilities.integration.test.ts",
+      "title": "the packaged computer advertises its desktop to Task workers",
+      "rawLine": 453,
+      "source": "apps/computer/test/task-capabilities.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 5,
+          "condition": "const gateway = process.env.OUTCOMEGO_COMPUTER_TEST_URL;"
+        },
+        {
+          "sourceLine": 7,
+          "condition": "test.skipIf(!gateway)("
+        },
+        {
+          "sourceLine": 15,
+          "condition": "headers: { authorization: `Bearer ${process.env.OUTCOMEGO_CONTROL_TOKEN}` },"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/desktop-memory.integration.test.ts",
+      "title": "10 GiB is per desktop and inherited by ordinary and sudo descendants",
+      "rawLine": 466,
+      "source": "apps/computer/test/desktop-memory.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 7,
+          "condition": "const enabled = process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY === \"1\" && process.platform === \"linux\";"
+        },
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!enabled)(\"10 GiB is per desktop and inherited by ordinary and sudo descendants\", async () => {"
+        },
+        {
+          "sourceLine": 21,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 22,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"10g\";"
+        },
+        {
+          "sourceLine": 49,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 53,
+          "condition": "test.skipIf(!enabled)(\"an over-budget desktop OOM leaves its peer and supervisor alive\", async () => {"
+        },
+        {
+          "sourceLine": 54,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 55,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"128m\";"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 80,
+          "condition": "test.skipIf(!enabled)(\"capped launch retains cancellation and process-group signalling\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/desktop-memory.integration.test.ts",
+      "title": "an over-budget desktop OOM leaves its peer and supervisor alive",
+      "rawLine": 467,
+      "source": "apps/computer/test/desktop-memory.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 7,
+          "condition": "const enabled = process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY === \"1\" && process.platform === \"linux\";"
+        },
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!enabled)(\"10 GiB is per desktop and inherited by ordinary and sudo descendants\", async () => {"
+        },
+        {
+          "sourceLine": 21,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 22,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"10g\";"
+        },
+        {
+          "sourceLine": 49,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 53,
+          "condition": "test.skipIf(!enabled)(\"an over-budget desktop OOM leaves its peer and supervisor alive\", async () => {"
+        },
+        {
+          "sourceLine": 54,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 55,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"128m\";"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 80,
+          "condition": "test.skipIf(!enabled)(\"capped launch retains cancellation and process-group signalling\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/desktop-memory.integration.test.ts",
+      "title": "capped launch retains cancellation and process-group signalling",
+      "rawLine": 468,
+      "source": "apps/computer/test/desktop-memory.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 7,
+          "condition": "const enabled = process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY === \"1\" && process.platform === \"linux\";"
+        },
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!enabled)(\"10 GiB is per desktop and inherited by ordinary and sudo descendants\", async () => {"
+        },
+        {
+          "sourceLine": 21,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 22,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"10g\";"
+        },
+        {
+          "sourceLine": 49,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 53,
+          "condition": "test.skipIf(!enabled)(\"an over-budget desktop OOM leaves its peer and supervisor alive\", async () => {"
+        },
+        {
+          "sourceLine": 54,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 55,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"128m\";"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 80,
+          "condition": "test.skipIf(!enabled)(\"capped launch retains cancellation and process-group signalling\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-store-permissions.integration.test.ts",
+      "title": "the server UID can remove shared agent files created by the supervisor",
+      "rawLine": 630,
+      "source": "apps/computer/test/agent-store-permissions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf("
+        },
+        {
+          "sourceLine": 9,
+          "condition": "process.platform !== \"linux\" || process.getuid?.() !== 0 || process.getgid?.() !== 1000"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > (unnamed)",
+      "rawLine": 633,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > repeated pointer coordinates return promptly",
+      "rawLine": 634,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > repeated clicks deliver all 40 trusted inputs without coordinate stalls",
+      "rawLine": 635,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > key modifiers select text and leave subsequent keys unmodified",
+      "rawLine": 636,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > normalizes common key aliases and rejects unknown key names",
+      "rawLine": 637,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > held clicks last for the requested duration and cancellation releases the button",
+      "rawLine": 638,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > types exact multilingual text, emoji and newline with an inherited C locale",
+      "rawLine": 639,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > types more unique Unicode characters than spare keycodes and restores the keymap",
+      "rawLine": 640,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > drag paths tolerate repeated waypoints and release the button",
+      "rawLine": 641,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > (unnamed)",
+      "rawLine": 642,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-concurrent-desktop.integration.test.ts",
+      "title": "concurrent desktops, shared input, interruption and multiple VNC viewers",
+      "rawLine": 788,
+      "source": "apps/computer/test/screen-concurrent-desktop.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_CUA_DESKTOP_TESTS !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-desktop.integration.test.ts",
+      "title": "full desktop multilingual typing",
+      "rawLine": 1280,
+      "source": "apps/computer/test/screen-desktop.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_CUA_DESKTOP_TESTS !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/desktop-memory-ui.integration.test.ts",
+      "title": "two capped headed desktops preserve UI and tabs while one hits its memory limit",
+      "rawLine": 1406,
+      "source": "apps/computer/test/desktop-memory-ui.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 12,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY !== \"1\")(\"two capped headed desktops preserve UI and tabs while one hits its memory limit\", async () => {"
+        },
+        {
+          "sourceLine": 18,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 88,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT='512m';"
+        },
+        {
+          "sourceLine": 94,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT=before;"
+        },
+        {
+          "sourceLine": 102,
+          "condition": "if(process.env.OUTCOMEGO_MEMORY_TEST_ARTIFACTS) await writeFile(`${process.env.OUTCOMEGO_MEMORY_TEST_ARTIFACTS}/desktop-${i}.png`,png);"
+        },
+        {
+          "sourceLine": 106,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT=before;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > (unnamed)",
+      "rawLine": 1426,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > successive fresh owners paste exact Unicode, multiline and large text",
+      "rawLine": 1427,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > copy and cut return the current Unicode selection and cut removes it",
+      "rawLine": 1428,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > canceled paste sends no input or clipboard owner",
+      "rawLine": 1429,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > (unnamed)",
+      "rawLine": 1430,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/runtime/collaboration-plugins.test.ts",
+      "title": "all original Granola commands and its agent dispatch from the pinned provider source",
+      "rawLine": 2686,
+      "source": "apps/computer/test/runtime/collaboration-plugins.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 128,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/cross-origin-form.integration.test.ts",
+      "title": "form values fill a cross-origin card frame and refuse an insecure foreign frame",
+      "rawLine": 2890,
+      "source": "apps/computer/test/browser/cross-origin-form.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 18,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"form values fill a cross-origin card frame and refuse an insecure foreign frame\", async () => {"
+        },
+        {
+          "sourceLine": 24,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/interactive-descendants.integration.test.ts",
+      "title": "delegated click containers retain independently actionable descendants",
+      "rawLine": 2903,
+      "source": "apps/computer/test/browser/interactive-descendants.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('delegated click containers retain independently actionable descendants', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/aria-states.integration.test.ts",
+      "title": "ARIA control states remain observable before and after clicks",
+      "rawLine": 2906,
+      "source": "apps/computer/test/browser/aria-states.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('ARIA control states remain observable before and after clicks', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/native-range-bounds.integration.test.ts",
+      "title": "native numeric control constraints remain observable after keyboard changes",
+      "rawLine": 2909,
+      "source": "apps/computer/test/browser/native-range-bounds.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('native numeric control constraints remain observable after keyboard changes', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/reference-actions.integration.test.ts",
+      "title": "reference browser actions execute against a real synthetic page",
+      "rawLine": 2915,
+      "source": "apps/computer/test/browser/reference-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("
+        },
+        {
+          "sourceLine": 24,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/range-states.integration.test.ts",
+      "title": "custom range values expose actual transitions and preserve private-value redaction",
+      "rawLine": 2918,
+      "source": "apps/computer/test/browser/range-states.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('custom range values expose actual transitions and preserve private-value redaction', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/wait-duplicate-text.integration.test.ts",
+      "title": "text waits consider visible duplicates, not only the first match",
+      "rawLine": 2921,
+      "source": "apps/computer/test/browser/wait-duplicate-text.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"text waits consider visible duplicates, not only the first match\", async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser = await driver.playwright.chromium.launch({headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/svg-controls.integration.test.ts",
+      "title": "SVG controls remain discoverable and actionable",
+      "rawLine": 2924,
+      "source": "apps/computer/test/browser/svg-controls.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('SVG controls remain discoverable and actionable', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/temporal-input.integration.test.ts",
+      "title": "temporal controls identify their type and recover from unsupported typing through fill",
+      "rawLine": 2927,
+      "source": "apps/computer/test/browser/temporal-input.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"temporal controls identify their type and recover from unsupported typing through fill\", async () => {"
+        },
+        {
+          "sourceLine": 17,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/select-snapshot.integration.test.ts",
+      "title": "snapshots expose native dropdown choices and current selections without JavaScript inspection",
+      "rawLine": 2938,
+      "source": "apps/computer/test/browser/select-snapshot.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"snapshots expose native dropdown choices and current selections without JavaScript inspection\", async () => {"
+        },
+        {
+          "sourceLine": 17,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: process.platform === \"linux\" ? [\"--no-sandbox\"] : [] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/form-document-binding.integration.test.ts",
+      "title": "reviewed form documents survive host restart, refuse reload, and explicitly remap without submit",
+      "rawLine": 2941,
+      "source": "apps/computer/test/browser/form-document-binding.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 10,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"reviewed form documents survive host restart, refuse reload, and explicitly remap without submit\", async () => {"
+        },
+        {
+          "sourceLine": 16,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: [\"--no-sandbox\"] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/click-budget.integration.test.ts",
+      "title": "blocked clicks yield promptly without forcing or replaying; transient blockers still settle",
+      "rawLine": 2961,
+      "source": "apps/computer/test/browser/click-budget.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"blocked clicks yield promptly without forcing or replaying; transient blockers still settle\", async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser = await driver.playwright.chromium.launch({headless:true, executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code.integration.test.ts",
+      "title": "batched Playwright scripts, fresh globals, tab selection, failures and limits on real Chromium",
+      "rawLine": 2965,
+      "source": "apps/computer/test/browser/run-code.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"batched Playwright scripts, fresh globals, tab selection, failures and limits on real Chromium\", async () => {"
+        },
+        {
+          "sourceLine": 35,
+          "condition": "executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless:true, args:[\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > (unnamed)",
+      "rawLine": 2968,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > refs from browser_snapshot work as aria-ref locators across calls and tools until re-rendered",
+      "rawLine": 2969,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > page.ariaSnapshot({ mode: 'ai' }) mints refs shared with browser tools; other modes stay stock",
+      "rawLine": 2970,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > image Blobs return as named images, at most four, and PDF Blobs are saved to the workspace",
+      "rawLine": 2971,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > blocked APIs fail with policy_denied naming the API",
+      "rawLine": 2972,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > uploads accept workspace paths, in-memory files and a chooser from an earlier call",
+      "rawLine": 2973,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > downloads land in the Downloads folder under Chrome's names and outlive the script",
+      "rawLine": 2974,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > actions time out after 5 s unless given a timeout; navigation keeps 30 s; failures carry codes",
+      "rawLine": 2975,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > each call has a page and only the documented globals",
+      "rawLine": 2976,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > (unnamed)",
+      "rawLine": 2977,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/label-toggle.integration.test.ts",
+      "title": "visible labels expose refs and checked state for styled native toggles",
+      "rawLine": 2980,
+      "source": "apps/computer/test/browser/label-toggle.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('visible labels expose refs and checked state for styled native toggles', async () => {"
+        },
+        {
+          "sourceLine": 21,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/stable-ref-lifetime.integration.test.ts",
+      "title": "stable refs survive find and scoped observations, retire on navigation, and upgrade live positional documents",
+      "rawLine": 2993,
+      "source": "apps/computer/test/browser/stable-ref-lifetime.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 10,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"stable refs survive find and scoped observations, retire on navigation, and upgrade live positional documents\", async () => {"
+        },
+        {
+          "sourceLine": 15,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: [\"--no-sandbox\"] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-recovery.integration.test.ts",
+      "title": "script recovery preserves frames, tab selection, logs and upload handoffs",
+      "rawLine": 2996,
+      "source": "apps/computer/test/browser/run-code-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"script recovery preserves frames, tab selection, logs and upload handoffs\", async () => {"
+        },
+        {
+          "sourceLine": 29,
+          "condition": "executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless:true, args:[\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/reference-dom.integration.test.ts",
+      "title": "reference snapshots and fills handle shadow DOM, cross-origin frames, controlled inputs, OTP and remaps",
+      "rawLine": 3017,
+      "source": "apps/computer/test/browser/reference-dom.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"reference snapshots and fills handle shadow DOM, cross-origin frames, controlled inputs, OTP and remaps\",async()=>{"
+        },
+        {
+          "sourceLine": 16,
+          "condition": "const driver=await outOfProcessPlaywright();const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});const context=await browser.newContext();const session=new (BrowserUseSession as any)(browser,context,root) as BrowserUseSession;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/find.integration.test.ts",
+      "title": "find recovers generic text, shadow/frame content and actionable refs; typing rejects non-editable targets without clicking",
+      "rawLine": 3021,
+      "source": "apps/computer/test/browser/find.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('find recovers generic text, shadow/frame content and actionable refs; typing rejects non-editable targets without clicking', async () => {"
+        },
+        {
+          "sourceLine": 31,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/textarea-snapshot.integration.test.ts",
+      "title": "textarea snapshots preserve line boundaries with bounded, redacted values",
+      "rawLine": 3029,
+      "source": "apps/computer/test/browser/textarea-snapshot.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"textarea snapshots preserve line boundaries with bounded, redacted values\", async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/form-select.integration.test.ts",
+      "title": "form values fill native dropdowns by expiry, country code, number, and visible label",
+      "rawLine": 3032,
+      "source": "apps/computer/test/browser/form-select.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"form values fill native dropdowns by expiry, country code, number, and visible label\", async () => {"
+        },
+        {
+          "sourceLine": 23,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: [\"--no-sandbox\"] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/dom-observation.integration.test.ts",
+      "title": "DOM observations supply actionable refs, preserve private text masking, and allow explicit images",
+      "rawLine": 3035,
+      "source": "apps/computer/test/browser/dom-observation.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"DOM observations supply actionable refs, preserve private text masking, and allow explicit images\", async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser = await driver.playwright.chromium.launch({headless:true, executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/hover-console.integration.test.ts",
+      "title": "hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls",
+      "rawLine": 3042,
+      "source": "apps/computer/test/browser/hover-console.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls', async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 45,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions', async () => {"
+        },
+        {
+          "sourceLine": 48,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 73,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('snapshot exposes focusable hover containers and inherited disabled state without hiding child controls', async () => {"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/hover-console.integration.test.ts",
+      "title": "waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions",
+      "rawLine": 3043,
+      "source": "apps/computer/test/browser/hover-console.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls', async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 45,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions', async () => {"
+        },
+        {
+          "sourceLine": 48,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 73,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('snapshot exposes focusable hover containers and inherited disabled state without hiding child controls', async () => {"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/hover-console.integration.test.ts",
+      "title": "snapshot exposes focusable hover containers and inherited disabled state without hiding child controls",
+      "rawLine": 3044,
+      "source": "apps/computer/test/browser/hover-console.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls', async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 45,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions', async () => {"
+        },
+        {
+          "sourceLine": 48,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 73,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('snapshot exposes focusable hover containers and inherited disabled state without hiding child controls', async () => {"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/batch-form.integration.test.ts",
+      "title": "batch fills text and checkbox states, and stops after unavailable targets",
+      "rawLine": 3067,
+      "source": "apps/computer/test/browser/batch-form.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 7,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('batch fills text and checkbox states, and stops after unavailable targets',async()=>{"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/browser-network.test.ts",
+      "title": "connected device browser network > real Chromium HTTP/HTTPS, uploads, downloads, WS/WSS and workers use Node proxy and desktop exit",
+      "rawLine": 665,
+      "source": "apps/server/test/browser-network.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 37,
+          "condition": "process.env.CHROME_PATH,"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/asset-session.integration.test.ts",
+      "title": "private attachment GET/HEAD/ranges require a valid owner session",
+      "rawLine": 1343,
+      "source": "apps/server/test/asset-session.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 5,
+          "condition": "const enabled = process.env.OUTCOMEGO_SWIFT_REAL_QA === \"1\";"
+        },
+        {
+          "sourceLine": 6,
+          "condition": "test.skipIf(!enabled)(\"private attachment GET/HEAD/ranges require a valid owner session\", async () => {"
+        },
+        {
+          "sourceLine": 7,
+          "condition": "const control = process.env.OUTCOMEGO_ASSET_QA_CONTROL_URL ?? \"http://127.0.0.1:20022\";"
+        },
+        {
+          "sourceLine": 8,
+          "condition": "const base = process.env.OUTCOMEGO_ASSET_QA_URL ?? \"http://127.0.0.1:20020\";"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "startup preserves uncheckpointed obligations and schedules one reconciliation",
+      "rawLine": 1479,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "startup fences new queue claims while it stops old Pi contexts",
+      "rawLine": 1480,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "an exhausted foreground recovery posts one resend notice instead of another continuation",
+      "rawLine": 1481,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "a failed context stop rolls recovery back without queuing duplicate work",
+      "rawLine": 1482,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "recovery exhaustion leaves an explicit parent-owned blocker with no automatic timer",
+      "rawLine": 1483,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "a parked helper never holds an update and resumes after the restart that update causes",
+      "rawLine": 1484,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/plugin/upstream-source.integration.test.ts",
+      "title": "pinned provider originals install, export, and materialize with exact source bytes",
+      "rawLine": 1904,
+      "source": "apps/server/test/plugin/upstream-source.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "title": "granola: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "rawLine": 1924,
+      "source": "apps/server/test/plugin/catalog-lifecycle.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 16,
+          "condition": "const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 18,
+          "condition": "test.skipIf("
+        },
+        {
+          "sourceLine": 21,
+          "condition": "process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")"
+        },
+        {
+          "sourceLine": 26,
+          "condition": "const previousRoot = process.env.OUTCOMEGO_AGENT_DATA_ROOT;"
+        },
+        {
+          "sourceLine": 27,
+          "condition": "process.env.OUTCOMEGO_AGENT_DATA_ROOT = root;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "title": "notion: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "rawLine": 1926,
+      "source": "apps/server/test/plugin/catalog-lifecycle.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 16,
+          "condition": "const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 18,
+          "condition": "test.skipIf("
+        },
+        {
+          "sourceLine": 21,
+          "condition": "process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")"
+        },
+        {
+          "sourceLine": 26,
+          "condition": "const previousRoot = process.env.OUTCOMEGO_AGENT_DATA_ROOT;"
+        },
+        {
+          "sourceLine": 27,
+          "condition": "process.env.OUTCOMEGO_AGENT_DATA_ROOT = root;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker-after61",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "startup cannot pass the dispatch fence until the computer has accepted the turn",
+      "rawLine": 213,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker-after61",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "a claimed turn invalidated by startup is never sent to the computer afterwards",
+      "rawLine": 214,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker-after61",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "dispatch timeout aborts the request and releases recovery's lock",
+      "rawLine": 215,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    }
+  ],
+  "allObservedSkipOccurrences": [
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/file-watcher-runtime.test.ts",
+      "title": "file watcher drains a burst and receives later changes without spinning",
+      "rawLine": 78,
+      "source": "apps/computer/test/file-watcher-runtime.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "test.skipIf(process.platform !== \"linux\")(\"file watcher drains a burst and receives later changes without spinning\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/box-clock.integration.test.ts",
+      "title": "the box clock runs in the configured time zone",
+      "rawLine": 101,
+      "source": "apps/computer/test/box-clock.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "const zone = process.env.OUTCOMEGO_TEST_TIME_ZONE;"
+        },
+        {
+          "sourceLine": 10,
+          "condition": "const inImage = Boolean(process.env.OUTCOMEGO_COMPUTER_TEST_URL && zone);"
+        },
+        {
+          "sourceLine": 33,
+          "condition": "test.skipIf(inImage)(\"the computer image ships the clock script and zone data\", async () => {"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!inImage)(\"the box clock runs in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 50,
+          "condition": "test.skipIf(!inImage)(\"file mtimes read in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 61,
+          "condition": "test.skipIf(!inImage)(\"the clock script resolves letter case and refuses unknown zones\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/box-clock.integration.test.ts",
+      "title": "file mtimes read in the configured time zone",
+      "rawLine": 102,
+      "source": "apps/computer/test/box-clock.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "const zone = process.env.OUTCOMEGO_TEST_TIME_ZONE;"
+        },
+        {
+          "sourceLine": 10,
+          "condition": "const inImage = Boolean(process.env.OUTCOMEGO_COMPUTER_TEST_URL && zone);"
+        },
+        {
+          "sourceLine": 33,
+          "condition": "test.skipIf(inImage)(\"the computer image ships the clock script and zone data\", async () => {"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!inImage)(\"the box clock runs in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 50,
+          "condition": "test.skipIf(!inImage)(\"file mtimes read in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 61,
+          "condition": "test.skipIf(!inImage)(\"the clock script resolves letter case and refuses unknown zones\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/box-clock.integration.test.ts",
+      "title": "the clock script resolves letter case and refuses unknown zones",
+      "rawLine": 103,
+      "source": "apps/computer/test/box-clock.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "const zone = process.env.OUTCOMEGO_TEST_TIME_ZONE;"
+        },
+        {
+          "sourceLine": 10,
+          "condition": "const inImage = Boolean(process.env.OUTCOMEGO_COMPUTER_TEST_URL && zone);"
+        },
+        {
+          "sourceLine": 33,
+          "condition": "test.skipIf(inImage)(\"the computer image ships the clock script and zone data\", async () => {"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!inImage)(\"the box clock runs in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 50,
+          "condition": "test.skipIf(!inImage)(\"file mtimes read in the configured time zone\", () => {"
+        },
+        {
+          "sourceLine": 61,
+          "condition": "test.skipIf(!inImage)(\"the clock script resolves letter case and refuses unknown zones\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-stream.integration.test.ts",
+      "title": "live computer video produces continuous JPEGs and releases encoders on cancel",
+      "rawLine": 147,
+      "source": "apps/computer/test/screen-stream.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_CUA_DESKTOP_TESTS !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-process-linux.test.ts",
+      "title": "dropped child identity, private-file denial, cancellation and scoped ownership",
+      "rawLine": 160,
+      "source": "apps/computer/test/agent-process-linux.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 11,
+          "condition": "const enabled = process.platform === \"linux\" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === \"1\";"
+        },
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(!enabled)(\"dropped child identity, private-file denial, cancellation and scoped ownership\", async () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "test.skipIf(!enabled)(\"restricted file transfer writes intact bytes and cancels without replacing a destination\", async () => {"
+        },
+        {
+          "sourceLine": 82,
+          "condition": "test.skipIf(!enabled)(\"native shell keeps its dropped identity and persists environment through a host-private capture\", async () => {"
+        },
+        {
+          "sourceLine": 99,
+          "condition": "test.skipIf(!enabled)(\"actual restricted desktop starts VNC and Chrome and destroys its child processes\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-process-linux.test.ts",
+      "title": "restricted file transfer writes intact bytes and cancels without replacing a destination",
+      "rawLine": 161,
+      "source": "apps/computer/test/agent-process-linux.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 11,
+          "condition": "const enabled = process.platform === \"linux\" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === \"1\";"
+        },
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(!enabled)(\"dropped child identity, private-file denial, cancellation and scoped ownership\", async () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "test.skipIf(!enabled)(\"restricted file transfer writes intact bytes and cancels without replacing a destination\", async () => {"
+        },
+        {
+          "sourceLine": 82,
+          "condition": "test.skipIf(!enabled)(\"native shell keeps its dropped identity and persists environment through a host-private capture\", async () => {"
+        },
+        {
+          "sourceLine": 99,
+          "condition": "test.skipIf(!enabled)(\"actual restricted desktop starts VNC and Chrome and destroys its child processes\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-process-linux.test.ts",
+      "title": "native shell keeps its dropped identity and persists environment through a host-private capture",
+      "rawLine": 162,
+      "source": "apps/computer/test/agent-process-linux.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 11,
+          "condition": "const enabled = process.platform === \"linux\" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === \"1\";"
+        },
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(!enabled)(\"dropped child identity, private-file denial, cancellation and scoped ownership\", async () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "test.skipIf(!enabled)(\"restricted file transfer writes intact bytes and cancels without replacing a destination\", async () => {"
+        },
+        {
+          "sourceLine": 82,
+          "condition": "test.skipIf(!enabled)(\"native shell keeps its dropped identity and persists environment through a host-private capture\", async () => {"
+        },
+        {
+          "sourceLine": 99,
+          "condition": "test.skipIf(!enabled)(\"actual restricted desktop starts VNC and Chrome and destroys its child processes\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-process-linux.test.ts",
+      "title": "actual restricted desktop starts VNC and Chrome and destroys its child processes",
+      "rawLine": 163,
+      "source": "apps/computer/test/agent-process-linux.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 11,
+          "condition": "const enabled = process.platform === \"linux\" && process.getuid?.() === 0 && process.env.OUTCOMEGO_TEST_DROPPED_IDENTITY === \"1\";"
+        },
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(!enabled)(\"dropped child identity, private-file denial, cancellation and scoped ownership\", async () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "test.skipIf(!enabled)(\"restricted file transfer writes intact bytes and cancels without replacing a destination\", async () => {"
+        },
+        {
+          "sourceLine": 82,
+          "condition": "test.skipIf(!enabled)(\"native shell keeps its dropped identity and persists environment through a host-private capture\", async () => {"
+        },
+        {
+          "sourceLine": 99,
+          "condition": "test.skipIf(!enabled)(\"actual restricted desktop starts VNC and Chrome and destroys its child processes\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/task-capabilities.integration.test.ts",
+      "title": "the packaged computer advertises its desktop to Task workers",
+      "rawLine": 453,
+      "source": "apps/computer/test/task-capabilities.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 5,
+          "condition": "const gateway = process.env.OUTCOMEGO_COMPUTER_TEST_URL;"
+        },
+        {
+          "sourceLine": 7,
+          "condition": "test.skipIf(!gateway)("
+        },
+        {
+          "sourceLine": 15,
+          "condition": "headers: { authorization: `Bearer ${process.env.OUTCOMEGO_CONTROL_TOKEN}` },"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/desktop-memory.integration.test.ts",
+      "title": "10 GiB is per desktop and inherited by ordinary and sudo descendants",
+      "rawLine": 466,
+      "source": "apps/computer/test/desktop-memory.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 7,
+          "condition": "const enabled = process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY === \"1\" && process.platform === \"linux\";"
+        },
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!enabled)(\"10 GiB is per desktop and inherited by ordinary and sudo descendants\", async () => {"
+        },
+        {
+          "sourceLine": 21,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 22,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"10g\";"
+        },
+        {
+          "sourceLine": 49,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 53,
+          "condition": "test.skipIf(!enabled)(\"an over-budget desktop OOM leaves its peer and supervisor alive\", async () => {"
+        },
+        {
+          "sourceLine": 54,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 55,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"128m\";"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 80,
+          "condition": "test.skipIf(!enabled)(\"capped launch retains cancellation and process-group signalling\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/desktop-memory.integration.test.ts",
+      "title": "an over-budget desktop OOM leaves its peer and supervisor alive",
+      "rawLine": 467,
+      "source": "apps/computer/test/desktop-memory.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 7,
+          "condition": "const enabled = process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY === \"1\" && process.platform === \"linux\";"
+        },
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!enabled)(\"10 GiB is per desktop and inherited by ordinary and sudo descendants\", async () => {"
+        },
+        {
+          "sourceLine": 21,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 22,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"10g\";"
+        },
+        {
+          "sourceLine": 49,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 53,
+          "condition": "test.skipIf(!enabled)(\"an over-budget desktop OOM leaves its peer and supervisor alive\", async () => {"
+        },
+        {
+          "sourceLine": 54,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 55,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"128m\";"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 80,
+          "condition": "test.skipIf(!enabled)(\"capped launch retains cancellation and process-group signalling\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/desktop-memory.integration.test.ts",
+      "title": "capped launch retains cancellation and process-group signalling",
+      "rawLine": 468,
+      "source": "apps/computer/test/desktop-memory.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 7,
+          "condition": "const enabled = process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY === \"1\" && process.platform === \"linux\";"
+        },
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!enabled)(\"10 GiB is per desktop and inherited by ordinary and sudo descendants\", async () => {"
+        },
+        {
+          "sourceLine": 21,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 22,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"10g\";"
+        },
+        {
+          "sourceLine": 49,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 53,
+          "condition": "test.skipIf(!enabled)(\"an over-budget desktop OOM leaves its peer and supervisor alive\", async () => {"
+        },
+        {
+          "sourceLine": 54,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 55,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = \"128m\";"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT = before;"
+        },
+        {
+          "sourceLine": 80,
+          "condition": "test.skipIf(!enabled)(\"capped launch retains cancellation and process-group signalling\", async () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/agent-store-permissions.integration.test.ts",
+      "title": "the server UID can remove shared agent files created by the supervisor",
+      "rawLine": 630,
+      "source": "apps/computer/test/agent-store-permissions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf("
+        },
+        {
+          "sourceLine": 9,
+          "condition": "process.platform !== \"linux\" || process.getuid?.() !== 0 || process.getgid?.() !== 1000"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > (unnamed)",
+      "rawLine": 633,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > repeated pointer coordinates return promptly",
+      "rawLine": 634,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > repeated clicks deliver all 40 trusted inputs without coordinate stalls",
+      "rawLine": 635,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > key modifiers select text and leave subsequent keys unmodified",
+      "rawLine": 636,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > normalizes common key aliases and rejects unknown key names",
+      "rawLine": 637,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > held clicks last for the requested duration and cancellation releases the button",
+      "rawLine": 638,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > types exact multilingual text, emoji and newline with an inherited C locale",
+      "rawLine": 639,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > types more unique Unicode characters than spare keycodes and restores the keymap",
+      "rawLine": 640,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > drag paths tolerate repeated waypoints and release the button",
+      "rawLine": 641,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-actions.integration.test.ts",
+      "title": "real X11 computer input > (unnamed)",
+      "rawLine": 642,
+      "source": "apps/computer/test/screen-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "describe.skipIf("
+        },
+        {
+          "sourceLine": 10,
+          "condition": "process.platform !== \"linux\" ||"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-concurrent-desktop.integration.test.ts",
+      "title": "concurrent desktops, shared input, interruption and multiple VNC viewers",
+      "rawLine": 788,
+      "source": "apps/computer/test/screen-concurrent-desktop.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_CUA_DESKTOP_TESTS !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-desktop.integration.test.ts",
+      "title": "full desktop multilingual typing",
+      "rawLine": 1280,
+      "source": "apps/computer/test/screen-desktop.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_CUA_DESKTOP_TESTS !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/desktop-memory-ui.integration.test.ts",
+      "title": "two capped headed desktops preserve UI and tabs while one hits its memory limit",
+      "rawLine": 1406,
+      "source": "apps/computer/test/desktop-memory-ui.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 12,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_TEST_DESKTOP_MEMORY !== \"1\")(\"two capped headed desktops preserve UI and tabs while one hits its memory limit\", async () => {"
+        },
+        {
+          "sourceLine": 18,
+          "condition": "const before = process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT;"
+        },
+        {
+          "sourceLine": 88,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT='512m';"
+        },
+        {
+          "sourceLine": 94,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT=before;"
+        },
+        {
+          "sourceLine": 102,
+          "condition": "if(process.env.OUTCOMEGO_MEMORY_TEST_ARTIFACTS) await writeFile(`${process.env.OUTCOMEGO_MEMORY_TEST_ARTIFACTS}/desktop-${i}.png`,png);"
+        },
+        {
+          "sourceLine": 106,
+          "condition": "process.env.OUTCOMEGO_DESKTOP_MEMORY_LIMIT=before;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > (unnamed)",
+      "rawLine": 1426,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > successive fresh owners paste exact Unicode, multiline and large text",
+      "rawLine": 1427,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > copy and cut return the current Unicode selection and cut removes it",
+      "rawLine": 1428,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > canceled paste sends no input or clipboard owner",
+      "rawLine": 1429,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/screen-clipboard.integration.test.ts",
+      "title": "native clipboard > (unnamed)",
+      "rawLine": 1430,
+      "source": "apps/computer/test/screen-clipboard.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "describe.skipIf(process.platform !== \"linux\" || !Bun.which(\"Xvfb\") || !Bun.which(\"xclip\") || !existsSync(\"/usr/lib/outcomego/bin/google-chrome\"))(\"native clipboard\", () => {"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/runtime/collaboration-plugins.test.ts",
+      "title": "all original Granola commands and its agent dispatch from the pinned provider source",
+      "rawLine": 2686,
+      "source": "apps/computer/test/runtime/collaboration-plugins.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 128,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/cross-origin-form.integration.test.ts",
+      "title": "form values fill a cross-origin card frame and refuse an insecure foreign frame",
+      "rawLine": 2890,
+      "source": "apps/computer/test/browser/cross-origin-form.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 18,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"form values fill a cross-origin card frame and refuse an insecure foreign frame\", async () => {"
+        },
+        {
+          "sourceLine": 24,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/interactive-descendants.integration.test.ts",
+      "title": "delegated click containers retain independently actionable descendants",
+      "rawLine": 2903,
+      "source": "apps/computer/test/browser/interactive-descendants.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('delegated click containers retain independently actionable descendants', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/aria-states.integration.test.ts",
+      "title": "ARIA control states remain observable before and after clicks",
+      "rawLine": 2906,
+      "source": "apps/computer/test/browser/aria-states.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('ARIA control states remain observable before and after clicks', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/native-range-bounds.integration.test.ts",
+      "title": "native numeric control constraints remain observable after keyboard changes",
+      "rawLine": 2909,
+      "source": "apps/computer/test/browser/native-range-bounds.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('native numeric control constraints remain observable after keyboard changes', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/reference-actions.integration.test.ts",
+      "title": "reference browser actions execute against a real synthetic page",
+      "rawLine": 2915,
+      "source": "apps/computer/test/browser/reference-actions.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)("
+        },
+        {
+          "sourceLine": 24,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/range-states.integration.test.ts",
+      "title": "custom range values expose actual transitions and preserve private-value redaction",
+      "rawLine": 2918,
+      "source": "apps/computer/test/browser/range-states.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('custom range values expose actual transitions and preserve private-value redaction', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/wait-duplicate-text.integration.test.ts",
+      "title": "text waits consider visible duplicates, not only the first match",
+      "rawLine": 2921,
+      "source": "apps/computer/test/browser/wait-duplicate-text.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"text waits consider visible duplicates, not only the first match\", async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser = await driver.playwright.chromium.launch({headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/svg-controls.integration.test.ts",
+      "title": "SVG controls remain discoverable and actionable",
+      "rawLine": 2924,
+      "source": "apps/computer/test/browser/svg-controls.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('SVG controls remain discoverable and actionable', async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE,args:process.platform==='linux'?['--no-sandbox']:[]});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/temporal-input.integration.test.ts",
+      "title": "temporal controls identify their type and recover from unsupported typing through fill",
+      "rawLine": 2927,
+      "source": "apps/computer/test/browser/temporal-input.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 9,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"temporal controls identify their type and recover from unsupported typing through fill\", async () => {"
+        },
+        {
+          "sourceLine": 17,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/select-snapshot.integration.test.ts",
+      "title": "snapshots expose native dropdown choices and current selections without JavaScript inspection",
+      "rawLine": 2938,
+      "source": "apps/computer/test/browser/select-snapshot.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"snapshots expose native dropdown choices and current selections without JavaScript inspection\", async () => {"
+        },
+        {
+          "sourceLine": 17,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: process.platform === \"linux\" ? [\"--no-sandbox\"] : [] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/form-document-binding.integration.test.ts",
+      "title": "reviewed form documents survive host restart, refuse reload, and explicitly remap without submit",
+      "rawLine": 2941,
+      "source": "apps/computer/test/browser/form-document-binding.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 10,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"reviewed form documents survive host restart, refuse reload, and explicitly remap without submit\", async () => {"
+        },
+        {
+          "sourceLine": 16,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: [\"--no-sandbox\"] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/click-budget.integration.test.ts",
+      "title": "blocked clicks yield promptly without forcing or replaying; transient blockers still settle",
+      "rawLine": 2961,
+      "source": "apps/computer/test/browser/click-budget.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"blocked clicks yield promptly without forcing or replaying; transient blockers still settle\", async () => {"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser = await driver.playwright.chromium.launch({headless:true, executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code.integration.test.ts",
+      "title": "batched Playwright scripts, fresh globals, tab selection, failures and limits on real Chromium",
+      "rawLine": 2965,
+      "source": "apps/computer/test/browser/run-code.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"batched Playwright scripts, fresh globals, tab selection, failures and limits on real Chromium\", async () => {"
+        },
+        {
+          "sourceLine": 35,
+          "condition": "executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless:true, args:[\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > (unnamed)",
+      "rawLine": 2968,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > refs from browser_snapshot work as aria-ref locators across calls and tools until re-rendered",
+      "rawLine": 2969,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > page.ariaSnapshot({ mode: 'ai' }) mints refs shared with browser tools; other modes stay stock",
+      "rawLine": 2970,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > image Blobs return as named images, at most four, and PDF Blobs are saved to the workspace",
+      "rawLine": 2971,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > blocked APIs fail with policy_denied naming the API",
+      "rawLine": 2972,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > uploads accept workspace paths, in-memory files and a chooser from an earlier call",
+      "rawLine": 2973,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > downloads land in the Downloads folder under Chrome's names and outlive the script",
+      "rawLine": 2974,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > actions time out after 5 s unless given a timeout; navigation keeps 30 s; failures carry codes",
+      "rawLine": 2975,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > each call has a page and only the documented globals",
+      "rawLine": 2976,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-contract.integration.test.ts",
+      "title": "browser_run_code contract on real Chromium > (unnamed)",
+      "rawLine": 2977,
+      "source": "apps/computer/test/browser/run-code-contract.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 14,
+          "condition": "describe.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"browser_run_code contract on real Chromium\", () => {"
+        },
+        {
+          "sourceLine": 62,
+          "condition": "executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless: true, args: [\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/label-toggle.integration.test.ts",
+      "title": "visible labels expose refs and checked state for styled native toggles",
+      "rawLine": 2980,
+      "source": "apps/computer/test/browser/label-toggle.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('visible labels expose refs and checked state for styled native toggles', async () => {"
+        },
+        {
+          "sourceLine": 21,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/stable-ref-lifetime.integration.test.ts",
+      "title": "stable refs survive find and scoped observations, retire on navigation, and upgrade live positional documents",
+      "rawLine": 2993,
+      "source": "apps/computer/test/browser/stable-ref-lifetime.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 10,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"stable refs survive find and scoped observations, retire on navigation, and upgrade live positional documents\", async () => {"
+        },
+        {
+          "sourceLine": 15,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: [\"--no-sandbox\"] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/run-code-recovery.integration.test.ts",
+      "title": "script recovery preserves frames, tab selection, logs and upload handoffs",
+      "rawLine": 2996,
+      "source": "apps/computer/test/browser/run-code-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"script recovery preserves frames, tab selection, logs and upload handoffs\", async () => {"
+        },
+        {
+          "sourceLine": 29,
+          "condition": "executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, headless:true, args:[\"--remote-debugging-port=0\"],"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/reference-dom.integration.test.ts",
+      "title": "reference snapshots and fills handle shadow DOM, cross-origin frames, controlled inputs, OTP and remaps",
+      "rawLine": 3017,
+      "source": "apps/computer/test/browser/reference-dom.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"reference snapshots and fills handle shadow DOM, cross-origin frames, controlled inputs, OTP and remaps\",async()=>{"
+        },
+        {
+          "sourceLine": 16,
+          "condition": "const driver=await outOfProcessPlaywright();const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});const context=await browser.newContext();const session=new (BrowserUseSession as any)(browser,context,root) as BrowserUseSession;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/find.integration.test.ts",
+      "title": "find recovers generic text, shadow/frame content and actionable refs; typing rejects non-editable targets without clicking",
+      "rawLine": 3021,
+      "source": "apps/computer/test/browser/find.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('find recovers generic text, shadow/frame content and actionable refs; typing rejects non-editable targets without clicking', async () => {"
+        },
+        {
+          "sourceLine": 31,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/textarea-snapshot.integration.test.ts",
+      "title": "textarea snapshots preserve line boundaries with bounded, redacted values",
+      "rawLine": 3029,
+      "source": "apps/computer/test/browser/textarea-snapshot.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"textarea snapshots preserve line boundaries with bounded, redacted values\", async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/form-select.integration.test.ts",
+      "title": "form values fill native dropdowns by expiry, country code, number, and visible label",
+      "rawLine": 3032,
+      "source": "apps/computer/test/browser/form-select.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 19,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"form values fill native dropdowns by expiry, country code, number, and visible label\", async () => {"
+        },
+        {
+          "sourceLine": 23,
+          "condition": "const browser = await driver.playwright.chromium.launch({ headless: true, executablePath: process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE, args: [\"--no-sandbox\"] });"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/dom-observation.integration.test.ts",
+      "title": "DOM observations supply actionable refs, preserve private text masking, and allow explicit images",
+      "rawLine": 3035,
+      "source": "apps/computer/test/browser/dom-observation.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)(\"DOM observations supply actionable refs, preserve private text masking, and allow explicit images\", async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser = await driver.playwright.chromium.launch({headless:true, executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/hover-console.integration.test.ts",
+      "title": "hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls",
+      "rawLine": 3042,
+      "source": "apps/computer/test/browser/hover-console.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls', async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 45,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions', async () => {"
+        },
+        {
+          "sourceLine": 48,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 73,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('snapshot exposes focusable hover containers and inherited disabled state without hiding child controls', async () => {"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/hover-console.integration.test.ts",
+      "title": "waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions",
+      "rawLine": 3043,
+      "source": "apps/computer/test/browser/hover-console.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls', async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 45,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions', async () => {"
+        },
+        {
+          "sourceLine": 48,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 73,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('snapshot exposes focusable hover containers and inherited disabled state without hiding child controls', async () => {"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/hover-console.integration.test.ts",
+      "title": "snapshot exposes focusable hover containers and inherited disabled state without hiding child controls",
+      "rawLine": 3044,
+      "source": "apps/computer/test/browser/hover-console.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 8,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('hover reveals menu; console captures exceptions, bounds history and isolates tabs; snapshot marks non-editable controls', async () => {"
+        },
+        {
+          "sourceLine": 12,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 45,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('waits observe delayed visibility, disappearance, timeout and cancellation without replaying actions', async () => {"
+        },
+        {
+          "sourceLine": 48,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        },
+        {
+          "sourceLine": 73,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('snapshot exposes focusable hover containers and inherited disabled state without hiding child controls', async () => {"
+        },
+        {
+          "sourceLine": 76,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-computer",
+      "package": "computer",
+      "file": "test/browser/batch-form.integration.test.ts",
+      "title": "batch fills text and checkbox states, and stops after unavailable targets",
+      "rawLine": 3067,
+      "source": "apps/computer/test/browser/batch-form.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 7,
+          "condition": "test.skipIf(!process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE)('batch fills text and checkbox states, and stops after unavailable targets',async()=>{"
+        },
+        {
+          "sourceLine": 11,
+          "condition": "const browser=await driver.playwright.chromium.launch({headless:true,executablePath:process.env.OUTCOMEGO_BROWSER_TEST_EXECUTABLE});"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/browser-network.test.ts",
+      "title": "connected device browser network > real Chromium HTTP/HTTPS, uploads, downloads, WS/WSS and workers use Node proxy and desktop exit",
+      "rawLine": 665,
+      "source": "apps/server/test/browser-network.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 37,
+          "condition": "process.env.CHROME_PATH,"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/asset-session.integration.test.ts",
+      "title": "private attachment GET/HEAD/ranges require a valid owner session",
+      "rawLine": 1325,
+      "source": "apps/server/test/asset-session.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 5,
+          "condition": "const enabled = process.env.OUTCOMEGO_SWIFT_REAL_QA === \"1\";"
+        },
+        {
+          "sourceLine": 6,
+          "condition": "test.skipIf(!enabled)(\"private attachment GET/HEAD/ranges require a valid owner session\", async () => {"
+        },
+        {
+          "sourceLine": 7,
+          "condition": "const control = process.env.OUTCOMEGO_ASSET_QA_CONTROL_URL ?? \"http://127.0.0.1:20022\";"
+        },
+        {
+          "sourceLine": 8,
+          "condition": "const base = process.env.OUTCOMEGO_ASSET_QA_URL ?? \"http://127.0.0.1:20020\";"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "startup preserves uncheckpointed obligations and schedules one reconciliation",
+      "rawLine": 1461,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "startup fences new queue claims while it stops old Pi contexts",
+      "rawLine": 1462,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "an exhausted foreground recovery posts one resend notice instead of another continuation",
+      "rawLine": 1463,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "a failed context stop rolls recovery back without queuing duplicate work",
+      "rawLine": 1464,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "recovery exhaustion leaves an explicit parent-owned blocker with no automatic timer",
+      "rawLine": 1465,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "a parked helper never holds an update and resumes after the restart that update causes",
+      "rawLine": 1466,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/plugin/upstream-source.integration.test.ts",
+      "title": "pinned provider originals install, export, and materialize with exact source bytes",
+      "rawLine": 1899,
+      "source": "apps/server/test/plugin/upstream-source.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "title": "granola: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "rawLine": 1919,
+      "source": "apps/server/test/plugin/catalog-lifecycle.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 16,
+          "condition": "const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 18,
+          "condition": "test.skipIf("
+        },
+        {
+          "sourceLine": 21,
+          "condition": "process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")"
+        },
+        {
+          "sourceLine": 26,
+          "condition": "const previousRoot = process.env.OUTCOMEGO_AGENT_DATA_ROOT;"
+        },
+        {
+          "sourceLine": 27,
+          "condition": "process.env.OUTCOMEGO_AGENT_DATA_ROOT = root;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server",
+      "package": "server",
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "title": "notion: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "rawLine": 1921,
+      "source": "apps/server/test/plugin/catalog-lifecycle.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 16,
+          "condition": "const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 18,
+          "condition": "test.skipIf("
+        },
+        {
+          "sourceLine": 21,
+          "condition": "process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")"
+        },
+        {
+          "sourceLine": 26,
+          "condition": "const previousRoot = process.env.OUTCOMEGO_AGENT_DATA_ROOT;"
+        },
+        {
+          "sourceLine": 27,
+          "condition": "process.env.OUTCOMEGO_AGENT_DATA_ROOT = root;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "startup cannot pass the dispatch fence until the computer has accepted the turn",
+      "rawLine": 224,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "a claimed turn invalidated by startup is never sent to the computer afterwards",
+      "rawLine": 225,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "dispatch timeout aborts the request and releases recovery's lock",
+      "rawLine": 226,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/browser-network.test.ts",
+      "title": "connected device browser network > real Chromium HTTP/HTTPS, uploads, downloads, WS/WSS and workers use Node proxy and desktop exit",
+      "rawLine": 665,
+      "source": "apps/server/test/browser-network.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 37,
+          "condition": "process.env.CHROME_PATH,"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/asset-session.integration.test.ts",
+      "title": "private attachment GET/HEAD/ranges require a valid owner session",
+      "rawLine": 1343,
+      "source": "apps/server/test/asset-session.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 5,
+          "condition": "const enabled = process.env.OUTCOMEGO_SWIFT_REAL_QA === \"1\";"
+        },
+        {
+          "sourceLine": 6,
+          "condition": "test.skipIf(!enabled)(\"private attachment GET/HEAD/ranges require a valid owner session\", async () => {"
+        },
+        {
+          "sourceLine": 7,
+          "condition": "const control = process.env.OUTCOMEGO_ASSET_QA_CONTROL_URL ?? \"http://127.0.0.1:20022\";"
+        },
+        {
+          "sourceLine": 8,
+          "condition": "const base = process.env.OUTCOMEGO_ASSET_QA_URL ?? \"http://127.0.0.1:20020\";"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "startup preserves uncheckpointed obligations and schedules one reconciliation",
+      "rawLine": 1479,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "startup fences new queue claims while it stops old Pi contexts",
+      "rawLine": 1480,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "an exhausted foreground recovery posts one resend notice instead of another continuation",
+      "rawLine": 1481,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "a failed context stop rolls recovery back without queuing duplicate work",
+      "rawLine": 1482,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "recovery exhaustion leaves an explicit parent-owned blocker with no automatic timer",
+      "rawLine": 1483,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/startup-task-recovery.integration.test.ts",
+      "title": "a parked helper never holds an update and resumes after the restart that update causes",
+      "rawLine": 1484,
+      "source": "apps/server/test/startup-task-recovery.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 17,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 144,
+          "condition": "test.skipIf(!url)("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/plugin/upstream-source.integration.test.ts",
+      "title": "pinned provider originals install, export, and materialize with exact source bytes",
+      "rawLine": 1904,
+      "source": "apps/server/test/plugin/upstream-source.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 13,
+          "condition": "test.skipIf(process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")("
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "title": "granola: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "rawLine": 1924,
+      "source": "apps/server/test/plugin/catalog-lifecycle.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 16,
+          "condition": "const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 18,
+          "condition": "test.skipIf("
+        },
+        {
+          "sourceLine": 21,
+          "condition": "process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")"
+        },
+        {
+          "sourceLine": 26,
+          "condition": "const previousRoot = process.env.OUTCOMEGO_AGENT_DATA_ROOT;"
+        },
+        {
+          "sourceLine": 27,
+          "condition": "process.env.OUTCOMEGO_AGENT_DATA_ROOT = root;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-server-after60",
+      "package": "server",
+      "file": "test/plugin/catalog-lifecycle.integration.test.ts",
+      "title": "notion: actual catalog package installs, exports, loads workflows, isolates accounts, and uninstalls",
+      "rawLine": 1926,
+      "source": "apps/server/test/plugin/catalog-lifecycle.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 16,
+          "condition": "const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 18,
+          "condition": "test.skipIf("
+        },
+        {
+          "sourceLine": 21,
+          "condition": "process.env.OUTCOMEGO_TEST_UPSTREAM_SOURCES !== \"1\")"
+        },
+        {
+          "sourceLine": 26,
+          "condition": "const previousRoot = process.env.OUTCOMEGO_AGENT_DATA_ROOT;"
+        },
+        {
+          "sourceLine": 27,
+          "condition": "process.env.OUTCOMEGO_AGENT_DATA_ROOT = root;"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker-after61",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "startup cannot pass the dispatch fence until the computer has accepted the turn",
+      "rawLine": 213,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker-after61",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "a claimed turn invalidated by startup is never sent to the computer afterwards",
+      "rawLine": 214,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    },
+    {
+      "commandLabel": "final-canonical-worker-after61",
+      "package": "worker",
+      "file": "test/runtime-dispatch.integration.test.ts",
+      "title": "dispatch timeout aborts the request and releases recovery's lock",
+      "rawLine": 215,
+      "source": "apps/worker/test/runtime-dispatch.integration.test.ts",
+      "conditionReferences": [
+        {
+          "sourceLine": 6,
+          "condition": "const url = process.env.OUTCOMEGO_RECOVERY_TEST_DATABASE_URL;"
+        },
+        {
+          "sourceLine": 40,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 68,
+          "condition": "test.skipIf(!url)("
+        },
+        {
+          "sourceLine": 93,
+          "condition": "test.skipIf(!url)(\"dispatch timeout aborts the request and releases recovery's lock\", () =>"
+        }
+      ]
+    }
+  ],
+  "note": "Nine isolated database recovery cases are activated separately using the dedicated recovery URL; package skip counts remain unchanged."
+}

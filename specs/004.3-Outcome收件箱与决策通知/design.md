@@ -1,6 +1,6 @@
 # 设计文档 - Outcome 收件箱与决策通知
 
-状态：Draft
+状态：Approved（2026-11-17，按子线程执行模型修订）
 
 关联文档：[README.md](README.md) · [requirements.md](requirements.md) · [tasks.md](tasks.md)
 
@@ -26,7 +26,7 @@ interface Decision {
   id: string;
   outcomeId: string;
   contractRevision: number;
-  status: 'open' | 'presented' | 'resolved' | 'rejected' | 'expired' | 'withdrawn';
+  status: 'open' | 'presented' | 'resolved' | 'expired' | 'withdrawn';
   completedSummary: string;
   problemSummary: string;
   nextStepSummary: string;
@@ -103,7 +103,7 @@ outcomeId           UUID foreign key
 contractRevisionId  UUID foreign key
 runId               UUID nullable
 workItemId          UUID nullable
-status              open | presented | resolved | rejected | expired | withdrawn
+status              open | presented | resolved | expired | withdrawn
 completedSummary    text
 problemSummary      text
 nextStepSummary     text
@@ -134,14 +134,17 @@ createdAt, updatedAt
 ## 8. 事件到通知的映射
 
 ```text
-contract.revision.approved → 不通知，除非用户明确要求
-run.progress            → 时间线，不通知
-run.finished            → acceptance_pending 或 completed
-review.required         → acceptance_pending
-decision.required       → decision_pending + 主动通知
-human_action.required   → human_action_pending + 主动通知
-outcome.accepted        → completed + 结果通知
+outcome.contract.revision_approved → 不通知
+outcome.work_item.updated          → 时间线，不通知
+运行时 run.* 事件                   → 不通知（只由 004.2 结算读取）
+outcome.review.required            → acceptance_pending + 主动通知
+outcome.decision.required          → decision_pending + 主动通知
+outcome.human_action.required      → human_action_pending + 主动通知
+outcome.accepted                   → completed + 结果通知
+outcome.decision.closed            → 撤回对应待处理项，不通知
 ```
+
+事件名以父 design §14 为准。子线程过程不产生通知；主对话不接收这些汇报（需求 17）。
 
 事件处理器必须先检查业务事实和 dedupe key，再写 Inbox 投影或 `ChannelNotification`。Push 失败不能回滚 Outcome/Decision 事实。
 
@@ -182,14 +185,14 @@ POST /api/v0/decisions/:decisionId/withdraw
 
 ## 10. 客户端深链
 
-沿用现有 `packages/contracts/src/app-deep-links.ts` 的 `outcomego://app/v1/...` 格式，只增加路径，不新增 URL scheme：
+使用 `004.1` 已启用的 `outcomego` scheme（Android Manifest 已注册 `outcomego`，`packages/contracts/src/app-deep-links.ts` 已使用 `outcomego://app/v1/...`），只增加路径：
 
 ```text
 outcomego://app/v1/outcomes?id=<outcomeId>
 outcomego://app/v1/outcomes/decision?id=<decisionId>
 ```
 
-原因：Android Manifest 和 iOS 工程当前只注册 `outcomego` scheme，`004.1` 也规定该 scheme 作为稳定标识保留。新增 `outcomego` scheme 需要同时修改三端注册并保持旧 scheme，属于 `004.1` 的可选后续迁移，不在本阶段实现。Desktop 可使用现有窗口打开机制；深链只携带 ID，不携带 Decision 文本、token 或凭据。
+Desktop 可使用现有窗口打开机制；深链只携带 ID，不携带 Decision 文本、token 或凭据。
 
 ## 11. 设计文件影响
 
@@ -231,7 +234,6 @@ open
   → resolved
   → withdrawn
   → expired
-  → rejected
 
 presented → resolved | withdrawn | expired
 resolved  → 不可回到 open
@@ -246,11 +248,13 @@ expired   → 不可 resolve
 解决接口必须使用数据库条件更新：
 
 ```text
-UPDATE Decision
+UPDATE Decision d
 SET status = 'resolved', resolvedBy = ?, resolvedAt = ?
-WHERE id = ?
-  AND status IN ('open', 'presented')
-  AND contractRevisionId = expectedRevision
+FROM OutcomeContractRevision r
+WHERE d.id = ?
+  AND d.status IN ('open', 'presented')
+  AND r.id = d.contractRevisionId
+  AND r.revision = :expectedContractRevision   -- 客户端提交的是 revision 编号（整数）
 ```
 
 更新行数为 0 时重新读取当前 Decision：
@@ -376,9 +380,11 @@ decision.required:<decisionId>
 review.required:<outcomeId>:<contractRevision>:<criterionGroup>
 human_action.required:<workItemId>
 outcome.completed:<outcomeId>:<acceptedRevision>
+outcome.failed:<outcomeId>:<contractRevision>:<md5(失败的 Agent WorkItem id 集合)>
+outcome.blocked:<workItemId>:<md5(blocked 任务 id 集合)>
 ```
 
-事实 key 写入已有通知模型或 Outbox 前必须唯一。Push 重试使用现有 Outbox delivery key，不由客户端重新生成。
+后两类见 §44。事实 key 写入已有通知模型或 Outbox 前必须唯一。Push 重试使用现有 Outbox delivery key，不由客户端重新生成。
 
 ### 17.2 通知内容
 
@@ -500,14 +506,16 @@ apps/desktop/test/fixtures/outcome-inbox/
 
 ## 24. 设计决策记录
 
-实现前必须记录：
+本阶段决策登记在父 design §39：
 
-- Inbox 使用实时查询还是持久化投影。
-- 是否复用 `ChannelNotification`，还是为 Outcome 创建独立通知类型。
-- `Decision` 是否需要独立表，还是作为 Outcome event payload。
-- 非紧急通知是否支持聚合窗口。
-- Android/iOS 第一版是否同时支持主动 push，还是先支持 Inbox 查询。
-- Decision 过期时间是否由 Contract、WorkItem 或服务端默认值提供。
+| 问题 | 结论 |
+|---|---|
+| Inbox 存储 | 实时查询投影（D16） |
+| 通知类型 | 复用 `ChannelNotification`/`OutboxDelivery`，在 `notification-content.ts` 扩展 Outcome 类型（D16） |
+| Decision 存储 | 独立表 `OutcomeDecision` |
+| 聚合窗口 | 同一 Outcome、同一 revision 60 秒（§43） |
+| 移动端 | 第一版同时支持 Inbox、Decision 解决和主动 push（父 §41、需求 18） |
+| Decision 过期 | 默认不过期，创建方显式设置（D20） |
 
 ## 25. Server service 分层
 
@@ -542,13 +550,13 @@ OutcomeNotificationProjector
 
 1. 解析认证上下文。
 2. 解析和限制 query/body 大小。
-3. 按 owner/关联对象查询，不先按客户端提供的 ID 返回详情。
+3. 按关联对象查询（例如 Decision 必须属于路径中的 Outcome），不存在返回 404。
 4. 检查 revision/Decision 状态。
 5. 执行 service。
 6. 映射稳定 DTO 和错误。
 7. 记录 correlation ID，不记录完整私有 payload。
 
-禁止先 `findUnique(decisionId)` 再在应用层忘记检查 owner。查询必须把 owner 关系放进 Prisma where 或等价 SQL 条件。
+单 owner 系统不做按 owner 过滤（父 design §44）；认证由现有中间件负责。
 
 ## 27. Inbox 查询 SQL/ORM 形状
 
@@ -556,8 +564,7 @@ OutcomeNotificationProjector
 
 ```text
 select outcome/decision/work_item ids
-  where owner = current owner
-    and status in pending categories
+  where status in pending categories
   order by priority, availableAt, createdAt
   limit N
 
@@ -625,7 +632,7 @@ Decision 不能直接修改已批准的 Contract JSON。`resolutionEffect` 由�
 ```text
 find open/presented Decision where expiresAt <= now
   → conditional update to expired
-  → create decision.expired event
+  → create outcome.decision.closed event（reason=expired）
   → revoke pending notification if supported
   → keep Inbox history
 ```
@@ -641,8 +648,12 @@ find open/presented Decision where expiresAt <= now
 1  acceptance required
 2  human action required
 3  decision required
+3  outcome failed
+2  outcome blocked
 4  urgent safety/operation issue explicitly emitted by service
 ```
+
+失败与决策同为 3，阻塞与人工处理同为 2（§44）。
 
 普通 Run progress 不创建 priority item。优先级不由模型自由设置，必须由事件类型或服务端规则映射。
 
@@ -699,7 +710,7 @@ find open/presented Decision where expiresAt <= now
 
 ```text
 GET inbox without auth                    → 401
-GET another owner's outcome               → 404
+GET unknown decision id                   → 404
 GET with invalid cursor                   → 400
 GET limit above max                       → capped/rejected
 resolve open Decision                     → 200 resolved
@@ -722,7 +733,7 @@ Inbox projection/notification cleanup 不得删除 Outcome、Decision、Review �
 - 已投递且超过保留期的 Outbox delivery metadata。
 - 已撤回通知的临时 payload，前提是保留事实 key 和历史摘要。
 
-清理 job 必须按 owner/createdAt 分页，不锁住整个通知表。
+清理 job 必须按 createdAt 分页，不锁住整个通知表。
 
 ## 38. 运行时错误恢复
 
@@ -751,7 +762,7 @@ correlationId
 eventId/factKey
 outcomeId
 decisionId
-owner/session hash
+actorRef hash
 category
 status transition
 notification provider result
@@ -769,19 +780,17 @@ notification provider result
 - push success/failure/retry。
 - 普通 progress 被错误升级为通知的数量。
 
-## 40. 设计决策记录扩展
+## 40. 第一版实现取舍
 
-实现前必须决定：
-
-- 是否提供批量 resolve；第一版建议不提供。
-- 是否允许 Decision 转交给其他用户；当前不做。
-- 是否在移动端支持离线填写；可以保存草稿，但提交必须在线校验 revision。
-- 是否将 completed 结果保留在 Inbox；建议保留可配置时间，不影响历史 Outcome。
-- 是否使用 WebSocket/event stream 实时刷新；第一版可以使用现有 event/snapshot 轮询。
+- 不提供批量 resolve。
+- 不支持 Decision 转交其他用户（单 owner）。
+- 移动端不做离线填写；提交必须在线校验 revision。
+- `completed` 项在 Inbox 保留 7 天，之后只在 Outcome 列表中可见。
+- 刷新沿用客户端现有的事件流/轮询机制触发重新读取，具体挂接点由任务 0.1 核对；`outcome.*` 主题默认不直接推给客户端（父 design §14）。
 
 ## 41. Agent 发起的 Decision：`RequestOutcomeDecision`
 
-原规划 §9.1 要求 Agent 在需要决策时升级到 Outcome Inbox。现有 Agent 没有这个入口，因此新增一个内部工具，沿用现有内部工具的实现方式（computer 声明工具，server `internal-tool-service.ts` 处理，与 `ReportTaskProgress` 相同）。
+原规划 §9.1 要求 Agent 在需要决策时升级到 Outcome Inbox。现有 Agent 没有这个入口，因此新增一个内部工具，沿用现有内部工具的实现方式（computer 声明工具，server `internal-tool-service.ts` 处理，与 `ReportTaskProgress`、`WakeParent` 相同）。子线程不能用 `RequestUserForm` 等主线程工具（`AUTOMATION_PARENT_ONLY_TOOLS`），因此该工具是子线程请求用户决策的唯一入口。
 
 工具参数：
 
@@ -798,15 +807,17 @@ interface RequestOutcomeDecisionInput {
 
 处理流程：
 
-1. server 根据调用方 Run 的 InboxEvent payload 找到 `outcomeWorkItemId`；找不到时返回工具错误（普通 Run 拿不到该工具，这里只处理异常情况）。
-2. 在一个事务内：创建 Decision（`idempotencyKey = decision-request:<runId>:<sha256(input)>`）、将该 WorkItem 置为 `waiting_decision`、写 `decision.required` 事件、重新计算 Outcome 状态。
-3. 工具返回 `{ decisionId, status: "waiting_for_user" }`，Agent 结束当前回合，不轮询等待。
+1. server 根据调用方 Run 的 `Run.outcomeWorkItemId` 找到 WorkItem；找不到时返回工具错误（工具只在 Outcome 子线程中提供，这里只处理异常情况）。
+2. 在一个事务内：创建 Decision（`idempotencyKey = decision-request:<runId>:<sha256(input)>`）、将该 WorkItem 置为 `waiting_decision`、写 `outcome.decision.required` 事件、重新计算 Outcome 状态。
+3. 工具返回 `{ decisionId, status: "waiting_for_user" }`，Agent 结束当前回合，不轮询等待。该回合的 Run 会变为 `completed`，但 `004.2` 的运行组结算看到 WorkItem 为 `waiting_decision` 时不改变状态（`004.2` design §12.4 第 4 步）。
 4. 用户解决 Decision 后：
-   - 选择不改变范围：服务端为同一 WorkItem 提交一条新消息到原 Bot 会话（带相同 `outcomeWorkItemId`），内容为用户选择，WorkItem 回到 `running`。
-   - 选择改变目标、验收或边界：按 §29 创建 revision N+1 并进入 `pending_approval`，原 WorkItem 标记 `cancelled`，批准后按新 revision 创建 WorkItem。
-5. 依赖该 WorkItem 的其他 WorkItem 保持 `queued`，不依赖它的 WorkItem 继续执行。
+   - 选择不改变范围（`plan_only`）：服务端调用 `enqueueWake`，在**同一子线程**中开启新回合（`origin=outcome`、同一 `outcomeWorkItemId`、同一上下文 scope），内容为用户的选择和自定义文字；WorkItem 回到 `running`。Agent 能看到此前的工作，主对话不受影响。
+   - 选择改变目标、验收或边界（`scope_change`/`acceptance_change`）：按 §29 创建 revision N+1 并进入 `pending_approval`，原 WorkItem 标记 `cancelled`，批准后按新 revision 在新子线程中执行。
+   - 选择人工处理（`manual_action`）：创建人工 WorkItem（`004.4`），原 WorkItem 保持 `waiting_decision` 直到人工 WorkItem 被接受，再按 `plan_only` 继续。
+   - 选择追加工作（`plan_only` 且选项带 `supplement`）：按父 design D11 追加 1 个补充 WorkItem，原 WorkItem 继续。
+5. 依赖该 WorkItem 的其他 WorkItem 保持 `queued`，不依赖它的 WorkItem 在各自子线程中继续执行。
 
-工具只在带 `outcomeWorkItemId` 的 Run 中出现，普通 Run 的工具列表保持不变。
+工具只在 Outcome 子线程（`RunOrigin.outcome`）中出现；主对话、群聊、Routine 和普通 Run 的工具列表保持不变。
 
 ## 42. Decision 选项上限
 
@@ -820,3 +831,72 @@ Decision 的推荐选项为 1–4 个，并始终提供自定义输入。这一�
 2. 不实现自定义静默时间窗口和逾期自动升级；Decision 可以设置 `expiresAt`，过期后进入 `expired`，不视为同意（§31）。
 3. 同一 Outcome、同一 revision 的非紧急通知在 60 秒内合并为一条推送；Decision 不与其他 Decision 合并（§33）。
 4. `priority=4` 的紧急事件只由服务端规则产生（例如 `external_result_unknown`），不受合并窗口影响。
+
+## 44. 目标通知卡片与失败、阻塞事实
+
+对应需求：需求 19、需求 20、需求 21。
+
+### 44.1 卡片的位置和身份
+
+通知事实投影（`publishFact`，与通知意图同一事务）完成后，同一事务内调用 `postOutcomeUpdateCard`，向该 Bot 的 `bot_dm` 频道写入一条 `ChannelMessage`：
+
+```text
+sender      = system          （不是 agent，senderBotId = null，sourceRunId = null）
+clientId    = outcome-update:<factKey>   （频道内唯一，重放不会产生第二条）
+content     = Goal · <标题> · <stage>    （引用时进入提示的文本）
+metadata    = { type: "outcome-card", source: "outcome-update",
+                outcomeCard: { stage, title, outcomeId, revision, updatedAt } }
+```
+
+`source = outcome-update` 区分平台写入的卡片和 Bot 在对话工具中创建的卡片（后者发送者是 `agent`）。判断函数 `isOutcomeUpdateCardMetadata` 与常量 `OUTCOME_UPDATE_CARD_SOURCE` 位于 `packages/contracts/src/outcome-chat.ts`，Server 与 Desktop 共用。
+
+### 44.2 为什么不会唤醒 Bot
+
+- 写卡片只创建 `ChannelMessage` 和一条 `channel.message.created` 事件，不创建 Run、`ChannelDelivery` 或唤醒任务；该事件没有唤醒 Bot 的消费者。
+- 表情回应只在 `message.sender === "agent"` 时唤醒 Bot（`reactToMessage`），对 `system` 卡片只改元数据。
+- `buildSafeTranscript` 排除 `sender = system` 且 `metadata.source = outcome-update` 的消息，Bot 通过转录读取工具也看不到卡片。
+
+### 44.3 引用才进入对话
+
+用户在主线程引用卡片时走现有 `replyToMessageId` 路径。`formatUserPrompt` 在引用行追加 `; goal notice for Outcome <outcomeId>`（仅当被引用消息的元数据带 `outcomeCard.outcomeId`），让 Bot 能用 `GetOutcome` 读取真实目标，而不是只看到标题和阶段。普通引用的格式不变。
+
+Desktop 默认对 `system` 消息关闭交互（`canInteract`）。为卡片单独增加 `canReply`：只开放「回复」，表情仍关闭。
+
+### 44.4 卡片显示的阶段
+
+保存的 `stage` 只是写入时的事实。客户端读取 Outcome 当前状态：Desktop 沿用 `OutcomeChatCardView` 的轮询，iOS 通过 `API.outcomeDetail`，Android 通过 `FeatureGateway.outcomeDetail`；读取失败时回退到保存的阶段。`blocked` 事实写入的阶段是 `attention`；Desktop 另外在 Outcome 仍为 `running` 且存在 `blocked` 任务时显示阻塞提示。iOS 和 Android 以实时 Outcome 状态为准，因此阻塞解除后显示为运行中。
+
+### 44.5 失败和阻塞事实
+
+两类事实加入 `outcomeInboxNotificationFactsSql`，与 Inbox 查询分开（Inbox 服务有自己的 SQL，类别不变）：
+
+- `outcome.failed`：当前 revision 存在失败的 Agent WorkItem，Outcome 状态为 `failed`，未取消、未验收，revision 已批准，且最近失败发生在 2 天内。key 含失败 WorkItem id 集合，重试再失败会产生新 key。
+- `outcome.blocked`：执行中的 Agent WorkItem 的 `progress.tasks` 含 `status = blocked`，Outcome 状态为 `running`，WorkItem 属于当前 revision。key 含 blocked 任务 id 集合。
+
+投递沿用既有机制：Worker 每 2 秒的 push drain 调用 `reconcileOutcomeInboxNotifications`，按「当前事实且尚无通知记录」补发，所以这两类事实不需要新增事件主题，也不为 `outcome.status_changed` 或 `outcome.progress.updated` 逐条写入幂等回执。`outcomeNotificationIsCurrent` 和 `unreadOutcomeNotifications` 复用同一份事实 SQL，阻塞解除后未读通知自动消失。
+
+### 44.6 通知载荷
+
+`OUTCOME_NOTIFICATION_TYPES` 增加 `outcome.failed`、`outcome.blocked`；新增 `OUTCOME_NOTIFICATION_CATEGORIES = Inbox 四类 + failed + blocked`，载荷 `category` 使用该集合，Inbox 的 `OUTCOME_INBOX_CATEGORIES` 不变。固定文案：
+
+```text
+failed   title: An Outcome needs your attention   body: Open OutcomeGo to see why it stopped.
+blocked  title: An Outcome needs your attention   body: Open OutcomeGo to see what is blocking it.
+```
+
+深链仍是 `outcomego://app/v1/outcomes?id=<outcomeId>`。Desktop 主进程本地化同样的两句文案；iOS 的 `OutcomeLinkTarget.push` 与 Android 的 `parseOutcomePushTarget` 类型白名单各增加这两个值，其余校验不变。
+
+### 44.7 移动端卡片
+
+iOS：`Message.outcomeUpdateCard`（Core）解析卡片，`OutcomeUpdateCardView`（App）渲染，`ChatView` 在 `MessageRow` 之前分支；点击走 `store.deepLink`，上下文菜单和无障碍动作提供「回复」。
+Android：`ChatMessage.outcomeUpdateCard` 解析，`MessageBubble` 对卡片提前返回 `OutcomeUpdateCardRow`；点击通过 `onOpenOutcome` 进入现有目标导航，卡片右侧有「回复」图标按钮。移动端不提供表情入口。
+
+两端在 `sender != system`、缺少 `source`、Outcome ID 非 UUID 时均不识别为卡片，按普通消息显示。
+
+### 44.8 取舍
+
+- 每个事实一张卡片，不原地覆盖：不改写历史，也不依赖「置底」逻辑；每张卡片读取实时状态，旧卡片不会显示过期阶段。代价是同一目标在对话里可能出现多张卡片。
+- 不新增 Inbox 类别：失败和阻塞没有「解决」动作，Inbox 只承载可处理事项，避免连带修改三端 Inbox 页面和查询。
+- 阻塞通知依赖执行方上报；执行方不上报则不会通知，这是已知限制。
+- 卡片在通知被关闭时仍会写入（需求 19.6），因此关闭通知不等于关闭卡片。
+

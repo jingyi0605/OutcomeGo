@@ -18,6 +18,8 @@ import com.outcomego.mobile.core.EventSynchronizer
 import com.outcomego.mobile.core.MobileClock
 import com.outcomego.mobile.core.MobileMessage
 import com.outcomego.mobile.core.MobileRequest
+import com.outcomego.mobile.core.OutcomeGoError
+import com.outcomego.mobile.core.OutcomeGoRequestException
 import com.outcomego.mobile.core.ProductEvent
 import com.outcomego.mobile.core.Session
 import com.outcomego.mobile.core.TransportMobileSyncApi
@@ -35,6 +37,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -525,6 +528,7 @@ class HttpMobileGateway(context: Context) :
                     botId = botId.ifBlank { null },
                     isBot = kind == "bot_dm",
                     isGroup = kind == "group",
+                    notificationsMuted = channel.boolean("notificationsMuted"),
                     memberBotIds = channel.arrayAt("members").mapNotNull { it.jsonObjectOrNull()?.string("botId")?.takeIf(String::isNotBlank) },
                     notificationsEnabled = bot?.boolean("notificationsEnabled", true) ?: true,
                     botIcon = bot?.string("icon").orEmpty(),
@@ -601,6 +605,8 @@ class HttpMobileGateway(context: Context) :
         val activeServer = ensureConnected()
         val body = buildJsonObject {
             put("version", 2)
+            put("baseRevision", preferences.version.revision)
+            put("baseUpdatedAt", preferences.version.updatedAt)
             put("pinnedIds", buildJsonArray { preferences.pinnedIds.forEach { add(it) } })
             put("unreadIds", buildJsonArray { preferences.unreadIds.forEach { add(it) } })
             put("unassignedCollapsed", preferences.unassignedCollapsed)
@@ -622,14 +628,39 @@ class HttpMobileGateway(context: Context) :
                 }
             })
         }
-        val result = runCatching {
+        val saved = try {
             jsonRequest(activeServer, "/api/v0/settings/sidebar", HttpMethod.PATCH, token = token, body = body).body
+        } catch (error: OutcomeGoRequestException) {
+            // The edit was based on an older layout: hand back the server's so the caller can adopt it.
+            if (error.error.code == "sidebar_layout_conflict") {
+                sidebarConflict(error.error)?.let { throw it }
+            }
+            throw error
         }
-        return result.getOrNull()?.let(::parseSidebarPreferences) ?: preferences
+        return parseSidebarPreferences(saved)
+    }
+
+    private fun sidebarConflict(error: OutcomeGoError): SidebarLayoutConflictException? {
+        val current = error.details?.jsonObjectOrNull()?.get("current")?.jsonObjectOrNull() ?: return null
+        val layout = current["preferences"]?.jsonObjectOrNull() ?: return null
+        return SidebarLayoutConflictException(
+            parseSidebarPreferencesV2(layout).copy(version = parseSidebarVersion(current)),
+        )
+    }
+
+    /** The version sits under `sidebarMeta` in settings and at the top level of a PATCH response. */
+    private fun parseSidebarVersion(source: JsonObject): SidebarVersion {
+        val meta = source["sidebarMeta"]?.jsonObjectOrNull() ?: source
+        val revision = meta["revision"]?.jsonPrimitive?.longOrNull
+        val updatedAt = meta.string("updatedAt")
+        return if (revision != null && updatedAt.isNotBlank()) SidebarVersion(revision, updatedAt) else SidebarVersion()
     }
 
     /** Parses the flat v2 `sidebarPreferences` object, either standalone or nested under settings. */
-    private fun parseSidebarPreferences(settings: JsonObject): SidebarPreferences {
+    private fun parseSidebarPreferences(settings: JsonObject): SidebarPreferences =
+        parseSidebarLayout(settings).copy(version = parseSidebarVersion(settings))
+
+    private fun parseSidebarLayout(settings: JsonObject): SidebarPreferences {
         if (settings.int("version") == 2) return parseSidebarPreferencesV2(settings)
         val v2 = settings["sidebarPreferences"]?.jsonObjectOrNull()
         if (v2 != null && v2.int("version") == 2) return parseSidebarPreferencesV2(v2)
