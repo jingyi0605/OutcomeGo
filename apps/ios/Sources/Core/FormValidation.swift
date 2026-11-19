@@ -1,6 +1,22 @@
 import Foundation
+import Network
 
 public enum FormValidation {
+  private static func isLocalNetworkHost(_ host: String) -> Bool {
+    if host.lowercased() == "localhost" { return true }
+    let address = host.hasPrefix("[") && host.hasSuffix("]") ? String(host.dropFirst().dropLast()) : host
+    if let ipv4 = IPv4Address(address) {
+      let octets = [UInt8](ipv4.rawValue)
+      return octets[0] == 127 || octets[0] == 10
+        || (octets[0] == 172 && (16...31).contains(octets[1]))
+        || (octets[0] == 192 && octets[1] == 168)
+    }
+    if let ipv6 = IPv6Address(address) {
+      return ipv6 == IPv6Address.loopback || (ipv6.rawValue[0] & 0xfe) == 0xfc
+    }
+    return false
+  }
+
   /// An MCP endpoint is a resource URL, not the server base URL. Its query is
   /// significant and must survive validation and saving unchanged.
   public static func endpoint(_ text: String) throws -> String {
@@ -83,9 +99,8 @@ public enum FormValidation {
       if field["format"].string == "mcp-url" {
         let parsed = try endpoint(value.string)
         guard let url = URLComponents(string: parsed),
-          url.scheme?.lowercased() == "https"
-            || ["localhost", "127.0.0.1", "::1", "[::1]"].contains(url.host?.lowercased() ?? "")
-        else { throw APIError("Use an HTTPS MCP URL, or HTTP on localhost for a server on the same computer.") }
+          url.scheme?.lowercased() == "https" || isLocalNetworkHost(url.host ?? "")
+        else { throw APIError("Use HTTPS for public IP addresses and domain names. HTTP is allowed only for localhost or private-network IP addresses.") }
         let privateKey = "token|secret|password|authorization|api.?key|cookie|credential|^(code|approval_code|pairing_code|state)$"
         if (url.queryItems ?? []).contains(where: { $0.name.range(of: privateKey, options: [.regularExpression, .caseInsensitive]) != nil }) {
           throw APIError("Use the MCP server URL without credentials or approval codes.")
