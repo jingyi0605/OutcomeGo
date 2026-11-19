@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { Effect } from "effect";
 import type { Prisma, PrismaClient } from "@outcomego/db";
+import { AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
 import { BotService } from "../../server/src/services/bot-service";
 import { createRoutineHarness } from "./fixtures/routine-context";
 
@@ -61,6 +62,13 @@ for (const first of ["failure", "archive", "recovery"] as const) {
         { kind: "bot", id: f.botId },
         { id: randomUUID(), source: "webhook", kind: "received", text: "Next event" }
       );
+      if (first === "failure") {
+        await harness.db.inboxEvent.update({
+          where: { id: claimed.inboxId },
+          data: { attempts: AUTOMATION_ATTEMPT_LIMIT },
+        });
+        claimed.attempt = AUTOMATION_ATTEMPT_LIMIT;
+      }
       if (first === "recovery") {
         await harness.db.run.update({
           where: { id: claimed.runId }, data: { status: "completed", completedAt: new Date() },

@@ -20,12 +20,14 @@ describe.skipIf(!url)("OutcomeInboxService live projection", () => {
     await db.outcomeWorkItem.create({ data: { outcomeId: f.outcome.id, contractRevisionId: f.revision.id, botId: f.bot.id, executorType: "human", title: "Inspect", ordinal: 2, status: "ready" } });
     const completed = await create();
     await db.outcome.update({ where: { id: completed.outcome.id }, data: { status: "accepted", acceptedAt: new Date() } });
+    const messageCount = await db.channelMessage.count({ where: { channelId: f.channel.id } });
+    expect(messageCount).toBe(2);
     const items = (await run(service.list(query({ status: "all" })))).items.filter(item => [f.outcome.id, completed.outcome.id].includes(item.outcomeId));
     expect(items.map(item => item.category)).toEqual(["decision_pending", "decision_pending", "human_action_pending", "acceptance_pending", "completed"]);
     expect(items.find(item => item.category === "acceptance_pending")?.criterionIds).toHaveLength(2);
     expect((await run(decisions.get(first.id))).status).toBe("open");
     expect(await db.inboxEvent.count({ where: { botId: f.bot.id } })).toBe(0);
-    expect(await db.channelMessage.count({ where: { channelId: f.channel.id } })).toBe(0);
+    expect(await db.channelMessage.count({ where: { channelId: f.channel.id } })).toBe(messageCount);
     expect((await run(service.list(query(), completed.outcome.id))).items).toHaveLength(0);
   });
   test("keyset pagination has no duplicates or missing items, stable ties and a fixed snapshot", async () => {

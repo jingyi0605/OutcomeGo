@@ -3,6 +3,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
@@ -112,6 +113,7 @@ test("live 1:1 A2A mirrors both home stores and wakes both agents without a pair
       if (request.method === "POST" && url.pathname === "/v1/turns") {
         const input = (await request.json()) as TurnInput;
         turns.push(input);
+        return turnResponse(async () => {
         if (input.botId === sourceId && input.content.includes("Start live A2A parity run")) {
           acknowledgements.push(
             String(
@@ -206,8 +208,7 @@ test("live 1:1 A2A mirrors both home stores and wakes both agents without a pair
           },
           { type: "turn.completed", turnId, status: "completed" },
         ];
-        return new Response(`${events.map((event) => JSON.stringify(event)).join("\n")}\n`, {
-          headers: { "content-type": "application/x-ndjson" },
+        return events;
         });
       }
       return Response.json({ error: "not_found" }, { status: 404 });

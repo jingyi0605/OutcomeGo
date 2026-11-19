@@ -43,12 +43,16 @@ test.skipIf(!databaseUrl)(
     });
     const delivered: string[] = [];
     const dismissed: string[] = [];
+    const scheduled = new Set<() => void>();
     const manager = new DesktopNotificationManager({
       isFocused: () => false,
       isSupported: () => true,
       deliver: (notification) => delivered.push(notification.notificationId!),
       dismiss: (id) => dismissed.push(id),
       setBadge: () => {},
+    }, Date.now, (callback) => {
+      scheduled.add(callback);
+      return () => { scheduled.delete(callback); };
     });
     const service = new NotificationService(prisma, "disabled");
     const dispatcher = new PushNotificationDispatcher(prisma, "disabled", apns);
@@ -61,6 +65,10 @@ test.skipIf(!databaseUrl)(
         (await unreadChannelCount(prisma, channel.id, BigInt(current.lastReadSequence))) +
         current.activityUnreadCount;
       manager.sync({ channels: [{ ...current, unreadCount }] });
+      for (const callback of scheduled) {
+        scheduled.delete(callback);
+        callback();
+      }
       return current;
     };
     const drain = async () => {

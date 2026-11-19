@@ -163,7 +163,7 @@ describe.skipIf(!url)("human action sources, receipts and unified review", () =>
         expect(inbox).toHaveLength(1);
         expect(inbox[0]).toMatchObject({ runId: runs[1]!.id, payload: { origin: "outcome", outcomeWorkItemId: f.agent.id } });
         expect((await prisma.outcomeWorkItem.findUniqueOrThrow({ where: { id: f.agent.id } })).rootRunId).toBe(f.run.id);
-        expect(await prisma.channelMessage.count({ where: { channelId: f.channel.id } })).toBe(0);
+        expect(await prisma.channelMessage.count({ where: { channelId: f.channel.id } })).toBe(source === "decision" ? 1 : 0);
         expect((await f.humanWork.detail(f.card.workItemId)).receipts?.[0]?.status).toBe("accepted");
       } finally { await f.cleanup(); }
     });

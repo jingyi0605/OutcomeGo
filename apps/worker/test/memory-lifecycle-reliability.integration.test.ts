@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { DynamicToolCallRequest, type ComputerTurnRequest } from "@outcomego/contracts";
 import { createPrismaClient } from "@outcomego/db";
 import { AppService } from "../../server/src/app-service";
@@ -97,15 +98,17 @@ async function fixture(body: (h: {
         tools.push({ runId: input.runId, tool, result });
         return result;
       };
+      return turnResponse(async () => {
       const reply = await onTurn(input, call);
       if (reply !== null) await call("SendToUser", { type: "text", content: reply });
-      return new Response([
+      return [
         { type: "session.attached", runtimeEngine: "pi", inferenceProvider: "openai-codex", contextSessionId: input.contextSessionId,
           sessionPath: input.sessionPath ?? `/var/lib/openteam/pi/${input.contextSessionId}.jsonl`, sessionId: input.contextSessionId, model: "controlled-lifecycle" },
         { type: "context.state", contextSessionId: input.contextSessionId, epoch: 0, archives: [] },
         { type: "turn.started", turnId: input.runId }, { type: "prompt.delivered", turnId: input.runId },
         { type: "turn.completed", turnId: input.runId, status: "completed" },
-      ].map(event => JSON.stringify(event)).join("\n") + "\n", { headers: { "content-type": "application/x-ndjson" } });
+      ];
+      });
     } catch (error) { errors.push(error); return Response.json({ error: String(error) }, { status: 500 }); }
   } });
   const until = async (check: () => Promise<boolean>) => {

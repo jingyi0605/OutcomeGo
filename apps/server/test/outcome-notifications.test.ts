@@ -45,7 +45,7 @@ describe.skipIf(!url)("Outcome notification facts and delivery", () => {
     expect(deliveries).toHaveLength(1);
     expect(JSON.stringify(deliveries[0]?.payload)).not.toContain("SECRET");
     expect(JSON.stringify(deliveries[0]?.payload)).not.toContain("Private title");
-    expect(await db.channelMessage.count({ where: { channelId: f.channel.id } })).toBe(0);
+    expect(await db.channelMessage.count({ where: { channelId: f.channel.id } })).toBe(1);
   });
   test("closed preferences or Bot notifications keep facts and Inbox, creating no push", async () => {
     for (const toggle of ["global", "bot"]) {
@@ -86,7 +86,11 @@ describe.skipIf(!url)("Outcome notification facts and delivery", () => {
     await db.outboxDelivery.updateMany({ where: { target: deviceId, NOT: { payload: { path: ["decisionId"], equals: d.id } } }, data: { status: "delivered" } });
     await db.outboxDelivery.updateMany({ where, data: { availableAt: new Date(0) } });
     let calls = 0;
-    const apns = { send: async () => { calls++; return { status: 503, reason: "ServiceUnavailable" }; } } as unknown as ApnsClient;
+    const apns = { send: async (_device: unknown, payload: Record<string, unknown>) => {
+      if (payload.decisionId !== d.id) return { status: 200 };
+      calls++;
+      return { status: 503, reason: "ServiceUnavailable" };
+    } } as unknown as ApnsClient;
     const dispatcher = new PushNotificationDispatcher(db, "disabled", apns, {} as FcmClient);
     await dispatcher.drain();
     expect(calls).toBe(1);

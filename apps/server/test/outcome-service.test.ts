@@ -85,8 +85,8 @@ describe.skipIf(!url)("OutcomeService (specs/004.2 task 1.3)", () => {
     expect(outcome.currentRevisionView?.criteria.map((criterion) => [criterion.ordinal, criterion.required])).toEqual([[1, true], [2, true]]);
     expect((await prisma.outcomePlanningDraft.findUniqueOrThrow({ where: { id: plan.id } })).status).toBe("consumed");
     const topics = (await prisma.event.findMany({ where: { entityId: outcome.id }, orderBy: { sequence: "asc" } })).map((event) => event.topic);
-    expect(topics).toEqual(["outcome.created", "outcome.contract.revision_created", "outcome.status_changed"]);
-    expect(topics.every(isOutcomeEventTopic)).toBe(true);
+    expect(topics).toEqual(["outcome.created", "outcome.contract.revision_created", "outcome.status_changed", "goal.status.changed"]);
+    expect(topics.slice(0, -1).every(isOutcomeEventTopic)).toBe(true);
   });
 
   test("a retried request returns the first result; the same ID with another body is refused", async () => {

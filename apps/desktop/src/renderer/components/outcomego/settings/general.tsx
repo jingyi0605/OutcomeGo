@@ -269,7 +269,7 @@ export function FeatureSettings() {
         )}
         {(error || features.failed) && (
           <p role="alert" className="pb-3 text-xs text-destructive">
-            {error ?? t("Couldn't load this setting.")}{" "}
+            {error ?? t("Couldn’t load this setting.")}{" "}
             {features.failed && (
               <button className="underline" onClick={features.retry} type="button">
                 {t("Retry")}

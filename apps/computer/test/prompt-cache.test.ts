@@ -93,6 +93,7 @@ const fixture = () => {
       loadTaskConfiguration: async () => ({ executorProfiles: [] }),
     },
     prisma: {
+      featureSettings: { findUnique: async () => null },
       run: { findMany: async () => [] },
       $queryRaw: async () => [],
       contextSession: { findMany: async () => [], findFirst: async () => null },

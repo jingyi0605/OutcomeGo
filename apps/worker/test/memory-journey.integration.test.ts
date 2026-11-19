@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { DynamicToolCallRequest, type ComputerTurnRequest } from "@outcomego/contracts";
 import { AppService } from "../../server/src/app-service";
 import { errorResponse, json, parseBody } from "../../server/src/http";
@@ -86,6 +87,7 @@ test.skipIf(!databaseUrl)("a user remembers, corrects, recalls across fresh chat
     if (path !== "/v1/turns") return Response.json({ ok: true, quarantined: [] });
     const input = await request.json() as ComputerTurnRequest;
     turns.push(input);
+    return turnResponse(async () => {
     try {
       const call = async (tool: string, args: unknown) => {
         const result = await http("/api/internal/tools/call", {
@@ -117,18 +119,19 @@ test.skipIf(!databaseUrl)("a user remembers, corrects, recalls across fresh chat
           : recall.includes(oldFact) ? "Your favourite football player is Ronaldo." : missingReply;
       }
       await call("SendToUser", { type: "text", content: reply });
-      return new Response([
+      return [
         { type: "session.attached", runtimeEngine: "pi", inferenceProvider: "openai-codex", contextSessionId: input.contextSessionId,
           sessionPath: input.sessionPath ?? `/var/lib/openteam/pi/${input.contextSessionId}.jsonl`, sessionId: input.contextSessionId, model: "controlled-memory-journey" },
         { type: "context.state", contextSessionId: input.contextSessionId, epoch: 0, archives: [] },
         { type: "turn.started", turnId: input.runId },
         { type: "prompt.delivered", turnId: input.runId },
         { type: "turn.completed", turnId: input.runId, status: "completed" },
-      ].map(event => JSON.stringify(event)).join("\n") + "\n", { headers: { "content-type": "application/x-ndjson" } });
+      ];
     } catch (error) {
       fixtureErrors.push(error);
-      return Response.json({ error: String(error) }, { status: 500 });
+      throw error;
     }
+    });
   } });
   const until = async (check: () => Promise<boolean>) => {
     for (let i = 0; i < 600; i++) {
