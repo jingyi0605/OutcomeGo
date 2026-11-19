@@ -24,6 +24,7 @@ export { taskScopeContext, taskScopeUpdates } from "./task-progress";
 export { readTranscript } from "./read-transcript";
 export { readOutcomeTranscript } from "./outcome-transcript";
 export { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
+export { startOutcomeThreadTurn, settleOutcomeThreadTurn, settleFinishedOutcomeThreadTurns, outcomeThreadContext, OUTCOME_THREAD_EVENT_TOPIC } from "./outcome-threads";
 export { enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
 export { recoverOutcomeWorkItem, recoverOutcomeWorkItems, routeOutcomeNextStep, OUTCOME_RECOVERY_PROMPT, type OutcomeRecoveryRuntime, type OutcomeNextFact } from "./outcome-recovery";
 export { outcomeDispatchEnabled } from "./outcome-availability";
@@ -44,7 +45,7 @@ import { nextMessageAddress, resolveMessageAddress } from "./message-address";
 export { nextMessageAddress, resolveMessageAddress } from "./message-address";
 export { parseAutomationEvent, matchesAutomationEvent, type AutomationEvent } from "./automation-events";
 export { wakeAutomationParent, saveSilentAutomationResult, automationBackgroundWorkRunning, automationContinuationRoute, automationContextRunId, reconcileRoutineExecution } from "./automation-results";
-import { outcomeRunContext } from "./outcome-threads";
+import { outcomeRunContext, outcomeThreadContext } from "./outcome-threads";
 import { AUTOMATION_RUN_INSTRUCTIONS, automationContinuationRoute } from "./automation-results";
 import { join } from "node:path";
 import { publishChannelNotification, publishMessageNotification } from "./notifications";
@@ -751,7 +752,8 @@ export interface WakeInput {
     | "background_revival"
     | "handoff_resume"
     | "broadcast"
-    | "outcome";
+    | "outcome"
+    | "outcome_thread";
   type: string;
   content: string;
   images?: readonly AgentImageInput[];
@@ -766,6 +768,8 @@ export interface WakeInput {
   isFork?: boolean;
   automationContextRunId?: string;
   outcomeWorkItemId?: string;
+  /** A turn of a goal's own thread (specs/004.8); the owner's words arrive as the turn's content. */
+  outcomeThreadId?: string;
   taskContextRunId?: string;
   includeAttachmentPaths?: boolean;
   revival?: RevivalCompletion;
@@ -1061,6 +1065,7 @@ export class AgentMessaging {
         channelId: input.channelId,
         deliveryId: input.deliveryId,
         outcomeWorkItemId: input.outcomeWorkItemId,
+        outcomeThreadId: input.outcomeThreadId,
       },
     });
     await tx.message.update({ where: { id: messageId }, data: { runId } });
@@ -1084,6 +1089,7 @@ export class AgentMessaging {
           timeZone,
           automationContextRunId: input.automationContextRunId,
           outcomeWorkItemId: input.outcomeWorkItemId,
+          outcomeThreadId: input.outcomeThreadId,
           taskContextRunId: input.taskContextRunId,
           revival: input.revival,
           handoff: input.handoff,
@@ -2126,7 +2132,7 @@ export class AgentMessaging {
   }
 
   /** channelId is the run's channel (null for a home run); undefined renders no pending automation results. */
-  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string, outcomeWorkItemId?: string): Promise<PlatformPrompt> {
+  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string, outcomeWorkItemId?: string, outcomeThreadId?: string): Promise<PlatformPrompt> {
     const timeZone = await this.userTimeZone();
     const bot = await this.prisma.bot.findUniqueOrThrow({
       where: { id: botId },
@@ -2180,8 +2186,11 @@ export class AgentMessaging {
     }
     const context = await this.prisma.contextSession.findFirst({ where: { id: contextSessionId, botId }, select: { scope: true, scopeId: true } });
     const outcome = context?.scope === "outcome";
-    const outcomeContext = outcome ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId) : null;
-    const automation = context?.scope === "automation" || outcome;
+    const goalThread = context?.scope === "outcome-thread";
+    const outcomeContext = outcome
+      ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId)
+      : goalThread ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId) : null;
+    const automation = context?.scope === "automation" || outcome || goalThread;
     const outcomesEnabled = await readOutcomesEnabled(this.prisma);
     const [agentPrompt, taskConfiguration] = await Promise.all([
       this.agentData.promptContext(botId, contextSessionId, channelId),

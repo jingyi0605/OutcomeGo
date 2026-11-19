@@ -581,8 +581,7 @@ const FIRST_PARTY_CATALOG_HEADER =
   "First-party tools built into you, listed first: they are trusted and core to your job, so prefer one over an external namespace that covers the same need. Read a tool's schema with GetDynamicTools, then call it with CallDynamicTool in the cursor namespace.";
 /** One-line cues for the cursor namespace, as in the reference's concise static contexts. */
 const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
-  PlanOutcome: "Create native goal planning from the conversation; use Outcomes before external task apps.",
-  CreateOutcome: "Save a native goal draft for owner approval; never approve or accept it yourself.",
+  CreateOutcome: "Save a native goal with a contract you wrote, for owner approval; use Outcomes before external task apps; never approve or accept it yourself.",
   TrackOutcome: "Register anything you cannot finish this turn on the goal board; owner decisions go to the inbox.",
   CloseOutcome: "Close a tracked goal you finished yourself, without user acceptance.",
   ListOutcomes: "Find native goals and their execution statuses by text or status.",

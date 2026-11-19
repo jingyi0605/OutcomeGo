@@ -62,6 +62,7 @@
     "./presentation": "./src/presentation.ts",
     "./outcomes": "./src/outcomes.ts",
     "./outcome-chat": "./src/outcome-chat.ts",
+    "./outcome-thread": "./src/outcome-thread.ts",
     "./outcome-inbox": "./src/outcome-inbox.ts",
     "./knowledge": "./src/knowledge.ts",
     "./human-work": "./src/human-work.ts",

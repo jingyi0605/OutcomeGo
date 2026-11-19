@@ -3,17 +3,16 @@ import {
   CancelOutcomeInput,
   CloseOutcomeInput,
   CreateContractRevisionInput,
-  CreateOutcomeInput,
-  CreateOutcomePlanInput,
+  CreateOutcomeFromContractInput,
   OUTCOME_STATUSES,
   StartOutcomeRunInput,
   TrackOutcomeInput,
+  Uuid,
 } from "./outcomes";
 import {
   CreateExploreIdeaInput,
   DiscardExploreIdeaInput,
   EXPLORE_STATUSES,
-  ProposeExploreIdeaInput,
 } from "./explore";
 import { OUTCOME_INBOX_CATEGORIES } from "./outcome-inbox";
 
@@ -88,19 +87,14 @@ export function parseOutcomeChatCard(value: unknown): OutcomeChatCard | null {
   return card;
 }
 
-const Id = CreateOutcomeInput.fields.planId;
+const Id = Uuid;
 const PageSize = Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, 100)));
 const Cursor = Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(1000)));
 const { botId: _botId, ...exploreFields } = CreateExploreIdeaInput.fields;
 
 /** Ordinary conversation tools reuse the UI's inputs; actors and planning Bot come from the Run. */
 export const OUTCOME_CHAT_INPUTS = {
-  PlanOutcome: Schema.Struct({
-    sourceText: CreateOutcomePlanInput.fields.sourceText,
-    clientRequestId: CreateOutcomePlanInput.fields.clientRequestId,
-  }),
-  GetOutcomePlan: Schema.Struct({ planId: Id }),
-  CreateOutcome: CreateOutcomeInput,
+  CreateOutcome: CreateOutcomeFromContractInput,
   ListOutcomes: Schema.Struct({
     query: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
     statuses: Schema.optional(Schema.Array(Schema.Literal(...OUTCOME_STATUSES))),
@@ -133,10 +127,6 @@ export const OUTCOME_CHAT_INPUTS = {
   }),
   GetExploreIdea: Schema.Struct({ ideaId: Id }),
   CreateExploreIdea: Schema.Struct(exploreFields),
-  ProposeExploreIdea: Schema.Struct({
-    ideaId: Id,
-    clientRequestId: ProposeExploreIdeaInput.fields.clientRequestId,
-  }),
   DiscardExploreIdea: Schema.Struct({ ideaId: Id, ...DiscardExploreIdeaInput.fields }),
 } as const;
 
@@ -144,12 +134,8 @@ export type OutcomeChatToolName = keyof typeof OUTCOME_CHAT_INPUTS;
 export const OUTCOME_CHAT_TOOL_NAMES = Object.keys(OUTCOME_CHAT_INPUTS) as OutcomeChatToolName[];
 
 const descriptions: Record<OutcomeChatToolName, string> = {
-  PlanOutcome:
-    "Generate and save native Outcome planning suggestions for a goal discussed in this conversation. Returns goal, acceptance and boundary options with stable IDs. Does not start execution. Use native Outcomes rather than Notion or TodoWrite unless the user explicitly wants an external record. Reuse clientRequestId for identical retries.",
-  GetOutcomePlan:
-    "Read a saved native Outcome planning draft, including its options, Bot, status and expiry. Use real planId and option IDs when creating a draft Outcome.",
   CreateOutcome:
-    "Save a native Outcome and unapproved contract from a real planning draft. Select its returned option IDs or provide custom entries. Suggestions remain a draft, not user approval. Return the actual Outcome link for the user to review and approve on Desktop. Never claim execution has started. Reuse clientRequestId for identical retries.",
+    "Save a native goal with a contract you wrote yourself (title, goal statements, acceptance criteria, scope boundaries, optional budget). It is saved unapproved: the owner reviews and approves it in the app, you never approve it. Write for the owner to read: concrete, no filler. Return the actual goal link and one short next step. Use native goals rather than Notion or TodoWrite unless the user asked for those. Reuse clientRequestId for identical retries.",
   ListOutcomes:
     "Find native goals by title/description, execution statuses and cursor. Omit filters to list all goals, including goals assigned to other Bots on this user's server. Read-only. Do not use Notion or todos as a substitute.",
   GetOutcome:
@@ -172,8 +158,6 @@ const descriptions: Record<OutcomeChatToolName, string> = {
     "Read one native Explore idea, its notes, provenance and planning/Outcome links. Read-only.",
   CreateExploreIdea:
     "Save an idea discussed with the user in native Explore, optionally linked to a source Outcome. Uses this conversation's Bot. Does not execute or approve anything. Reuse clientRequestId for identical retries.",
-  ProposeExploreIdea:
-    "Generate delivery planning for a native Explore idea using this conversation's Bot. Returns a real planning draft to inspect and pass to CreateOutcome; does not approve or execute it. Reuse clientRequestId for identical retries.",
   DiscardExploreIdea:
     "Discard a native Explore idea when the user asks. Uses the existing terminal-state checks; never deletes an Outcome or its history. Reuse clientRequestId for identical retries.",
 };

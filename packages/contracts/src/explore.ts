@@ -29,6 +29,7 @@ export const CreateExploreIdeaInput = Schema.Struct({
   clientRequestId: RequestId,
 });
 export type CreateExploreIdeaInput = typeof CreateExploreIdeaInput.Type;
+/** @deprecated The fixed planning step is retired (specs/004.8); an idea becomes a goal through its bot's thread. */
 export const ProposeExploreIdeaInput = Schema.Struct({
   botId: Schema.optional(Uuid),
   clientRequestId: RequestId,

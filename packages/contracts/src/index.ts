@@ -143,7 +143,8 @@ export const RunOrigin = Schema.Literal(
   "background_revival",
   "handoff_resume",
   "broadcast",
-  "outcome"
+  "outcome",
+  "outcome_thread"
 );
 export type RunOrigin = typeof RunOrigin.Type;
 
@@ -1566,6 +1567,8 @@ export const ComputerTurnRequest = Schema.Struct({
   requestSource: Schema.optional(RuntimeRequestSource),
   /** Set by the worker only for an Outcome sub-thread; routine and ordinary turns omit it. */
   outcomeThread: Schema.optional(Schema.Struct({ workItemId: Schema.String })),
+  /** Set by the worker only for a turn of a goal's own thread (specs/004.8). */
+  goalThread: Schema.optional(Schema.Struct({ threadId: Schema.String, outcomeId: Schema.String, purpose: Schema.Literal("plan", "owner_message") })),
   channelId: Schema.String,
   deliveryId: Schema.NullOr(Schema.String),
   runtimeProfile: Schema.optional(Schema.Literal("agent", "subagent")),

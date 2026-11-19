@@ -2,20 +2,23 @@ import { expect, test } from "bun:test";
 import { decodeOutcomeChatInput, OUTCOME_CHAT_TOOLS, OUTCOME_CHAT_TOOL_NAMES } from "../src/outcome-chat";
 import { parseListOutcomesQuery } from "../src/outcomes";
 
-test("native chat has planning/records/Explore tools and no owner approval or acceptance tool", () => {
-  expect(OUTCOME_CHAT_TOOL_NAMES).toHaveLength(16);
+test("native chat has goal/records/Explore tools, no fixed planning step, and no owner approval or acceptance tool", () => {
+  expect(OUTCOME_CHAT_TOOL_NAMES).toHaveLength(13);
+  for (const gone of ["PlanOutcome", "GetOutcomePlan", "ProposeExploreIdea"]) expect(OUTCOME_CHAT_TOOL_NAMES as string[]).not.toContain(gone);
   expect(OUTCOME_CHAT_TOOLS.map(tool => tool.name)).toEqual(OUTCOME_CHAT_TOOL_NAMES);
   expect(OUTCOME_CHAT_TOOL_NAMES.some(name => /approve|review|receipt/i.test(name))).toBe(false);
-  const plan = OUTCOME_CHAT_TOOLS.find(tool => tool.name === "PlanOutcome")!;
-  expect(plan.inputSchema).toMatchObject({ type: "object", required: ["sourceText", "clientRequestId"] });
-  expect(decodeOutcomeChatInput("PlanOutcome", { sourceText: "Clean Unraid space", clientRequestId: "plan:unique" }))
-    .toEqual({ sourceText: "Clean Unraid space", clientRequestId: "plan:unique" });
+  // The bot writes the contract itself; there is no planning draft or option ID to pick from.
+  const create = OUTCOME_CHAT_TOOLS.find(tool => tool.name === "CreateOutcome")!;
+  expect(create.inputSchema).toMatchObject({ type: "object", required: ["title", "goal", "acceptance", "boundaries", "clientRequestId"] });
+  const contract = { title: "Clean Unraid", goal: ["Free 200 GB"], acceptance: [{ statement: "200 GB free", required: true }], boundaries: { included: [], excluded: ["Deleting media"] }, clientRequestId: "create:unique" };
+  expect(decodeOutcomeChatInput("CreateOutcome", contract)).toEqual(contract);
 });
 
 test("schemas reject forged actors, planning Bot, invalid status and unbounded inputs", () => {
-  for (const extra of [{ actor: "owner:local" }, { context: { botId: crypto.randomUUID() } }]) {
-    expect(() => decodeOutcomeChatInput("PlanOutcome", {
-      sourceText: "Plan", clientRequestId: "plan:unique", ...extra,
+  for (const extra of [{ actor: "owner:local" }, { context: { botId: crypto.randomUUID() } }, { approved: true }]) {
+    expect(() => decodeOutcomeChatInput("CreateOutcome", {
+      title: "Plan", goal: ["x"], acceptance: [{ statement: "y", required: true }], boundaries: { included: [], excluded: [] },
+      clientRequestId: "plan:unique", ...extra,
     })).toThrow();
   }
   expect(() => decodeOutcomeChatInput("ListOutcomes", { query: "x".repeat(201) })).toThrow();

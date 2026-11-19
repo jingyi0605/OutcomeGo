@@ -101,6 +101,8 @@ enum RunOrigin {
   broadcast
   /// One Outcome work item running as a sub-thread beside the bot's main conversation (specs/004 design §45).
   outcome
+  /// One turn of a goal's own Agent thread: planning, revising and answering the owner (specs/004.8).
+  outcome_thread
   @@map("outcomego_run_origin")
 }
 
@@ -950,6 +952,10 @@ model Run {
   @@index([channelId, createdAt], map: "outcomego_run_channel_id_created_at_idx")
   @@index([requestNextCheckAt], map: "outcomego_run_request_next_check_at_idx")
   @@index([outcomeWorkItemId, createdAt], map: "outcomego_run_outcome_work_item_id_created_at_idx")
+  outcomeThreadId String?      @db.Uuid
+  outcomeThread OutcomeThread? @relation("OutcomeThreadRuns", fields: [outcomeThreadId], references: [id], onDelete: SetNull)
+  outcomeThreadTurn OutcomeThreadTurn? @relation("OutcomeThreadTurnRun")
+  @@index([outcomeThreadId, createdAt], map: "outcomego_run_outcome_thread_id_created_at_idx")
   @@map("outcomego_run")
 }
 
@@ -1993,6 +1999,7 @@ model Outcome {
   reviews           OutcomeReview[]
   humanReceipts     OutcomeHumanReceipt[]
   briefs            OutcomeBrief[]
+  thread            OutcomeThread?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   acceptedAt DateTime?
@@ -2020,6 +2027,57 @@ model OutcomeBrief {
 
   @@unique([outcomeId, sourceHash], map: "outcomego_outcome_brief_outcome_id_source_hash_key")
   @@map("outcomego_outcome_brief")
+}
+
+enum OutcomeThreadTurnPurpose {
+  plan
+  owner_message
+  @@map("outcomego_outcome_thread_turn_purpose")
+}
+
+enum OutcomeThreadTurnStatus {
+  queued
+  running
+  completed
+  failed
+  @@map("outcomego_outcome_thread_turn_status")
+}
+
+/// A goal's own Agent thread (specs/004.8): the owner's words and the bot's planning happen here, beside the
+/// work-item execution threads. Facts (contracts, status, cancellation) are still written through tools.
+model OutcomeThread {
+  id String @id @default(uuid()) @db.Uuid
+  outcomeId String @unique @db.Uuid
+  outcome Outcome @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  botId String @db.Uuid
+  turns OutcomeThreadTurn[]
+  runs Run[] @relation("OutcomeThreadRuns")
+  createdAt DateTime @default(now())
+
+  @@map("outcomego_outcome_thread")
+}
+
+model OutcomeThreadTurn {
+  id String @id @default(uuid()) @db.Uuid
+  threadId String @db.Uuid
+  thread OutcomeThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  purpose OutcomeThreadTurnPurpose
+  /// The owner's words, exactly as sent.
+  trigger String
+  triggerBy String
+  status OutcomeThreadTurnStatus @default(queued)
+  runId String? @unique @db.Uuid
+  run Run? @relation("OutcomeThreadTurnRun", fields: [runId], references: [id], onDelete: SetNull)
+  /// The bot's final message for the turn, shown with the goal.
+  reply String?
+  error Json?
+  clientRequestId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([threadId, clientRequestId], map: "outcomego_outcome_thread_turn_thread_id_client_request_id_key")
+  @@index([threadId, createdAt], map: "outcomego_outcome_thread_turn_thread_id_created_at_idx")
+  @@map("outcomego_outcome_thread_turn")
 }
 
 enum ExploreIdeaStatus {

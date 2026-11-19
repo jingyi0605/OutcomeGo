@@ -356,6 +356,8 @@ export const OUTCOME_ERROR_CODES = {
   contract_revision_conflict: 409,
   contract_revision_not_approved: 409,
   invalid_outcome_transition: 409,
+  contract_unchanged: 409,
+  contract_title_required: 400,
   idempotency_conflict: 409,
   request_in_progress: 409,
   bot_not_runnable: 409,
@@ -759,7 +761,7 @@ export interface OutcomeListPage {
 // ---------------------------------------------------------------------------
 
 const ClientRequestId = Schema.String.pipe(Schema.minLength(8), Schema.maxLength(200));
-const Uuid = Schema.String.pipe(Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));
+export const Uuid = Schema.String.pipe(Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));
 const RevisionNumber = Schema.Number.pipe(Schema.int(), Schema.positive());
 const OptionalText = (max: number) => Schema.optional(Schema.String.pipe(Schema.maxLength(max)));
 
@@ -794,6 +796,23 @@ export const CreateOutcomeInput = Schema.Struct({
 export type CreateOutcomeInput = typeof CreateOutcomeInput.Type;
 
 const ContractText = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.customEntryChars));
+
+/** A goal whose contract its bot wrote itself, in a conversation; saved unapproved (specs/004.8). */
+export const CreateOutcomeFromContractInput = Schema.Struct({
+  title: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.titleChars)),
+  goal: Schema.Array(ContractText).pipe(Schema.minItems(1), Schema.maxItems(8)),
+  acceptance: Schema.Array(Schema.Struct({ statement: ContractText, required: Schema.Boolean })).pipe(
+    Schema.minItems(1),
+    Schema.maxItems(20)
+  ),
+  boundaries: Schema.Struct({
+    included: Schema.Array(ContractText).pipe(Schema.maxItems(20)),
+    excluded: Schema.Array(ContractText).pipe(Schema.maxItems(20)),
+  }),
+  budget: Schema.optional(Schema.NullOr(OutcomeBudgetInput)),
+  clientRequestId: ClientRequestId,
+});
+export type CreateOutcomeFromContractInput = typeof CreateOutcomeFromContractInput.Type;
 
 export const CreateContractRevisionInput = Schema.Struct({
   baseRevision: RevisionNumber,

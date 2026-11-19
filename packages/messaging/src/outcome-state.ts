@@ -145,7 +145,7 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
   const outcome = await tx.outcome.findUniqueOrThrow({
     where: { id: outcomeId },
     include: {
-      currentRevision: { select: { id: true, status: true } },
+      currentRevision: { select: { id: true, status: true, revision: true } },
       workItems: { select: { executorType: true, status: true, contractRevisionId: true } },
     },
   });
@@ -176,6 +176,15 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
   // A pending revision N+1 takes the Outcome back to approval even while revision N work is recorded.
   if (current?.status === "pending_approval") {
     for (const status of ["running", "review_pending", "failed", "approved"] as const) candidates.delete(status);
+  }
+  // While the goal's own thread is working on the plan (a new goal, or the owner's words about a pending or
+  // unsaved plan) the goal is in planning. When that turn ends, the facts alone decide again.
+  if ((!current || current.status === "draft" || current.status === "pending_approval") && await tx.outcomeThreadTurn.count({
+    where: { thread: { outcomeId }, status: { in: ["queued", "running"] } },
+  })) {
+    candidates.delete("pending_approval");
+    candidates.delete("draft");
+    candidates.add("planning");
   }
   const status = OUTCOME_STATUS_PRIORITY.find((candidate) => candidates.has(candidate)) ?? "draft";
   const base = OUTCOME_STATUS_PRIORITY.find((candidate) => candidates.has(candidate) && !SIDE_STATUSES.includes(candidate)) ?? "draft";

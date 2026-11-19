@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readdir } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { OutcomeError } from "@outcomego/contracts/outcomes";
-import { Prisma } from "@outcomego/db";
+import { Prisma, type PrismaClient } from "@outcomego/db";
 import type { AgentMessaging } from "./index";
 import { finalRunMessage, runGroupBackgroundWorkRunning } from "./automation-results";
 import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem } from "./outcome-state";
@@ -229,5 +229,101 @@ export async function outcomeRunContext(db: Prisma.TransactionClient, botId: str
       },
     }),
     "Work quietly in this isolated Outcome thread. End with a complete final assistant result. Never publish progress or results in the main conversation. Immediately call ReportOutcomeProgress when starting execution to publish the initial phase/stage and structured task list, and call ReportOutcomeProgress promptly at every phase change or whenever any task becomes in_progress, completed, or blocked. If the goal states explicit prerequisites (access, credentials, approvals, environment conditions), check each one before relying on it and include it in the `prerequisites` field of ReportOutcomeProgress with status met, unmet or unknown; resend the list whenever a status changes. Use RequestOutcomeDecision for decisions and RequestHumanAction for human work when available. Use WakeParent only when the main conversation must handle a platform blocker.",
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// A goal's own thread (specs/004.8)
+// ---------------------------------------------------------------------------
+
+const threadActor = "system:outcome-thread" as const;
+const TERMINAL_RUN_STATUSES = ["completed", "failed", "cancelled", "interrupted"] as const;
+export const OUTCOME_THREAD_EVENT_TOPIC = "goal.thread.updated";
+
+/** Clients refresh the goal from this and, when a turn ends, tell the owner which goal answered. */
+const announceThreadTurn = async (tx: Prisma.TransactionClient, outcomeId: string, turnId: string, status: string) => {
+  const title = (await tx.outcome.findUnique({ where: { id: outcomeId }, select: { title: true } }))?.title ?? "";
+  await tx.event.create({ data: { topic: OUTCOME_THREAD_EVENT_TOPIC, entityId: outcomeId, payload: { outcomeId, turnId, status, title } } });
+};
+
+/** The turn's run took its lease: it is working now. */
+export async function startOutcomeThreadTurn(tx: Prisma.TransactionClient, runId: string): Promise<void> {
+  const turn = await tx.outcomeThreadTurn.findUnique({ where: { runId }, include: { thread: { select: { outcomeId: true } } } });
+  if (!turn || turn.status !== "queued") return;
+  await tx.outcomeThreadTurn.update({ where: { id: turn.id }, data: { status: "running" } });
+  await announceThreadTurn(tx, turn.thread.outcomeId, turn.id, "running");
+}
+
+/**
+ * A finished run settles its turn: the bot's final message becomes the reply shown with the goal, a failed
+ * or cancelled run records why. The goal's status is then derived again from the facts.
+ */
+export async function settleOutcomeThreadTurn(tx: Prisma.TransactionClient, runId: string): Promise<void> {
+  const turn = await tx.outcomeThreadTurn.findUnique({
+    where: { runId }, include: { thread: { select: { outcomeId: true } }, run: { select: { status: true, error: true } } },
+  });
+  if (!turn?.run || turn.status === "completed" || turn.status === "failed") return;
+  if (!(TERMINAL_RUN_STATUSES as readonly string[]).includes(turn.run.status)) return;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${turn.thread.outcomeId}`}))`;
+  const completed = turn.run.status === "completed";
+  const reply = completed ? (await finalRunMessage(tx, runId))?.trim() || null : null;
+  const detail = turn.run.error && typeof turn.run.error === "object" ? turn.run.error as { code?: unknown; message?: unknown } : null;
+  await tx.outcomeThreadTurn.update({
+    where: { id: turn.id },
+    data: completed
+      ? { status: "completed", reply }
+      : { status: "failed", error: {
+          code: typeof detail?.code === "string" ? detail.code : `run_${turn.run.status}`,
+          message: typeof detail?.message === "string" ? detail.message : "The bot's turn did not finish",
+        } },
+  });
+  await recomputeOutcomeStatus(tx, turn.thread.outcomeId, threadActor);
+  await announceThreadTurn(tx, turn.thread.outcomeId, turn.id, completed ? "completed" : "failed");
+}
+
+/** Turns whose run already ended (a crash between the run and its settlement) are settled on a later pass. */
+export async function settleFinishedOutcomeThreadTurns(prisma: PrismaClient): Promise<number> {
+  const stale = await prisma.outcomeThreadTurn.findMany({
+    where: { status: { in: ["queued", "running"] }, run: { status: { in: [...TERMINAL_RUN_STATUSES] } } },
+    select: { runId: true }, take: 50,
+  });
+  for (const { runId } of stale) if (runId) await prisma.$transaction((tx) => settleOutcomeThreadTurn(tx, runId));
+  return stale.length;
+}
+
+/** What the bot is told at the start of a goal-thread turn; its facts are the saved ones, never the chat's. */
+export async function outcomeThreadContext(db: Prisma.TransactionClient | PrismaClient, botId: string, threadId: string): Promise<string> {
+  const thread = await db.outcomeThread.findFirst({
+    where: { id: threadId, botId },
+    include: { outcome: { include: { currentRevision: { include: { criteria: { orderBy: { ordinal: "asc" } } } } } } },
+  });
+  if (!thread) throw new OutcomeError("outcome_not_found", "This goal thread no longer exists");
+  const { outcome } = thread;
+  const revision = outcome.currentRevision;
+  // One turn runs at a time per thread, so the oldest unfinished one is the one being answered.
+  const purpose = (await db.outcomeThreadTurn.findFirst({
+    where: { threadId, status: { in: ["queued", "running"] } }, orderBy: { createdAt: "asc" }, select: { purpose: true },
+  }))?.purpose ?? "owner_message";
+  return [
+    "## Goal thread",
+    JSON.stringify({
+      outcome: {
+        id: outcome.id, title: outcome.title, description: outcome.description, status: outcome.status,
+        contract: revision ? {
+          revision: revision.revision, status: revision.status, goal: revision.goal,
+          acceptance: revision.criteria.map(({ id, statement, required }) => ({ id, statement, required })),
+          boundaries: revision.boundaries, budget: revision.budget,
+        } : null,
+      },
+      turn: { purpose },
+    }),
+    "You are the dedicated thread of this one goal, separate from the user's main conversation. The user message is the owner's own words, unmodified. Understand what they mean and decide yourself what to do; there is no fixed procedure.",
+    "- To write or revise the contract, call SaveOutcomeContract with a complete contract you wrote (the first one also needs a title). It becomes a proposal the owner approves in the app; you cannot approve it or accept results.",
+    "- When the owner asks to cancel, stop or drop the goal, call CancelOutcome. Never answer such a request with a plan.",
+    "- When something essential is missing, or the owner asked a question, answer in your final message and do not guess. Use GetOutcome when you need more facts.",
+    purpose === "plan"
+      ? "- This goal was just created from the owner's description. If it is enough, write the first contract now; otherwise ask."
+      : "- Do only what the owner's words ask for; if they do not ask for a change, do not change the contract.",
+    "Your final message is shown to the owner with the goal: short, plain, say what you did or what you need from them. Do not repeat the whole contract and do not message the main conversation.",
   ].join("\n");
 }
