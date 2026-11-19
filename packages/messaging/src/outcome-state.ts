@@ -182,8 +182,11 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
   const resumeStatus = SIDE_STATUSES.includes(status) ? base : null;
   if (status !== outcome.status || resumeStatus !== outcome.resumeStatus) {
     await tx.outcome.update({ where: { id: outcomeId }, data: { status, resumeStatus } });
-    if (status !== outcome.status)
+    if (status !== outcome.status) {
       await appendOutcomeEvent(tx, "outcome.status_changed", outcomeId, { actor, payload: { from: outcome.status, to: status } });
+      // Clients never receive `outcome.*` events, so goal lists and badges follow this signal instead.
+      await tx.event.create({ data: { topic: "goal.status.changed", entityId: outcomeId, payload: { outcomeId, from: outcome.status, to: status } } });
+    }
   }
   return status;
 }
