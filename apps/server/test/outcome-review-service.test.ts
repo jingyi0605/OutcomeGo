@@ -12,7 +12,36 @@ import {
 } from "./fixtures/outcome-fixture";
 import type { SubmitOutcomeReviewInput, ReviewResult } from "@outcomego/contracts/outcomes";
 
-describe.skipIf(!testDatabaseUrl)("OutcomeReviewService", () => {
+test("acceptance route rejects blank feedback and accepts a whole-result decision", async () => {
+  const { outcomeRoutes } = await import("../src/routes/outcome");
+  type RouteContext = import("../src/routes/context").RouteContext;
+  const id = "01234567-0000-4000-8000-012345678901";
+  const url = new URL(`http://localhost/api/outcomes/${id}/acceptance`);
+  const received: unknown[] = [];
+  const run = (input: object) => outcomeRoutes({
+    app: { outcomeReviews: { decide: (id: string, input: unknown, actor: string) => {
+      received.push({ id, input, actor });
+      return Effect.succeed({ id });
+    } } } as unknown as RouteContext["app"],
+    path: url.pathname,
+    request: new Request(url, { method: "POST", body: JSON.stringify(input) }),
+    url,
+  } as RouteContext);
+  const base = { expectedRevision: 1, clientRequestId: "request-123" };
+  await expect(run({ ...base, decision: "reject", reason: "  " })).rejects.toThrow();
+  expect(received).toEqual([]);
+  await run({ ...base, decision: "approve" });
+  await run({ ...base, decision: "reject", reason: "Include the before and after capacity." });
+  expect(received).toEqual([
+    { id, input: { ...base, decision: "approve" }, actor: "owner:local" },
+    {
+      id, input: { ...base, decision: "reject", reason: "Include the before and after capacity." },
+      actor: "owner:local",
+    },
+  ]);
+});
+
+if (testDatabaseUrl) describe("OutcomeReviewService", () => {
   const f = outcomeFixture();
   const fake = new OutcomeThreadFake();
   const humanWork = new HumanWorkService(f.prisma);
@@ -52,6 +81,31 @@ describe.skipIf(!testDatabaseUrl)("OutcomeReviewService", () => {
     expectedRevision: 1,
     results: [{ criterionId, result, evidenceIds: [], comment: "Owner result", ...extras }],
     clientRequestId: requestId(),
+  });
+
+  test("approval signs off the whole result and rejection queues one follow-up with the reason", async () => {
+    const approved = await f.completed();
+    const acceptRequest = { decision: "approve", expectedRevision: 1, clientRequestId: requestId() } as const;
+    const accept = () => Effect.runPromise(reviews.decide(approved.outcome.id, acceptRequest, "owner:local"));
+    const accepted = await accept();
+    expect(accepted.status).toBe("accepted");
+    expect(accepted.reviews).toEqual([]);
+    expect(await accept()).toEqual(accepted);
+    expect(await f.prisma.event.count({ where: { entityId: approved.outcome.id, topic: "outcome.accepted" } })).toBe(1);
+
+    const rejected = await f.completed();
+    const rejectRequest = {
+      decision: "reject", expectedRevision: 1, reason: "Include the before and after capacity.",
+      clientRequestId: requestId(),
+    } as const;
+    const reject = () => Effect.runPromise(reviews.decide(rejected.outcome.id, rejectRequest, "owner:local"));
+    const [first, replay] = await Promise.all([reject(), reject()]);
+    expect(first).toEqual(replay);
+    expect(first.status).toBe("running");
+    const followUp = first.workItems.find((item) => item.kind === "rework")!;
+    expect(followUp.reworkOfWorkItemId).toBe(rejected.item.id);
+    expect(fake.enqueueCalls.filter((call) => call.workItemId === followUp.id)).toHaveLength(1);
+    expect(fake.enqueueCalls.at(-1)?.content).toContain(rejectRequest.reason);
   });
 
   test("Output candidates are idempotent, sourced and advisory; advisory PASS and missing evidence fail", async () => {

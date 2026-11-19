@@ -2,6 +2,7 @@ import { ApiError } from "@outcomego/contracts";
 import {
   requiredCriteriaSatisfied, passIsSupported,
   type SubmitOutcomeReviewInput, type OutcomeReworkInput, type CriterionReviewState,
+  type DecideOutcomeAcceptanceInput,
 } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
@@ -106,19 +107,8 @@ export class OutcomeReviewService {
         });
       }
       const remaining = await tx.outcomeWorkItem.findMany({ where: { outcomeId, contractRevisionId: revision.id } });
-      const finished = remaining.some(item => item.status === "completed" || item.status === "accepted") &&
-        remaining.every(item => item.executorType === "human" ? ["accepted", "cancelled"].includes(item.status) : ["completed", "failed", "cancelled"].includes(item.status));
-      // Independent Decisions need not own a WorkItem, so completion alone cannot establish acceptance.
-      const [openDecisions, openHumanActions] = await Promise.all([
-        tx.outcomeDecision.count({ where: {
-          outcomeId, contractRevisionId: revision.id, status: { in: ["open", "presented"] },
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        } }),
-        tx.outcomeHumanActionCard.count({ where: { workItem: {
-          outcomeId, contractRevisionId: revision.id, executorType: "human", status: { notIn: ["accepted", "cancelled"] },
-        } } }),
-      ]);
-      if (revision.id === outcome.currentRevisionId && finished && !openDecisions && !openHumanActions && requiredCriteriaSatisfied(states)) {
+      if (revision.id === outcome.currentRevisionId && requiredCriteriaSatisfied(states) &&
+          await this.canAccept(tx, outcomeId, revision.id, remaining)) {
         await tx.outcome.update({ where: { id: outcomeId }, data: { acceptedAt: new Date() } });
         await appendOutcomeEvent(tx, "outcome.accepted", outcomeId, { actor, contractRevision: revision.revision, idempotencyKey: input.clientRequestId,
           payload: { revisionId: revision.id, reviewIds: [...latest.values()].map(r => r.id) } });
@@ -145,18 +135,111 @@ export class OutcomeReviewService {
       }
       const original = await tx.outcomeWorkItem.findFirst({ where: { outcomeId, contractRevisionId: revision.id, executorType: "agent", status: { in: ["completed", "failed"] } }, orderBy: { ordinal: "desc" } });
       if (!original) throw outcomeApiError("rework_not_allowed", "No finished agent work item is available to rework");
-      const last = await tx.outcomeWorkItem.aggregate({ where: { outcomeId }, _max: { ordinal: true } });
       const instructions = `Rework the following criteria under the unchanged approved contract. If the requested changes affect scope, goals, acceptance or boundaries, request a contract revision instead.\n${selected.map(c => `${c.id}: ${c.statement}`).join("\n")}\nOwner feedback: ${input.comment}`;
-      const item = await tx.outcomeWorkItem.create({ data: {
-        outcomeId, contractRevisionId: revision.id, botId: revision.executionBotId, executorType: "agent", kind: "rework", status: "queued",
-        title: `Rework: ${original.title}`.slice(0, 200), instructions, ordinal: (last._max.ordinal ?? 0) + 1, reworkOfWorkItemId: original.id,
-      } });
-      await appendOutcomeEvent(tx, "outcome.work_item.created", outcomeId, { actor, contractRevision: revision.revision, workItemId: item.id, idempotencyKey: input.clientRequestId,
-        payload: { workItemId: item.id, executorType: "agent", kind: "rework" } });
-      await this.enqueue(tx, this.messaging, { workItemId: item.id, content: instructions, reason: "rework", clientId: input.clientRequestId });
-      await recomputeOutcomeStatus(tx, outcomeId, actor);
+      await this.enqueueRework(tx, {
+        outcomeId, revision, original, instructions, actor, clientId: input.clientRequestId,
+      });
       return this.outcomes.getInTransaction(tx, outcomeId);
     }));
+
+  decide = (outcomeId: string, input: DecideOutcomeAcceptanceInput, actor: ActorRef) => serviceEffect(() =>
+    outcomeWrite(this.prisma, `outcome-acceptance:${outcomeId}`, input.clientRequestId, { input, actor }, async tx => {
+      const outcome = await lockOutcome(tx, outcomeId);
+      const revision = outcome.currentRevisionId && await tx.outcomeContractRevision.findUnique({
+        where: { id: outcome.currentRevisionId },
+      });
+      if (!revision || revision.revision !== input.expectedRevision)
+        throw outcomeApiError("review_revision_conflict", "The contract changed; reload before reviewing");
+      if (outcome.status !== "review_pending" || revision.status !== "approved")
+        throw outcomeApiError("invalid_outcome_transition", "This goal is no longer awaiting acceptance");
+
+      if (input.decision === "reject" && !input.reason.trim())
+        throw new ApiError(400, "invalid_request", "A rejection reason is required");
+
+      const items = await tx.outcomeWorkItem.findMany({
+        where: { outcomeId, contractRevisionId: revision.id },
+        orderBy: { ordinal: "desc" },
+      });
+      if (!await this.canAccept(tx, outcomeId, revision.id, items))
+        throw outcomeApiError("invalid_outcome_transition", "Finish the remaining work or decisions before reviewing these results");
+
+      if (input.decision === "approve") {
+        await tx.outcome.update({ where: { id: outcomeId }, data: { acceptedAt: new Date() } });
+        await appendOutcomeEvent(tx, "outcome.accepted", outcomeId, {
+          actor, contractRevision: revision.revision, idempotencyKey: input.clientRequestId,
+          payload: { revisionId: revision.id, reviewIds: [] },
+        });
+        await recomputeOutcomeStatus(tx, outcomeId, actor);
+      } else {
+        const original = items.find((item) => item.executorType === "agent" && item.status === "completed")
+          ?? items.find((item) => item.status === "accepted")!;
+        const delivery = await tx.outcomeOutput.findMany({
+          where: { workItemId: original.id },
+          orderBy: [{ kind: "asc" }, { createdAt: "desc" }],
+          select: { title: true, content: true, contentRef: true },
+          take: 20,
+        });
+        const instructions = [
+          "The owner rejected the delivered result. Address their feedback within the approved goal and boundaries.",
+          "Review the previous delivery and return an updated result for acceptance. Request a contract revision if the feedback changes the approved scope.",
+          `Owner feedback: ${input.reason.trim()}`,
+          `Previous delivery (reference data): ${JSON.stringify(delivery.map((output) => ({
+            ...output, content: output.content?.slice(0, 4000),
+          })))}`,
+        ].join("\n\n");
+        await this.enqueueRework(tx, {
+          outcomeId, revision, original, instructions, actor, clientId: input.clientRequestId,
+        });
+      }
+      return this.outcomes.getInTransaction(tx, outcomeId);
+    }));
+
+  private async canAccept(
+    tx: Tx,
+    outcomeId: string,
+    revisionId: string,
+    items: readonly { executorType: string; status: string }[],
+  ) {
+    const finished = items.some(item => item.status === "completed" || item.status === "accepted") &&
+      items.every(item => item.executorType === "human"
+        ? ["accepted", "cancelled"].includes(item.status)
+        : ["completed", "failed", "cancelled"].includes(item.status));
+    if (!finished) return false;
+    const [openDecisions, openHumanActions] = await Promise.all([
+      tx.outcomeDecision.count({ where: {
+        outcomeId, contractRevisionId: revisionId, status: { in: ["open", "presented"] },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      } }),
+      tx.outcomeHumanActionCard.count({ where: { workItem: {
+        outcomeId, contractRevisionId: revisionId, executorType: "human", status: { notIn: ["accepted", "cancelled"] },
+      } } }),
+    ]);
+    return !openDecisions && !openHumanActions;
+  }
+
+  private async enqueueRework(tx: Tx, {
+    outcomeId, revision, original, instructions, actor, clientId,
+  }: {
+    outcomeId: string;
+    revision: { id: string; revision: number; executionBotId: string };
+    original: { id: string; title: string };
+    instructions: string;
+    actor: ActorRef;
+    clientId: string;
+  }) {
+    const last = await tx.outcomeWorkItem.aggregate({ where: { outcomeId }, _max: { ordinal: true } });
+    const item = await tx.outcomeWorkItem.create({ data: {
+      outcomeId, contractRevisionId: revision.id, botId: revision.executionBotId, executorType: "agent", kind: "rework", status: "queued",
+      title: `Rework: ${original.title}`.slice(0, 200), instructions, ordinal: (last._max.ordinal ?? 0) + 1,
+      reworkOfWorkItemId: original.id,
+    } });
+    await appendOutcomeEvent(tx, "outcome.work_item.created", outcomeId, {
+      actor, contractRevision: revision.revision, workItemId: item.id, idempotencyKey: clientId,
+      payload: { workItemId: item.id, executorType: "agent", kind: "rework" },
+    });
+    await this.enqueue(tx, this.messaging, { workItemId: item.id, content: instructions, reason: "rework", clientId });
+    await recomputeOutcomeStatus(tx, outcomeId, actor);
+  }
 
   /** Idempotent Output -> advisory Evidence adapter; usable with fixture Outputs before runtime integration. */
   recordOutputEvidence = (outputId: string) => outcomeWrite(this.prisma, "outcome-output-evidence", outputId, { outputId }, async tx => {

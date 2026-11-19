@@ -848,6 +848,24 @@ export const SubmitOutcomeReviewInput = Schema.Struct({
 });
 export type SubmitOutcomeReviewInput = typeof SubmitOutcomeReviewInput.Type;
 
+export const DecideOutcomeAcceptanceInput = Schema.Union(
+  Schema.Struct({
+    decision: Schema.Literal("approve"),
+    expectedRevision: RevisionNumber,
+    clientRequestId: ClientRequestId,
+  }),
+  Schema.Struct({
+    decision: Schema.Literal("reject"),
+    reason: Schema.String.pipe(
+      Schema.maxLength(OUTCOME_LIMITS.commentChars),
+      Schema.filter((value) => value.trim().length > 0, { message: () => "A rejection reason is required" }),
+    ),
+    expectedRevision: RevisionNumber,
+    clientRequestId: ClientRequestId,
+  })
+);
+export type DecideOutcomeAcceptanceInput = typeof DecideOutcomeAcceptanceInput.Type;
+
 export const OutcomeReworkInput = Schema.Struct({
   criterionIds: Schema.Array(Uuid).pipe(Schema.minItems(1), Schema.maxItems(20)),
   comment: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.commentChars)),

@@ -1,7 +1,7 @@
 import { ApiError } from "@outcomego/contracts";
 import {
   CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
-  CancelOutcomeInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, parseListOutcomesQuery,
+  CancelOutcomeInput, DecideOutcomeAcceptanceInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, parseListOutcomesQuery,
 } from "@outcomego/contracts/outcomes";
 import { OutcomeAttentionInput, ReconcileOutcomeInput } from "@outcomego/contracts/outcome-runtime";
 import { outcomeDispatchEnabled, type ActorRef } from "@outcomego/messaging";
@@ -61,6 +61,8 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     const approve = tail?.match(/^\/revisions\/([1-9]\d*)\/approve$/);
     if (approve && request.method === "POST") return json(await run(app.outcomes.approve(id, Number(approve[1]), await parseBody(request, ApproveContractRevisionInput), actor)));
     if (tail === "/cancel" && request.method === "POST") return json(await run(app.outcomes.cancel(id, await parseBody(request, CancelOutcomeInput), actor)));
+    if (tail === "/acceptance" && request.method === "POST")
+      return json(await run(app.outcomeReviews.decide(id, await parseBody(request, DecideOutcomeAcceptanceInput), actor)));
     if (tail === "/reviews" && request.method === "POST") return json(await run(app.outcomeReviews.submit(id, await parseBody(request, SubmitOutcomeReviewInput), actor)));
     if (tail === "/rework" && request.method === "POST") return json(await run(app.outcomeReviews.rework(id, await parseBody(request, OutcomeReworkInput), actor)), 202);
     const runtime = app.outcomes;
