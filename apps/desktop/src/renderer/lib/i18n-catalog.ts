@@ -632,12 +632,12 @@ export const sourceTranslations: Record<string, string> = {
   discarded: "已放弃",
   enqueued: "已入队",
   queued_for_capacity: "等待执行容量",
+  recorded: "已记录",
   pending_approval: "待批准",
   "Receipt Contract revision": "回执的契约版本",
   "Receipt review uses Contract revision {revision}. The current Contract stays at revision {current}.":
     "回执按契约版本 {revision} 验收，当前契约仍为版本 {current}。",
   "Loading the receipt's original Contract…": "正在读取回执的原始契约…",
-  recorded: "已记录",
   "Could not load the receipt's Contract. Review is disabled until its actual criteria are available.":
     "无法读取回执的契约。在取得真实验收条款前，验收操作不可用。",
   "Reload receipt Contract": "重新读取回执契约",
