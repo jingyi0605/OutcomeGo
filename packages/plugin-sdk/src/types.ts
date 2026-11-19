@@ -53,10 +53,13 @@ export interface PluginToolDefinition {
   risk: "read" | "write" | "destructive";
   inputSchema: Readonly<Record<string, unknown>>;
 }
-/** Automation event sources a packaged connector may produce. Each has a routine trigger. */
-export type PluginEventSource = "email";
-/** Packaged connectors only. The host calls `pollTool` on a timer with `{ cursor }`
- * and expects `{ events, cursor }` back. The tool stays hidden from Bots. */
+/** Automation event sources a connector may produce. `email` has its own routine trigger and
+ * needs a packaged (stdio) connector. `plugin` is generic: any connector, including a remote
+ * MCP server, may use it, and Bots subscribe with a `{ type: "plugin", plugin }` routine trigger. */
+export type PluginEventSource = "email" | "plugin";
+/** The host calls `pollTool` on a timer with `{ cursor }` and expects `{ events, cursor }`
+ * back. The tool stays hidden from Bots. `email` requires a packaged connector; `plugin`
+ * also works on remote MCP connections. */
 export interface PluginEventPolling {
   pollTool: string;
   source: PluginEventSource;
