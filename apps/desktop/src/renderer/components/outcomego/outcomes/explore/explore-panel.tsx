@@ -13,6 +13,8 @@ import { useI18n } from "../../../../lib/i18n";
 import { isExplorePlanningFailure, proposeExploreIdea } from "./explore-state";
 import { ChevronRight, Lightbulb, Plus } from "lucide-react";
 import { OutcomeButton, OutcomeEmptyState, OutcomeRefresh } from "../outcome-ui";
+import type { OutcomeExecutionBot } from "../outcome-execution-card";
+import { QuickIdeaForm } from "./quick-idea-form";
 
 const control = "outcome-control";
 export function ExplorePanel({
@@ -24,7 +26,7 @@ export function ExplorePanel({
 }: {
   client: ExploreClient;
   outcomes: OutcomeClient;
-  bots: Array<{ id: string; name: string }>;
+  bots: OutcomeExecutionBot[];
   onOutcome: (id: string) => void;
   initialPage?: ExploreIdeaPage;
 }) {
@@ -33,26 +35,12 @@ export function ExplorePanel({
   const [selected, setSelected] = useState<ExploreIdeaView | null>(null);
   const [proposal, setProposal] = useState<ExploreProposal | null>(null);
   const [creating, setCreating] = useState(false);
-  const [title, setTitle] = useState("");
-  const [note, setNote] = useState("");
-  const [references, setReferences] = useState("");
-  const [sourceOutcomeId, setSourceOutcomeId] = useState("");
   const [botId, setBotId] = useState("");
-  const [time, setTime] = useState("");
-  const [cost, setCost] = useState("");
-  const [status, setStatus] = useState<"draft" | "exploring">("draft");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const generation = useRef(0);
   const inFlight = useRef(false);
   const ids = useRef(new OutcomeRequestIds());
-  const budget =
-    !time && !cost
-      ? null
-      : { timeLimitMinutes: time ? Number(time) : null, costLimit: cost ? Number(cost) : null };
-  const validBudget =
-    (!time || (Number.isInteger(Number(time)) && Number(time) > 0)) &&
-    (!cost || (Number.isFinite(Number(cost)) && Number(cost) > 0));
   const merge = (idea: ExploreIdeaView) => {
     setSelected(idea);
     setPage((current) =>
@@ -97,36 +85,14 @@ export function ExplorePanel({
       generation.current++;
     };
   }, [client]);
-  async function mutate(action: "create" | "propose" | "discard") {
+  async function mutate(action: "propose" | "discard") {
     if (inFlight.current) return;
     inFlight.current = true;
     setBusy(true);
     setError(null);
     const request = ++generation.current;
     try {
-      if (action === "create") {
-        const input = {
-          title,
-          note,
-          botId: botId || null,
-          sourceOutcomeId: sourceOutcomeId || null,
-          sourceReferences: references
-            .split("\n")
-            .map((sourceRef) => sourceRef.trim())
-            .filter(Boolean)
-            .map((sourceRef) => ({ sourceRef })),
-          budget,
-          status,
-        };
-        const idea = await client.create({
-          ...input,
-          clientRequestId: ids.current.for("create", input),
-        });
-        if (request !== generation.current) return;
-        ids.current.complete("create");
-        merge(idea);
-        setCreating(false);
-      } else if (selected) {
+      if (selected) {
         const input = action === "propose" ? { botId: botId || selected.botId || undefined } : {};
         const key = `${action}:${selected.id}`;
         if (action === "propose") {
@@ -288,105 +254,18 @@ export function ExplorePanel({
         </>
       )}
       {creating && (
-        <form
-          className="outcome-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void mutate("create");
-          }}
-        >
-          <fieldset disabled={busy} className="space-y-4">
-            <legend>{t("Capture a new idea")}</legend>
-            <label className="block">
-              {t("Title")}
-              <input
-                required
-                className={`${control} mt-1 w-full`}
-                value={title}
-                maxLength={200}
-                onChange={(event) => setTitle(event.target.value)}
-              />
-            </label>
-            <label className="block">
-              {t("Notes")}
-              <textarea
-                className={`${control} mt-1 w-full`}
-                maxLength={8000}
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-              />
-            </label>
-            <label className="block">
-              {t("Source references (one per line)")}
-              <textarea
-                className={`${control} mt-1 w-full`}
-                maxLength={12000}
-                value={references}
-                onChange={(event) => setReferences(event.target.value)}
-              />
-            </label>
-            <label className="block">
-              {t("Source Outcome ID (optional)")}
-              <input
-                className={`${control} mt-1 w-full`}
-                pattern="[0-9a-fA-F-]{36}"
-                value={sourceOutcomeId}
-                onChange={(event) => setSourceOutcomeId(event.target.value)}
-              />
-            </label>
-            <label className="block">
-              {t("Execution Bot (optional)")}
-              <select
-                className={`${control} ml-2`}
-                value={botId}
-                onChange={(event) => setBotId(event.target.value)}
-              >
-                <option value="">{t("Choose later")}</option>
-                {bots.map((bot) => (
-                  <option value={bot.id} key={bot.id}>
-                    {bot.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              {t("Time limit in minutes (optional)")}
-              <input
-                className={`${control} ml-2`}
-                type="number"
-                min={1}
-                step={1}
-                value={time}
-                onChange={(event) => setTime(event.target.value)}
-              />
-            </label>
-            <label className="block">
-              {t("Cost limit (optional)")}
-              <input
-                className={`${control} ml-2`}
-                type="number"
-                min={0.01}
-                step="any"
-                value={cost}
-                onChange={(event) => setCost(event.target.value)}
-              />
-            </label>
-            <label className="block">
-              {t("Status")}
-              <select
-                className={`${control} ml-2`}
-                value={status}
-                onChange={(event) => setStatus(event.target.value as typeof status)}
-              >
-                <option value="draft">{t("Draft")}</option>
-                <option value="exploring">{t("Exploring")}</option>
-              </select>
-            </label>
-            <button className={control} disabled={!title.trim() || !validBudget}>
-              {t("Save idea")}
-            </button>
-          </fieldset>
-        </form>
+        <div className="outcome-form">
+          <QuickIdeaForm
+            client={client}
+            bots={bots}
+            onSaved={(idea) => {
+              merge(idea);
+              setCreating(false);
+              setSelected(null);
+            }}
+            onCancel={() => setCreating(false)}
+          />
+        </div>
       )}
       {selected && (
         <div className="outcome-form">

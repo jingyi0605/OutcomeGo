@@ -140,6 +140,8 @@ beforeAll(async () => {
     Node: dom.window.Node,
     DocumentFragment: dom.window.DocumentFragment,
     MutationObserver: dom.window.MutationObserver,
+    // The idea editor's @-picker measures rows; linkedom has no layout, so observe nothing.
+    ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
     getComputedStyle: dom.window.getComputedStyle,
     NodeFilter: { SHOW_ELEMENT: 1, FILTER_ACCEPT: 1, FILTER_SKIP: 3 },
     HTMLInputElement: dom.window.HTMLInputElement,
@@ -434,7 +436,10 @@ test("attention and Explore are separate full-page sections and can return to al
   await click("Explore ideas", host.querySelector('nav[aria-label="Outcome sections"]')!);
   expect(host.textContent).toContain(exploreFixture.title);
   await click("New idea");
-  expect(host.textContent).toContain("Capture a new idea");
+  // Recording an idea is one free-text box plus a save button, nothing else to fill in.
+  expect(host.querySelector("[data-placeholder]")?.getAttribute("data-placeholder")).toContain("@");
+  expect(host.querySelectorAll("input, select, textarea")).toHaveLength(0);
+  expect(host.textContent).toContain("Save idea");
   await click("All goals", host.querySelector('nav[aria-label="Outcome sections"]')!);
   expect(host.textContent).toContain("Backup comparison");
   expect(host.querySelector('[role="dialog"]')).toBeNull();
