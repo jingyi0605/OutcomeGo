@@ -181,7 +181,13 @@ export class PluginTransport {
     const beforeRequest = async (method?: string, toolName?: string) => {
       const current = await this.prisma.pluginConnection.findUnique({
         where: { id: connection.id },
-        select: { runtimeGeneration: true, status: true, toolSnapshot: true, installation: { select: { status: true } } },
+        select: {
+          runtimeGeneration: true,
+          status: true,
+          toolSnapshot: true,
+          connectorKey: true,
+          installation: { select: { status: true, manifest: true } },
+        },
       });
       if (!current || current.installation.status !== "installed" ||
         (connection.runtimeGeneration !== undefined && current.runtimeGeneration !== connection.runtimeGeneration))
@@ -189,7 +195,13 @@ export class PluginTransport {
       if (method === "tools/call") {
         if (current.status !== "ready")
           throw new ApiError(403, "plugin_access_revoked", "Connection access was revoked before this call could run.");
-        if (!toolSnapshot(current.toolSnapshot).some(tool => tool.name === toolName))
+        // Host tools such as an event poll are kept out of the Bot-visible snapshot but the server may call them.
+        const hostTools = connectorHostTools(
+          definitionFromManifest(current.installation.manifest)?.connections.find(
+            (connector) => connector.key === current.connectorKey
+          )
+        );
+        if (!hostTools.includes(toolName ?? "") && !toolSnapshot(current.toolSnapshot).some(tool => tool.name === toolName))
           throw new ApiError(404, "plugin_tool_not_found", "The tool is no longer available.");
       }
     };
@@ -450,13 +462,34 @@ export class PluginTransport {
   }
 
   /** Calls a packaged connector tool for the server itself, outside any Bot run. */
-  callHostTool(
+  /** A server-initiated call to a tool the connector declares for the host. A connection
+   * that says it is `http` is called through its MCP client with the account's own
+   * credentials; every other caller keeps its packaged (stdio) runtime. */
+  async callHostTool(
     connection: { id: string; configuration: Prisma.JsonValue; credentials?: Prisma.JsonValue; runtimeGeneration?: number;
+      transport?: string; connectorKey?: string; endpoint?: string | null; authType?: string;
     },
     toolName: string,
-    args: unknown
+    args: unknown,
+    signal?: AbortSignal
   ): Promise<unknown> {
-    return this.callStdio(connection, toolName, args);
+    if (connection.transport !== "http") return this.callStdio(connection, toolName, args, signal);
+    if (!connection.connectorKey || !connection.authType)
+      throw new Error("A remote host tool call needs the connection's connector key and authentication type");
+    const remote = {
+      id: connection.id,
+      connectorKey: connection.connectorKey,
+      endpoint: connection.endpoint ?? null,
+      authType: connection.authType,
+      configuration: connection.configuration,
+      credentials: connection.credentials ?? null,
+      runtimeGeneration: connection.runtimeGeneration,
+    };
+    try {
+      return await this.redactValue(await this.callHttp(remote, toolName, args, signal), remote);
+    } catch (error) {
+      throw await this.redactError(error, remote);
+    }
   }
 
   private async callStdio(
