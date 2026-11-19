@@ -14,10 +14,36 @@
 //
 // screenbot-keys --request-access asks macOS for Input Monitoring and prints the result.
 
+import AppKit
 import ApplicationServices
 import Foundation
 
 setvbuf(stdout, nil, _IOLBF, 0)
+
+struct FileDragDetector {
+  private var idleChangeCount: Int
+  private var active = false
+  private var cancelled = false
+
+  init(changeCount: Int) { idleChangeCount = changeCount }
+
+  mutating func update(
+    pressed: Bool, changeCount: Int, containsFiles: @autoclosure () -> Bool, escape: Bool = false
+  ) -> String? {
+    let next: Bool
+    if pressed {
+      cancelled = cancelled || escape
+      next = !cancelled && (active || (changeCount != idleChangeCount && containsFiles()))
+    } else {
+      idleChangeCount = changeCount
+      cancelled = false
+      next = false
+    }
+    guard next != active else { return nil }
+    active = next
+    return active ? "drag-start" : "drag-end"
+  }
+}
 
 struct Chord {
   let left: UInt64
@@ -172,6 +198,22 @@ if CommandLine.arguments.contains("--self-test") {
   fn("command then fn", [(cmd, 0, nil), (fnBit | cmd, 0.05, nil), (0, 0.2, nil)], expect: [])
   fn("fn while off", [(fnBit, 0, nil), (0, 0.15, nil)], enabled: false, expect: [])
   fn("key typed before fn", [(fnBit, 1, 0.5), (0, 1.15, 0.5)], expect: ["fn-down", "fn-up"])
+  var drag = FileDragDetector(changeCount: 2)
+  let dragEvents = [
+    drag.update(pressed: true, changeCount: 2, containsFiles: true),
+    drag.update(pressed: true, changeCount: 3, containsFiles: false),
+    drag.update(pressed: true, changeCount: 4, containsFiles: true),
+    drag.update(pressed: true, changeCount: 5, containsFiles: false),
+    drag.update(pressed: true, changeCount: 4, containsFiles: true),
+    drag.update(pressed: true, changeCount: 4, containsFiles: true, escape: true),
+    drag.update(pressed: true, changeCount: 4, containsFiles: true),
+    drag.update(pressed: false, changeCount: 4, containsFiles: true),
+    drag.update(pressed: true, changeCount: 5, containsFiles: true),
+    drag.update(pressed: false, changeCount: 5, containsFiles: true),
+  ]
+  if dragEvents != [nil, nil, "drag-start", nil, nil, "drag-end", nil, nil, "drag-start", "drag-end"] {
+    failures.append("file drag start, cancel, and release: \(dragEvents)")
+  }
   print(failures.isEmpty ? "ok" : failures.joined(separator: "\n"))
   exit(failures.isEmpty ? 0 : 1)
 }
@@ -243,6 +285,29 @@ let parentWatch = DispatchSource.makeProcessSource(identifier: parent, eventMask
 parentWatch.setEventHandler { exit(0) }
 parentWatch.resume()
 if getppid() != parent || kill(parent, 0) != 0 { exit(0) }
+
+if CommandLine.arguments.contains("--watch-file-drag") {
+  let pasteboard = NSPasteboard(name: .drag)
+  let fileTypes: [NSPasteboard.PasteboardType] = [.fileURL, .init("NSFilenamesPboardType")]
+  var drag = FileDragDetector(changeCount: pasteboard.changeCount)
+  let timer = DispatchSource.makeTimerSource(queue: .main)
+  timer.schedule(deadline: .now(), repeating: .milliseconds(30), leeway: .milliseconds(5))
+  timer.setEventHandler {
+    let pressed = CGEventSource.buttonState(.combinedSessionState, button: .left)
+    if let event = drag.update(
+      pressed: pressed,
+      changeCount: pasteboard.changeCount,
+      containsFiles: pasteboard.availableType(from: fileTypes) != nil,
+      escape: pressed && CGEventSource.keyState(.combinedSessionState, key: 53)
+    ) {
+      emit(event)
+    }
+  }
+  timer.resume()
+  emit("ready drag")
+  RunLoop.main.run()
+  exit(0)
+}
 
 var usingTap = false
 var tapPort: CFMachPort?
