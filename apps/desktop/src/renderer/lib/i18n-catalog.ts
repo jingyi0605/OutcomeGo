@@ -653,6 +653,7 @@ export const sourceTranslations: Record<string, string> = {
   Settings: "设置",
   "Configure OutcomeGo and application updates.": "配置 OutcomeGo 和应用更新。",
   General: "常规",
+  Keyboard: "键盘",
   Computer: "电脑",
   Model: "模型",
   "Voice notes": "语音消息",

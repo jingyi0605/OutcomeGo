@@ -3,6 +3,7 @@ import {
   CloudDownload,
   AudioLines,
   Globe,
+  Keyboard,
   Mic,
   Monitor,
   Server,
@@ -27,6 +28,7 @@ import {
 } from "../../ui/dialog";
 
 const loadGeneralSettings = () => import("./general");
+const loadKeyboardSettings = () => import("./keyboard");
 const loadComputerSettings = () => import("./computer");
 const loadModelSettings = () => import("./model");
 const loadVoiceSettings = () => import("./transcription");
@@ -36,6 +38,7 @@ const loadProvidersSettings = () => import("./providers");
 const loadUpdatesSettings = () => import("./updates");
 
 const GeneralSettings = lazy(loadGeneralSettings);
+const KeyboardSettings = lazy(loadKeyboardSettings);
 const ComputerSettings = lazy(loadComputerSettings);
 const ModelSettings = lazy(loadModelSettings);
 const VoiceSettings = lazy(loadVoiceSettings);
@@ -46,6 +49,7 @@ const UpdatesSettings = lazy(loadUpdatesSettings);
 
 const sectionLoaders: Record<SettingsView, () => Promise<unknown>> = {
   general: loadGeneralSettings,
+  keyboard: loadKeyboardSettings,
   computer: loadComputerSettings,
   model: loadModelSettings,
   voice: loadVoiceSettings,
@@ -57,6 +61,7 @@ const sectionLoaders: Record<SettingsView, () => Promise<unknown>> = {
 
 const sectionComponents = {
   general: GeneralSettings,
+  keyboard: KeyboardSettings,
   computer: ComputerSettings,
   model: ModelSettings,
   voice: VoiceSettings,
@@ -73,6 +78,7 @@ const navigation: Array<{
   available: boolean;
 }> = [
   { id: "general", label: "General", icon: Settings, available: true },
+  { id: "keyboard", label: "Keyboard", icon: Keyboard, available: true },
   { id: "computer", label: "Computer", icon: Monitor, available: true },
   { id: "model", label: "Model", icon: BrainCircuit, available: true },
   { id: "voice", label: "Voice notes", icon: Mic, available: true },

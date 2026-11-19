@@ -6,6 +6,7 @@ export const SETTINGS_ANCHORS = APP_SETTINGS_ANCHORS;
 export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
 export type SettingsView =
   | "general"
+  | "keyboard"
   | "computer"
   | "model"
   | "voice"
