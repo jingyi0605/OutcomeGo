@@ -1,6 +1,6 @@
 import { TaskProgressInput, RequestProgressInput } from "@outcomego/contracts/task-progress";
 import { reportTaskProgress, reportRequestProgress, requestProgressSnapshot } from "@outcomego/messaging";
-import { readAgentActivity, readTranscript } from "@outcomego/messaging";
+import { readAgentActivity, readOutcomesEnabled, readTranscript } from "@outcomego/messaging";
 import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { subagentUsesParentConnectors } from "@outcomego/contracts/task-configuration";
 import {
@@ -202,6 +202,8 @@ export class InternalToolService {
       if ((OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(request.tool)) {
         if (childIdentity || backgroundRun)
           throw new ApiError(403, "outcome_chat_required", "Manage native goals from the user-facing Bot conversation");
+        if (!(await readOutcomesEnabled(this.prisma)))
+          throw new ApiError(403, "outcomes_disabled", "Goal management is turned off. The user can enable it in Settings → General");
         if (!this.outcomeChatTools)
           throw new ApiError(503, "outcome_chat_unavailable", "Native Outcome conversation tools are not available");
         return this.outcomeChatTools.execute(request, context, signal);

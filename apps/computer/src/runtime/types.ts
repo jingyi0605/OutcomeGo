@@ -50,6 +50,8 @@ export interface ActiveTurn {
   resetSelfSummaryCount: boolean;
   requestSource: NonNullable<ComputerTurnRequest["requestSource"]>;
   outcomeThread?: ComputerTurnRequest["outcomeThread"];
+  /** Goal management is an opt-in module; the Outcome and Explore tools are offered only while it is on. */
+  outcomesEnabled: boolean;
   draftStatusAcknowledged?: boolean;
   draftStateRevision?: string;
   pendingDraftStateRevision?: string;

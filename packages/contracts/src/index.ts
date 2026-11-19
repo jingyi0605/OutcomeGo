@@ -1574,6 +1574,8 @@ export const ComputerTurnRequest = Schema.Struct({
   readOnly: Schema.optional(Schema.Boolean),
   /** The user's IANA time zone; the computer sets the box clock to it before the turn runs. */
   timeZone: Schema.optional(Schema.String),
+  /** Goal management is an opt-in module; without it the turn gets no Outcome or Explore tools. */
+  outcomesEnabled: Schema.optional(Schema.Boolean),
   model: Schema.String,
   reasoning: Schema.Literal(...PI_REASONING_LEVELS),
   fileAttachments: Schema.optional(Schema.Array(Schema.String)),
@@ -2107,6 +2109,16 @@ export const UpdateNotificationPresenceInput = Schema.Struct({
   ),
 });
 export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: Schema.Boolean });
+
+/** Optional product modules, switched on in Settings → General. Every module is off by default. */
+export interface FeatureSettingsView {
+  /** Goal management: the Outcomes entry, quick ideas, and the bots' goal tools and prompt. */
+  outcomesEnabled: boolean;
+}
+export const UpdateFeatureSettingsInput = Schema.Struct({
+  outcomesEnabled: Schema.optional(Schema.Boolean),
+});
+export type UpdateFeatureSettingsInput = typeof UpdateFeatureSettingsInput.Type;
 
 export * from "./outcome-inbox";
 export * from "./knowledge";

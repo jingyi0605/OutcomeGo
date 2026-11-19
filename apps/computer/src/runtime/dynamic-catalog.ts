@@ -195,7 +195,7 @@ export function dynamicCatalog(
   }, execute: (turn, callId, args, signal) => callControlPlaneTool(turn, callId, "ReadAgentActivity", args, signal) };
   const cursorTools: RuntimeDynamicTool[] = [
     ...additionalTools,
-    ...(active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && !active.readOnly
+    ...(active.outcomesEnabled && active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && !active.readOnly
       ? OUTCOME_CHAT_TOOLS.map((tool): RuntimeDynamicTool => ({
           ...tool,
           inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,

@@ -26,15 +26,22 @@ import {
   AutomationWebhooksService,
   containsWebhookTrigger,
 } from "./services/automation-webhooks";
-import { ApiError, type UpdateUserTimeZoneInput, type UploadAssetInput } from "@outcomego/contracts";
+import {
+  ApiError,
+  type UpdateFeatureSettingsInput,
+  type UpdateUserTimeZoneInput,
+  type UploadAssetInput,
+} from "@outcomego/contracts";
 import { createPrismaClient, Prisma, type PrismaClient } from "@outcomego/db";
 import {
   AgentDataStore,
   AgentMessaging,
   appendAgentTimelineEvent,
   AssetStore,
+  readFeatureSettings,
   type RoutineMutationInput,
   RoutineService,
+  updateFeatureSettings,
   userTimeZoneView,
 } from "@outcomego/messaging";
 import { Effect } from "effect";
@@ -567,6 +574,11 @@ export class AppService {
         ...(input.overrideTimeZone !== undefined ? { override: input.overrideTimeZone } : {}),
       })
     );
+
+  featureSettings = () => readFeatureSettings(this.prisma);
+
+  updateFeatureSettings = (input: UpdateFeatureSettingsInput) =>
+    updateFeatureSettings(this.prisma, input);
 
   listRoutines = (botId: string) => serviceEffect(() => this.routines.list(botId));
 

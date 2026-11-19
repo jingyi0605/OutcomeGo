@@ -16,7 +16,7 @@ const tools = () => (new ComputerRuntime() as unknown as {
 for (const requestSource of ["turn", "automation", "event"] as const) {
   test(`${requestSource} retains existing tools alongside explicit native conversation tools`, () => {
     const runtime = tools();
-    const active = { runtimeProfile: "agent", subagentType: null, pluginNamespaces: [], requestSource };
+    const active = { runtimeProfile: "agent", subagentType: null, pluginNamespaces: [], requestSource, outcomesEnabled: true };
     const snapshot = (turn: unknown) => ({
       direct: runtime.customTools(turn).map((tool) => tool.name),
       dynamic: runtime.dynamicCatalog(turn).map((namespace) => ({
@@ -47,6 +47,17 @@ for (const requestSource of ["turn", "automation", "event"] as const) {
   });
 }
 
+test("goal management stays off unless the owner enabled it", () => {
+  const runtime = tools();
+  const names = (outcomesEnabled?: boolean) => runtime.dynamicCatalog({
+    runtimeProfile: "agent", subagentType: null, pluginNamespaces: [], requestSource: "turn", outcomesEnabled,
+  }).flatMap(namespace => namespace.tools.map(tool => tool.name))
+    .filter(name => (OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(name));
+  expect(names()).toEqual([]);
+  expect(names(false)).toEqual([]);
+  expect(names(true)).toEqual(OUTCOME_CHAT_TOOL_NAMES);
+});
+
 test("Outcome tools are selected only when implemented and the thread marker is present", () => {
   const definition = (name: string) => ({
     name, description: "Fixture", inputSchema: { type: "object" }, source: "first-party",
@@ -67,7 +78,7 @@ test("delegated and readonly turns never receive native goal management tools", 
     { runtimeProfile: "agent", requestSource: "automation", outcomeThread: { workItemId: "fixture" } },
   ]) {
     const names = runtime.dynamicCatalog({
-      subagentType: null, pluginNamespaces: [], requestSource: "turn",
+      subagentType: null, pluginNamespaces: [], requestSource: "turn", outcomesEnabled: true,
       ...overrides,
     }).flatMap(namespace => namespace.tools.map(tool => tool.name));
     expect(names.filter(name => (OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(name))).toEqual([]);

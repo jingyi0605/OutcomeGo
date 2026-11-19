@@ -341,6 +341,7 @@ export class ComputerRuntime {
       resetSelfSummaryCount: request.resetSelfSummaryCount !== false,
       requestSource: request.requestSource ?? "turn",
       outcomeThread: request.outcomeThread,
+      outcomesEnabled: request.outcomesEnabled === true,
       turnId: request.runId,
       session: null,
       sessionPath: null,

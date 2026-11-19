@@ -25,6 +25,8 @@ import type {
   AddInferenceProviderResult,
   InferenceProviderPreset,
   UpdateUserTimeZoneInput,
+  FeatureSettingsView,
+  UpdateFeatureSettingsInput,
   UserTimeZoneView,
   ScreenClipboardInput,
   ScreenClipboardView,
@@ -791,6 +793,9 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       transport.request(`/api/v0/notification-devices/${encodeURIComponent(installationId)}`, {
         method: "DELETE",
       }),
+    featureSettings: () => transport.request<FeatureSettingsView>("/api/v0/feature-settings"),
+    updateFeatureSettings: (input: UpdateFeatureSettingsInput) =>
+      transport.request<FeatureSettingsView>("/api/v0/feature-settings", { method: "PATCH", body: JSON.stringify(input) }),
     userTimeZone: () => transport.request<UserTimeZoneView>("/api/v0/time-zone"),
     /** Reports the zone this device detects, or sets/clears (null) the Settings override. */
     updateUserTimeZone: (input: UpdateUserTimeZoneInput) =>

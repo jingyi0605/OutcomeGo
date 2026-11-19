@@ -99,6 +99,7 @@ import {
   renderSkillsSection,
 } from "./platform-system-prompt";
 import { formatFriendlyDate, resolveTimeZone, retimestampUserTurn, timestampUserTurn } from "./timestamps";
+import { readOutcomesEnabled } from "./feature-settings";
 import { canonicalTimeZone, readUserTimeZone, userTimeZoneView } from "./user-time-zone";
 import { renderAgentSkillsSection } from "./skill-catalog";
 import type { AutomationStatusReceipt, MemoryContextReceipt, PromptSectionReceipt } from "./prompt-sections";
@@ -182,6 +183,8 @@ export interface PlatformPrompt {
   /** The <automation_status> reminder, only when it changed since the one in context. */
   automationStatus?: string | null;
   ambientContext?: string | null;
+  /** Whether the owner has goal management on; the worker forwards it so the computer offers the goal tools only then. */
+  outcomesEnabled?: boolean;
   acknowledgement?: {
     sections: PromptSectionReceipt[];
     memory?: MemoryContextReceipt;
@@ -2179,6 +2182,7 @@ export class AgentMessaging {
     const outcome = context?.scope === "outcome";
     const outcomeContext = outcome ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId) : null;
     const automation = context?.scope === "automation" || outcome;
+    const outcomesEnabled = await readOutcomesEnabled(this.prisma);
     const [agentPrompt, taskConfiguration] = await Promise.all([
       this.agentData.promptContext(botId, contextSessionId, channelId),
       taskConfigurationSnapshot ?? this.agentData.loadTaskConfiguration(),
@@ -2319,7 +2323,7 @@ export class AgentMessaging {
     // memory, other conversations, Routines, Skills, channels, Teammates, connector instructions,
     // Your box, The box desktop, so per-turn changes sit late in the cached prefix.
     const instructions = [
-      renderPlatformBaseSystemPrompt({ ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}) }),
+      renderPlatformBaseSystemPrompt({ outcomes: outcomesEnabled, ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}) }),
       [agentPrompt.profileSection, renderAgentProfileFiles({ agentDataRoot: this.agentData.root, botId })].join("\n"),
       USER_IDENTITY_LINE,
       frozen.sections.agent_instructions,
@@ -2367,6 +2371,7 @@ export class AgentMessaging {
     return {
       instructions,
       instructionsUpdate: [frozen.update, frozen.memory?.update].filter(Boolean).join("\n\n") || null,
+      outcomesEnabled,
       automationStatus: frozen.automationStatus?.note ?? null,
       ambientContext: outcomeContext ?? (automation ? null : [
         dismissedWidgetPrompts.length > 0 ? buildDismissedQuestionsNote(dismissedWidgetPrompts) : "",
@@ -3121,6 +3126,12 @@ export {
   timestampUserTurn,
 } from "./timestamps";
 export { readUserTimeZone, userTimeZoneView } from "./user-time-zone";
+export {
+  featureSettingsView,
+  readFeatureSettings,
+  readOutcomesEnabled,
+  updateFeatureSettings,
+} from "./feature-settings";
 export {
   turnOwesReplyReminder,
   turnSystemReminder,

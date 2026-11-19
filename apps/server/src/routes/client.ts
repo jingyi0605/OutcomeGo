@@ -5,6 +5,7 @@ import {
   MarkChannelReadInput,
   RegisterPushDeviceInput,
   UpdateNotificationPresenceInput,
+  UpdateFeatureSettingsInput,
   UpdateNotificationPreferencesInput,
   UpdateUserTimeZoneInput,
   type SearchCategory,
@@ -67,6 +68,12 @@ export async function clientRoutes(context: RouteContext): Promise<Response | un
   if (path === "/api/notification-preferences" && request.method === "PATCH") {
     const input = await parseBody(request, UpdateNotificationPreferencesInput);
     return json(await run(app.notifications.updatePreferences(input.smartEnabled)));
+  }
+  if (path === "/api/feature-settings" && request.method === "GET") {
+    return json(await app.featureSettings(), 200, { "cache-control": "no-store" });
+  }
+  if (path === "/api/feature-settings" && request.method === "PATCH") {
+    return json(await app.updateFeatureSettings(await parseBody(request, UpdateFeatureSettingsInput)));
   }
   if (path === "/api/time-zone" && request.method === "GET") {
     return json(await app.userTimeZone(), 200, { "cache-control": "no-store" });

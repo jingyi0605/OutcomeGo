@@ -79,6 +79,14 @@ async function fixture(infer?: OutcomeInference) {
     explore,
     new OutcomeChatCards(h.db, cardMessaging)
   );
+  const setOutcomesEnabled = (outcomesEnabled: boolean) =>
+    h.db.featureSettings.upsert({
+      where: { id: "global" },
+      create: { id: "global", outcomesEnabled },
+      update: { outcomesEnabled },
+    });
+  // Goal management is opt-in; these tests exercise it, so switch it on.
+  await setOutcomesEnabled(true);
   const main = await h.db.$transaction((tx) =>
     h.messaging.enqueueWake(tx, {
       botId: h.bot.id,
@@ -145,7 +153,7 @@ async function fixture(infer?: OutcomeInference) {
     const result = await call<DetailResult>("CreateOutcome", input);
     return { plan, planInput, input, result };
   };
-  const f = { h, planning, outcomes, main, request, call, failure, create };
+  const f = { h, planning, outcomes, main, request, call, failure, create, setOutcomesEnabled };
   return f;
 }
 
@@ -254,6 +262,18 @@ describe.skipIf(!databaseUrl)(
       expect(await f.failure("CreateOutcome", {})).toBe("invalid_request");
       expect(await cards()).toHaveLength(count);
     });
+    test("goal tools are refused while the owner has goal management turned off", async () => {
+      const f = await fixture();
+      await f.setOutcomesEnabled(false);
+      try {
+        for (const tool of ["PlanOutcome", "TrackOutcome", "ListOutcomes", "CreateExploreIdea"])
+          expect(await f.failure(tool, { clientRequestId: key() })).toBe("outcomes_disabled");
+        expect(await f.h.db.outcomePlanningDraft.count({ where: { botId: f.h.bot.id } })).toBe(0);
+      } finally {
+        await f.setOutcomesEnabled(true);
+      }
+    });
+
     test("planning failure leaves a failed card and no fabricated ready plan or Outcome", async () => {
       const f = await fixture(async () => {
         throw new Error("Controlled inference failure");

@@ -16,6 +16,8 @@ export async function promptFixture(scope: "home" | "automation" | "outcome", Me
     routine: { findMany: async () => [] }, routineExecution: { findUnique: async () => null },
     automationResult: { findMany: async () => [] }, run: { findMany: async () => [] },
     outcomeWorkItem: { findFirst: async () => item }, $queryRaw: async () => [],
+    // The pre-runtime baseline predates the opt-in; keep the module on so the prompt is compared as it was.
+    featureSettings: { findUnique: async () => ({ outcomesEnabled: true }) },
   };
   const store = {
     root: "/fixture/agent-data", workspaceRoot: "/workspace", assetRoot: "/fixture/assets",

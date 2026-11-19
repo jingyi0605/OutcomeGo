@@ -1824,6 +1824,15 @@ model UserTimeZoneSettings {
   @@map("outcomego_user_time_zone_settings")
 }
 
+/// Optional product modules the owner switches on in Settings → General. Every module is off by default.
+model FeatureSettings {
+  id String @id @default("global")
+  /// Goal management (Outcomes, Explore ideas, the goal board) for the bots.
+  outcomesEnabled Boolean @default(false)
+  updatedAt DateTime @updatedAt
+  @@map("outcomego_feature_settings")
+}
+
 model NotificationPreferences {
   id String @id @default("global")
   smartEnabled Boolean @default(true)

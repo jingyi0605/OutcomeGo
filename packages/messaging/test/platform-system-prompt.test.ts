@@ -58,6 +58,7 @@ const mainAgent = (id: string) => {
       }),
     },
     prisma: {
+      featureSettings: { findUnique: async () => null },
       run: { findMany: async () => [] },
       contextSession: { findFirst: async () => ({ scope: "home" }), findMany: async () => [] },
       $queryRaw: async () => [],
@@ -83,6 +84,22 @@ const mainAgent = (id: string) => {
 };
 
 describe("platform prompt integration", () => {
+  test("goal guidance is part of the prompt only while goal management is on", () => {
+    const heading = "## Native goals and Explore ideas";
+    for (const automationRun of [undefined, AUTOMATION_RUN_INSTRUCTIONS]) {
+      const base = automationRun ? { automationRun } : {};
+      for (const features of [base, { ...base, outcomes: false }]) {
+        const off = renderPlatformBaseSystemPrompt(features);
+        expect(off).not.toContain(heading);
+        expect(off).not.toContain("TrackOutcome");
+        expect(off).not.toContain("CreateExploreIdea");
+      }
+      const on = renderPlatformBaseSystemPrompt({ ...base, outcomes: true });
+      expect(on).toContain(heading);
+      expect(on).toContain("TrackOutcome");
+    }
+  });
+
   test.each([true, false])("managedSkills=%s omits categorical authentication handovers", (managedSkills) => {
     const prompt = renderPlatformBaseSystemPrompt({ managedSkills });
     expect(prompt).not.toContain("At a user-only sign-in, SSO, passkey");
