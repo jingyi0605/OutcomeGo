@@ -90,6 +90,7 @@ import { SidebarBotOrderContext } from "./lib/sidebar-bot-order";
 import { sidebarChannelOrder } from "./lib/sidebar-rows";
 import { readThemePreference, setThemePreference, THEME_CHANGE_EVENT } from "./lib/theme";
 import { useFeatureSettings } from "./hooks/use-feature-settings";
+import { useOutcomeThreadNotices } from "./hooks/use-outcome-thread-notices";
 import { useOutcomeActionCounts } from "./hooks/use-outcome-action-counts";
 import { useOutcomeGo } from "./state/use-outcomego";
 import { MessagesGrantsPrompt } from "./components/outcomego/settings/messages-permissions-dialog";
@@ -371,6 +372,7 @@ export default function App() {
   });
   const appReady = Boolean(snapshot);
   const { outcomesEnabled, loaded: featureSettingsLoaded } = useFeatureSettings();
+  useOutcomeThreadNotices();
   const outcomeBadges = useOutcomeActionCounts(outcomesEnabled);
   const [requestedOutcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
   // Goal management is opt-in: while it is off no goal view can be shown, however it was requested.

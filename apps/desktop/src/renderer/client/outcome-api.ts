@@ -16,6 +16,13 @@ import type {
   OutcomeResultSummary,
 } from "@outcomego/contracts/outcomes";
 
+import type {
+  CreateOutcomeThreadInput,
+  OutcomeThreadTurnView,
+  OutcomeThreadView,
+  SendOutcomeThreadMessageInput,
+} from "@outcomego/contracts/outcome-thread";
+
 export interface OutcomeClient {
   plan(input: CreateOutcomePlanInput): Promise<PlanningDraftView>;
   getPlan(id: string): Promise<PlanningDraftView>;
@@ -26,6 +33,12 @@ export interface OutcomeClient {
   resultSummary?(id: string, revision: number): Promise<OutcomeResultSummary | null>;
   getRevision?(id: string, revision: number): Promise<ContractRevisionView>;
   revise(id: string, input: CreateContractRevisionInput): Promise<OutcomeDetail>;
+  /** The goal's own Agent thread: the owner's words and the bot's answers. */
+  thread?(id: string): Promise<OutcomeThreadView>;
+  /** The owner's words, delivered to the bot as written; the server answers at once. */
+  sendThreadMessage?(id: string, input: SendOutcomeThreadMessageInput): Promise<OutcomeThreadTurnView>;
+  /** A new goal in the owner's own words, planned by the chosen bot. */
+  createThread?(input: CreateOutcomeThreadInput): Promise<{ outcome: OutcomeDetail; turn: OutcomeThreadTurnView }>;
   approve(
     id: string,
     revision: number,
@@ -55,6 +68,9 @@ export function createOutcomeApi(
     resultSummary: (id, revision) => request(`${outcomePath(id)}/revisions/${revision}/results-summary`),
     getRevision: (id, revision) => request(`${outcomePath(id)}/revisions/${revision}`),
     revise: (id, input) => outcomePost(`${outcomePath(id)}/revisions`, input),
+    thread: (id) => request(`${outcomePath(id)}/thread`),
+    sendThreadMessage: (id, input) => outcomePost(`${outcomePath(id)}/thread/messages`, input),
+    createThread: (input) => outcomePost("/api/outcomes/threads", input),
     approve: (id, revision, input) =>
       outcomePost(`${outcomePath(id)}/revisions/${revision}/approve`, input),
     start: (id, input) => outcomePost(`${outcomePath(id)}/runs`, input),

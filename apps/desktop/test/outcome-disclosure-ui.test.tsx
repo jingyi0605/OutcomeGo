@@ -6,6 +6,8 @@ import type { Root } from "react-dom/client";
 import { I18nProvider } from "../src/renderer/lib/i18n";
 let OutcomeDetail: typeof import("../src/renderer/components/outcomego/outcomes/detail/outcome-detail").OutcomeDetail;
 let OutcomeChatCardView: typeof import("../src/renderer/components/outcomego/outcomes/outcome-chat-card").OutcomeChatCardView;
+let OutcomeThreadPanel: typeof import("../src/renderer/components/outcomego/outcomes/thread/outcome-thread-panel").OutcomeThreadPanel;
+let OutcomeThreadEntry: typeof import("../src/renderer/components/outcomego/outcomes/thread/outcome-thread-panel").OutcomeThreadEntry;
 let BotAvatar: typeof import("../src/renderer/components/outcomego/avatar").BotAvatar;
 let OutcomeExecutionCard: typeof import("../src/renderer/components/outcomego/outcomes/outcome-execution-card").OutcomeExecutionCard;
 import {
@@ -17,6 +19,7 @@ import {
 import { messageDisplayProjection } from "@outcomego/product-core/messages";
 import type { ChannelMessageView } from "@outcomego/contracts";
 import type { OutcomeClient } from "../src/renderer/client/outcome-api";
+import type { OutcomeThreadTurnView, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
 import { OUTCOMEGO_DEEP_LINK_EVENT } from "../src/renderer/lib/app-deep-links";
 import { outcomeFixture, planFixture } from "./outcome-fixture";
 
@@ -99,6 +102,9 @@ beforeAll(async () => {
   ({ createRoot } = await import("react-dom/client"));
   ({ OutcomeDetail } = await import(
     "../src/renderer/components/outcomego/outcomes/detail/outcome-detail"
+  ));
+  ({ OutcomeThreadPanel, OutcomeThreadEntry } = await import(
+    "../src/renderer/components/outcomego/outcomes/thread/outcome-thread-panel"
   ));
   ({ OutcomeChatCardView } = await import(
     "../src/renderer/components/outcomego/outcomes/outcome-chat-card"
@@ -818,139 +824,127 @@ test("a mismatched server summary never displays another goal or revision", asyn
   expect(host.textContent).not.toContain(wrong.background.title);
 });
 
-test("Modify is directly actionable without a mandatory comment and never approves the current plan", async () => {
-  let approvals = 0,
-    revisions = 0,
-    plans = 0;
+const turn = (overrides: Partial<OutcomeThreadTurnView> = {}): OutcomeThreadTurnView => ({
+  id: "turn-1", purpose: "owner_message", trigger: "words", status: "queued", reply: null, error: null, runId: null,
+  createdAt: "now", updatedAt: "now", ...overrides,
+});
+/** Stands in for the server's goal thread: it keeps what the owner sent until the test answers. */
+function threadServer() {
+  const turns: OutcomeThreadTurnView[] = [];
+  const sent: SendOutcomeThreadMessageInput[] = [];
+  return {
+    turns,
+    sent,
+    client: {
+      thread: async () => ({ threadId: "thread-1", turns: [...turns] }),
+      sendThreadMessage: async (_id: string, input: SendOutcomeThreadMessageInput) => {
+        sent.push(input);
+        const created = turn({ id: `turn-${sent.length}`, trigger: input.text });
+        turns.push(created);
+        return created;
+      },
+    },
+  };
+}
+const button = (text: string) => [...host.querySelectorAll("button")].find((el) => el.textContent?.trim() === text);
+
+test("the owner's words reach the goal's thread exactly as written; sending never approves the plan", async () => {
+  let approvals = 0, revisions = 0, closed = 0;
+  const server = threadServer();
   await mount(
     <OutcomeDetail
       outcomeId={semanticGoal.id}
       initialOutcome={semanticGoal}
       client={{
         ...client,
+        ...server.client,
         get: async () => semanticGoal,
-        approve: async () => {
-          approvals++;
-          return semanticGoal;
-        },
-        revise: async () => {
-          revisions++;
-          return semanticGoal;
-        },
-        plan: async (input) => {
-          plans++;
-          expect(JSON.parse(input.sourceText).requestedChanges).toContain(
-            "I do not approve this plan."
-          );
-          return planFixture;
-        },
+        approve: async () => (approvals++, semanticGoal),
+        revise: async () => (revisions++, semanticGoal),
       }}
+      onReplanStarted={() => closed++}
     />
   );
-  expect(plans).toBe(0);
-  await click("Modify");
-  expect(plans).toBe(1);
+  // Nothing to send yet: no canned words are invented for the owner.
+  expect((button("Send to bot") as HTMLButtonElement).disabled).toBe(true);
+  const words = "取消目标\n  不需要重新规划 ";
+  await editChanges(words);
+  await click("Send to bot");
+  expect(server.sent).toHaveLength(1);
+  expect(server.sent[0]!.text).toBe(words);
   expect(approvals).toBe(0);
   expect(revisions).toBe(0);
-  expect(host.textContent).toContain("Choose changes to your plan");
-  expect(host.querySelector('[data-outcome-status="pending_approval"]')).not.toBeNull();
+  // The window can close at once: the bot works in the goal's own thread.
+  expect(closed).toBe(1);
+  expect(host.textContent).not.toContain("Choose changes to your plan");
 });
 
-test("custom changes generate selectable options and save a pending successor without approval or a new goal", async () => {
-  let approved = 0,
-    created = 0,
-    planned = 0;
-  let saved: unknown;
-  const changePlan = {
-    ...planFixture,
-    goal: { ...planFixture.goal, options: [{ id: "goal-1", text: "Record the baseline only" }] },
-    acceptance: {
-      ...planFixture.acceptance,
-      options: [{ id: "acceptance-1", text: "All pool counts are recorded", required: true }],
-    },
-    boundaries: {
-      ...planFixture.boundaries,
-      options: [{ id: "boundaries-1", text: "Delete files", kind: "excluded" as const }],
-    },
-  };
-  const updated = {
-    ...semanticGoal,
-    currentRevision: 2,
-    currentRevisionView: {
-      ...semanticGoal.currentRevisionView,
-      id: "revision-custom-2",
-      revision: 2,
-      goal: ["Record the baseline only"],
-      criteria: [
-        {
-          ...semanticGoal.currentRevisionView.criteria[0]!,
-          statement: "All pool counts are recorded",
-        },
-      ],
-      boundaries: { included: [], excluded: ["Delete files"] },
-    },
-  };
+test("while the bot works on a message the plan cannot be approved", async () => {
   await mount(
     <OutcomeDetail
       outcomeId={semanticGoal.id}
-      initialOutcome={semanticGoal}
-      client={{
-        ...client,
-        get: async () => semanticGoal,
-        plan: async (input) => {
-          planned++;
-          const source = JSON.parse(input.sourceText);
-          expect(source.requestedChanges).toBe("Measure only; no cleanup yet");
-          expect(source.savedPlan.goal).toEqual(semanticGoal.currentRevisionView.goal);
-          expect(input.context.botId).toBe(semanticGoal.currentRevisionView.executionBotId);
-          return changePlan;
-        },
-        revise: async (id, input) => {
-          expect(id).toBe(semanticGoal.id);
-          saved = input;
-          return updated;
-        },
-        approve: async () => {
-          approved++;
-          return semanticGoal;
-        },
-        create: async () => {
-          created++;
-          return semanticGoal;
-        },
-      }}
+      initialOutcome={{ ...semanticGoal, status: "planning" }}
+      client={{ ...client, ...threadServer().client, get: async () => ({ ...semanticGoal, status: "planning" }) }}
     />
   );
-  await editChanges("Measure only; no cleanup yet");
-  await click("Modify");
-  expect(planned).toBe(1);
-  expect(approved).toBe(0);
-  expect(host.textContent).toContain("Choose changes to your plan");
-  for (let step = 0; step < 3; step++) {
-    await act(async () =>
-      host
-        .querySelector('input[type="checkbox"]')!
-        .dispatchEvent(new dom.window.Event("click", { bubbles: true }))
-    );
-    await click("Next");
-  }
-  await click("Save proposed changes");
-  expect(saved).toMatchObject({
-    baseRevision: 1,
-    changeSummary: "Measure only; no cleanup yet",
-    contract: {
-      goal: ["Record the baseline only"],
-      acceptance: [{ statement: "All pool counts are recorded", required: true }],
-      boundaries: { included: [], excluded: ["Delete files"] },
-    },
+  expect((button("Yes, approve") as HTMLButtonElement).disabled).toBe(true);
+  expect(host.textContent).toContain("The bot is working on your message");
+});
+
+test("the thread shows what the owner said and what the bot answered, and a question can be answered", async () => {
+  const server = threadServer();
+  server.turns.push(turn({ id: "t0", trigger: "做一个记账工具", status: "completed", reply: "要支持哪些货币？" }));
+  server.turns.push(turn({ id: "t1", trigger: "只要人民币", status: "running" }));
+  await mount(<OutcomeThreadPanel outcomeId={semanticGoal.id} client={{ ...client, ...server.client }} />);
+  expect(host.textContent).toContain("做一个记账工具");
+  expect(host.textContent).toContain("要支持哪些货币？");
+  expect(host.textContent).toContain("只要人民币");
+  expect(host.querySelector('[data-turn-status="running"]')?.textContent).toContain("The bot is working on this");
+  const box = host.querySelector('textarea[aria-label="Message to the bot"]') as HTMLTextAreaElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(box), "value")!.set!.call(box, "还要美元");
+    box.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    box.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   });
-  expect(approved).toBe(0);
-  expect(created).toBe(0);
-  expect(host.querySelector('[data-outcome-status="pending_approval"]')).not.toBeNull();
-  expect(
-    (host.querySelector('textarea[aria-label="Approval comments"]') as HTMLTextAreaElement).value
-  ).toBe("");
-  expect(host.querySelector(".outcome-now")?.textContent).toContain("Yes, approve");
+  await click("Send to bot");
+  expect(server.sent.map((entry) => entry.text)).toEqual(["还要美元"]);
+});
+
+test("a failed turn says so, and a finished goal keeps its record but takes no more messages", async () => {
+  const server = threadServer();
+  server.turns.push(turn({ status: "failed", error: { code: "run_failed", message: "model unavailable" } }));
+  await mount(<OutcomeThreadPanel outcomeId={semanticGoal.id} client={{ ...client, ...server.client }} closed />);
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain("model unavailable");
+  expect(host.querySelector('textarea[aria-label="Message to the bot"]')).toBeNull();
+});
+
+test("the conversation is a compact entry that opens in a dialog, and is absent when there is nothing to show", async () => {
+  const server = threadServer();
+  server.turns.push(turn({ id: "t0", trigger: "取消任务", status: "completed", reply: "任务已取消" }));
+  await mount(<OutcomeThreadEntry outcomeId={semanticGoal.id} client={{ ...client, ...server.client }} />);
+  expect(host.textContent).toContain("Conversation with the bot");
+  expect(document.body.textContent).not.toContain("任务已取消");
+  expect(document.body.querySelector("textarea")).toBeNull();
+  await click("Conversation with the bot");
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("任务已取消");
+  expect(document.body.querySelector('[role="dialog"] textarea')).not.toBeNull();
+});
+
+test("with an approval comment box and no history the conversation entry is not shown", async () => {
+  await mount(<OutcomeThreadEntry outcomeId={semanticGoal.id} client={{ ...client, ...threadServer().client }} composer={false} />);
+  expect(host.textContent).not.toContain("Conversation with the bot");
+});
+
+test("without a composer the thread only shows history, and an empty one shows nothing", async () => {
+  const server = threadServer();
+  await mount(<OutcomeThreadPanel outcomeId={semanticGoal.id} client={{ ...client, ...server.client }} composer={false} />);
+  expect(host.textContent).not.toContain("Conversation with the bot");
+  expect(host.querySelector("textarea")).toBeNull();
+  server.turns.push(turn({ id: "t0", trigger: "只要人民币", status: "completed", reply: "好的，已改。" }));
+  await mount(<OutcomeThreadPanel outcomeId={semanticGoal.id} client={{ ...client, ...server.client }} composer={false} />);
+  expect(host.textContent).toContain("只要人民币");
+  expect(host.textContent).toContain("好的，已改。");
+  expect(host.querySelector("textarea")).toBeNull();
 });
 
 test("source info previews on hover, pins on click and dismisses with Escape", async () => {

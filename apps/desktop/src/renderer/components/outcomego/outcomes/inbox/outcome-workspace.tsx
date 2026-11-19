@@ -9,7 +9,7 @@ import { useI18n } from "../../../../lib/i18n";
 import { ExplorePanel } from "../explore/explore-panel";
 import { OutcomeList } from "../outcome-list";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
-import { PlanningWizard } from "../planning/planning-wizard";
+import { NewOutcomeForm } from "../thread/new-outcome-form";
 import { OutcomeButton } from "../outcome-ui";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../ui/dialog";
 
@@ -193,44 +193,19 @@ export default function OutcomeWorkspace({
             {t("Review the goal and handle current decisions.")}
           </DialogDescription>
           <div className="outcome-page-content outcome-modal-body space-y-5">
-            {route.kind === "new" && (
-              <div className="outcome-form space-y-5">
-                <label className="block text-xs text-foreground-secondary">
-                  {t("Execution Bot")}
-                  <select
-                    aria-label={t("Execution Bot")}
-                    className="outcome-control mt-2 block w-full max-w-sm"
-                    value={selectedBotId}
-                    onChange={(event) => setBotId(event.target.value)}
-                    disabled={bots.length === 0}
-                  >
-                    {bots.length === 0 && <option value="">{t("No Bots available")}</option>}
-                    {bots.map((bot) => (
-                      <option key={bot.id} value={bot.id}>
-                        {bot.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {selectedBotId ? (
-                  <PlanningWizard
-                    key={selectedBotId}
-                    botId={selectedBotId}
-                    client={api.outcomes}
-                    onDone={(outcome) => review(outcome.id)}
-                  />
-                ) : (
-                  <p role="status">
-                    {t("Create a Bot in chat before planning an Outcome.")}{" "}
-                    <button className="underline" onClick={onClose}>
-                      {t("Back to chats")}
-                    </button>
-                  </p>
-                )}
-              </div>
-            )}
+            {route.kind === "new" &&
+              (bots.length > 0 ? (
+                <NewOutcomeForm client={api.outcomes} bots={bots} onCreated={() => closeModal()} />
+              ) : (
+                <p role="status">
+                  {t("Create a Bot in chat before planning an Outcome.")}{" "}
+                  <button className="underline" onClick={onClose}>
+                    {t("Back to chats")}
+                  </button>
+                </p>
+              ))}
             {(route.kind === "decision" || route.kind === "human" || route.kind === "outcome") && (
-              <OutcomeRouteView route={route} bots={bots} onOpen={openRoute} />
+              <OutcomeRouteView route={route} bots={bots} onOpen={openRoute} onClose={closeModal} />
             )}
           </div>
         </DialogContent>

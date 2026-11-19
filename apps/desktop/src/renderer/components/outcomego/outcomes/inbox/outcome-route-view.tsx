@@ -19,10 +19,13 @@ export function OutcomeRouteView({
   route,
   bots,
   onOpen,
+  onClose,
 }: {
   route: OutcomeDetailRoute;
   bots: OutcomeExecutionBot[];
   onOpen: (route: OutcomeDetailRoute) => void;
+  /** Closes the hosting modal; a goal does so once a plan change continues in the background. */
+  onClose?: () => void;
 }) {
   const review = (id: string, reviewRevision?: number) =>
     onOpen({ kind: "outcome", id, reviewRevision });
@@ -59,6 +62,7 @@ export function OutcomeRouteView({
       onHuman={(id) => onOpen({ kind: "human", id })}
       onDecision={(id) => onOpen({ kind: "decision", id })}
       onReceipt={(revision) => review(route.id, revision)}
+      onClose={onClose}
     />
   );
 }
@@ -70,6 +74,7 @@ function OutcomeWithActions({
   onHuman,
   onDecision,
   onReceipt,
+  onClose,
 }: {
   bots: OutcomeExecutionBot[];
   outcomeId: string;
@@ -77,6 +82,7 @@ function OutcomeWithActions({
   onHuman: (id: string) => void;
   onDecision: (id: string) => void;
   onReceipt: (revision: number) => void;
+  onClose?: () => void;
 }) {
   const { t } = useI18n();
   const [items, setItems] = useState<HumanWorkItemView[]>([]);
@@ -113,6 +119,7 @@ function OutcomeWithActions({
         client={api.outcomes}
         inboxClient={api.outcomeInbox}
         reviewRevision={reviewRevision}
+        onReplanStarted={onClose}
         actionItems={inbox.filter((item) => item.requiresAction)}
         actionsError={error}
         actionsLoading={loading}

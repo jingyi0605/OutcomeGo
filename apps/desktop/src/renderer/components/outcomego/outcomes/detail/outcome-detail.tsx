@@ -2,17 +2,15 @@ import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import type {
   OutcomeDetail as OutcomeDetailView,
   ContractRevisionView,
-  PlanningDraftView,
 } from "@outcomego/contracts/outcomes";
 import { ContractConfirmation } from "../planning/contract-confirmation";
 import {
   type OutcomeClient,
   OutcomeRequestIds,
   outcomeErrorMessage,
-  planOutcomeChanges,
 } from "../planning/outcome-client";
 import { MoreHorizontal } from "lucide-react";
-import { PlanningWizard } from "../planning/planning-wizard";
+import { OutcomeThreadEntry } from "../thread/outcome-thread-panel";
 import { OutcomeSourceInfo } from "../outcome-source-info";
 import { ContractEditor } from "./contract-editor";
 import { ReviewPanel } from "./review-panel";
@@ -50,8 +48,11 @@ export function OutcomeDetail({
   onAction,
   inboxClient,
   bots = [],
+  onReplanStarted,
 }: {
   bots?: OutcomeExecutionBot[];
+  /** Called right after a Modify request is handed to the background, so the host can close its modal. */
+  onReplanStarted?: () => void;
   outcomeId: string;
   client: OutcomeClient;
   inboxClient?: InboxClient;
@@ -64,11 +65,6 @@ export function OutcomeDetail({
 }) {
   const { t: translateCurrent } = useI18n();
   const [outcome, setOutcome] = useState(initialOutcome ?? null);
-  const [changePlan, setChangePlan] = useState<{
-    plan: PlanningDraftView;
-    request: string;
-    revision: ContractRevisionView;
-  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comment, setComment] = useState("");
@@ -85,7 +81,6 @@ export function OutcomeDetail({
   useEffect(() => {
     // New revisions cannot inherit comments or generated choices from the previous plan.
     setSections(new Map());
-    setChangePlan(null);
     setComment("");
     setTranscript(null);
   }, [outcomeId, outcome?.currentRevisionView?.id]);
@@ -222,17 +217,24 @@ export function OutcomeDetail({
       setBusy(false);
     }
   }
+  // The owner's words go to the goal's thread as written. The bot decides what to do with them (change the
+  // plan, cancel, ask back), so the host modal can close at once; its answer is in the goal's thread.
   async function requestChanges(text: string) {
-    if (busy || !outcome?.currentRevisionView) return;
-    const revision = outcome.currentRevisionView;
-    const request = ++generation.current;
+    const send = client.sendThreadMessage;
+    if (!send || busy || !outcome) return;
     setBusy(true);
     setError(null);
     try {
-      const plan = await planOutcomeChanges(client, revision, text);
-      if (generation.current === request) setChangePlan({ plan, request: text, revision });
-    } catch (error) {
-      if (generation.current === request) setError(outcomeErrorMessage(error));
+      await send.call(client, outcomeId, {
+        text,
+        clientRequestId: requestIds.current.for(`message:${outcomeId}`, { text }),
+      });
+      requestIds.current.complete(`message:${outcomeId}`);
+      setComment("");
+      setRefreshVersion((v) => v + 1);
+      onReplanStarted?.();
+    } catch (e) {
+      setError(outcomeErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -451,49 +453,27 @@ export function OutcomeDetail({
                 <div className="outcome-now-item">
                   <h3>{translateCurrent("Approve this plan?")}</h3>
                   <OutcomeApprovalScope intent={brief?.intent} revision={revision} />
-                  {changePlan ? (
-                    <PlanningWizard
-                      key={changePlan.plan.planId}
-                      botId={revision.executionBotId}
-                      client={client}
-                      initialPlan={changePlan.plan}
-                      initialBudget={revision.budget}
-                      revisionTarget={{
-                        outcomeId,
-                        revision: changePlan.revision,
-                        changeSummary: changePlan.request,
-                      }}
-                      onDone={(value) => {
-                        setOutcome(value);
-                        setChangePlan(null);
-                        setComment("");
-                        setRefreshVersion((v) => v + 1);
-                      }}
-                    />
-                  ) : (
-                    <ContractConfirmation
-                      key={revision.id}
-                      revision={revision}
-                      busy={busy}
-                      comment={comment}
-                      onComment={setComment}
-                      onRequestChanges={(text) => void requestChanges(text)}
-                      onApprove={() => {
-                        const confirmationText = [
-                          translateCurrent(
-                            "I approve the saved goals, acceptance criteria and scope."
-                          ),
-                          comment.trim(),
-                        ]
-                          .filter(Boolean)
-                          .join("\n\n");
-                        const input = { expectedRevision: revision.revision, confirmationText };
-                        void mutate("approve", input, (clientRequestId) =>
-                          client.approve(outcomeId, revision.revision, { ...input, clientRequestId })
-                        );
-                      }}
-                    />
-                  )}
+                  <ContractConfirmation
+                    key={revision.id}
+                    revision={revision}
+                    busy={busy}
+                    waiting={outcome.status === "planning"}
+                    comment={comment}
+                    onComment={setComment}
+                    onRequestChanges={(text) => void requestChanges(text)}
+                    onApprove={() => {
+                      const confirmationText = [
+                        translateCurrent("I approve the saved goals, acceptance criteria and scope."),
+                        comment.trim(),
+                      ]
+                        .filter(Boolean)
+                        .join("\n\n");
+                      const input = { expectedRevision: revision.revision, confirmationText };
+                      void mutate("approve", input, (clientRequestId) =>
+                        client.approve(outcomeId, revision.revision, { ...input, clientRequestId })
+                      );
+                    }}
+                  />
                 </div>
               )}
               {(historicalReview ||
@@ -544,6 +524,15 @@ export function OutcomeDetail({
             </section>
           )}
         </OutcomeBriefView>
+        {!historicalReview && client.thread && (
+          <OutcomeThreadEntry
+            outcomeId={outcomeId}
+            client={client}
+            closed={terminal}
+            // The approval card's comment box already sends to the bot, so the thread below only shows history.
+            composer={revision?.status !== "pending_approval"}
+          />
+        )}
         {!historicalReview && (
           <OutcomeExecutionCard
             key={`${outcome.id}:${outcome.currentRevision}`}

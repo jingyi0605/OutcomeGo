@@ -25,7 +25,9 @@ const outcomes = createOutcomeApi(async <T,>(path: string, init?: RequestInit): 
   calls.push({ path, body });
   if (path.startsWith("/api/outcomes?") || (path === "/api/outcomes" && !body))
     return (await list(path.split("?")[1] ?? "")) as T;
-  if (path === "/api/outcomes/plans") return { ...planFixture, botId: body.context.botId } as T;
+  if (path.endsWith("/thread")) return { threadId: null, turns: [] } as T;
+  if (path === "/api/outcomes/threads")
+    return { outcome: { ...current, status: "planning" }, turn: { id: "turn-1", purpose: "plan", trigger: body.text, status: "queued", reply: null, error: null, runId: null, createdAt: "now", updatedAt: "now" } } as T;
   if (path === "/api/outcomes" && body) {
     current = { ...current, title: body.title, status: "pending_approval" };
     current.currentRevisionView = {
@@ -485,43 +487,20 @@ test("attention and Explore are separate full-page sections and can return to al
   expect(host.querySelector('[role="dialog"]')).toBeNull();
 });
 
-test("new Outcome uses the chosen Bot, waits for approval, then starts by itself without a start prompt", async () => {
+test("a new goal is handed to the chosen Bot in the owner's own words, and the window closes at once", async () => {
   await mount(page());
   await click("New Outcome");
   await input(document.body.querySelector('select[aria-label="Execution Bot"]')!, bots[1]!.id);
-  await input(document.body.querySelector("textarea")!, "Compare backup plans for this goal");
-  await click("Generate planning options");
-  expect(calls.find((call) => call.path === "/api/outcomes/plans")?.body).toMatchObject({
-    context: { botId: bots[1]!.id },
-  });
-  for (let step = 0; step < 3; step++) {
-    await act(async () => {
-      document.body
-        .querySelector('input[type="checkbox"]')!
-        .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-    });
-    await click("Next");
-  }
-  await click("Create contract for confirmation");
-  expect(document.body.textContent).toContain("Yes, approve");
-  expect(calls.some((call) => call.path.endsWith("/runs"))).toBe(false);
-  await click("Yes, approve");
-  // No extra click: the approved goal starts once on its own and never shows a start prompt.
-  expect(document.body.textContent).not.toContain("Start approved Outcome");
-  expect(calls.filter((call) => call.path.endsWith("/runs"))).toHaveLength(1);
-  await act(async () => {
-    document.body
-      .querySelector('button[aria-label="More details"]')!
-      .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-  });
-  const execution = [...document.body.querySelectorAll("details")].find((el) =>
-    el.querySelector("summary")?.textContent?.startsWith("Execution progress")
-  )!;
-  await act(async () => {
-    execution.open = true;
-    execution.dispatchEvent(new dom.window.Event("toggle"));
-  });
-  expect(document.body.textContent).toContain("Research backups");
+  const words = "Compare backup plans for this goal\n(keep it cheap)";
+  await input(document.body.querySelector("textarea")!, words);
+  await click("Hand to the bot");
+  const created = calls.find((call) => call.path === "/api/outcomes/threads");
+  // Nothing about the goal is decided for the owner: no options, no wizard, just the words and the bot.
+  expect(created?.body).toMatchObject({ text: words, botId: bots[1]!.id });
+  expect(calls.some((call) => call.path === "/api/outcomes/plans")).toBe(false);
+  // The form is gone and the goal list is back.
+  expect(document.body.textContent).not.toContain("Hand to the bot");
+  expect(document.body.textContent).not.toContain("Generate planning options");
 });
 
 test("new Outcome with no Bots provides a way back to chat", async () => {
@@ -537,9 +516,6 @@ test("new Outcome with no Bots provides a way back to chat", async () => {
   );
   await click("New Outcome");
   expect(document.body.textContent).toContain("Create a Bot in chat before planning an Outcome.");
-  expect(
-    document.body.querySelector('select[aria-label="Execution Bot"]')?.hasAttribute("disabled")
-  ).toBe(true);
   await click("Back to chats");
   expect(closed).toBe(true);
 });

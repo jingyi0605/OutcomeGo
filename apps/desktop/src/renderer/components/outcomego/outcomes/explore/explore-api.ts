@@ -1,11 +1,10 @@
 import type {
-  CreateExploreIdeaInput, DiscardExploreIdeaInput, ExploreIdeaPage, ExploreIdeaView, ExploreProposal, ProposeExploreIdeaInput,
+  CreateExploreIdeaInput, DiscardExploreIdeaInput, ExploreIdeaPage, ExploreIdeaView,
 } from "@outcomego/contracts/explore";
 export interface ExploreClient {
   list(cursor?: string): Promise<ExploreIdeaPage>;
   get(id: string): Promise<ExploreIdeaView>;
   create(input: CreateExploreIdeaInput): Promise<ExploreIdeaView>;
-  propose(id: string, input: ProposeExploreIdeaInput): Promise<ExploreProposal>;
   discard(id: string, input: DiscardExploreIdeaInput): Promise<ExploreIdeaView>;
 }
 export function createExploreApi(request: <T>(path: string, init?: RequestInit) => Promise<T>): ExploreClient {
@@ -15,7 +14,6 @@ export function createExploreApi(request: <T>(path: string, init?: RequestInit) 
     list: cursor => request(`/api/explore${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
     get: id => request(path(id)),
     create: input => post("/api/explore", input),
-    propose: (id, input) => post(`${path(id)}/propose`, input),
     discard: (id, input) => post(`${path(id)}/discard`, input),
   };
 }

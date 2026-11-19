@@ -9,13 +9,17 @@ export function ContractConfirmation({
   onComment,
   onApprove,
   onRequestChanges,
+  waiting = false,
 }: {
   revision: ContractRevisionView;
   busy: boolean;
   comment: string;
   onComment: (value: string) => void;
   onApprove: () => void;
+  /** The owner's words go to the bot as written; what to do with them is the bot's call. */
   onRequestChanges: (text: string) => void;
+  /** The bot is working on an earlier message: approving now could approve a plan about to change. */
+  waiting?: boolean;
 }) {
   const { t } = useI18n();
   if (revision.status !== "pending_approval")
@@ -31,7 +35,7 @@ export function ContractConfirmation({
         <textarea
           aria-label={t("Approval comments")}
           className="outcome-control"
-          placeholder={t("Add comments or tell us what to change (optional).")}
+          placeholder={t("Approve with a comment, or tell the bot what to change or ask.")}
           maxLength={400}
           rows={1}
           value={comment}
@@ -42,25 +46,29 @@ export function ContractConfirmation({
       <div className="outcome-direct-buttons">
         <OutcomeButton
           variant="default"
-          disabled={busy}
+          disabled={busy || waiting}
           onClick={() => {
-            if (!busy) onApprove();
+            if (!busy && !waiting) onApprove();
           }}
         >
           {t(busy ? "Submitting…" : "Yes, approve")}
         </OutcomeButton>
         <OutcomeButton
-          disabled={busy}
+          // Sending stays available while the bot works: a new message queues behind the running one.
+          disabled={busy || !comment.trim()}
           onClick={() => {
-            if (busy) return;
-            onRequestChanges(
-              comment.trim() || t("I do not approve this plan. Suggest an alternative.")
-            );
+            if (busy || !comment.trim()) return;
+            onRequestChanges(comment);
           }}
         >
-          {t("Modify")}
+          {t("Send to bot")}
         </OutcomeButton>
       </div>
+      {waiting && (
+        <p role="status" className="outcome-approval-status">
+          {t("The bot is working on your message. You can approve once it has answered.")}
+        </p>
+      )}
     </section>
   );
 }

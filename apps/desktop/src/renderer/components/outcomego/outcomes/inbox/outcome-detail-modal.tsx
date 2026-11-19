@@ -36,7 +36,7 @@ export default function OutcomeDetailModal({
           {t("Review the goal and handle current decisions.")}
         </DialogDescription>
         <div className="outcome-page-content outcome-modal-body space-y-5">
-          <OutcomeRouteView route={route} bots={bots} onOpen={setRoute} />
+          <OutcomeRouteView route={route} bots={bots} onOpen={setRoute} onClose={onClose} />
         </div>
       </DialogContent>
     </Dialog>

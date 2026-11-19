@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import type {
-  ExploreIdeaPage,
-  ExploreIdeaView,
-  ExploreProposal,
-} from "@outcomego/contracts/explore";
+import type { ExploreIdeaPage, ExploreIdeaView } from "@outcomego/contracts/explore";
 import type { ExploreClient } from "./explore-api";
 import type { OutcomeClient } from "../../../../client/outcome-api";
-import { PlanningWizard } from "../planning/planning-wizard";
 import { OutcomeRequestIds } from "../planning/outcome-client";
 import { responseStatus } from "../inbox/decision-state";
 import { useI18n } from "../../../../lib/i18n";
-import { isExplorePlanningFailure, proposeExploreIdea } from "./explore-state";
+import { toast } from "sonner";
 import { ChevronRight, Lightbulb, Plus } from "lucide-react";
 import { OutcomeButton, OutcomeEmptyState, OutcomeRefresh } from "../outcome-ui";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
@@ -33,7 +28,6 @@ export function ExplorePanel({
   const { t } = useI18n();
   const [page, setPage] = useState<ExploreIdeaPage | null>(initialPage ?? null);
   const [selected, setSelected] = useState<ExploreIdeaView | null>(null);
-  const [proposal, setProposal] = useState<ExploreProposal | null>(null);
   const [creating, setCreating] = useState(false);
   const [botId, setBotId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -96,26 +90,35 @@ export function ExplorePanel({
         const input = action === "propose" ? { botId: botId || selected.botId || undefined } : {};
         const key = `${action}:${selected.id}`;
         if (action === "propose") {
-          const result = await proposeExploreIdea(client, ids.current, selected.id, input);
+          // The bot plans it in the goal's own thread; the idea's words go to it as they are.
+          const create = outcomes.createThread;
+          const target = botId || selected.botId;
+          if (!create || !target) throw new Error("Choose an execution Bot before proposing delivery.");
+          const text = [selected.title, selected.note].filter((part) => part && part.trim()).join("\n\n");
+          const created = await create.call(outcomes, {
+            text,
+            botId: target,
+            exploreIdeaId: selected.id,
+            clientRequestId: ids.current.for(key, { text, botId: target }),
+          });
+          ids.current.complete(key);
           if (request !== generation.current) return;
-          merge(result.idea);
-          setProposal(result);
+          merge({ ...selected, status: "converted", proposedOutcomeId: created.outcome.id });
+          toast.success(t("Handed to the bot. You’ll be told when it replies."));
+          onOutcome(created.outcome.id);
         } else {
           const result = await client.discard(selected.id, {
             clientRequestId: ids.current.for(key, input),
           });
           if (request !== generation.current) return;
           merge(result);
-          setProposal(null);
         }
         if (action === "discard") ids.current.complete(key);
       }
     } catch (cause) {
       if (request !== generation.current) return;
       setError(
-        action === "propose" && isExplorePlanningFailure(cause)
-          ? "Planning generation failed. Your idea was kept. Retry to generate a new planning draft."
-          : responseStatus(cause) === 409
+        responseStatus(cause) === 409
             ? "This idea changed or is read-only. Refresh its current state."
             : responseStatus(cause) === 422
               ? "Choose an execution Bot before proposing delivery."
@@ -139,7 +142,6 @@ export function ExplorePanel({
     setBusy(true);
     setError(null);
     setSelected(idea);
-    setProposal(null);
     setBotId(idea.botId ?? "");
     try {
       const latest = await client.get(idea.id);
@@ -151,38 +153,6 @@ export function ExplorePanel({
       if (request === generation.current) setBusy(false);
     }
   };
-  if (proposal)
-    return (
-      <section aria-label={t("Explore delivery proposal")} className="space-y-4">
-        <h2 className="font-semibold">{proposal.idea.title}</h2>
-        <p>
-          {t(
-            "This proposal is a planning draft. Confirm goals, acceptance and boundaries before approving a new Outcome."
-          )}
-        </p>
-        <button
-          className={control}
-          onClick={() => {
-            setProposal(null);
-            void select(proposal.idea);
-          }}
-        >
-          {t("Back to idea")}
-        </button>
-        <PlanningWizard
-          key={proposal.plan.planId}
-          botId={proposal.plan.botId}
-          client={outcomes}
-          initialPlan={proposal.plan}
-          initialBudget={proposal.idea.budget}
-          onDone={(outcome) => onOutcome(outcome.id)}
-          onSaved={(value) => {
-            if (value.outcomeId)
-              merge({ ...proposal.idea, status: "converted", proposedOutcomeId: value.outcomeId });
-          }}
-        />
-      </section>
-    );
   return (
     <section aria-label={t("Explore ideas")} aria-busy={busy} className="space-y-4">
       <header className="outcome-toolbar">
@@ -358,7 +328,7 @@ export function ExploreIdeaDetails({
           </label>
           <div className="flex gap-2">
             <button className={control} disabled={!botId && !idea.botId} onClick={onPropose}>
-              {t(idea.planningDraftId ? "Continue planning draft" : "Propose delivery")}
+              {t("Hand to a bot to plan")}
             </button>
             <button className={control} onClick={onDiscard}>
               {t("Discard idea")}
