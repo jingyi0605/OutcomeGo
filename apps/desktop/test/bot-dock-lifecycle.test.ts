@@ -148,6 +148,7 @@ test("restores an opted-in dock and preserves its compact position through move,
       expect(window.sent.has("botdock:message-arrival")).toBe(false);
       ipc.emit("botdock:resize", event, 96, 64, "compact");
       expect(window.visible).toBe(true);
+      expect(window.sent.get("botdock:side")).toBe("right");
       expect(windows).toHaveLength(3);
       const [, composer, invitation] = windows;
       if (!composer || !invitation) throw new Error("Dock surfaces did not preload");
@@ -178,14 +179,23 @@ test("restores an opted-in dock and preserves its compact position through move,
 
       cursor = { x: window.bounds.x + 48, y: window.bounds.y + 32 };
       ipc.emit("botdock:drag-start", event);
+      cursor = { x: 250, y: 352 };
+      for (let attempt = 0; attempt < 50 && window.sent.get("botdock:side") !== "left"; attempt++) {
+        await Bun.sleep(8);
+      }
+      expect(window.sent.get("botdock:side")).toBe("left");
+      ipc.emit("botdock:resize", invitationEvent, 170, 98, "invitation");
+      expect(invitation.sent.get("botdock:side")).toBe("left");
       cursor = { x: 512, y: 352 };
       ipc.emit("botdock:resize", event, 112, 64, "compact");
       ipc.emit("botdock:drag-end", event);
       expect(window.bounds).toEqual({ x: 464, y: 320, width: 112, height: 64 });
+      expect(window.sent.get("botdock:side")).toBe("right");
       const compactMoves = window.boundsChanges;
       ipc.emit("botdock:resize", invitationEvent, 170, 98, "invitation");
       ipc.emit("botdock:file-hover", event, true);
       expect(invitation.visible).toBe(true);
+      expect(invitation.sent.get("botdock:side")).toBe("right");
       expect(invitation.bounds).toEqual({ x: 435, y: 303, width: 170, height: 98 });
       expect(window.visible).toBe(false);
       expect(window.bounds).toEqual({ x: 464, y: 320, width: 112, height: 64 });

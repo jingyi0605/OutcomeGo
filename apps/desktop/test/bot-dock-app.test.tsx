@@ -79,6 +79,7 @@ describe("Bot dock capsule", () => {
     Object.assign(dom.document, { oninput: null });
     const layouts: string[] = [];
     const fileHover = mock((_active: boolean) => {});
+    let dockSide: Parameters<BotDockBridge["onDockSide"]>[0] = () => {};
     let composerAnchor: Parameters<BotDockBridge["onComposerAnchor"]>[0] = () => {};
     let surfaceVisible: (visible: boolean) => void = () => {};
     let arrive: () => void = () => {};
@@ -88,6 +89,10 @@ describe("Bot dock capsule", () => {
       onState: () => () => {},
       onMessageArrival(listener) {
         arrive = listener;
+        return () => {};
+      },
+      onDockSide(listener) {
+        dockSide = listener;
         return () => {};
       },
       onSurfaceVisible(listener) {
@@ -139,6 +144,9 @@ describe("Bot dock capsule", () => {
       const frame = dom.document.querySelector(".dock-frame");
       expect(frame?.getAttribute("data-standby")).toBe("true");
       expect(frame?.querySelector(".dock-home")?.getAttribute("aria-label")).toBe(labels.open);
+      expect(frame?.getAttribute("data-dock-side")).toBe("left");
+      await act(async () => dockSide("right"));
+      expect(frame?.getAttribute("data-dock-side")).toBe("right");
       await act(async () => composerAnchor({ right: true, bottom: false }));
       expect(target.getAttribute("data-composer-open")).toBe("true");
       expect(target.getAttribute("data-composer-x")).toBe("right");
@@ -156,6 +164,8 @@ describe("Bot dock capsule", () => {
       expect(frame?.hasAttribute("data-dropping")).toBe(true);
       expect(frame?.hasAttribute("data-invitation-visible")).toBe(false);
       expect(frame?.querySelector(".dock-home")?.getAttribute("aria-label")).toBe(labels.open);
+      await act(async () => dockSide("left"));
+      expect(frame?.getAttribute("data-dock-side")).toBe("left");
       await act(async () => surfaceVisible(true));
       expect(frame?.getAttribute("data-invitation-visible")).toBe("true");
       expect(frame?.hasAttribute("data-standby")).toBe(false);

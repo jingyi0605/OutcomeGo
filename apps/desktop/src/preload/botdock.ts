@@ -27,6 +27,13 @@ contextBridge.exposeInMainWorld("botdock", {
     ipcRenderer.on("botdock:message-arrival", listener);
     return () => ipcRenderer.removeListener("botdock:message-arrival", listener);
   },
+  onDockSide: (callback: (side: "left" | "right") => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, side: unknown) => {
+      if (side === "left" || side === "right") callback(side);
+    };
+    ipcRenderer.on("botdock:side", listener);
+    return () => ipcRenderer.removeListener("botdock:side", listener);
+  },
   onComposerAnchor: (callback: (anchor: DockAnchor | null) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, anchor: DockAnchor | null) =>
       callback(anchor);

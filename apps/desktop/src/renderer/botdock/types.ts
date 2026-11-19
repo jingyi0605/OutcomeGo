@@ -1,5 +1,7 @@
 import type { BotDockStateView } from "../lib/bot-dock-state";
 
+export type DockSide = "left" | "right";
+
 export interface DockComposerAnchor {
   right: boolean;
   bottom: boolean;
@@ -17,6 +19,7 @@ export interface BotDockBridge {
   getState(): Promise<BotDockStateView | null>;
   onState(callback: (state: BotDockStateView | null) => void): () => void;
   onMessageArrival(callback: () => void): () => void;
+  onDockSide(callback: (side: DockSide) => void): () => void;
   onComposerAnchor(callback: (anchor: DockComposerAnchor | null) => void): () => void;
   resize(width: number, height: number, layout: "compact" | "invitation" | "composer"): void;
   onSurfaceVisible(callback: (visible: boolean) => void): () => void;

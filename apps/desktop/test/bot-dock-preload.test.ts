@@ -33,3 +33,13 @@ test("reports file hover separately from the capsule size and relays composer vi
   ipcRenderer.emit("botdock:surface-visible", {}, true);
   expect(onVisible.mock.calls).toEqual([[true], [false]]);
 });
+
+test("relays dock side changes and removes the listener on cleanup", () => {
+  const onSide = mock((_side: "left" | "right") => {});
+  const stop = dockBridge.onDockSide(onSide);
+  ipcRenderer.emit("botdock:side", {}, "left");
+  ipcRenderer.emit("botdock:side", {}, "right");
+  stop();
+  ipcRenderer.emit("botdock:side", {}, "left");
+  expect(onSide.mock.calls).toEqual([["left"], ["right"]]);
+});

@@ -122,6 +122,7 @@ export class DesktopBotDock {
   private settings: BotDockSettings;
   private state: BotDockState | null = null;
   private compactBounds: DockRect | null = null;
+  private readonly capsuleSides = new WeakMap<BrowserWindow, "left" | "right">();
   private disposed = false;
   private crashes = 0;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -369,6 +370,7 @@ export class DesktopBotDock {
     if (!window || !compact || !this.invitationSize) return;
     const workArea = screen.getDisplayMatching(compact).workArea;
     this.applyBounds(window, resizeDockFromCenter(compact, this.invitationSize, workArea));
+    this.publishDockSide(window, compact, workArea);
   }
 
   private hideInvitation() {
@@ -528,6 +530,9 @@ export class DesktopBotDock {
       });
     window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     window.webContents.on("will-navigate", (event) => event.preventDefault());
+    if (surface !== "composer") {
+      window.webContents.on("did-start-loading", () => this.capsuleSides.delete(window));
+    }
     return window;
   }
 
@@ -587,8 +592,10 @@ export class DesktopBotDock {
     if (!window || window.isDestroyed() || !size) return;
     const compact = this.compactBounds;
     if (!compact) {
-      this.compactBounds = this.initialBounds(size);
-      window.setBounds(this.compactBounds);
+      const initial = this.initialBounds(size);
+      this.compactBounds = initial;
+      window.setBounds(initial);
+      this.publishDockSide(window, initial, screen.getDisplayMatching(initial).workArea);
       this.crashes = 0;
       if (!window.isVisible()) window.showInactive();
       this.refreshGlobalDrag();
@@ -605,6 +612,7 @@ export class DesktopBotDock {
     this.compactBounds = next;
     if (!this.drag && !sameBounds(compact, next)) this.rememberPosition(next);
     this.applyBounds(window, next);
+    this.publishDockSide(window, next, workArea);
     this.placeInvitation();
     this.placeComposer();
   }
@@ -614,6 +622,13 @@ export class DesktopBotDock {
       window.setBounds(next);
       this.placeNativeDropTargets();
     }
+  }
+
+  private publishDockSide(window: BrowserWindow, bounds: DockRect, workArea: DockRect) {
+    const side = dockAnchorFor(bounds, workArea).right ? "right" : "left";
+    if (this.capsuleSides.get(window) === side) return;
+    this.capsuleSides.set(window, side);
+    window.webContents.send("botdock:side", side);
   }
 
   private initialBounds(size: { width: number; height: number }): DockRect {
@@ -644,6 +659,7 @@ export class DesktopBotDock {
     this.compactBounds = next;
     if (!sameBounds(compact, next)) this.rememberPosition(next);
     this.applyBounds(window, next);
+    this.publishDockSide(window, next, workArea);
     this.placeInvitation();
     this.placeComposer();
   }
@@ -917,6 +933,7 @@ export class DesktopBotDock {
     );
     this.compactBounds = next;
     this.applyBounds(window, next);
+    this.publishDockSide(window, next, workArea);
   }
 
   private stopDrag(save: boolean) {

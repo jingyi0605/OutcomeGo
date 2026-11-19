@@ -159,6 +159,10 @@ body {
   transition: filter 120ms ease;
 }
 
+.dock-frame[data-dock-side="right"] .dock-home::before {
+  transform: scaleX(-1);
+}
+
 .dock-bots {
   display: flex;
   align-items: center;

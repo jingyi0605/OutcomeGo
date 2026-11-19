@@ -9,7 +9,7 @@ import {
 import { BotAvatarGlyph } from "../components/outcomego/avatar-picker-icons";
 import type { BotDockBotView, BotDockStateView } from "../lib/bot-dock-state";
 import { forwardDockFiles } from "./dock-composer";
-import type { BotDockBridge, DockComposerAnchor } from "./types";
+import type { BotDockBridge, DockComposerAnchor, DockSide } from "./types";
 
 /** Avatars stacked in the capsule; the rest collapse into a "+N" chip. */
 export const MAX_VISIBLE_BOTS = 4;
@@ -135,6 +135,7 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
   } | null>(null);
   const [overCapsule, setOverCapsule] = useState(false);
   const [invitationVisible, setInvitationVisible] = useState(false);
+  const [dockSide, setDockSide] = useState<DockSide>("left");
   const rosterSize = state?.roster.length ?? 0;
   const hasState = state !== null;
   const rosterSizeRef = useRef(rosterSize);
@@ -221,6 +222,8 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
     };
   }, [bridge]);
 
+  useLayoutEffect(() => bridge?.onDockSide(setDockSide), [bridge]);
+
   // Main sizes the window to the capsule, and shows it once it has a size.
   useLayoutEffect(() => {
     const frame = frameRef.current;
@@ -250,7 +253,7 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
   if (!state) {
     return (
       <div className="dock-viewport">
-        <div className="dock-frame" data-standby="true" ref={frameRef}>
+        <div className="dock-frame" data-dock-side={dockSide} data-standby="true" ref={frameRef}>
           <div className="dock-capsule">
             <button
               className="dock-home"
@@ -307,6 +310,7 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
     <div className="dock-viewport">
       <div
         className="dock-frame"
+        data-dock-side={dockSide}
         data-dropping={invitation || undefined}
         data-invitation-visible={(invitation && invitationVisible) || undefined}
         data-drop-target={(invitation && overCapsule) || undefined}
