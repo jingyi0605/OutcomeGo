@@ -12,6 +12,7 @@
   --dock-red: #ff3b30;
   --dock-yellow: #ffcc00;
   --dock-yellow-ink: #3d2f00;
+  --dock-invitation-rgb: 94 143 223;
   color-scheme: light;
 }
 
@@ -95,22 +96,28 @@ body {
 }
 
 .dock-capsule {
+  --dock-capsule-size: 44px;
+  --dock-surface-shadow: var(--dock-shadow), inset 0 0 0 0.5px var(--dock-edge);
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 44px;
+  height: var(--dock-capsule-size);
   padding: 0 6px;
   box-sizing: border-box;
   border-radius: 999px;
   background: var(--dock-bg);
-  box-shadow:
-    var(--dock-shadow),
-    inset 0 0 0 0.5px var(--dock-edge);
+  box-shadow: var(--dock-surface-shadow);
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
   backdrop-filter: blur(20px) saturate(1.6);
   color: var(--dock-ink);
   white-space: nowrap;
   touch-action: none;
+}
+
+.dock-capsule:has(> .dock-home:only-child) {
+  --dock-surface-shadow: var(--dock-shadow);
+  width: var(--dock-capsule-size);
+  padding: 1.5px;
 }
 
 /* :where keeps the reset weaker than the button classes below. */
@@ -131,21 +138,25 @@ body {
   width: 32px;
   height: 32px;
   flex: none;
+  overflow: hidden;
   border-radius: 50%;
-  background: linear-gradient(160deg, rgb(152 165 192 / 55%), rgb(64 73 96 / 42%));
-  box-shadow: inset 0 1px 1px rgb(255 255 255 / 25%);
-  transition: background-color 120ms ease;
 }
 
-.dock-home:hover {
-  background-color: var(--dock-home-hover);
+.dock-home:only-child {
+  width: 100%;
+  height: 100%;
 }
 
-.dock-mascot {
-  display: block;
-  width: 24px;
-  height: 24px;
-  filter: drop-shadow(0 1px 1.5px rgb(32 40 59 / 42%));
+.dock-home:hover::before {
+  filter: brightness(1.1);
+}
+
+.dock-home::before {
+  content: "";
+  width: 100%;
+  height: 100%;
+  background: center / cover no-repeat url("./dock-mascot.png?inline");
+  transition: filter 120ms ease;
 }
 
 .dock-bots {
@@ -156,13 +167,14 @@ body {
 
 /* Overlapped avatars: each one tucks under the one before it. */
 .dock-bot {
+  --dock-surface-shadow: 0 0 0 2px var(--dock-badge-ring);
   position: relative;
   display: block;
   width: 32px;
   height: 32px;
   flex: none;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--dock-badge-ring);
+  box-shadow: var(--dock-surface-shadow);
   animation: dock-pop 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 
@@ -507,7 +519,7 @@ body {
   animation: dock-flash 700ms ease-in-out infinite;
 }
 
-.dock-frame[data-invitation-visible][data-drop-target="true"]:where(:not([data-message-shake="true"]))
+.dock-frame[data-invitation-visible]:where([data-drop-target="true"]:not([data-message-shake="true"]))
   .dock-capsule {
   animation: dock-flash 700ms ease-in-out infinite, dock-shake 3s ease-in-out infinite;
 }
@@ -544,16 +556,13 @@ body {
   0%,
   100% {
     box-shadow:
-      var(--dock-shadow),
-      inset 0 0 0 0.5px var(--dock-edge),
-      0 0 0 2px rgb(10 132 255 / 25%);
+      var(--dock-surface-shadow),
+      0 0 8px 2px rgb(var(--dock-invitation-rgb) / 55%);
   }
   50% {
     box-shadow:
-      var(--dock-shadow),
-      inset 0 0 0 0.5px var(--dock-edge),
-      0 0 0 3px #0a84ff,
-      0 0 14px 2px rgb(10 132 255 / 60%);
+      var(--dock-surface-shadow),
+      0 0 12px 4px rgb(var(--dock-invitation-rgb));
   }
 }
 
@@ -567,16 +576,10 @@ body {
   .dock-frame[data-message-shake="true"] .dock-message-motion {
     animation-duration: 0s;
   }
-  .dock-frame[data-invitation-visible] .dock-capsule {
+  .dock-frame[data-invitation-visible] :is(.dock-capsule, .dock-bot) {
     animation: none;
     box-shadow:
-      var(--dock-shadow),
-      inset 0 0 0 0.5px var(--dock-edge),
-      0 0 0 3px #0a84ff;
-  }
-  .dock-frame[data-invitation-visible] .dock-bot {
-    animation: none;
-    box-shadow: 0 0 0 2px var(--dock-badge-ring),
-      0 0 0 3px #0a84ff;
+      var(--dock-surface-shadow),
+      0 0 10px 3px rgb(var(--dock-invitation-rgb) / 90%);
   }
 }

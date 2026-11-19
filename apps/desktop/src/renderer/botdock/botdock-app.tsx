@@ -2,7 +2,6 @@ import { normalizeRobotAvatarShape } from "@outcomego/contracts/robot-avatar";
 import {
   type PointerEvent,
   useEffect,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -19,59 +18,6 @@ const AVATAR_SIZE = 32;
 const DRAG_THRESHOLD = 4;
 
 export const badgeText = (count: number) => (count > 99 ? "99+" : String(count));
-
-function DockMascot() {
-  const id = useId();
-  const silhouette = `${id}-silhouette`;
-  const pearl = `${id}-pearl`;
-  const sheen = `${id}-sheen`;
-  const rim = `${id}-rim`;
-
-  return (
-    <svg aria-hidden="true" className="dock-mascot" viewBox="0 0 40 40">
-      <defs>
-        <path
-          id={silhouette}
-          d="M15 2.8C10.4 3.5 5.1 7 2.3 12 .5 16.5.5 23.8 2.8 27.5 5 32 10.5 34.5 16.5 36.3c4.2 1.05 9.5 1.05 13.5-.2 5.8-2.4 7.6-7 8.4-11.4C39.1 19 36.5 12 32.5 7.5 30.3 3 25 1.5 15 2.8Z"
-        />
-        <radialGradient id={pearl} cx="34%" cy="20%" r="82%">
-          <stop offset="0" stopColor="#fffefa" />
-          <stop offset="0.53" stopColor="#f4f5fb" />
-          <stop offset="0.84" stopColor="#dbe0ef" />
-          <stop offset="1" stopColor="#aab4cf" />
-        </radialGradient>
-        <radialGradient id={sheen} cx="29%" cy="19%" r="55%">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.85" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id={rim} x2="0%" y2="100%">
-          <stop offset="0" stopColor="#fff" />
-          <stop offset="1" stopColor="#8491ae" stopOpacity="0.62" />
-        </linearGradient>
-      </defs>
-      <use href={`#${silhouette}`} fill={`url(#${pearl})`} />
-      <use href={`#${silhouette}`} fill={`url(#${sheen})`} stroke={`url(#${rim})`} strokeWidth="1" />
-      <g fill="#242936">
-        <rect
-          height="6.4"
-          rx="1.875"
-          transform="rotate(-16 21.05 15.8)"
-          width="3.75"
-          x="19.075"
-          y="12.6"
-        />
-        <rect
-          height="6.4"
-          rx="1.45"
-          transform="rotate(-16 31.7 14.5)"
-          width="2.9"
-          x="30.25"
-          y="11.3"
-        />
-      </g>
-    </svg>
-  );
-}
 
 function DockAvatar({ bot }: { bot: BotDockBotView }) {
   if (bot.avatarDataUrl) {
@@ -312,9 +258,7 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
               type="button"
               disabled
               title="Waiting for OutcomeGo to load..."
-            >
-              <DockMascot />
-            </button>
+            />
           </div>
         </div>
       </div>
@@ -404,9 +348,7 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
                 className="dock-home"
                 data-dock-open=""
                 type="button"
-              >
-                <DockMascot />
-              </button>
+              />
               <DockBots state={state} />
             </div>
           </div>

@@ -138,9 +138,7 @@ describe("Bot dock capsule", () => {
       });
       const frame = dom.document.querySelector(".dock-frame");
       expect(frame?.getAttribute("data-standby")).toBe("true");
-      expect(frame?.querySelector(".dock-home svg.dock-mascot")?.getAttribute("aria-hidden")).toBe(
-        "true"
-      );
+      expect(frame?.querySelector(".dock-home")?.getAttribute("aria-label")).toBe(labels.open);
       await act(async () => composerAnchor({ right: true, bottom: false }));
       expect(target.getAttribute("data-composer-open")).toBe("true");
       expect(target.getAttribute("data-composer-x")).toBe("right");
@@ -157,6 +155,7 @@ describe("Bot dock capsule", () => {
       await act(async () => root.render(<BotDockApp invitation />));
       expect(frame?.hasAttribute("data-dropping")).toBe(true);
       expect(frame?.hasAttribute("data-invitation-visible")).toBe(false);
+      expect(frame?.querySelector(".dock-home")?.getAttribute("aria-label")).toBe(labels.open);
       await act(async () => surfaceVisible(true));
       expect(frame?.getAttribute("data-invitation-visible")).toBe("true");
       expect(frame?.hasAttribute("data-standby")).toBe(false);
