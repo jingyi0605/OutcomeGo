@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             viewModel.state.collect { state ->
                 if (state.session == null) {
+                    platform.setBackgroundSyncWanted(false)
                     localUnreadSnapshot = null
                     localNotificationSessionKey = null
                     return@collect
@@ -89,6 +90,7 @@ class MainActivity : ComponentActivity() {
                 val notificationsEnabled = state.features.settings.notifications.messages ||
                     state.features.settings.notifications.mentions ||
                     state.features.settings.notifications.routineRuns
+                platform.setBackgroundSyncWanted(notificationsEnabled)
                 if (previous != null && notificationsEnabled) {
                     state.conversations
                         .filter {

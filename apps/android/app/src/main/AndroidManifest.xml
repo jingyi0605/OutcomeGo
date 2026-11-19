@@ -88,6 +88,10 @@
             android:exported="false"
             android:foregroundServiceType="microphone" />
         <service
+            android:name="com.outcomego.platform.AndroidMessageSyncForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+        <service
             android:name="com.outcomego.platform.AndroidNetworkProviderForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />

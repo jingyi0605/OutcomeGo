@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">OutcomeGo</string>
+    <string name="message_sync_title">OutcomeGo</string>
+    <string name="message_sync_text">Listening for new messages in the background</string>
     <string name="login_welcome_title">Welcome to OutcomeGo</string>
     <string name="login_welcome_detail">Connect to your server and set up your first bot. It takes about two minutes.</string>
     <string name="login_install_server">Install the server</string>

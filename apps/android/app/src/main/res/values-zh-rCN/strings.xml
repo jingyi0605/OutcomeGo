@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">OutcomeGo</string>
+    <string name="message_sync_title">OutcomeGo</string>
+    <string name="message_sync_text">正在后台接收新消息</string>
     <string name="login_welcome_title">欢迎使用 OutcomeGo</string>
     <string name="login_welcome_detail">连接到你的服务器并设置第一个机器人，整个过程大约需要两分钟。</string>
     <string name="login_install_server">安装服务器</string>
