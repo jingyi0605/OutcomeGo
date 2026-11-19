@@ -1,12 +1,12 @@
 import { ApiError } from "@outcomego/contracts";
 import {
-  CreateExploreIdeaInput, DiscardExploreIdeaInput, EXPLORE_STATUSES, ProposeExploreIdeaInput, type ExploreStatus,
+  CreateExploreIdeaInput, DiscardExploreIdeaInput, EXPLORE_STATUSES, type ExploreStatus,
 } from "@outcomego/contracts/explore";
 import { decodeOutcomeCursor } from "@outcomego/contracts/outcomes";
 import { json, parseBody } from "../http";
 import type { ExploreService } from "../services/explore-service";
 import { run, type RouteContext } from "./context";
-import { outcomeActor, requireOutcomeDispatch } from "./outcome";
+import { outcomeActor } from "./outcome";
 
 /** Registered behind the existing authentication gate; assembly supplies the real planning service. */
 export async function exploreRoutes(context: RouteContext, service: ExploreService): Promise<Response | undefined> {
@@ -30,13 +30,9 @@ export async function exploreRoutes(context: RouteContext, service: ExploreServi
       })));
     }
   }
-  const match = path.match(/^\/api\/explore\/([\da-f-]{36})(?:\/(propose|discard))?$/i);
+  // Turning an idea into a goal goes through the goal's own thread (POST /api/outcomes/threads), not here.
+  const match = path.match(/^\/api\/explore\/([\da-f-]{36})(?:\/(discard))?$/i);
   if (match && !match[2] && request.method === "GET") return json(await run(service.get(match[1]!)));
-  if (match?.[2] && request.method === "POST") {
-    if (match[2] === "propose") {
-      requireOutcomeDispatch();
-      return json(await run(service.propose(match[1]!, await parseBody(request, ProposeExploreIdeaInput), actor)), 201);
-    }
+  if (match?.[2] && request.method === "POST")
     return json(await run(service.discard(match[1]!, await parseBody(request, DiscardExploreIdeaInput), actor)));
-  }
 }

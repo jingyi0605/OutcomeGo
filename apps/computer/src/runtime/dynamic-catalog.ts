@@ -209,7 +209,7 @@ export function dynamicCatalog(
       ? [controlPlaneTool(UPDATE_COMPUTER_NETWORK_POLICY_TOOL, UpdateComputerNetworkPolicyInput)] : []),
     ...(active.runtimeProfile !== "subagent" && active.requestSource !== "automation" ? [controlPlaneTool(REPORT_REQUEST_PROGRESS_TOOL, RequestProgressInput)] : []),
     ...(active.runtimeProfile === "subagent" && ["computerUse", "executor", "knowledgeWork"].includes(active.subagentType ?? "") ? [controlPlaneTool(REPORT_TASK_PROGRESS_TOOL, TaskProgressInput)] : []),
-    ...(active.requestSource === "automation" && active.runtimeProfile !== "subagent"
+    ...(active.requestSource === "automation" && active.runtimeProfile !== "subagent" && !active.goalThread
       ? [controlPlaneTool(WAKE_PARENT_TOOL, WakeParentInput)] : []),
     {
       name: AWAIT_SHELL_TOOL.name,

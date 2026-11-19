@@ -95,3 +95,24 @@ test("turn contract accepts the optional marker and keeps ordinary requests with
   expect(decode(request)).not.toHaveProperty("outcomeThread");
   expect(decode({ ...request, outcomeThread: { workItemId: "work" } }).outcomeThread).toEqual({ workItemId: "work" });
 });
+
+test("a goal's own thread gets its four tools, never the chat's goal tools or WakeParent; other turns never get them", () => {
+  const runtime = tools();
+  const names = (turn: Record<string, unknown>) => {
+    const active = { runtimeProfile: "agent", subagentType: null, pluginNamespaces: [], outcomesEnabled: true, ...turn };
+    // A run calls its own thread's tools directly; everything else is looked up in the catalog.
+    return [
+      ...runtime.customTools(active).map((tool) => tool.name),
+      ...runtime.dynamicCatalog(active).flatMap((namespace) => namespace.tools.map((tool) => tool.name)),
+    ];
+  };
+  const goalThread = { threadId: "t", outcomeId: "o", purpose: "owner_message" };
+  const inThread = names({ requestSource: "automation", goalThread });
+  for (const name of ["SaveOutcomeContract", "GetOutcome", "ListOutcomes", "CancelOutcome"]) expect(inThread).toContain(name);
+  // The chat's goal tools (planning, approving-adjacent, registering) and the parent handoff stay out.
+  for (const name of ["CreateOutcome", "TrackOutcome", "CloseOutcome", "StartOutcome", "ReviseOutcome", "WakeParent"])
+    expect(inThread).not.toContain(name);
+  const ordinary = names({ requestSource: "turn" });
+  expect(ordinary).not.toContain("SaveOutcomeContract");
+  expect(names({ requestSource: "automation" })).not.toContain("SaveOutcomeContract");
+});

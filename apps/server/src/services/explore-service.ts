@@ -58,7 +58,11 @@ export class ExploreService {
     return exploreIdeaView(idea);
   });
 
-  propose = (id: string, input: ProposeExploreIdeaInput, actor: ActorRef) => serviceEffect(async signal => {
+  /**
+   * @deprecated Retired planning path (specs/004.8): no route or tool reaches it and the production planning
+   * service refuses to call a model. Kept for stored data and the recovery fixtures until they are migrated.
+   */
+    propose = (id: string, input: ProposeExploreIdeaInput, actor: ActorRef) => serviceEffect(async signal => {
     const scope = `explore-propose:${id}`, request = { input, actor };
     // This short transaction never holds a lock across model inference.
     const phase = await this.prisma.$transaction(async tx => {

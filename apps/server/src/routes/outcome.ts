@@ -3,6 +3,7 @@ import {
   CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
   CancelOutcomeInput, DecideOutcomeAcceptanceInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, parseListOutcomesQuery,
 } from "@outcomego/contracts/outcomes";
+import { CreateOutcomeThreadInput, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
 import { OutcomeAttentionInput, ReconcileOutcomeInput } from "@outcomego/contracts/outcome-runtime";
 import { outcomeDispatchEnabled, type ActorRef } from "@outcomego/messaging";
 import { json, parseBody } from "../http";
@@ -24,20 +25,22 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
   if (!/^\/api\/outcomes(?:\/|$)/.test(path)) return;
   try {
     const actor = await outcomeActor(context);
-    if (path === "/api/outcomes/plans" && request.method === "POST") {
+    if (path === "/api/outcomes/threads" && request.method === "POST") {
       requireOutcomeDispatch();
-      return json(await run(app.outcomePlanning.create(await parseBody(request, CreateOutcomePlanInput))), 201);
+      return json(await app.outcomeThreads.create(await parseBody(request, CreateOutcomeThreadInput), actor), 202);
     }
-    const plan = path.match(/^\/api\/outcomes\/plans\/([\da-f-]{36})$/i);
-    if (plan && request.method === "GET") return json(await run(app.outcomePlanning.get(plan[1]!)));
     if (path === "/api/outcomes") {
-      if (request.method === "POST") return json(await run(app.outcomes.createFromDraft(await parseBody(request, CreateOutcomeInput), actor)), 201);
       if (request.method === "GET") return json(await run(app.outcomes.list(parseListOutcomesQuery(url.searchParams))));
     }
     const match = path.match(/^\/api\/outcomes\/([\da-f-]{36})(.*)$/i);
     if (!match) return;
     const id = match[1]!, tail = match[2];
     if (!tail && request.method === "GET") return json(await run(app.outcomes.get(id)));
+    if (tail === "/thread" && request.method === "GET") return json(await app.outcomeThreads.list(id), 200, { "cache-control": "no-store" });
+    if (tail === "/thread/messages" && request.method === "POST") {
+      requireOutcomeDispatch();
+      return json(await app.outcomeThreads.send(id, await parseBody(request, SendOutcomeThreadMessageInput), actor), 202);
+    }
     if (tail === "/brief" && request.method === "GET")
       return json(await app.outcomeBriefs.get(await run(app.outcomes.get(id))));
     if (tail === "/recovery" && request.method === "GET") return json(await run(app.outcomeRecovery.get(id)));

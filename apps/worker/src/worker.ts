@@ -58,6 +58,9 @@ import {
   automationContextRunId,
   reconcileRoutineExecution,
   settleOutcomeWorkItem,
+  settleOutcomeThreadTurn,
+  settleFinishedOutcomeThreadTurns,
+  startOutcomeThreadTurn,
   dispatchQueuedOutcomeWorkItems,
   recoverOutcomeWorkItems,
   outcomeDispatchEnabled,
@@ -189,6 +192,7 @@ interface Claimed extends WakeAttempt {
   deliveryId: string | null;
   origin: RunOrigin;
   outcomeWorkItemId?: string | null;
+  outcomeThreadId?: string | null;
   runtimeProfile: "agent" | "subagent";
   subagentType: SubagentType | null;
   readOnly: boolean;
@@ -210,8 +214,13 @@ export const contextScopeForRun = (
   channelId: string | null,
   conversationId: string,
   automationRunId?: string,
-  outcomeWorkItemId?: string | null
-): { scope: "home" | "channel" | "automation" | "outcome"; scopeId: string } => {
+  outcomeWorkItemId?: string | null,
+  outcomeThreadId?: string | null
+): { scope: "home" | "channel" | "automation" | "outcome" | "outcome-thread"; scopeId: string } => {
+  if (origin === "outcome_thread") {
+    if (!outcomeThreadId) throw new Error("A goal thread turn requires its thread ID");
+    return { scope: "outcome-thread", scopeId: outcomeThreadId };
+  }
   if (origin === "outcome") {
     if (!outcomeWorkItemId) throw new Error("An Outcome requires its work item ID");
     return { scope: "outcome", scopeId: outcomeWorkItemId };
@@ -236,6 +245,8 @@ const REQUEST_SOURCE_BY_ORIGIN = {
   broadcast: "broadcast",
   // Outcome sub-threads follow the routine worker contract: no SendToUser, WakeParent for handoffs.
   outcome: "automation",
+  // A goal's own thread works quietly like an Outcome sub-thread; its reply is shown with the goal.
+  outcome_thread: "automation",
 } as const satisfies Record<RunOrigin, RuntimeRequestSource>;
 
 export const runtimeRequestSourceForOrigin = (
@@ -1109,6 +1120,8 @@ export class WakeWorker {
       }
     }
     await this.recoverOutcomeWorkItems();
+    // A turn whose run ended without settling it (a crash in between) is settled here.
+    await settleFinishedOutcomeThreadTurns(this.prisma).catch((error) => console.error("goal thread turn recovery", error));
   }
 
   private outcomeRecoveryCursor: string | null = null;
@@ -1394,7 +1407,7 @@ export class WakeWorker {
     while (!this.stopping) {
       const claimed = await this.claim(botId);
       if (!claimed) return;
-      if (["routine", "outcome"].includes(claimed.origin)) {
+      if (["routine", "outcome", "outcome_thread"].includes(claimed.origin)) {
         const task = this.execute(claimed).catch((error) => {
           console.warn("Automation execution failed; durable recovery will reconcile its run", {
             runId: claimed.runId, error: error instanceof Error ? error.message : String(error),
@@ -1441,7 +1454,7 @@ export class WakeWorker {
               status: { in: ["queued", "running"] },
               // Expired Outcome execution is fenced by recovery before a new turn
               // is created. Never dispatch the same running turn to a second owner.
-              NOT: { origin: "outcome", status: "running" },
+              NOT: { origin: { in: ["outcome", "outcome_thread"] }, status: "running" },
               origin: { notIn: [
                 ...(foregroundBusy ? ["user", "agent", "group", "bootstrap", "event", "connector", "background_revival", "handoff_resume", "broadcast"] as const : []),
                 ...(automations.length >= 4 ? ["routine"] as const : []),
@@ -1469,7 +1482,7 @@ export class WakeWorker {
             });
             automationEnded = !!handoff && requestIsStopped(handoff.run);
           }
-          if (!automationEnded && (candidate.run.origin === "user" || candidate.run.origin === "outcome" || await requestWakeAllowed(tx, candidate))) candidates.push(candidate);
+          if (!automationEnded && (candidate.run.origin === "user" || candidate.run.origin === "outcome" || candidate.run.origin === "outcome_thread" || await requestWakeAllowed(tx, candidate))) candidates.push(candidate);
           else {
             const settledAt = new Date();
             const error = { code: automationEnded ? "automation_context_ended" : "request_check_superseded" };
@@ -1484,6 +1497,23 @@ export class WakeWorker {
           if (await automationBackgroundWorkRunning(tx, botId, context)) busyRoutines.add(context);
         let inbox: typeof candidates[number] | undefined;
         for (const candidate of candidates) {
+          // A goal's own thread (specs/004.8): one turn at a time per thread, never blocked by the main chat.
+          if (candidate.run.origin === "outcome_thread") {
+            if (existingLeases.some(lease => lease.scope === `outcome-thread:${candidate.run.outcomeThreadId}`)) continue;
+            const current = await tx.inboxEvent.findUnique({ where: { id: candidate.id }, include: { run: true } });
+            if (!current || current.run.status !== "queued"
+              || !(current.status === "pending" || current.status === "processing" && current.claimedAt && current.claimedAt < staleAt)) continue;
+            const turn = await tx.outcomeThreadTurn.findUnique({
+              where: { runId: candidate.runId }, include: { thread: { select: { outcome: { select: { cancelledAt: true, acceptedAt: true } } } } },
+            });
+            if (!turn || turn.status === "completed" || turn.status === "failed" || turn.thread.outcome.cancelledAt || turn.thread.outcome.acceptedAt) {
+              await tx.inboxEvent.updateMany({ where: { id: candidate.id, status: "pending" }, data: { status: "completed", completedAt: new Date() } });
+              await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_thread_not_runnable" } } });
+              continue;
+            }
+            inbox = candidate;
+            break;
+          }
           if (candidate.run.origin !== "outcome") {
             if (candidate.run.origin !== "routine") {
               if (foregroundBusy) continue;
@@ -1607,7 +1637,7 @@ export class WakeWorker {
         const lease = await tx.botRunLease.createMany({
           data: {
             botId,
-            scope: inbox.run.origin === "outcome" ? `outcome:${inbox.run.outcomeWorkItemId}` : inbox.run.origin === "routine" ? `automation:${payload.automationContextRunId ?? inbox.runId}` : "foreground",
+            scope: inbox.run.origin === "outcome_thread" ? `outcome-thread:${inbox.run.outcomeThreadId}` : inbox.run.origin === "outcome" ? `outcome:${inbox.run.outcomeWorkItemId}` : inbox.run.origin === "routine" ? `automation:${payload.automationContextRunId ?? inbox.runId}` : "foreground",
             runId: inbox.runId,
             ownerId,
             expiresAt: new Date(Date.now() + LEASE_MS),
@@ -1674,6 +1704,7 @@ export class WakeWorker {
           where: { runId: inbox.runId, status: "queued" },
           data: { status: "running", startedAt: new Date() },
         });
+        if (inbox.run.origin === "outcome_thread") await startOutcomeThreadTurn(tx, inbox.runId);
         if (inbox.run.origin === "outcome") {
           const item = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: inbox.run.outcomeWorkItemId! } });
           if (item.status !== "running") await transitionWorkItem(tx, { workItemId: item.id, to: "running", reason: "lease_acquired", actor: "system:worker" });
@@ -1704,7 +1735,8 @@ export class WakeWorker {
           inbox.run.channelId,
           inbox.conversationId,
           payload.automationContextRunId ?? inbox.runId,
-          inbox.run.outcomeWorkItemId
+          inbox.run.outcomeWorkItemId,
+          inbox.run.outcomeThreadId
         );
         const contextSession = await tx.contextSession.upsert({
           where: {
@@ -1750,6 +1782,7 @@ export class WakeWorker {
           deliveryId: inbox.run.deliveryId,
           origin: inbox.run.origin,
           outcomeWorkItemId: inbox.run.outcomeWorkItemId,
+          outcomeThreadId: inbox.run.outcomeThreadId,
           runtimeProfile: inbox.bot.subagentIdentity ? "subagent" : "agent",
           subagentType:
             (inbox.bot.subagentIdentity?.subagentType as SubagentType | undefined) ?? null,
@@ -1800,11 +1833,11 @@ export class WakeWorker {
       // Plugin skills are global/read-only inputs. User workflows are rendered
       // later by platformInstructions and therefore win on conflict.
       const platformPrompt = await this.messaging.platformPrompt(claimed.botId, claimed.contextSessionId,
-        pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin, claimed.outcomeWorkItemId ?? undefined);
+        pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin, claimed.outcomeWorkItemId ?? undefined, claimed.outcomeThreadId ?? undefined);
       // Replay failed user inputs whose durable-session delivery was never
       // acknowledged, including a turn a typed message superseded before its input
       // reached the model. Runtime message IDs prevent duplication after a lost ack.
-      const missed = claimed.runtimeProfile === "agent" && !["routine", "outcome"].includes(claimed.origin) ? await this.prisma.inboxEvent.findMany({ where: { botId: claimed.botId, conversationId: claimed.conversationId, runId: { not: claimed.runId }, run: { channelId: claimed.channelId, origin: "user", inputDeliveredAt: null, OR: [{ status: { in: ["failed", "interrupted"] } }, { status: "cancelled", error: { path: ["code"], equals: "priority_peer_interrupt" } }] } }, orderBy: { createdAt: "asc" }, take: 20 }) : [];
+      const missed = claimed.runtimeProfile === "agent" && !["routine", "outcome", "outcome_thread"].includes(claimed.origin) ? await this.prisma.inboxEvent.findMany({ where: { botId: claimed.botId, conversationId: claimed.conversationId, runId: { not: claimed.runId }, run: { channelId: claimed.channelId, origin: "user", inputDeliveredAt: null, OR: [{ status: { in: ["failed", "interrupted"] } }, { status: "cancelled", error: { path: ["code"], equals: "priority_peer_interrupt" } }] } }, orderBy: { createdAt: "asc" }, take: 20 }) : [];
       // Replayed inputs travel in the same request as this turn's images, so they share its
       // inline budget (the computer refuses bodies over 128 MiB); this turn's images go first.
       const budget = {
@@ -1818,6 +1851,16 @@ export class WakeWorker {
         missedMessages.push({ id: `input:${payload.clientId}`, content: `[SAND_HIDDEN_PROMPT]Earlier user input whose delivery was interrupted:\n${payload.content}`, images: await this.messaging.assets.runtimeImages(assetRefs(payload.attachments), budget) });
       }
       const instructions = platformPrompt.instructions;
+      // A goal's own thread tells the computer which goal it works on, so only that thread's tools appear.
+      const goalThreadRow = claimed.outcomeThreadId
+        ? await this.prisma.outcomeThread.findUnique({
+            where: { id: claimed.outcomeThreadId },
+            select: { outcomeId: true, turns: { where: { status: { in: ["queued", "running"] } }, orderBy: { createdAt: "asc" }, take: 1, select: { purpose: true } } },
+          })
+        : null;
+      const goalThread = claimed.outcomeThreadId && goalThreadRow
+        ? { threadId: claimed.outcomeThreadId, outcomeId: goalThreadRow.outcomeId, purpose: goalThreadRow.turns[0]?.purpose ?? ("owner_message" as const) }
+        : null;
       // A room turn is woken by a synthetic clientId, so its spoken origin is the message that started the round.
       const triggeringMessage = claimed.deliveryId
         ? await this.prisma.channelDelivery
@@ -1893,6 +1936,7 @@ export class WakeWorker {
         resetSelfSummaryCount: wakeResetsSelfSummaryCount(claimed.inboxType),
         requestSource: runtimeRequestSourceForOrigin(claimed.origin, claimed.inboxType),
         ...(claimed.outcomeWorkItemId ? { outcomeThread: { workItemId: claimed.outcomeWorkItemId } } : {}),
+        ...(goalThread ? { goalThread } : {}),
         channelId: claimed.channelId,
         deliveryId: claimed.deliveryId,
         runtimeProfile: claimed.runtimeProfile,
@@ -1986,6 +2030,7 @@ export class WakeWorker {
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
       await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
+      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId);
       if (claimed.origin === "bootstrap") {
         const onboarding = await tx.bot.updateMany({
           where: { id: claimed.botId, onboardingStatus: "running" },
@@ -2016,7 +2061,7 @@ export class WakeWorker {
       });
       await this.messaging.scheduleTranscriptProjection(tx, [claimed.botId]);
       await this.completeSubagent(tx, claimed);
-      if (claimed.runtimeProfile !== "subagent" && !["routine", "outcome"].includes(claimed.origin ?? "")) await settleRequestProgress(tx, this.messaging, claimed.botId, claimed.runId);
+      if (claimed.runtimeProfile !== "subagent" && !["routine", "outcome", "outcome_thread"].includes(claimed.origin ?? "")) await settleRequestProgress(tx, this.messaging, claimed.botId, claimed.runId);
       return "settled" as const;
     });
     if (!settlement) return;
@@ -2059,13 +2104,13 @@ export class WakeWorker {
     }
     const renewed = await this.prisma.botRunLease.updateMany({
       where: { botId: claimed.botId, ownerId: claimed.ownerId, expiresAt: { gt: new Date() },
-        ...(claimed.origin === "outcome" ? { runId: claimed.runId } : {}) },
+        ...(claimed.origin === "outcome" || claimed.origin === "outcome_thread" ? { runId: claimed.runId } : {}) },
       data: {
         heartbeatAt: new Date(),
         expiresAt: new Date(Date.now() + LEASE_MS),
       },
     });
-    if (claimed.origin === "outcome" && renewed.count === 0)
+    if ((claimed.origin === "outcome" || claimed.origin === "outcome_thread") && renewed.count === 0)
       await this.computerFetch(COMPUTER_API_PATHS.turnCancel(claimed.runId), { method: "POST", body: JSON.stringify({ recovery: true }) }).catch(() => undefined);
   }
 
@@ -2314,6 +2359,7 @@ export class WakeWorker {
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
       await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
+      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId);
       if (priorityInterrupted) await this.redriveSupersededWake(tx, claimed);
       if (claimed.origin === "bootstrap") {
         const onboarding = await tx.bot.updateMany({

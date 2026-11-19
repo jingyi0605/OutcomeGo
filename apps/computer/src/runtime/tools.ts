@@ -1,4 +1,5 @@
 import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "@outcomego/contracts/outcome-inbox";
+import { OUTCOME_GOAL_THREAD_TOOLS, decodeOutcomeThreadInput } from "@outcomego/contracts/outcome-thread";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 import {
   OUTCOME_THREAD_TOOL_NAMES,
@@ -279,6 +280,18 @@ const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
   },
 };
 
+/** The small tool set of a goal's own thread; it appears only on that thread's turns. */
+export const goalThreadToolDefinitions = (active: Pick<ActiveTurn, "goalThread">): Array<Omit<RuntimeDynamicTool, "execute">> =>
+  active.goalThread
+    ? OUTCOME_GOAL_THREAD_TOOLS.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
+        source: "first-party" as const,
+        decodeArguments: (args: unknown) => decodeOutcomeThreadInput(tool.name, args),
+      }))
+    : [];
+
 export const outcomeThreadToolDefinitions = (
   active: Pick<ActiveTurn, "outcomeThread">,
   implemented: OutcomeThreadToolRegistry = OUTCOME_THREAD_TOOLS
@@ -288,8 +301,10 @@ export const outcomeThreadToolDefinitions = (
 
 /** First-party tools a worker or routine run calls directly instead of looking them up with GetDynamicTools. */
 export const workerTopLevelTools = (
-  active: Pick<ActiveTurn, "subagentType" | "readOnly"> & Partial<Pick<ActiveTurn, "requestSource" | "runtimeProfile" | "outcomeThread">>
+  active: Pick<ActiveTurn, "subagentType" | "readOnly"> & Partial<Pick<ActiveTurn, "requestSource" | "runtimeProfile" | "outcomeThread" | "goalThread">>
 ): readonly string[] => {
+  // A goal's own thread has nobody to hand work back to: its tools, and no WakeParent.
+  if (active.goalThread && active.runtimeProfile !== "subagent") return goalThreadToolDefinitions({ goalThread: active.goalThread }).map((tool) => tool.name);
   if (active.requestSource === "automation" && active.runtimeProfile !== "subagent")
     return [WAKE_PARENT_TOOL.name, ...outcomeThreadToolDefinitions(active).map((tool) => tool.name)];
   // File transfers stay in the cursor namespace, as in the reference's Task worker manifest.
@@ -2059,6 +2074,11 @@ export class RuntimeTools {
       (turn, _callId, args, signal) => this.awaitShellForTurn(turn, args, signal),
       [
         ...outcomeThreadToolDefinitions(active).map((definition): RuntimeDynamicTool => ({
+          ...definition,
+          execute: (turn, callId, args, signal) =>
+            this.callControlPlaneTool(turn, callId, definition.name, args, signal),
+        })),
+        ...goalThreadToolDefinitions(active).map((definition): RuntimeDynamicTool => ({
           ...definition,
           execute: (turn, callId, args, signal) =>
             this.callControlPlaneTool(turn, callId, definition.name, args, signal),

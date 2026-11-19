@@ -1,4 +1,5 @@
 import { ApiError } from "@outcomego/contracts";
+import type { SaveOutcomeContractInput } from "@outcomego/contracts/outcome-thread";
 import {
   type ApproveContractRevisionInput,
   type CancelOutcomeInput,
@@ -7,6 +8,7 @@ import {
   type ContractRevisionView,
   type CreateContractRevisionInput,
   type CreateOutcomeInput,
+  type CreateOutcomeFromContractInput,
   detectPlanningConflicts,
   encodeOutcomeCursor,
   hasBlockingConflict,
@@ -93,6 +95,7 @@ export class OutcomeService {
     private readonly onContractSaved?: (outcome: OutcomeDetail) => void,
   ) {}
 
+  /** @deprecated Legacy planning-draft path kept for existing data and fixtures; no route or tool reaches it. */
   createFromDraft = (input: CreateOutcomeInput, actor: ActorRef) =>
     serviceEffect(() =>
       this.idempotent("outcome-create", input.clientRequestId, input, async (tx) => {
@@ -114,6 +117,24 @@ export class OutcomeService {
         await this.event(tx, "outcome.created", outcome.id, actor, input.clientRequestId, { title: outcome.title, botId: draft.botId });
         await this.insertRevision(tx, outcome.id, 1, contract, draft.botId, actor, input.clientRequestId, {});
         if (explore) await tx.exploreIdea.update({ where: { id: explore.id }, data: { status: "converted", proposedOutcomeId: outcome.id } });
+        await this.recomputeStatus(tx, outcome.id, actor);
+        return this.detail(tx, outcome.id);
+      }).then((detail) => this.contractSaved(detail))
+    );
+
+  /** A goal created in conversation with a contract its bot wrote itself; saved unapproved (specs/004.8). */
+  createFromContract = (input: CreateOutcomeFromContractInput, botId: string, actor: ActorRef) =>
+    serviceEffect(() =>
+      this.idempotent("outcome-create-contract", input.clientRequestId, { botId, input }, async (tx) => {
+        const contract: ConfirmedContract = {
+          goal: input.goal.map((text) => text.trim()),
+          acceptance: input.acceptance.map(({ statement, required }) => ({ statement: statement.trim(), required, verificationMethod: "human_review" as const })),
+          boundaries: { included: input.boundaries.included.map((text) => text.trim()), excluded: input.boundaries.excluded.map((text) => text.trim()) },
+          budget: input.budget ?? null,
+        };
+        const outcome = await tx.outcome.create({ data: { botId, title: input.title.trim(), description: contract.goal.join("\n") } });
+        await this.event(tx, "outcome.created", outcome.id, actor, input.clientRequestId, { title: outcome.title, botId });
+        await this.insertRevision(tx, outcome.id, 1, contract, botId, actor, input.clientRequestId, {});
         await this.recomputeStatus(tx, outcome.id, actor);
         return this.detail(tx, outcome.id);
       }).then((detail) => this.contractSaved(detail))
@@ -316,6 +337,58 @@ export class OutcomeService {
    * owner-approval flow; otherwise the item is `tracked`: its contract is auto-approved by the system and nothing runs.
    * `createDecision` runs in the same transaction so a decision item never exists without its Decision.
    */
+  /**
+   * The goal's own bot writes its contract (specs/004.8). The result is always an unapproved revision: the
+   * owner approves in the app. A goal without any contract yet gets revision 1 and its real title.
+   */
+  saveAgentContract = (outcomeId: string, input: SaveOutcomeContractInput, actor: ActorRef) =>
+    serviceEffect(() =>
+      this.idempotent(`outcome-agent-contract:${outcomeId}`, input.clientRequestId, input, async (tx) => {
+        const outcome = await this.lockOutcome(tx, outcomeId);
+        this.assertOpen(outcome.status);
+        const current = outcome.currentRevisionId
+          ? await tx.outcomeContractRevision.findUniqueOrThrow({ where: { id: outcome.currentRevisionId } })
+          : null;
+        const contract: ConfirmedContract = {
+          goal: input.goal.map((text) => text.trim()),
+          acceptance: input.acceptance.map(({ statement, required }) => ({ statement: statement.trim(), required, verificationMethod: "human_review" as const })),
+          boundaries: { included: input.boundaries.included.map((text) => text.trim()), excluded: input.boundaries.excluded.map((text) => text.trim()) },
+          budget: input.budget ?? null,
+        };
+        if (current && revisionContentHash(contract, current.executionBotId) === current.contentHash)
+          throw outcomeApiError("contract_unchanged", "This contract is the same as the current one; change something or leave it", { currentRevision: current.revision });
+        if (current) {
+          return this.createRevisionInTransaction(tx, outcomeId, {
+            baseRevision: current.revision,
+            contract: { goal: contract.goal, acceptance: contract.acceptance.map(({ statement, required }) => ({ statement, required })), boundaries: contract.boundaries, budget: contract.budget },
+            changeSummary: input.changeSummary,
+            clientRequestId: input.clientRequestId,
+          }, actor);
+        }
+        const title = input.title?.trim();
+        if (!title) throw outcomeApiError("contract_title_required", "The first contract needs a title");
+        await tx.outcome.update({ where: { id: outcomeId }, data: { title } });
+        await this.insertRevision(tx, outcomeId, 1, contract, outcome.botId, actor, input.clientRequestId, {});
+        await this.onRevisionCreated?.(tx, outcomeId, actor);
+        await this.recomputeStatus(tx, outcomeId, actor);
+        return this.detail(tx, outcomeId);
+      }).then((detail) => this.contractSaved(detail))
+    );
+
+  /** A goal that has no contract yet: its own bot plans it in its thread. Runs in the caller's transaction. */
+  createPlanningOutcome = async (
+    tx: Tx,
+    input: { botId: string; title: string; description: string; sourceExploreId?: string | null },
+    actor: ActorRef,
+    clientRequestId: string
+  ): Promise<string> => {
+    const outcome = await tx.outcome.create({
+      data: { botId: input.botId, title: input.title, description: input.description, sourceExploreId: input.sourceExploreId ?? null },
+    });
+    await this.event(tx, "outcome.created", outcome.id, actor, clientRequestId, { title: outcome.title, botId: input.botId });
+    return outcome.id;
+  };
+
   track = (
     input: TrackOutcomeInput,
     botId: string,

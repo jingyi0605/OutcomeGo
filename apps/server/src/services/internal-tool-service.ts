@@ -46,6 +46,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
 import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
 import type { OutcomeChatTools } from "./outcome-chat-tools";
+import { isOutcomeThreadTool, type OutcomeThreadTools } from "./outcome-thread-tools";
 import { findOutcomeCredentialGrant } from "./outcome-credential-approval";
 
 export interface OutcomeThreadToolContext {
@@ -71,7 +72,7 @@ import { GET_USER_LOCATION_TOOL } from "@outcomego/contracts/user-location";
 import type { UserLocationService } from "./user-location";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
-const isBackgroundOrigin = (origin: string) => origin === "routine" || origin === "outcome";
+const isBackgroundOrigin = (origin: string) => origin === "routine" || origin === "outcome" || origin === "outcome_thread";
 const bitwardenCandidate = (
   value: unknown
 ): { connectionId: string; itemId: string; title: string; hostname: string } => {
@@ -121,7 +122,8 @@ export class InternalToolService {
     private readonly externalDelivery?: ExternalDeliveryService,
     private readonly outcomeThreadTools: OutcomeThreadToolHandlers = {},
     private readonly outcomeChatTools?: OutcomeChatTools,
-    private readonly userLocations?: UserLocationService
+    private readonly userLocations?: UserLocationService,
+    private readonly goalThreadTools?: OutcomeThreadTools
   ) {}
 
   /**
@@ -199,6 +201,14 @@ export class InternalToolService {
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
       const backgroundRun = isBackgroundOrigin(run.origin);
+      // A goal's own thread has its own small tool set, bound to that goal (specs/004.8).
+      if (run.origin === "outcome_thread" && isOutcomeThreadTool(request.tool)) {
+        if (!this.goalThreadTools)
+          throw new ApiError(503, "outcome_thread_tool_unavailable", `Goal thread tool ${request.tool} has not been registered`);
+        return this.goalThreadTools.execute(request, context, signal);
+      }
+      if (request.tool === "SaveOutcomeContract")
+        throw new ApiError(400, "outcome_thread_required", "This tool belongs to a goal's own thread");
       if ((OUTCOME_CHAT_TOOL_NAMES as readonly string[]).includes(request.tool)) {
         if (childIdentity || backgroundRun)
           throw new ApiError(403, "outcome_chat_required", "Manage native goals from the user-facing Bot conversation");

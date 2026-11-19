@@ -33,7 +33,7 @@ async function fixture() {
   const outcomes = new OutcomeService(h.db, h.messaging, new RunService(h.db, async () => new Response("{}")));
   const decisions = new DecisionService(h.db, { messaging: h.messaging });
   const inbox = new OutcomeInboxService(h.db);
-  const tools = new OutcomeChatTools(planning, outcomes, inbox, new ExploreService(h.db, planning), undefined, decisions);
+  const tools = new OutcomeChatTools(outcomes, inbox, new ExploreService(h.db, planning), undefined, decisions);
   const context = {
     runId: crypto.randomUUID(),
     botId: h.bot.id,

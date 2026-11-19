@@ -59,10 +59,10 @@ test("runtime queries and mutations dispatch parsed inputs with the authenticate
   expect(calls).toEqual([]);
 });
 
-test("the rollback switch blocks only new planning, Explore proposal and run dispatch", async () => {
+test("the rollback switch blocks only new goal-thread turns and run dispatch", async () => {
   process.env.OUTCOMEGO_OUTCOMES_ENABLED = "FALSE";
   calls.length = 0;
-  for (const path of ["/api/outcomes/plans", `/api/outcomes/${id}/runs`, `/api/explore/${id}/propose`]) {
+  for (const path of ["/api/outcomes/threads", `/api/outcomes/${id}/thread/messages`, `/api/outcomes/${id}/runs`]) {
     const response = await call(path, {});
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ error: { code: "outcome_dispatch_disabled", details: { retryable: true } } });

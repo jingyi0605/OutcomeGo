@@ -2,6 +2,8 @@ import { OutcomeService } from "./services/outcome-service";
 import { lockAssetReferences, referencedAssetIdsSql } from "./services/asset-retention";
 import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
 import { OutcomePlanningService } from "./services/outcome-planning-service";
+import { OutcomeThreadService } from "./services/outcome-thread-service";
+import { OutcomeThreadTools } from "./services/outcome-thread-tools";
 import { ExploreService } from "./services/explore-service";
 import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
 import { DecisionService } from "./services/decision-service";
@@ -105,6 +107,7 @@ export class AppService {
   readonly messaging: AgentMessaging;
   readonly outcomes: OutcomeService;
   readonly outcomePlanning: OutcomePlanningService;
+  readonly outcomeThreads: OutcomeThreadService;
   readonly outcomeBriefs: OutcomeBriefService;
   readonly explore: ExploreService;
   readonly outcomeRecovery: OutcomeRecoveryService;
@@ -266,7 +269,12 @@ export class AppService {
     this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions, (outcome) =>
       this.outcomeBriefs.warm(outcome)
     );
-    this.outcomePlanning = new OutcomePlanningService(this.prisma, inferOutcome);
+    // Planning is the goal's own bot's work (specs/004.8). This retired service keeps only the cleanup of old
+    // planning drafts, and can no longer reach a model.
+    this.outcomePlanning = new OutcomePlanningService(this.prisma, async () => {
+      throw new Error("Goal planning is done by the goal's own bot in its thread");
+    });
+    this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging, this.outcomes);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);
     const humanServices = createHumanWorkServices(this.prisma, this.messaging, this.agentData, this.assets);
@@ -359,6 +367,7 @@ export class AppService {
       this.messaging,
       this.automationWebhooks
     );
+    const outcomeChatTools = new OutcomeChatTools(this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging), this.outcomeDecisions);
     this.internalTools = new InternalToolService(
       this.prisma,
       this.messaging,
@@ -379,8 +388,9 @@ export class AppService {
         ReportOutcomeProgress: createOutcomeProgressTool(this.prisma),
         RequestBitwardenReadApproval: createOutcomeCredentialApprovalTool(this.prisma, this.outcomeDecisions),
       },
-      new OutcomeChatTools(this.outcomePlanning, this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging), this.outcomeDecisions),
-      this.userLocations
+      outcomeChatTools,
+      this.userLocations,
+      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools)
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 

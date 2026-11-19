@@ -13,7 +13,6 @@ import type { DecisionOption } from "@outcomego/contracts/outcome-inbox";
 import type { Prisma } from "@outcomego/db";
 import { createOutcomeDecision, outcomeDispatchEnabled } from "@outcomego/messaging";
 import type { DecisionService } from "./decision-service";
-import type { OutcomePlanningService } from "./outcome-planning-service";
 import type { OutcomeService } from "./outcome-service";
 import type { OutcomeInboxService } from "./outcome-inbox-service";
 import type { ExploreService } from "./explore-service";
@@ -43,7 +42,6 @@ const trackedNextStep = (outcome: OutcomeDetail): string =>
 /** Adapts ordinary chat calls to the same services as the authenticated UI. No approval entry point. */
 export class OutcomeChatTools {
   constructor(
-    private readonly planning: OutcomePlanningService,
     private readonly outcomes: OutcomeService,
     private readonly inbox: OutcomeInboxService,
     private readonly explore: ExploreService,
@@ -57,7 +55,6 @@ export class OutcomeChatTools {
     signal?: AbortSignal
   ): Promise<unknown> => {
     const cardTools = [
-      "PlanOutcome",
       "CreateOutcome",
       "ReviseOutcome",
       "StartOutcome",
@@ -101,21 +98,9 @@ export class OutcomeChatTools {
       }
     };
     try {
-      await update({ stage: request.tool === "PlanOutcome" ? "generating" : "analyzing" });
+      await update({ stage: "analyzing" });
       const result = await this.perform(request, context, signal);
-      if (request.tool === "PlanOutcome") {
-        const plan = result as PlanningDraftView;
-        await update({
-          stage: "plan_ready",
-          planId: plan.planId,
-          summary: "Planning suggestions are ready. No goal has been created or started.",
-          suggestions: {
-            goals: plan.goal.options.map((o) => o.text),
-            acceptance: plan.acceptance.options.map((o) => o.text),
-            boundaries: plan.boundaries.options.map((o) => o.text),
-          },
-        });
-      } else {
+      {
         const { outcome } = result as { outcome: OutcomeDetail };
         await update({
           stage: outcomeCardStage(outcome.status),
@@ -125,7 +110,7 @@ export class OutcomeChatTools {
           summary: outcome.currentRevisionView?.goal[0]?.slice(0, 220),
         });
       }
-      if (id && request.tool !== "PlanOutcome") {
+      if (id) {
         return {
           ...(result as Record<string, unknown>),
           nextStep:
@@ -180,15 +165,8 @@ export class OutcomeChatTools {
     };
     try {
       switch (request.tool) {
-        case "PlanOutcome": {
-          requireOutcomeDispatch();
-          const args = input("PlanOutcome");
-          return await run(this.planning.create({ ...args, context: { botId: context.botId } }));
-        }
-        case "GetOutcomePlan":
-          return await run(this.planning.get(input("GetOutcomePlan").planId));
         case "CreateOutcome":
-          return await detail(this.outcomes.createFromDraft(input("CreateOutcome"), actor));
+          return await detail(this.outcomes.createFromContract(input("CreateOutcome"), context.botId, actor));
         case "ListOutcomes": {
           const args = input("ListOutcomes");
           return await run(
@@ -323,11 +301,6 @@ export class OutcomeChatTools {
               actor
             )
           );
-        case "ProposeExploreIdea": {
-          requireOutcomeDispatch();
-          const { ideaId, ...args } = input("ProposeExploreIdea");
-          return await run(this.explore.propose(ideaId, { ...args, botId: context.botId }, actor));
-        }
         case "DiscardExploreIdea": {
           const { ideaId, ...args } = input("DiscardExploreIdea");
           return await run(this.explore.discard(ideaId, args, actor));
