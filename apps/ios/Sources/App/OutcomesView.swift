@@ -10,6 +10,7 @@ struct OutcomesView: View {
   @State private var loaded = false
   @State private var failedMore = false
   @State private var failure: String?
+  @State private var showingNew = false
 
   var body: some View {
     NativeList {
@@ -36,7 +37,17 @@ struct OutcomesView: View {
     }
     .navigationTitle("Outcomes")
     .navigationBarTitleDisplayMode(.inline)
-    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+    .toolbar {
+      ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } }
+      ToolbarItem(placement: .primaryAction) {
+        Button { showingNew = true } label: { Image(systemName: "plus") }
+          .accessibilityLabel("New outcome")
+          .accessibilityIdentifier("new-outcome")
+      }
+    }
+    .sheet(isPresented: $showingNew) {
+      NavigationStack { NewOutcomeView { Task { await load() } } }
+    }
     .refreshable { await load() }
     .task(id: store.api?.resourceGeneration) {
       items = []; cursor = nil; loaded = false
@@ -87,6 +98,9 @@ struct OutcomeDetailView: View {
           Text("Updated: \(value.updatedAt)")
           ForEach(value.currentRevisionView?.goal ?? [], id: \.self) { Text($0) }
         }
+        OutcomeThreadSection(
+          outcomeId: id, canSend: !["accepted", "cancelled"].contains(value.status)
+        ) { Task { await load() } }
         Section("Work items") {
           ForEach(value.workItems.sorted { $0.ordinal < $1.ordinal }) { item in
             VStack(alignment: .leading, spacing: 5) {
@@ -148,7 +162,7 @@ struct OutcomeDetailView: View {
 }
 
 private var outcomeDesktopNotice: some View {
-  Text("Planning, approval, acceptance and rework: please complete on Desktop.")
+  Text("Approval, acceptance and rework: please complete on Desktop.")
     .font(.subheadline).foregroundStyle(NativePalette.muted)
 }
 

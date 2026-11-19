@@ -511,6 +511,16 @@
         }
       }
     },
+    "Approval, acceptance and rework: please complete on Desktop.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "批准、验收和返工：请在 Desktop 完成。"
+          }
+        }
+      }
+    },
     "Approve access in your browser, then return to OutcomeGo.": {
       "localizations": {
         "zh-CN": {
@@ -737,6 +747,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "机器人头像"
+          }
+        }
+      }
+    },
+    "Bot conversation": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "和机器人的对话"
+          }
+        }
+      }
+    },
+    "Bot is working": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人处理中"
           }
         }
       }
@@ -2591,6 +2621,16 @@
         }
       }
     },
+    "Hand to the bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交给机器人"
+          }
+        }
+      }
+    },
     "HTTP": {
       "localizations": {
         "zh-CN": {
@@ -3781,6 +3821,16 @@
         }
       }
     },
+    "New outcome": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建目标"
+          }
+        }
+      }
+    },
     "New routine": {
       "localizations": {
         "zh-CN": {
@@ -4037,6 +4087,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "不工作"
+          }
+        }
+      }
+    },
+    "Nothing here yet. Tell the bot what to change, ask a question, or cancel.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有对话。可以告诉机器人要改什么、提问或取消。"
           }
         }
       }
@@ -5711,6 +5771,16 @@
         }
       }
     },
+    "Send to the bot": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发给机器人"
+          }
+        }
+      }
+    },
     "STT WebSocket URL": {
       "localizations": {
         "zh-CN": {
@@ -6877,6 +6947,56 @@
           "stringUnit": {
             "state": "translated",
             "value": "系统偏好设置"
+          }
+        }
+      }
+    },
+    "Tell the bot what you want. It will ask if something is unclear, or write a plan for you to approve.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "告诉机器人你想达成什么。不清楚的地方它会问你，清楚了它会写好方案等你批准。"
+          }
+        }
+      }
+    },
+    "Tell the bot…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对机器人说…"
+          }
+        }
+      }
+    },
+    "The bot could not finish this. Send it again.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人没能完成这条，请重新发送。"
+          }
+        }
+      }
+    },
+    "The bot finished without a reply.": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人处理完了，没有回复文字。"
+          }
+        }
+      }
+    },
+    "The bot is working on it…": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机器人正在处理…"
           }
         }
       }
@@ -8091,6 +8211,16 @@
         }
       }
     },
+    "What outcome do you want?": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你希望达成什么目标？"
+          }
+        }
+      }
+    },
     "Where's your server?": {
       "localizations": {
         "zh-CN": {
@@ -8627,16 +8757,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "加载更多"
-          }
-        }
-      }
-    },
-    "Planning, approval, acceptance and rework: please complete on Desktop.": {
-      "localizations": {
-        "zh-CN": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "规划、批准、验收和返工：请在 Desktop 完成。"
           }
         }
       }

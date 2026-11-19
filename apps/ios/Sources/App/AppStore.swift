@@ -1878,6 +1878,22 @@ final class AppStore {
     catch let error as APIError where error.status == 404 { return nil }
   }
 
+  func outcomeThread(_ id: String) async throws -> OutcomeThreadView {
+    try await fetch(API.outcomeThreadPath(id), as: OutcomeThreadView.self)
+  }
+
+  /// The owner's words go to the goal's bot unchanged; the call returns once the turn is queued.
+  func sendOutcomeThreadMessage(_ id: String, input: SendOutcomeThreadMessage) async throws -> OutcomeThreadTurn {
+    try await request("\(API.outcomeThreadPath(id))/messages", method: "POST", body: .encode(input))
+      .decode(OutcomeThreadTurn.self)
+  }
+
+  /// Hands a new goal to the chosen bot; the bot decides whether to ask or to write a contract.
+  func createOutcomeThread(_ input: CreateOutcomeThread) async throws -> CreatedOutcomeThread {
+    try await request(API.outcomeThreadsPath, method: "POST", body: .encode(input))
+      .decode(CreatedOutcomeThread.self)
+  }
+
   func fetch<T: Decodable>(_ path: String, as type: T.Type, query: [String: String] = [:])
     async throws -> T
   {

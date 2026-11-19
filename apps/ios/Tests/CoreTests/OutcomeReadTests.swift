@@ -101,4 +101,21 @@ final class OutcomeReadTests: XCTestCase, @unchecked Sendable {
     XCTAssertNil(page.items.first?.currentRevision)
     XCTAssertNil(page.nextCursor)
   }
+
+  func testThreadModelsKeepOwnerWordsAndReportProgress() throws {
+    let turns = Data(#"{"threadId":"t","turns":[{"id":"1","purpose":"owner_message","trigger":"取消目标","status":"running","reply":null,"error":null,"runId":null,"createdAt":"now","updatedAt":"now"},{"id":"2","purpose":"plan","trigger":"goal","status":"failed","error":{"code":"x","message":"Bot offline"},"createdAt":"now","updatedAt":"now"}]}"#.utf8)
+    let view = try JSONDecoder().decode(OutcomeThreadView.self, from: turns)
+    XCTAssertTrue(view.turns[0].inProgress)
+    XCTAssertFalse(view.turns[1].inProgress)
+    XCTAssertEqual(view.turns[0].trigger, "取消目标")
+    XCTAssertEqual(view.turns[1].error?.message, "Bot offline")
+    // Words and ids go out exactly as given: no wrapper text, no intent label, no empty idea id.
+    let sent = try JSONEncoder().encode(SendOutcomeThreadMessage(text: "取消目标", clientRequestId: "req"))
+    let object = try XCTUnwrap(JSONSerialization.jsonObject(with: sent) as? [String: String])
+    XCTAssertEqual(object, ["text": "取消目标", "clientRequestId": "req"])
+    let created = try JSONEncoder().encode(CreateOutcomeThread(text: "goal", botId: "b", clientRequestId: "req"))
+    let createdObject = try XCTUnwrap(JSONSerialization.jsonObject(with: created) as? [String: String])
+    XCTAssertEqual(createdObject["exploreIdeaId"], nil)
+    XCTAssertEqual(API.outcomeThreadPath("a/b"), "/api/v0/outcomes/a%2Fb/thread")
+  }
 }
