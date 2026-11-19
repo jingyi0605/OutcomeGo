@@ -186,10 +186,10 @@ const client: OutcomeClient = {
 };
 
 test("default details omit background, raw execution IDs, full contract and review forms", async () => {
+  const running = { ...outcomeFixture, status: "running" as const };
   await mount(
-    <OutcomeDetail outcomeId={outcomeFixture.id} client={client} initialOutcome={outcomeFixture} />
+    <OutcomeDetail outcomeId={running.id} client={{ ...client, get: async () => running }} initialOutcome={running} />
   );
-  expect(host.textContent).toContain("Review results");
   for (const hidden of ["Root Run", "output:output-1", "Required PASS", "Compare backup plans"]) {
     expect(host.textContent).not.toContain(hidden);
   }
@@ -207,9 +207,9 @@ test("default details omit background, raw execution IDs, full contract and revi
   expect(ids.hasAttribute("open")).toBe(false);
   await expand("Review evidence");
   expect(host.textContent).toContain("Agent report · advisory");
-  await click("Review results");
-  expect(host.textContent).toContain("Acceptance review");
-  expect(host.textContent).toContain("I personally verified this criterion.");
+  await click("Open acceptance review");
+  expect(host.textContent).toContain("Acceptance summary");
+  expect(host.textContent).not.toContain("I personally verified this criterion.");
 });
 test("approval buttons and comments are immediately available before background; approving is one explicit click", async () => {
   let approved = 0;
@@ -295,6 +295,8 @@ test("a historical receipt opens its original criteria without substituting a pe
         status: "review_pending" as const,
       },
     ],
+    evidence: [{ ...outcomeFixture.evidence[0]!, credibility: "human_confirmed" as const }],
+    reviews: [{ ...outcomeFixture.reviews[0]!, result: "PASS" as const }],
   };
   const reads: number[] = [];
   await mount(
@@ -314,11 +316,15 @@ test("a historical receipt opens its original criteria without substituting a pe
   );
   expect(reads.length).toBeGreaterThan(0);
   expect(reads.every((revision) => revision === 1)).toBe(true);
-  await click("Review results");
+  expect(host.querySelector("#outcome-review")?.hasAttribute("hidden")).toBe(false);
+  expect(host.querySelector("#outcome-goal-details")?.hasAttribute("hidden")).toBe(true);
   const review = host.querySelector('[aria-label="Review and rework"]')!;
   expect(review.textContent).toContain("Compare costs");
   expect(review.textContent).not.toContain("Future-only criterion");
   expect(review.textContent).toContain("Reviewing receipt Contract revision 1");
+  expect(review.textContent).toContain(
+    "All required criteria are satisfied. Submit to record your review."
+  );
 });
 test("card is compact: stage, title and one line, with details left to the modal", async () => {
   let target: unknown;
@@ -1528,4 +1534,284 @@ test("switching execution tasks discards a late old-task response and keeps curr
   await act(async () => resolveOld(executionPage("Obsolete task message")));
   expect(executionDialog()!.textContent).not.toContain("Obsolete task message");
   expect(executionDialog()!.textContent).toContain("Current task messages");
+});
+
+test("acceptance shows measured results and sends the rejection reason directly", async () => {
+  const richOutcome = {
+    ...outcomeFixture,
+    currentRevisionView: {
+      ...outcomeFixture.currentRevisionView!,
+      criteria: [
+        {
+          ...outcomeFixture.currentRevisionView!.criteria[0]!,
+          id: "criterion-1",
+          ordinal: 1,
+          statement: "Verify pool space measurements",
+          latestResult: null,
+        },
+        {
+          ...outcomeFixture.currentRevisionView!.criteria[0]!,
+          id: "criterion-2",
+          ordinal: 2,
+          statement: "Confirm no active data deleted",
+          required: false,
+          latestResult: null,
+        },
+      ],
+    },
+    outputs: [
+      {
+        id: "output-file",
+        workItemId: "item-1",
+        runId: "run-1",
+        kind: "file" as const,
+        title: "Raw disk scan CSV",
+        content: "pool,before_used_gb,after_used_gb\ncache,480,360",
+        contentRef: "file:/tmp/scan.csv",
+        createdAt: outcomeFixture.createdAt,
+      },
+      {
+        id: "output-final",
+        workItemId: "item-1",
+        runId: "run-1",
+        kind: "final_result" as const,
+        title: "Storage cleanup assessment",
+        content: "Migration completed. Cache use went from 84% to 63%.",
+        contentRef: null,
+        createdAt: outcomeFixture.createdAt,
+      },
+    ],
+    evidence: [
+      {
+        id: "ev-check",
+        criterionId: "criterion-1",
+        contractRevision: 1,
+        workItemId: "item-1",
+        runId: "run-1",
+        sourceType: "check" as const,
+        sourceRef: "check:df-scan",
+        contentSummary: "df -h verified 120 GB freeable",
+        credibility: "deterministic_check" as const,
+        capturedBy: "system:check",
+        capturedAt: outcomeFixture.createdAt,
+      },
+      {
+        id: "ev-prereview-1",
+        criterionId: "criterion-1",
+        contractRevision: 1,
+        workItemId: "item-1",
+        runId: "run-1",
+        sourceType: "prereview" as const,
+        sourceRef: "prereview:item-1:criterion-1",
+        contentSummary: "likely_pass: Measurements match df output",
+        credibility: "ai_prereview" as const,
+        capturedBy: "system:outcome-prereview",
+        capturedAt: outcomeFixture.createdAt,
+      },
+      {
+        id: "ev-agent-1",
+        criterionId: "criterion-1",
+        contractRevision: 1,
+        workItemId: "item-1",
+        runId: "run-1",
+        sourceType: "output" as const,
+        sourceRef: "output:output-final",
+        contentSummary: "Long agent output copy for criterion 1",
+        credibility: "agent_report" as const,
+        capturedBy: "bot:test",
+        capturedAt: outcomeFixture.createdAt,
+      },
+      {
+        id: "ev-agent-2",
+        criterionId: "criterion-2",
+        contractRevision: 1,
+        workItemId: "item-1",
+        runId: "run-1",
+        sourceType: "output" as const,
+        sourceRef: "output:output-final",
+        contentSummary: "Long agent output copy for criterion 2",
+        credibility: "agent_report" as const,
+        capturedBy: "bot:test",
+        capturedAt: outcomeFixture.createdAt,
+      },
+    ],
+    reviews: [],
+  };
+  const summaryRequests: [string, number][] = [];
+  const decisions: Parameters<NonNullable<OutcomeClient["decideAcceptance"]>>[1][] = [];
+
+  await mount(
+    <OutcomeDetail
+      outcomeId={richOutcome.id}
+      client={{
+        ...client,
+        get: async () => richOutcome,
+        decideAcceptance: async (id, input) => {
+          expect(id).toBe(richOutcome.id);
+          decisions.push(input);
+          return { ...richOutcome, status: "running" };
+        },
+        resultSummary: async (id, revision) => {
+          summaryRequests.push([id, revision]);
+          return {
+            outcomeId: richOutcome.id,
+            revisionId: richOutcome.currentRevisionView.id,
+            summary: "120 GB freed on Cache. Used space fell from 480 GB (84%) to 360 GB (63%).",
+            details: "The scan measured used space on Cache.",
+            sources: [
+              { title: "Raw disk scan CSV", quote: "cache,480,360" },
+              { title: "Cleanup report", quote: "Cache use went from 84% to 63%." },
+            ],
+            charts: [{
+              type: "bar",
+              title: "Cache utilization",
+              unit: "%",
+              points: [
+                { label: "Before", value: 84, citation: 1 },
+                { label: "After", value: 63, citation: 1 },
+              ],
+            }],
+          };
+        },
+      }}
+    />
+  );
+
+  expect(summaryRequests).toEqual([[richOutcome.id, 1]]);
+  const goalDetails = host.querySelector("#outcome-goal-details")!;
+  expect(goalDetails.hasAttribute("hidden")).toBe(true);
+  await click("Goal details");
+  expect(goalDetails.hasAttribute("hidden")).toBe(false);
+  await click("Goal details");
+  expect(goalDetails.hasAttribute("hidden")).toBe(true);
+
+  // Supporting records remain hidden when opening acceptance review.
+  expect(host.textContent).not.toContain("Saved plan");
+  expect(host.textContent).not.toContain("Execution progress");
+  expect(host.textContent).not.toContain("More actions and diagnostics");
+
+  const review = host.querySelector('#outcome-review [aria-label="Review and rework"]')!;
+  expect(review).not.toBeNull();
+  expect(review.textContent).toContain("Acceptance summary");
+  const report = review.querySelector(".outcome-result-report")!;
+  expect(report.textContent).toContain(
+    "120 GB freed on Cache. Used space fell from 480 GB (84%) to 360 GB (63%)."
+  );
+  const chart = report.querySelector('figure[data-chart-type="bar"]')!;
+  expect(report.firstElementChild?.contains(chart)).toBe(true);
+  expect(chart.querySelector("figcaption")?.textContent).toBe("Cache utilization");
+  expect([...chart.querySelectorAll("li strong")].map((value) => value.textContent)).toEqual(["84%", "63%"]);
+  expect([...chart.querySelectorAll<HTMLElement>(".outcome-chart-bar-fill")].map((bar) => bar.style.width)).toEqual(["84%", "63%"]);
+  expect([...chart.querySelectorAll(".outcome-chart-scale span")].map((label) => label.textContent)).toEqual(["0%", "100%"]);
+  const details = report.querySelector("details")!;
+  expect(details.hasAttribute("open")).toBe(false);
+  expect(details.textContent).toContain("cache,480,360");
+  expect(review.textContent).not.toContain("Review acceptance criteria");
+  expect(review.textContent).not.toContain("Verify pool space measurements");
+  expect(review.querySelector("fieldset")).toBeNull();
+  const reject = [...review.querySelectorAll("button")].find((button) => button.textContent === "Reject")!;
+  expect(reject.hasAttribute("disabled")).toBe(true);
+  const reason = review.querySelector("textarea")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(reason), "value")!.set!.call(
+      reason,
+      "  Include the before and after available space.  "
+    );
+    reason.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    reason.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  expect(reject.hasAttribute("disabled")).toBe(false);
+  await click("Hide review");
+  expect(host.querySelector("#outcome-review")?.hasAttribute("hidden")).toBe(true);
+  await click("Review results");
+  expect(reason.value).toBe("  Include the before and after available space.  ");
+  expect(summaryRequests).toHaveLength(1);
+  await click("Reject");
+  expect(decisions).toHaveLength(1);
+  expect(decisions[0]).toMatchObject({
+    decision: "reject", expectedRevision: 1, reason: "Include the before and after available space.",
+  });
+});
+
+test("approving a goal result takes one click and records acceptance", async () => {
+  let decisions = 0;
+  await mount(
+    <OutcomeDetail
+      outcomeId={outcomeFixture.id}
+      initialOutcome={outcomeFixture}
+      client={{
+        ...client,
+        decideAcceptance: async (id, input) => {
+          decisions++;
+          expect(id).toBe(outcomeFixture.id);
+          expect(input).toMatchObject({ decision: "approve", expectedRevision: 1 });
+          expect(input).not.toHaveProperty("reason");
+          return { ...outcomeFixture, status: "accepted" };
+        },
+      }}
+    />
+  );
+  await click("Approve");
+  expect(decisions).toBe(1);
+  expect(host.textContent).toContain("You accepted the result.");
+  expect(host.querySelector('[aria-label="Result decision"]')).toBeNull();
+});
+
+test("marking a failed criterion for rework automatically expands the Rework section", async () => {
+  const receipt = {
+    ...outcomeFixture,
+    workItems: [
+      ...outcomeFixture.workItems,
+      { ...outcomeFixture.workItems[0]!, id: "receipt", executorType: "human" as const, status: "review_pending" as const },
+    ],
+  };
+  await mount(
+    <OutcomeDetail
+      outcomeId={outcomeFixture.id}
+      initialOutcome={receipt}
+      client={{ ...client, get: async () => receipt }}
+    />
+  );
+  await expand("Review acceptance criteria");
+  await expand("1. Compare costs");
+  await expand("Comment, evidence link or rework");
+  const review = host.querySelector('#outcome-review [aria-label="Review and rework"]')!;
+  const reworkDetails = [...review.querySelectorAll("details.outcome-brief-section")].find((el) =>
+    el.querySelector("summary")?.textContent?.startsWith("Rework")
+  )!;
+  expect(reworkDetails.hasAttribute("open")).toBe(false);
+  const reworkCheckbox = [...review.querySelectorAll("label")]
+    .find((label) => label.textContent?.includes("Include in rework"))!
+    .querySelector('input[type="checkbox"]') as HTMLInputElement;
+  await act(async () => {
+    reworkCheckbox.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(reworkDetails.hasAttribute("open")).toBe(true);
+  expect(reworkDetails.textContent).toContain("1 criteria selected for rework");
+});
+
+test("accepted outcome review footer reflects accepted state rather than pending confirmation", async () => {
+  const accepted = { ...outcomeFixture, status: "accepted" as const };
+  await mount(
+    <OutcomeDetail
+      outcomeId={accepted.id}
+      initialOutcome={accepted}
+      client={{ ...client, get: async () => accepted }}
+    />
+  );
+  await click("More details");
+  await click("Open acceptance review");
+  expect(host.textContent).toContain("You accepted the result. Its outputs remain available.");
+  expect(host.textContent).not.toContain("Required criteria still need PASS");
+});
+
+test("summarizeOutputContent strips Markdown tables and code blocks into a readable summary", async () => {
+  const { summarizeOutputContent } = await import(
+    "../src/renderer/components/outcomego/outcomes/detail/review-panel"
+  );
+  const { preview, truncated } = summarizeOutputContent(
+    "## Disk usage\n| Share | Reclaimable |\n| --- | --- |\n| cache | 120 GB |\n```sh\ndf -h\n```"
+  );
+  expect(truncated).toBe(false);
+  expect(preview).toBe("Disk usage Share · Reclaimable cache · 120 GB");
 });

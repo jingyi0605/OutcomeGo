@@ -5,6 +5,7 @@ import type {
   CreateContractRevisionInput,
   ApproveContractRevisionInput,
   SubmitOutcomeReviewInput,
+  DecideOutcomeAcceptanceInput,
   OutcomeReworkInput,
   CancelOutcomeInput,
   StartOutcomeRunInput,
@@ -12,6 +13,7 @@ import type {
   OutcomeListPage,
   ContractRevisionView,
   OutcomeBrief,
+  OutcomeResultSummary,
 } from "@outcomego/contracts/outcomes";
 
 export interface OutcomeClient {
@@ -21,6 +23,7 @@ export interface OutcomeClient {
   list(query?: string): Promise<OutcomeListPage>;
   get(id: string): Promise<OutcomeDetail>;
   brief?(id: string): Promise<OutcomeBrief>;
+  resultSummary?(id: string, revision: number): Promise<OutcomeResultSummary | null>;
   getRevision?(id: string, revision: number): Promise<ContractRevisionView>;
   revise(id: string, input: CreateContractRevisionInput): Promise<OutcomeDetail>;
   approve(
@@ -30,6 +33,7 @@ export interface OutcomeClient {
   ): Promise<OutcomeDetail>;
   start(id: string, input: StartOutcomeRunInput): Promise<OutcomeDetail>;
   review(id: string, input: SubmitOutcomeReviewInput): Promise<OutcomeDetail>;
+  decideAcceptance?(id: string, input: DecideOutcomeAcceptanceInput): Promise<OutcomeDetail>;
   rework(id: string, input: OutcomeReworkInput): Promise<OutcomeDetail>;
   cancel(id: string, input: CancelOutcomeInput): Promise<OutcomeDetail>;
   transcript(id: string, itemId: string, query?: { before?: number }): Promise<unknown>;
@@ -48,12 +52,14 @@ export function createOutcomeApi(
     list: (query = "") => request(`/api/outcomes${query ? `?${query}` : ""}`),
     get: (id) => request(outcomePath(id)),
     brief: (id) => request(`${outcomePath(id)}/brief`),
+    resultSummary: (id, revision) => request(`${outcomePath(id)}/revisions/${revision}/results-summary`),
     getRevision: (id, revision) => request(`${outcomePath(id)}/revisions/${revision}`),
     revise: (id, input) => outcomePost(`${outcomePath(id)}/revisions`, input),
     approve: (id, revision, input) =>
       outcomePost(`${outcomePath(id)}/revisions/${revision}/approve`, input),
     start: (id, input) => outcomePost(`${outcomePath(id)}/runs`, input),
     review: (id, input) => outcomePost(`${outcomePath(id)}/reviews`, input),
+    decideAcceptance: (id, input) => outcomePost(`${outcomePath(id)}/acceptance`, input),
     rework: (id, input) => outcomePost(`${outcomePath(id)}/rework`, input),
     cancel: (id, input) => outcomePost(`${outcomePath(id)}/cancel`, input),
     transcript: (id, itemId, query) =>

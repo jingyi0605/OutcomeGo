@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
-import { useI18n } from "../../../lib/i18n";
+import { useOptionalI18n } from "../../../lib/i18n";
+import { translateCurrent } from "../../../lib/i18n-catalog";
 import { MessageResponse } from "../../ai-elements/message";
 
 /** Hover previews; a deliberate click pins the source until Escape or outside dismissal. */
@@ -14,7 +15,7 @@ export function OutcomeSourceInfo({
   name: string;
   children?: ReactNode;
 }) {
-  const { t } = useI18n();
+  const t = useOptionalI18n()?.t ?? translateCurrent;
   const [mode, setMode] = useState<"closed" | "hover" | "pinned">("closed");
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const trigger = useRef<HTMLButtonElement>(null);

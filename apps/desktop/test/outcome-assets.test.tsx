@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { createElement, type ReactNode } from "react";
+import { parseHTML } from "linkedom";
 import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "../src/renderer/lib/i18n";
 import {
@@ -35,6 +36,7 @@ const outcome = {
 test("asset-only Review material is inspectable and downloadable even when review is read-only", () => {
   const html = render(
     createElement(ReviewPanel, {
+      receiptReview: true,
       outcome: { ...outcome, status: "accepted" },
       busy: false,
       onSubmit() {},
@@ -55,6 +57,7 @@ test("actual N Review excludes successor material and leaves nonasset evidence s
   const original = outcome.currentRevisionView!;
   const html = render(
     createElement(ReviewPanel, {
+      receiptReview: true,
       outcome: {
         ...outcome,
         currentRevision: 2,
@@ -92,7 +95,11 @@ test("Outcome Evidence starts collapsed; submitted receipt history exposes the a
   );
   expect(detail).toContain("More details");
   expect(detail).not.toContain("Review evidence");
-  expect(detail).not.toContain(`data-asset-ref="${sourceRef}"`);
+  const { document } = parseHTML(detail);
+  const asset = document.querySelector(`[data-asset-ref="${sourceRef}"]`);
+  const materials = asset?.closest("details");
+  expect(materials?.querySelector("summary")?.textContent).toContain("Attached review materials");
+  expect(materials?.hasAttribute("open")).toBe(false);
   const human = render(
     createElement(HumanAction, {
       workItemId: humanFixture.id,

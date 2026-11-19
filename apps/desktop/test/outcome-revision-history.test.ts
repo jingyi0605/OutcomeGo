@@ -60,6 +60,7 @@ test("a successor shows actual revision/Decision/user ancestry and keeps old mat
   const review = renderToStaticMarkup(
     createElement(I18nProvider, {
       children: createElement(ReviewPanel, {
+        receiptReview: true,
         outcome: successor,
         busy: false,
         onSubmit() {},

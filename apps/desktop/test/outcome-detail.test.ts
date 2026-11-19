@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { OutcomeDetail } from "../src/renderer/components/outcomego/outcomes/detail/outcome-detail";
+import { OutcomeResultChartView } from "../src/renderer/components/outcomego/outcomes/detail/outcome-result-chart";
 import {
   ReviewPanel,
   initialReviewEntries,
@@ -10,19 +11,43 @@ import type { OutcomeClient } from "../src/renderer/client/outcome-api";
 import { outcomeFixture } from "./outcome-fixture";
 import { I18nProvider } from "../src/renderer/lib/i18n";
 
-test("detail starts with the current action and result summary; provenance is progressively disclosed", () => {
+test("chart scales keep signed quantities and percentages outside the reference range visible", () => {
+  const renderChart = (unit: string, values: number[], type: "bar" | "line" = "bar") =>
+    renderToStaticMarkup(createElement(OutcomeResultChartView, {
+      chart: {
+        type,
+        title: "Measured change",
+        unit,
+        points: values.map((value, index) => ({ value, label: String(index + 1), citation: 0 })),
+      },
+    }));
+  const signed = renderChart("GB", [-40, 60]);
+  expect(signed).toContain("left:0%;width:40%");
+  expect(signed).toContain("left:40%;width:60%");
+  expect(signed).toContain('<div class="outcome-chart-scale"><span>-40 GB</span><span>60 GB</span></div>');
+  const percentage = renderChart("％", [50, 125]);
+  expect(percentage).toContain("left:0%;width:40%");
+  expect(percentage).toContain("left:0%;width:100%");
+  expect(percentage).toContain('<div class="outcome-chart-scale"><span>0%</span><span>125%</span></div>');
+  const trend = renderChart("%", [84, 72, 63], "line");
+  expect(trend).toContain('<div class="outcome-chart-scale"><span>100%</span><span>0%</span></div>');
+});
+
+test("detail starts with the current action; the result report and provenance open on demand", () => {
   const html = renderToStaticMarkup(
     createElement(I18nProvider, {
       children: createElement(OutcomeDetail, {
         outcomeId: outcomeFixture.id,
         client: {} as OutcomeClient,
-        initialOutcome: outcomeFixture,
+        initialOutcome: { ...outcomeFixture, status: "running" },
       }),
     })
   );
-  for (const text of ["Comparison report", "Review results", "Refresh from server", "More details"])
+  for (const text of ["Refresh from server", "More details"])
     expect(html).toContain(text);
   for (const text of [
+    "Comparison report",
+    "Acceptance summary",
     "Execution progress",
     "Review evidence",
     "Full contract",
@@ -59,6 +84,7 @@ test("review state is rebuilt from server history, preserves latest sequence, an
 test("terminal details and pending submissions disable review; evidence credibility remains visible", () => {
   const html = renderToStaticMarkup(
     createElement(ReviewPanel, {
+      receiptReview: true,
       outcome: { ...outcomeFixture, status: "accepted" },
       busy: false,
       onSubmit() {},
@@ -69,6 +95,7 @@ test("terminal details and pending submissions disable review; evidence credibil
   expect(html).toContain("agent_report");
   const busy = renderToStaticMarkup(
     createElement(ReviewPanel, {
+      receiptReview: true,
       outcome: outcomeFixture,
       busy: true,
       onSubmit() {},

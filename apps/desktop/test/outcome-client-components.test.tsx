@@ -216,6 +216,7 @@ test("receipt review loads approved N separately from pending N+1 and blocks aft
   };
   const html = render(
     createElement(ReviewPanel, {
+      receiptReview: true,
       outcome: successor,
       reviewRevisionView: original,
       busy: false,
@@ -229,6 +230,7 @@ test("receipt review loads approved N separately from pending N+1 and blocks aft
   expect(html).not.toContain('<fieldset disabled=""');
   const approved = render(
     createElement(ReviewPanel, {
+      receiptReview: true,
       outcome: {
         ...successor,
         currentRevisionView: { ...successor.currentRevisionView, status: "approved" },
@@ -242,6 +244,7 @@ test("receipt review loads approved N separately from pending N+1 and blocks aft
   expect(approved).toContain('<fieldset disabled=""');
   const unavailable = render(
     createElement(ReviewPanel, {
+      receiptReview: true,
       outcome: successor,
       reviewRevisionView: null,
       busy: false,
