@@ -11,6 +11,8 @@ import {
   translate,
   translateCurrent,
 } from "../src/renderer/lib/i18n-catalog";
+import { checkShortcut, SHORTCUT_LABELS } from "../src/renderer/lib/keyboard-shortcut-rules";
+import { defaultShortcutBindings, SHORTCUT_ACTIONS } from "../src/renderer/lib/keyboard-shortcuts";
 
 describe("desktop interface catalog", () => {
   test("returns the English source for the default locale", () => {
@@ -20,6 +22,35 @@ describe("desktop interface catalog", () => {
   test("translates migrated strings for Simplified Chinese", () => {
     expect(translate("zh-CN", "Save settings")).toBe("保存设置");
     expect(translate("zh-CN", "Settings")).toBe("设置");
+  });
+
+  test("translates every keyboard action, its description, and its conflict message", () => {
+    const bindings = defaultShortcutBindings();
+    for (const action of SHORTCUT_ACTIONS) {
+      const { title, description } = SHORTCUT_LABELS[action];
+      const other = action === "search" ? "settings" : "search";
+      expect(translate("zh-CN", title)).not.toBe(title);
+      expect(translate("zh-CN", description)).not.toBe(description);
+      const conflict = checkShortcut(other, bindings[action], bindings, true);
+      expect(conflict).not.toBeNull();
+      expect(translate("zh-CN", conflict ?? "")).toContain(translate("zh-CN", title));
+    }
+  });
+
+  test("interpolates ScreenBot shortcuts and recording labels in the selected language", () => {
+    const chordHint = "Press both {modifier} keys to capture your screen and send it to a Bot.";
+    expect(translate("zh-CN", chordHint, { modifier: "Command" })).toBe(
+      "同时按下左右两个 Command 键即可截图并发送给机器人。"
+    );
+    expect(translate("en-US", chordHint, { modifier: "Command" })).toBe(
+      "Press both Command keys to capture your screen and send it to a Bot."
+    );
+    expect(translate("zh-CN", "Press {shortcut} to capture your screen and send it to a Bot.", {
+      shortcut: "Ctrl+Shift+2",
+    })).toBe("按 Ctrl+Shift+2 即可截图并发送给机器人。");
+    expect(translate("zh-CN", "Recording a shortcut for {action}", {
+      action: translate("zh-CN", "Search"),
+    })).toBe("正在为「搜索」录制快捷键");
   });
 
   test("falls back to English when a key has no translation", () => {
