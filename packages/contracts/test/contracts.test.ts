@@ -763,7 +763,7 @@ describe("API contracts", () => {
     // The schema names trigger types only; the skill and the invalid-trigger reply carry the shapes.
     const listener = {
       type: "object",
-      properties: { type: { type: "string", enum: ["slack", "github", "origin", "microsoftTeams", "linear", "sentry", "pagerduty", "email", "webhook", "cron", "group"] } },
+      properties: { type: { type: "string", enum: ["slack", "github", "origin", "microsoftTeams", "linear", "sentry", "pagerduty", "email", "plugin", "webhook", "cron", "group"] } },
       required: ["type"],
     };
     expect(routine.properties.trigger as unknown).toEqual({

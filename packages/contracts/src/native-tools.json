@@ -776,6 +776,44 @@
                     ]
                   },
                   {
+                    "properties": {
+                      "actors": {
+                        "description": "Who triggered the event, such as an agent ID. Give this or resourceIds (at least one).",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "events": {
+                        "description": "Event kinds to wake on, such as session.completed. Omit for any kind.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "plugin": {
+                        "description": "Plugin key, for example dsh-web.",
+                        "type": "string"
+                      },
+                      "resourceIds": {
+                        "description": "Resources to watch, such as session IDs. Give this or actors (at least one).",
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "type": {
+                        "const": "plugin",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "plugin"
+                    ],
+                    "type": "object"
+                  },
+                  {
                     "type": "object",
                     "properties": {
                       "type": {
@@ -827,6 +865,9 @@
                             },
                             {
                               "$ref": "#/properties/trigger/anyOf/0/anyOf/9"
+                            },
+                            {
+                              "$ref": "#/properties/trigger/anyOf/0/anyOf/10"
                             }
                           ]
                         },
@@ -844,7 +885,7 @@
               {
                 "type": "array",
                 "items": {
-                  "$ref": "#/properties/trigger/anyOf/0/anyOf/10/properties/listeners/items"
+                  "$ref": "#/properties/trigger/anyOf/0/anyOf/11/properties/listeners/items"
                 },
                 "minItems": 1,
                 "description": "Bare-array shorthand for the group form: any one member fires the prompt."

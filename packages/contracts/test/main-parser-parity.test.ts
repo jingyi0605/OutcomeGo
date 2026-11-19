@@ -37,6 +37,29 @@ test("email routine triggers parse, describe, and validate against the model-fac
   expect(describeTrigger({ ...trigger, requireAuthPass: false })).toBe("When email arrives at bot@raghav.sh, including unauthenticated senders");
   expect(describeTrigger({ type: "group", listeners: [{ type: "cron", schedule: "0 9 * * 1-5" }, trigger] })).toContain("or when email arrives at bot@raghav.sh");
 });
+test("plugin routine triggers validate against the model-facing schema, parse, and describe", async () => {
+  const { createToolValidator } = await import("@outcomego/plugin-sdk/json-schema");
+  const validate = createToolValidator(UPDATE_ROUTINE_TOOL.inputSchema);
+  const trigger = { type: "plugin", plugin: "dsh-web", resourceIds: ["s1", "s2"], events: ["session.completed"] };
+  const input = { action: "create", name: "Watch session", prompt: "Report when it finishes.", trigger };
+  expect(validate(input).valid).toBe(true);
+  expect(validate({ ...input, trigger: { type: "plugin", plugin: "dsh-web", actors: ["bot-1"] } }).valid).toBe(true);
+  expect(validate({ ...input, trigger: [{ type: "cron", schedule: "0 9 * * 1-5" }, trigger] }).valid).toBe(true);
+  expect(validate({ ...input, trigger: { type: "group", listeners: [{ type: "cron", schedule: "0 9 * * 1-5" }, trigger] } }).valid).toBe(true);
+  // The advertised trigger names only its type; the parser enforces the fields.
+  expect(validate({ ...input, trigger: { type: "plugin" } }).valid).toBe(true);
+  expect(() => normalizeMainToolArguments("UpdateRoutine", { ...input, trigger: { type: "plugin", resourceIds: ["s1"] } })).toThrow("Not a valid trigger");
+  expect(() => normalizeMainToolArguments("UpdateRoutine", { ...input, trigger: { type: "plugin", plugin: "dsh-web", resourceIds: "s1" } })).toThrow("Not a valid trigger");
+  expect(normalizeMainToolArguments("UpdateRoutine", input).trigger).toEqual(trigger);
+  expect(() => normalizeMainToolArguments("UpdateRoutine", { ...input, trigger: { type: "group", listeners: [{ type: "origin", repo: "o/r", events: ["pr-opened"] }, trigger] } })).toThrow("Origin can't be grouped with plugin");
+  let invalid = "";
+  try { normalizeMainToolArguments("UpdateRoutine", { ...input, trigger: { type: "plugin" } }); } catch (error) { invalid = (error as Error).message; }
+  expect(invalid).toContain('{ "type": "plugin", "plugin": "<plugin key, for example dsh-web>"');
+  expect(describeTrigger(trigger)).toBe("When dsh-web reports session.completed for 2 resources");
+  expect(describeTrigger({ type: "plugin", plugin: "dsh-web", resourceIds: ["s1"] })).toBe("When dsh-web reports events for 1 resource");
+  expect(describeTrigger({ type: "plugin", plugin: "dsh-web", actors: ["bot-1", "bot-2"], events: ["session.failed", "session.completed"] })).toBe("When dsh-web reports session.failed, session.completed for 2 actors");
+  expect(describeTrigger({ type: "group", listeners: [{ type: "cron", schedule: "0 9 * * 1-5" }, trigger] })).toContain("or when dsh-web reports session.completed for 2 resources");
+});
 test("parsers keep the reference arguments outcomeGo supports", async () => {
   const { renderControlResult } = await import("../src/tool-results");
   expect(normalizeMainToolArguments("ReactToMessage", { message_address: "t3u", emoji: "👍", end_turn: true })).toEqual({ message_address: "t3u", emoji: "👍", end_turn: true });

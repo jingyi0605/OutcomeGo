@@ -12,6 +12,7 @@ export interface AutomationEvent {
     | "sentry"
     | "pagerduty"
     | "email"
+    | "plugin"
     | "webhook";
   kind: string;
   text: string;
@@ -34,6 +35,11 @@ export interface AutomationEvent {
   statusId?: string;
   cycleId?: string;
   serviceId?: string;
+  /** `plugin` source only. The host sets these from the installation and connection, never the connector. */
+  plugin?: string;
+  account?: string;
+  /** What the event is about, for example a session ID. Subscriptions filter on it. */
+  resourceId?: string;
 }
 const sources = [
   "slack",
@@ -44,6 +50,7 @@ const sources = [
   "sentry",
   "pagerduty",
   "email",
+  "plugin",
   "webhook",
 ];
 export function parseAutomationEvent(raw: unknown): AutomationEvent {
@@ -83,6 +90,9 @@ export function parseAutomationEvent(raw: unknown): AutomationEvent {
     "statusId",
     "cycleId",
     "serviceId",
+    "plugin",
+    "account",
+    "resourceId",
   ] as const) {
     if (input[key] !== undefined) {
       if (typeof input[key] !== "string" || input[key].length > 512)
@@ -214,5 +224,14 @@ export function matchesAutomationEvent(
         return false;
       return trigger.requireAuthPass === false || event.authenticatedUser === true;
     }
+    case "plugin":
+      // The host fixes event.plugin from the installation. A subscription must name
+      // resources or actors, so an empty filter here never means "everything".
+      return (
+        trigger.plugin === event.plugin &&
+        member(trigger.events, event.kind) &&
+        member(trigger.resourceIds, event.resourceId) &&
+        member(trigger.actors, event.actor)
+      );
   }
 }

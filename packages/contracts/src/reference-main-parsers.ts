@@ -420,6 +420,15 @@ var emailTrigger = external_exports.object({
   requireAuthPass: external_exports.boolean().optional().describe("Default true; false also wakes on mail that failed SPF/DKIM/DMARC.")
 });
 
+// Plugin listener: a subscription to a connected plugin's events, such as DSH-WEB sessions.
+var pluginTrigger = external_exports.object({
+  type: external_exports.literal("plugin"),
+  plugin: external_exports.string().describe("Plugin key, for example dsh-web."),
+  resourceIds: external_exports.array(external_exports.string()).optional().describe("Resources to watch, such as session IDs. Give this or actors (at least one)."),
+  actors: external_exports.array(external_exports.string()).optional().describe("Who triggered the event, such as an agent ID. Give this or resourceIds (at least one)."),
+  events: external_exports.array(external_exports.string()).optional().describe("Event kinds to wake on, such as session.completed. Omit for any kind.")
+});
+
 var triggerMember = external_exports.discriminatedUnion("type", [
   cronTriggerMember,
   slackListener2,
@@ -430,6 +439,7 @@ var triggerMember = external_exports.discriminatedUnion("type", [
   sentryTrigger2,
   pagerdutyTrigger,
   emailTrigger,
+  pluginTrigger,
   webhookTrigger2
 ]);
 
@@ -444,6 +454,7 @@ var automationTriggerShape = external_exports.union([
     sentryTrigger2,
     pagerdutyTrigger,
     emailTrigger,
+    pluginTrigger,
     webhookTrigger2,
     external_exports.object({
       type: external_exports.literal("group"),
@@ -468,7 +479,7 @@ var automationTriggerShape = external_exports.union([
   }
   if (!members.some((member) => member.type === "origin")) return;
   const incompatible = members.find(
-    (member) => ["microsoftTeams", "linear", "sentry", "pagerduty", "email", "webhook"].includes(member.type)
+    (member) => ["microsoftTeams", "linear", "sentry", "pagerduty", "email", "plugin", "webhook"].includes(member.type)
   );
   if (incompatible === void 0) return;
   ctx.addIssue({
@@ -554,9 +565,10 @@ var AUTOMATION_TRIGGER_SHAPE_LINES = [
   '  { "type": "sentry", "event": { "case": "issueCreated" | "issueResolved" | "issueAssigned" | "issueArchived" | "issueUnresolved" | "issueAny" }, "projectIds"?: [...] }',
   '  { "type": "pagerduty", "event": { "case": "incidentTriggered" | "incidentAcknowledged" | "incidentResolved" | "incidentEscalated" | "incidentAny" }, "serviceIds"?: [...] }',
   `  { "type": "email", "inbox": "<one of the user's connected Email plugin inbox addresses (ListEmailInboxes)>", "from"?: ["sender@example.com", ...] (omit for any sender), "requireAuthPass"?: true (default; false also wakes on mail that failed SPF/DKIM/DMARC) }, which fires when mail arrives at that inbox. Mail matching no routine wakes nobody. The wake carries headers only; read the body with ReadEmailThread.`,
+  `  { "type": "plugin", "plugin": "<plugin key, for example dsh-web>", "resourceIds"?: ["<resource id>", ...], "actors"?: ["<actor id>", ...], "events"?: ["<event kind>", ...] }, which fires when that plugin reports an event for those resources or actors. Give resourceIds or actors, at least one. The plugin's own skill says which event kinds and resource ids it reports. This is how you subscribe to a plugin: events matching no routine wake nobody, and pausing or deleting the routine unsubscribes. The wake carries the event; read more with the plugin's tools.`,
   `  { "type": "webhook" }, which fires when an outside system sends an HTTPS POST to the routine's own webhook URL. When you create or change a Bot or group routine with this trigger, UpdateRoutine provisions the endpoint; the routine details panel shows the copy-ready URL, bearer key, and complete Authorization header. Do not put these credentials in the conversation. Invoke it with an optional JSON body and an Authorization: Bearer <key> header; the server verifies the bearer key before starting only this routine. The server must have a public HTTPS URL configured.`,
   "The id arrays on the linear/sentry/pagerduty shapes, and a microsoftTeams channelIds, are optional narrowing filters (platform ids/UUIDs); omit one to fire for any project, status, cycle, channel, or service. A microsoftTeams trigger always names its scope: tenantId plus at least one team id (teamIds) are required.",
-  '  { "type": "group", "listeners": [ ...several listeners... ] }, where any one fires the same prompt. Cron and webhook can be grouped because this server owns both scheduling authorities; Origin can group with cron, Slack, and GitHub, but not with Microsoft Teams, Linear, Sentry, PagerDuty, or email.',
+  '  { "type": "group", "listeners": [ ...several listeners... ] }, where any one fires the same prompt. Cron and webhook can be grouped because this server owns both scheduling authorities; Origin can group with cron, Slack, and GitHub, but not with Microsoft Teams, Linear, Sentry, PagerDuty, email, or a plugin.',
   '  { "type": "cron", "schedule": "0 8 * * 1-5" }, a schedule written as a listener, in the same format as schedule. It belongs in a group, so one prompt fires both on time and on events; on its own, pass schedule instead.',
   "A bare array of listeners, [ { ... }, { ... } ], is shorthand for the group form.",
   'A microsoftTeams trigger also takes "teamId": "<one Graph API team id>" in place of teamIds, "messageContainsIsRegex": true to read messageContains as a regular expression, and "blockUnauthenticatedTeamsUsers": true to ignore messages from unauthenticated Teams users.'
@@ -1932,6 +1944,13 @@ function describeListener(listener) {
       return `When ${PAGERDUTY_EVENT_PHRASES[listener.event.case]}`;
     case "email":
       return listener.requireAuthPass === false ? `When email arrives at ${listener.inbox}, including unauthenticated senders` : `When email arrives at ${listener.inbox}`;
+    case "plugin": {
+      const kinds = listener.events?.length ? listener.events.join(", ") : "events";
+      const resources = listener.resourceIds?.length ?? 0;
+      const actors = listener.actors?.length ?? 0;
+      const scope = resources ? `${resources} ${resources === 1 ? "resource" : "resources"}` : `${actors} ${actors === 1 ? "actor" : "actors"}`;
+      return `When ${listener.plugin} reports ${kinds} for ${scope}`;
+    }
     case "webhook":
       return "When a webhook fires";
   }

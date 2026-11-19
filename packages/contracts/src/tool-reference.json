@@ -323,6 +323,7 @@
                 "sentry",
                 "pagerduty",
                 "email",
+                "plugin",
                 "webhook",
                 "cron",
                 "group"
