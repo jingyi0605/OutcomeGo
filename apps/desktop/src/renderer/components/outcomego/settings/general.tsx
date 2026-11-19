@@ -7,6 +7,7 @@ import { lazy, Suspense, useState } from "react";
 import { signOut } from "../../../client/auth";
 import { API_BASE } from "../../../client/http";
 import { useAuthSession } from "../../../hooks/use-auth-session";
+import { useFeatureSettings } from "../../../hooks/use-feature-settings";
 import { accountPresentation } from "../../../lib/account";
 import { LOCALE_OPTIONS, useI18n } from "../../../lib/i18n";
 import {
@@ -18,6 +19,7 @@ import {
 import { Select, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import type { MicrophoneControlProps } from "./microphone";
 import {
+  InteractiveSwitch,
   SectionLabel,
   SettingsGroup,
   SettingsRow,
@@ -73,6 +75,53 @@ const MicrophoneControl = ({ options, ...props }: MicrophoneControlProps) => {
 export const renderMicrophoneControl = (props: MicrophoneControlProps) => (
   <MicrophoneControl {...props} />
 );
+
+/** Optional modules, each off until the owner switches it on. */
+function FeatureSettings() {
+  const { t } = useI18n();
+  const features = useFeatureSettings();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const label = t("Enable goal management for bots");
+  return (
+    <>
+      <SectionLabel>{t("Features")}</SectionLabel>
+      <SettingsGroup>
+        <SettingsRow
+          title={label}
+          description={t(
+            "Shows the Outcomes entry and the idea capture button, and lets your bots register and manage goals in conversation."
+          )}
+          control={
+            <InteractiveSwitch
+              label={label}
+              checked={features.outcomesEnabled}
+              disabled={!features.loaded || saving}
+              onChange={(value) => {
+                setSaving(true);
+                setError(null);
+                features
+                  .update({ outcomesEnabled: value })
+                  .catch(() => setError(t("Couldn’t save this setting. Try again.")))
+                  .finally(() => setSaving(false));
+              }}
+            />
+          }
+        />
+        {(error || features.failed) && (
+          <p role="alert" className="pb-3 text-xs text-destructive">
+            {error ?? t("Couldn’t load this setting.")}{" "}
+            {features.failed && (
+              <button className="underline" onClick={features.retry} type="button">
+                {t("Retry")}
+              </button>
+            )}
+          </p>
+        )}
+      </SettingsGroup>
+    </>
+  );
+}
 
 export default function GeneralSettings() {
   const { locale, setLocale, t } = useI18n();
@@ -144,6 +193,8 @@ export default function GeneralSettings() {
       <TimeZoneSettings />
 
       <SmartNotificationSettings />
+
+      <FeatureSettings />
 
       <SectionLabel>{t("Appearance")}</SectionLabel>
       <SettingsGroup>

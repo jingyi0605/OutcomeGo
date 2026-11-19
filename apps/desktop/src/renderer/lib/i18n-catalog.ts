@@ -332,6 +332,12 @@ export const sourceTranslations: Record<string, string> = {
   "Save a thought, a question or a possibility. Turn it into a goal when you're ready.":
     "记下一个想法、问题或可能性。准备好后，再将它转为目标。",
   "Capture an idea": "记录想法",
+  Features: "功能",
+  "Enable goal management for bots": "为机器人启用目标管理功能",
+  "Shows the Outcomes entry and the idea capture button, and lets your bots register and manage goals in conversation.":
+    "开启后显示目标入口和记录想法按钮，并允许机器人在对话中登记和管理目标。",
+  "Couldn’t save this setting. Try again.": "无法保存此设置，请重试。",
+  "Couldn’t load this setting.": "无法读取此设置。",
   "Outcome sections": "目标导航",
   "Plan goals, track execution and handle the decisions that need you.":
     "规划目标、跟踪执行状态，处理需要你关注的事项。",

@@ -89,6 +89,7 @@ import { useSnapshotIndex } from "./lib/snapshot-index";
 import { SidebarBotOrderContext } from "./lib/sidebar-bot-order";
 import { sidebarChannelOrder } from "./lib/sidebar-rows";
 import { readThemePreference, setThemePreference, THEME_CHANGE_EVENT } from "./lib/theme";
+import { useFeatureSettings } from "./hooks/use-feature-settings";
 import { useOutcomeGo } from "./state/use-outcomego";
 import { MessagesGrantsPrompt } from "./components/outcomego/settings/messages-permissions-dialog";
 
@@ -368,7 +369,10 @@ export default function App() {
     settings: false,
   });
   const appReady = Boolean(snapshot);
-  const [outcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
+  const { outcomesEnabled, loaded: featureSettingsLoaded } = useFeatureSettings();
+  const [requestedOutcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
+  // Goal management is opt-in: while it is off no goal view can be shown, however it was requested.
+  const outcomeTarget = outcomesEnabled ? requestedOutcomeTarget : null;
   const [quickIdeaOpen, setQuickIdeaOpen] = useState(false);
   const openQuickIdea = useCallback(() => setQuickIdeaOpen(true), []);
   const visibleChatId =
@@ -394,11 +398,15 @@ export default function App() {
     };
   }, []);
   useEffect(() => {
-    if (!appReady || !window.outcomego?.outcomes) return;
+    if (!appReady || !featureSettingsLoaded || !window.outcomego?.outcomes) return;
+    if (!outcomesEnabled) {
+      window.outcomego.outcomes.syncNotifications([]);
+      return;
+    }
     return startOutcomeNotificationSync(api.outcomeNotificationState, (items) =>
       window.outcomego?.outcomes?.syncNotifications(items)
     );
-  }, [appReady]);
+  }, [appReady, featureSettingsLoaded, outcomesEnabled]);
 
   const markChannelRead = useCallback(
     (channelId: string) => {
@@ -1451,11 +1459,15 @@ export default function App() {
             onOpenSettings={openSettings}
             onPreloadSearch={preloadSearchDialog}
             onSearch={openSearch}
-            onNewIdea={openQuickIdea}
-            onOpenOutcomes={() => {
-              setOutcomeTarget({});
-              setNewBotPicker(false);
-            }}
+            onNewIdea={outcomesEnabled ? openQuickIdea : undefined}
+            onOpenOutcomes={
+              outcomesEnabled
+                ? () => {
+                    setOutcomeTarget({});
+                    setNewBotPicker(false);
+                  }
+                : undefined
+            }
             outcomesActive={Boolean(outcomeTarget)}
             onSelect={selectSidebarChannel}
             pendingBot={pendingBot}
@@ -1469,7 +1481,7 @@ export default function App() {
             }
           />
 
-          {quickIdeaOpen && (
+          {outcomesEnabled && quickIdeaOpen && (
             <Suspense fallback={null}>
               <QuickIdeaDialog
                 open
