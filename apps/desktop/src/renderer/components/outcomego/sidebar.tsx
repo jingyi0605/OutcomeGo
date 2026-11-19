@@ -2351,6 +2351,7 @@ export const Sidebar = memo(function Sidebar({
   onPreloadSearch,
   onSearch,
   onOpenOutcomes,
+  onNewIdea,
   outcomesActive = false,
   onSelect,
   onNewBot,
@@ -2377,6 +2378,7 @@ export const Sidebar = memo(function Sidebar({
   onPreloadSearch: () => void;
   onSearch: () => void;
   onOpenOutcomes?: () => void;
+  onNewIdea?: () => void;
   outcomesActive?: boolean;
   onSelect: (id: string, focusComposer?: boolean) => void;
   onNewBot: () => void;
@@ -2975,7 +2977,11 @@ export const Sidebar = memo(function Sidebar({
               </div>
               {onOpenOutcomes && (
                 <div className="px-3">
-                  <OutcomeNavigation active={outcomesActive} onOpen={onOpenOutcomes} />
+                  <OutcomeNavigation
+                    active={outcomesActive}
+                    onOpen={onOpenOutcomes}
+                    onNewIdea={onNewIdea}
+                  />
                 </div>
               )}
               <div className="relative px-[12px] pb-[9px]">
