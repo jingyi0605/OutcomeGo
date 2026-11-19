@@ -48,6 +48,15 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
       return json(await run(app.outcomeRecovery.recordAttention(id, await parseBody(request, OutcomeAttentionInput), actor)));
     const revisionRead = tail?.match(/^\/revisions\/([1-9]\d*)$/);
     if (revisionRead && request.method === "GET") return json(await run(app.outcomes.getRevision(id, Number(revisionRead[1]))));
+    const summaryRead = tail?.match(/^\/revisions\/([1-9]\d*)\/results-summary$/);
+    if (summaryRead && request.method === "GET") {
+      const outcome = await run(app.outcomes.get(id));
+      const number = Number(summaryRead[1]);
+      const revision = outcome.currentRevisionView?.revision === number
+        ? outcome.currentRevisionView
+        : await run(app.outcomes.getRevision(id, number));
+      return json(await app.outcomeBriefs.getResult(outcome, revision));
+    }
     if (tail === "/revisions" && request.method === "POST") return json(await run(app.outcomes.createRevision(id, await parseBody(request, CreateContractRevisionInput), actor)), 201);
     const approve = tail?.match(/^\/revisions\/([1-9]\d*)\/approve$/);
     if (approve && request.method === "POST") return json(await run(app.outcomes.approve(id, Number(approve[1]), await parseBody(request, ApproveContractRevisionInput), actor)));

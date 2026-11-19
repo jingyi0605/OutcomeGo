@@ -463,6 +463,23 @@ export interface OutcomeBrief {
   proposedTasks: OutcomeBriefItem[];
 }
 
+/** Presentation for a specific contract revision. The report does not record a review. */
+export interface OutcomeResultSummary {
+  outcomeId: string;
+  revisionId: string;
+  summary: string;
+  details: string;
+  sources: { title: string; quote: string }[];
+  charts?: OutcomeResultChart[];
+}
+
+export interface OutcomeResultChart {
+  type: "metric" | "bar" | "line" | "pie" | "heatmap";
+  title: string;
+  unit: string;
+  points: { label: string; row?: string; value: number; citation: number }[];
+}
+
 /** Includes content, so a response for a prior revision or description cannot be reused. */
 export function outcomeBriefSource(outcome: OutcomeDetail): string {
   return JSON.stringify({

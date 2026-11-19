@@ -17,6 +17,7 @@ import type { HumanWorkService } from "./services/human-work-service";
 import type { HumanReceiptService } from "./services/human-receipt-service";
 import { OutcomeReviewService } from "./services/outcome-review-service";
 import { OutcomeEvidenceConsumer } from "./services/outcome-evidence-consumer";
+import { OutcomeResultSummaryWorker } from "./services/outcome-result-summary-worker";
 import { outcomeInference } from "./services/outcome-inference";
 import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import { UserLocationService } from "./services/user-location";
@@ -106,6 +107,7 @@ export class AppService {
   readonly humanReceipts: HumanReceiptService;
   readonly outcomeReviews: OutcomeReviewService;
   private readonly outcomeEvidence: OutcomeEvidenceConsumer;
+  private readonly outcomeResultSummaries: OutcomeResultSummaryWorker;
   readonly routines: RoutineService;
   readonly durableState: DurableStateService;
   readonly bots: BotService;
@@ -277,6 +279,7 @@ export class AppService {
     });
     this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome, undefined, this.humanReceipts);
     this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
+    this.outcomeResultSummaries = new OutcomeResultSummaryWorker(this.prisma, this.outcomes, this.outcomeBriefs);
     this.voice = new VoiceService(this.prisma, this.channels, this.runs);
     this.todos = new TodoService(this.prisma);
     this.administration = new AdministrationService(
@@ -387,6 +390,7 @@ export class AppService {
       await this.eventWakeup.start();
       await this.voice.startGroupDeliveryWatcher(this.eventWakeup);
       this.outcomeEvidence.start();
+      this.outcomeResultSummaries.start();
       await this.snapshots.pruneEvents();
       this.eventPruneTimer = setInterval(() => {
         void this.automationWebhooks
@@ -510,6 +514,7 @@ export class AppService {
       this.externalReminders.stop();
       await this.voice.stopGroupDeliveryWatcher();
       await this.outcomeEvidence.stop();
+      await this.outcomeResultSummaries.stop();
       await this.eventWakeup.stop();
       await this.agentData.stopWatching();
       await this.boss.stop({ graceful: true });
