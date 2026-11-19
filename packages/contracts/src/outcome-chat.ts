@@ -1,11 +1,13 @@
 import { JSONSchema, Schema } from "effect";
 import {
   CancelOutcomeInput,
+  CloseOutcomeInput,
   CreateContractRevisionInput,
   CreateOutcomeInput,
   CreateOutcomePlanInput,
   OUTCOME_STATUSES,
   StartOutcomeRunInput,
+  TrackOutcomeInput,
 } from "./outcomes";
 import {
   CreateExploreIdeaInput,
@@ -115,6 +117,8 @@ export const OUTCOME_CHAT_INPUTS = {
   ReviseOutcome: Schema.Struct({ outcomeId: Id, ...CreateContractRevisionInput.fields }),
   StartOutcome: Schema.Struct({ outcomeId: Id, ...StartOutcomeRunInput.fields }),
   CancelOutcome: Schema.Struct({ outcomeId: Id, ...CancelOutcomeInput.fields }),
+  TrackOutcome: TrackOutcomeInput,
+  CloseOutcome: Schema.Struct({ outcomeId: Id, ...CloseOutcomeInput.fields }),
   ListOutcomeInbox: Schema.Struct({
     outcomeId: Schema.optional(Id),
     status: Schema.optional(Schema.Literal("pending", "completed", "all")),
@@ -156,6 +160,10 @@ const descriptions: Record<OutcomeChatToolName, string> = {
     "Start an existing native Outcome only when the user asks and its exact expectedRevision is already approved by the owner. Cannot approve a draft. Execution runs in a separate Outcome thread, leaving this conversation available. Reuse clientRequestId for identical retries.",
   CancelOutcome:
     "Cancel a native goal when the user asks to cancel it, preserving its history and stopping its unfinished work through the existing service. Read the actual goal first if the target is ambiguous. Reuse clientRequestId for identical retries.",
+  TrackOutcome:
+    "Register anything you cannot finish within this turn on the user's native goal board, no planning step needed. Check ListOutcomes first to avoid duplicates. ownerNeed: \"none\" = you will handle it yourself (tracked; close it later with CloseOutcome, no user acceptance needed); \"decision\" = the user must choose (give decision.problemSummary and 1-4 options; it appears in their inbox); \"approval\" = the user must approve a plan before you execute (saved as an unapproved draft; never approve it yourself). Never use \"none\" for payments, external sending, deletion, irreversible changes or anything the user must decide. Reuse clientRequestId for identical retries.",
+  CloseOutcome:
+    "Close a tracked goal you registered with TrackOutcome (ownerNeed none) and finished yourself, with a short result summary. The goal is marked auto-closed and does not wait for user acceptance. Fails for owner-approved goals and for goals with an unresolved user decision. Reuse clientRequestId for identical retries.",
   ListOutcomeInbox:
     "Read native Outcome decisions, acceptance reviews and human actions requiring the user's attention, optionally for one goal. Returns current server facts and a pagination cursor. Does not resolve decisions or mark acceptance.",
   ListExploreIdeas:

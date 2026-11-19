@@ -315,7 +315,7 @@ export interface OutcomeEventPayloads {
   "outcome.decision.closed": { decisionId: string; reason: "expired" | "withdrawn" };
   "outcome.human_action.required": { workItemId: string; cardId: string; requestedByWorkItemId: string; decisionId: string | null };
   "outcome.human_receipt.submitted": { workItemId: string; receiptId: string; evidenceIds: string[] };
-  "outcome.accepted": { revisionId: string; reviewIds: string[] };
+  "outcome.accepted": { revisionId: string; reviewIds: string[]; autoClosed?: boolean; summary?: string };
   "outcome.recovered": { workItemId: string; action: "resettle" | "resume_queued" | "needs_review" | "cancelled"; reason: string };
 }
 
@@ -733,6 +733,11 @@ export interface OutcomeDetail extends OutcomeSummary {
   resumeStatus: OutcomeStatus | null;
   createdAt: string;
   acceptedAt: string | null;
+  /** Task-board items registered by a Bot; absent on payloads from older servers. */
+  trackingMode?: OutcomeTrackingMode;
+  /** Set when the Bot closed a tracked item without owner acceptance. */
+  autoClosedAt?: string | null;
+  closeSummary?: string | null;
   currentRevisionView: ContractRevisionView | null;
   revisions: Array<
     Pick<ContractRevisionView, "id" | "revision" | "status" | "changeSummary" | "createdAt"> &
@@ -876,6 +881,48 @@ export type OutcomeReworkInput = typeof OutcomeReworkInput.Type;
 
 export const CancelOutcomeInput = Schema.Struct({ clientRequestId: ClientRequestId });
 export type CancelOutcomeInput = typeof CancelOutcomeInput.Type;
+
+/** How much of the owner a Bot-registered task needs (specs/004.7). */
+export const OUTCOME_OWNER_NEEDS = ["none", "decision", "approval"] as const;
+export type OutcomeOwnerNeed = (typeof OUTCOME_OWNER_NEEDS)[number];
+export const OUTCOME_TRACKING_MODES = ["standard", "tracked"] as const;
+export type OutcomeTrackingMode = (typeof OUTCOME_TRACKING_MODES)[number];
+
+const TrackDecisionOption = Schema.Struct({
+  label: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.optionTextChars)),
+  consequence: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.optionTextChars)),
+  recommended: Schema.optional(Schema.Boolean),
+  reason: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.optionReasonChars))),
+});
+
+/** Registers a task-board item without planning. `decision` is required exactly when `ownerNeed` is "decision". */
+export const TrackOutcomeInput = Schema.Struct({
+  title: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.titleChars)),
+  goal: ContractText,
+  acceptance: Schema.optional(Schema.Array(ContractText).pipe(Schema.minItems(1), Schema.maxItems(5))),
+  ownerNeed: Schema.optional(Schema.Literal(...OUTCOME_OWNER_NEEDS)),
+  decision: Schema.optional(
+    Schema.Struct({
+      problemSummary: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.commentChars)),
+      options: Schema.Array(TrackDecisionOption).pipe(Schema.minItems(1), Schema.maxItems(4)),
+    })
+  ),
+  clientRequestId: ClientRequestId,
+}).pipe(
+  Schema.filter((input) =>
+    (input.ownerNeed === "decision") === (input.decision !== undefined)
+      ? undefined
+      : "decision is required when ownerNeed is decision, and only then"
+  )
+);
+export type TrackOutcomeInput = typeof TrackOutcomeInput.Type;
+
+/** A Bot closes a tracked task it handled itself; never valid for owner-accepted Outcomes. */
+export const CloseOutcomeInput = Schema.Struct({
+  resultSummary: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.changeSummaryChars)),
+  clientRequestId: ClientRequestId,
+});
+export type CloseOutcomeInput = typeof CloseOutcomeInput.Type;
 
 export interface ListOutcomesQuery {
   statuses: OutcomeStatus[];

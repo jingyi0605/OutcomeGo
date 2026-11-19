@@ -1834,6 +1834,14 @@ model NotificationPreferences {
 // Outcome planning, contract, execution and review (specs/004.2)
 // ---------------------------------------------------------------------------
 
+/// standard: owner approves the contract and accepts the result. tracked: a Bot-registered task-board item the Bot may close itself.
+enum OutcomeTrackingMode {
+  standard
+  tracked
+
+  @@map("outcomego_outcome_tracking_mode")
+}
+
 enum OutcomeStatus {
   draft
   planning
@@ -1980,6 +1988,10 @@ model Outcome {
   updatedAt DateTime       @updatedAt
   acceptedAt DateTime?
   cancelledAt DateTime?
+  trackingMode OutcomeTrackingMode @default(standard)
+  /// Set when a tracked Outcome was closed by its Bot without owner acceptance.
+  autoClosedAt DateTime?
+  closeSummary String?
 
   @@index([status, updatedAt], map: "outcomego_outcome_status_updated_at_idx")
   @@index([updatedAt, id], map: "outcomego_outcome_updated_at_id_idx")

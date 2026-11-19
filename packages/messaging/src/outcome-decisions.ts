@@ -3,7 +3,7 @@ import { ApiError } from "@outcomego/contracts";
 import { parseDecisionContractSnapshot, type DecisionCreateInput, type DecisionOption, type DecisionView } from "@outcomego/contracts/outcome-inbox";
 import { Prisma } from "@outcomego/db";
 import { createHash } from "node:crypto";
-import { appendOutcomeEvent, type ActorRef } from "./outcome-state";
+import { appendOutcomeEvent, recomputeOutcomeStatus, type ActorRef } from "./outcome-state";
 
 type Tx = Prisma.TransactionClient;
 const include = { contractRevision: { select: { revision: true } } } satisfies Prisma.OutcomeDecisionInclude;
@@ -133,6 +133,8 @@ export async function closeOutcomeDecision(tx: Tx, row: Row, status: "expired" |
   if (!changed.count) return;
   await appendOutcomeEvent(tx, "outcome.decision.closed", row.outcomeId, { actor, contractRevision: row.contractRevision.revision, workItemId: row.workItemId ?? undefined, payload: { decisionId: row.id, reason: status } });
   await revokeOutcomeDecisionNotification(tx, row.id);
+  // Work-item decisions return through their work item; a tracked task's own decision has none.
+  if (!row.workItemId) await recomputeOutcomeStatus(tx, row.outcomeId, actor);
 }
 
 export async function withdrawSupersededOutcomeDecisions(tx: Tx, outcomeId: string, actor: ActorRef): Promise<void> {

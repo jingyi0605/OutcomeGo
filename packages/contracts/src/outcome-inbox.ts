@@ -102,7 +102,7 @@ export interface DecisionResolution {
   outcomeId: string;
   contractRevision: number;
   resolutionEffect: DecisionEffect;
-  resume: { status: "enqueued" | "queued_for_capacity" | "pending_approval" | "cancelled" | "waiting_human"; workItemIds: string[]; revisionId?: string; cardId?: string };
+  resume: { status: "enqueued" | "queued_for_capacity" | "pending_approval" | "cancelled" | "waiting_human" | "recorded"; workItemIds: string[]; revisionId?: string; cardId?: string };
 }
 
 export interface OutcomeInboxItemView {

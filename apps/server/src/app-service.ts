@@ -372,7 +372,7 @@ export class AppService {
         ReportOutcomeProgress: createOutcomeProgressTool(this.prisma),
         RequestBitwardenReadApproval: createOutcomeCredentialApprovalTool(this.prisma, this.outcomeDecisions),
       },
-      new OutcomeChatTools(this.outcomePlanning, this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging)),
+      new OutcomeChatTools(this.outcomePlanning, this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging), this.outcomeDecisions),
       this.userLocations
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));

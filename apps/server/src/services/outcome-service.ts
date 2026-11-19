@@ -2,6 +2,7 @@ import { ApiError } from "@outcomego/contracts";
 import {
   type ApproveContractRevisionInput,
   type CancelOutcomeInput,
+  type CloseOutcomeInput,
   type ConfirmedContract,
   type ContractRevisionView,
   type CreateContractRevisionInput,
@@ -23,6 +24,7 @@ import {
   type PlanningConflict,
   type PlanningDraftView,
   type StartOutcomeRunInput,
+  type TrackOutcomeInput,
   resolvePlanningSelections,
 } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
@@ -73,6 +75,9 @@ const detailInclude = {
 } satisfies Prisma.OutcomeInclude;
 
 type OutcomeRow = Prisma.OutcomeGetPayload<{ include: typeof detailInclude }>;
+
+const TRACKING_ACTOR = "system:auto-track" as const;
+const DEFAULT_TRACKED_ACCEPTANCE = "The task is done and the result has been reported to the owner.";
 
 /**
  * Outcome, contract revision and status (specs/004.2 tasks 1.3). Every write runs in one transaction with its
@@ -305,6 +310,104 @@ export class OutcomeService {
       }
       return result;
     });
+
+  /**
+   * Registers a Bot task-board item without a planning draft (specs/004.7). `ownerNeed` "approval" keeps the standard
+   * owner-approval flow; otherwise the item is `tracked`: its contract is auto-approved by the system and nothing runs.
+   * `createDecision` runs in the same transaction so a decision item never exists without its Decision.
+   */
+  track = (
+    input: TrackOutcomeInput,
+    botId: string,
+    actor: ActorRef,
+    createDecision?: (tx: Tx, ref: { outcomeId: string; contractRevisionId: string }) => Promise<string>,
+  ) =>
+    serviceEffect(async () => {
+      const ownerNeed = input.ownerNeed ?? "none";
+      const result = await this.idempotent("outcome-track", input.clientRequestId, { botId, input }, async (tx) => {
+        const tracked = ownerNeed !== "approval";
+        const contract: ConfirmedContract = {
+          goal: [input.goal.trim()],
+          acceptance: (input.acceptance ?? [DEFAULT_TRACKED_ACCEPTANCE]).map((statement) => ({
+            statement: statement.trim(),
+            required: true,
+            verificationMethod: "human_review" as const,
+          })),
+          boundaries: { included: [], excluded: [] },
+          budget: null,
+        };
+        const outcome = await tx.outcome.create({
+          data: {
+            botId,
+            title: input.title.trim(),
+            description: input.goal.trim(),
+            trackingMode: tracked ? "tracked" : "standard",
+          },
+        });
+        await this.event(tx, "outcome.created", outcome.id, actor, input.clientRequestId, { title: outcome.title, botId });
+        const revision = await this.insertRevision(tx, outcome.id, 1, contract, botId, actor, input.clientRequestId, {});
+        let decisionId: string | null = null;
+        if (tracked) {
+          // System approval of a task that never executes: no work item, no run, no extra authority.
+          const approvedAt = new Date();
+          await tx.outcomeContractRevision.update({
+            where: { id: revision.id },
+            data: {
+              status: "approved",
+              approvedBy: TRACKING_ACTOR,
+              approvedAt,
+              approvalProof: toJson({
+                confirmationText: "Registered on the task board by its Bot",
+                contentHash: revision.contentHash,
+                actorRef: TRACKING_ACTOR,
+                approvedAt: approvedAt.toISOString(),
+                autoTracked: true,
+              }),
+            },
+          });
+          await this.event(tx, "outcome.contract.revision_approved", outcome.id, TRACKING_ACTOR, input.clientRequestId, {
+            revisionId: revision.id,
+            contentHash: revision.contentHash,
+          }, 1);
+          if (ownerNeed === "decision") {
+            if (!createDecision) throw new ApiError(503, "decision_effect_unavailable", "Decisions are not available", { retryable: true });
+            decisionId = await createDecision(tx, { outcomeId: outcome.id, contractRevisionId: revision.id });
+          }
+        }
+        await this.recomputeStatus(tx, outcome.id, actor);
+        return { outcome: await this.detail(tx, outcome.id), decisionId };
+      });
+      if (ownerNeed === "approval") this.contractSaved(result.outcome);
+      return result;
+    });
+
+  /** A Bot closes a tracked item it handled itself. The owner is never asked to accept it (specs/004.7). */
+  closeTracked = (outcomeId: string, input: CloseOutcomeInput, actor: ActorRef) =>
+    serviceEffect(() =>
+      this.idempotent(`outcome-close:${outcomeId}`, input.clientRequestId, input, async (tx) => {
+        const outcome = await this.lockOutcome(tx, outcomeId);
+        if (outcome.trackingMode !== "tracked")
+          throw new ApiError(409, "tracked_close_not_allowed", "Only tracked goals can be closed by their Bot; the owner accepts this goal", { currentStatus: outcome.status, retryable: false });
+        this.assertOpen(outcome.status);
+        const openDecisions = await tx.outcomeDecision.count({
+          where: { outcomeId, status: { in: ["open", "presented"] }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        });
+        if (openDecisions)
+          throw new ApiError(409, "tracked_close_not_allowed", "This goal still waits for the owner's decision", { currentStatus: outcome.status, retryable: false });
+        const summary = input.resultSummary.trim();
+        if (!summary) throw new ApiError(400, "invalid_request", "A result summary is required");
+        const now = new Date();
+        await tx.outcome.update({ where: { id: outcomeId }, data: { acceptedAt: now, autoClosedAt: now, closeSummary: summary } });
+        await this.event(tx, "outcome.accepted", outcomeId, actor, input.clientRequestId, {
+          revisionId: outcome.currentRevisionId ?? "",
+          reviewIds: [],
+          autoClosed: true,
+          summary,
+        });
+        await this.recomputeStatus(tx, outcomeId, actor);
+        return this.detail(tx, outcomeId);
+      })
+    );
 
   transcript = (outcomeId: string, workItemId: string, query: { before?: number; limit?: number } = {}) =>
     serviceEffect(() => this.prisma.$transaction(async tx => {
@@ -542,6 +645,9 @@ export class OutcomeService {
       resumeStatus: row.resumeStatus,
       createdAt: row.createdAt.toISOString(),
       acceptedAt: row.acceptedAt?.toISOString() ?? null,
+      trackingMode: row.trackingMode,
+      autoClosedAt: row.autoClosedAt?.toISOString() ?? null,
+      closeSummary: row.closeSummary,
       currentRevisionView,
       revisions: row.revisions.map((entry) => ({ ...entry, createdAt: entry.createdAt.toISOString() })),
       workItems: row.workItems.map((item) => ({

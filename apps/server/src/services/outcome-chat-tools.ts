@@ -9,7 +9,10 @@ import {
 import { decodeOutcomeCursor } from "@outcomego/contracts/outcomes";
 import { parseOutcomeInboxQuery } from "@outcomego/contracts/outcome-inbox";
 import { Effect } from "effect";
-import { outcomeDispatchEnabled } from "@outcomego/messaging";
+import type { DecisionOption } from "@outcomego/contracts/outcome-inbox";
+import type { Prisma } from "@outcomego/db";
+import { createOutcomeDecision, outcomeDispatchEnabled } from "@outcomego/messaging";
+import type { DecisionService } from "./decision-service";
 import type { OutcomePlanningService } from "./outcome-planning-service";
 import type { OutcomeService } from "./outcome-service";
 import type { OutcomeInboxService } from "./outcome-inbox-service";
@@ -30,6 +33,13 @@ const requireOutcomeDispatch = () => {
     );
 };
 
+const trackedNextStep = (outcome: OutcomeDetail): string =>
+  outcome.status === "accepted"
+    ? "This goal is auto-closed and needs no acceptance. Tell the user the result in one sentence."
+    : outcome.status === "decision_pending"
+      ? "The decision is in the owner's inbox. Do not proceed on it; read GetOutcome later for their choice."
+      : "Registered on the goal board. Continue the work yourself and call CloseOutcome with a short result summary when it is done; never ask the user to accept it.";
+
 /** Adapts ordinary chat calls to the same services as the authenticated UI. No approval entry point. */
 export class OutcomeChatTools {
   constructor(
@@ -37,7 +47,8 @@ export class OutcomeChatTools {
     private readonly outcomes: OutcomeService,
     private readonly inbox: OutcomeInboxService,
     private readonly explore: ExploreService,
-    private readonly cards?: OutcomeChatCards
+    private readonly cards?: OutcomeChatCards,
+    private readonly decisions?: Pick<DecisionService, "projectNotification">
   ) {}
 
   execute = async (
@@ -52,7 +63,11 @@ export class OutcomeChatTools {
       "StartOutcome",
       "CancelOutcome",
     ];
-    if (!this.cards || !cardTools.includes(request.tool))
+    // Silent task-board entries (ownerNeed none) stay out of the conversation; owner-facing ones get a card.
+    const ownerFacingTrack =
+      request.tool === "TrackOutcome" &&
+      ((request.arguments as { ownerNeed?: unknown } | null)?.ownerNeed ?? "none") !== "none";
+    if (!this.cards || !(cardTools.includes(request.tool) || ownerFacingTrack))
       return this.perform(request, context, signal);
     // Validate before publishing; invalid arguments never leave a spurious in-progress card.
     try {
@@ -158,7 +173,9 @@ export class OutcomeChatTools {
         nextStep:
           outcome.currentRevisionView?.status === "pending_approval"
             ? "Ask the owner to review and approve this exact contract on Desktop. This draft has not started."
-            : "Report the saved server status. Final acceptance remains an owner Review.",
+            : outcome.trackingMode === "tracked"
+              ? trackedNextStep(outcome)
+              : "Report the saved server status. Final acceptance remains an owner Review.",
       };
     };
     try {
@@ -202,6 +219,61 @@ export class OutcomeChatTools {
                 }
               : {}),
           };
+        }
+        case "TrackOutcome": {
+          const args = input("TrackOutcome");
+          const need = args.ownerNeed ?? "none";
+          // An approved plan is executed later, so it honours the same dispatch switch as StartOutcome.
+          if (need === "approval") requireOutcomeDispatch();
+          const spec = args.decision;
+          const createDecision =
+            need === "decision" && spec
+              ? async (tx: Prisma.TransactionClient, ref: { outcomeId: string; contractRevisionId: string }) => {
+                  const options: DecisionOption[] = spec.options.map((option, index) => ({
+                    id: `option-${index + 1}`,
+                    label: option.label,
+                    consequence: option.consequence,
+                    resolutionEffect: "plan_only",
+                    source: "runtime",
+                    ...(option.recommended ? { recommended: true } : {}),
+                    ...(option.reason ? { reason: option.reason } : {}),
+                  }));
+                  const recommended = options.find((option) => option.recommended);
+                  const decision = await createOutcomeDecision(
+                    tx,
+                    {
+                      ...ref,
+                      reasonCode: "missing_input",
+                      completedSummary: "Registered on the goal board by the Bot.",
+                      problemSummary: spec.problemSummary,
+                      nextStepSummary: "The Bot continues after you choose.",
+                      options,
+                      customEntryAllowed: true,
+                      ...(recommended ? { recommendation: { optionId: recommended.id, reason: recommended.reason ?? "" } } : {}),
+                    },
+                    actor,
+                    { botId: context.botId, clientRequestId: args.clientRequestId }
+                  );
+                  return decision.id;
+                }
+              : undefined;
+          const { outcome, decisionId } = await run(this.outcomes.track(args, context.botId, actor, createDecision));
+          // Projection is retriable and must never undo the committed registration.
+          if (decisionId) void this.decisions?.projectNotification(decisionId).catch(() => undefined);
+          return {
+            outcome,
+            url: outcomeDeepLink(outcome.id),
+            approvalRequired: outcome.currentRevisionView?.status === "pending_approval",
+            decisionId,
+            nextStep:
+              need === "approval"
+                ? "Ask the owner to review and approve this exact contract on Desktop. This draft has not started."
+                : trackedNextStep(outcome),
+          };
+        }
+        case "CloseOutcome": {
+          const { outcomeId, ...args } = input("CloseOutcome");
+          return await detail(this.outcomes.closeTracked(outcomeId, args, actor));
         }
         case "ReviseOutcome": {
           const { outcomeId, ...args } = input("ReviseOutcome");

@@ -2,7 +2,7 @@ import { ApiError } from "@outcomego/contracts";
 import type { DecisionCreateInput, DecisionOption, DecisionResolution, DecisionView, ResolveDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeError, type CreateContractRevisionInput, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { createOutcomeDecision, isOutcomeDecisionRevisionActive, closeOutcomeDecision, appendOutcomeEvent, enqueueOutcomeTurn, transitionWorkItem, unavailableHumanActionPort, type ActorRef, type AgentMessaging, type HumanActionPort } from "@outcomego/messaging";
+import { createOutcomeDecision, isOutcomeDecisionRevisionActive, closeOutcomeDecision, appendOutcomeEvent, enqueueOutcomeTurn, recomputeOutcomeStatus, transitionWorkItem, unavailableHumanActionPort, type ActorRef, type AgentMessaging, type HumanActionPort } from "@outcomego/messaging";
 import { activeDecisionStatuses, revokeDecisionNotification, withdrawSupersededDecisions } from "./decision-lifecycle";
 import { NotificationService } from "./notification-service";
 import { Effect } from "effect";
@@ -49,7 +49,7 @@ export class DecisionService {
   createInTransaction = createOutcomeDecision;
 
   /** Replayed creation retries an interrupted post-commit projection using the original fact. */
-  private async projectNotification(decisionId: string) {
+  async projectNotification(decisionId: string) {
     const event = await this.prisma.event.findFirst({ where: { topic: "outcome.decision.required", payload: { path: ["payload", "decisionId"], equals: decisionId } }, orderBy: { sequence: "asc" } });
     if (event) await Effect.runPromise(new NotificationService(this.prisma).projectOutcomeEvent(event.sequence.toString()));
   }
@@ -138,7 +138,15 @@ export class DecisionService {
       await withdrawSupersededDecisions(tx, row.outcomeId, actor);
       return { status: "pending_approval", workItemIds: [], revisionId: revision.currentRevisionView?.id };
     }
-    if (!row.workItemId) throw apiError("invalid_decision_source", "This effect requires a requesting work item", row, 422);
+    if (!row.workItemId) {
+      // A tracked task has no work item to resume: record the choice and return it to the Bot through GetOutcome.
+      const outcome = await tx.outcome.findUniqueOrThrow({ where: { id: row.outcomeId }, select: { trackingMode: true } });
+      if (outcome.trackingMode === "tracked" && effect === "plan_only") {
+        await recomputeOutcomeStatus(tx, row.outcomeId, actor);
+        return { status: "recorded", workItemIds: [] };
+      }
+      throw apiError("invalid_decision_source", "This effect requires a requesting work item", row, 422);
+    }
     if (effect === "cancel_branch") {
       await transitionWorkItem(tx, { workItemId: row.workItemId, to: "cancelled", reason: "decision_cancel_branch", actor, idempotencyKey: `decision:${row.id}` });
       return { status: "cancelled", workItemIds: [row.workItemId] };

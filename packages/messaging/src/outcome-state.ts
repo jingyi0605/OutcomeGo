@@ -157,6 +157,11 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
   if (outcome.cancelledAt) candidates.add("cancelled");
   if (outcome.acceptedAt) candidates.add("accepted");
   if (agent.some((item) => item.status === "waiting_decision")) candidates.add("decision_pending");
+  // A tracked task has no work item to wait on, so its own owner decision (specs/004.7) marks it pending.
+  if (outcome.trackingMode === "tracked" && current && await tx.outcomeDecision.count({ where: {
+    outcomeId, contractRevisionId: current.id, workItemId: null, status: { in: ["open", "presented"] },
+    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+  } })) candidates.add("decision_pending");
   if (agent.some((item) => item.status === "waiting_human") || human.some((item) => (ACTIVE_HUMAN_STATES as readonly string[]).includes(item.status)))
     candidates.add("human_action_pending");
   const agentActive = agent.some((item) => (ACTIVE_AGENT_STATES as readonly string[]).includes(item.status));

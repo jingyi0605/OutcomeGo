@@ -583,6 +583,8 @@ const FIRST_PARTY_CATALOG_HEADER =
 const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
   PlanOutcome: "Create native goal planning from the conversation; use Outcomes before external task apps.",
   CreateOutcome: "Save a native goal draft for owner approval; never approve or accept it yourself.",
+  TrackOutcome: "Register anything you cannot finish this turn on the goal board; owner decisions go to the inbox.",
+  CloseOutcome: "Close a tracked goal you finished yourself, without user acceptance.",
   ListOutcomes: "Find native goals and their execution statuses by text or status.",
   GetOutcome: "Read a goal's actual contract, Runs, results, Evidence and Reviews.",
   ReviseOutcome: "Propose a new goal contract revision for owner approval.",
