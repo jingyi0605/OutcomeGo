@@ -485,12 +485,14 @@ interface FeatureGateway {
     /** Null denotes a server without the read-only brief route; the detail page then falls back to saved records. */
     suspend fun outcomeBrief(id: String): Result<com.outcomego.mobile.core.OutcomeBrief?> =
         Result.failure(UnsupportedOperationException("Outcome brief is not available for this session."))
-    suspend fun createOutcomePlan(input: com.outcomego.mobile.core.CreateOutcomePlanRequest): Result<com.outcomego.mobile.core.OutcomePlanningDraft> =
-        Result.failure(UnsupportedOperationException("Outcome planning is not available for this session."))
-    suspend fun getOutcomePlan(planId: String): Result<com.outcomego.mobile.core.OutcomePlanningDraft> =
-        Result.failure(UnsupportedOperationException("Outcome planning is not available for this session."))
-    suspend fun createOutcome(input: com.outcomego.mobile.core.CreateOutcomeRequest): Result<OutcomeDetail> =
-        Result.failure(UnsupportedOperationException("Outcome creation is not available for this session."))
+    /** Hand a new goal to the chosen bot in the owner's own words; returns at once while the bot plans. */
+    suspend fun createOutcomeThread(input: com.outcomego.mobile.core.CreateOutcomeThreadRequest): Result<com.outcomego.mobile.core.CreatedOutcomeThread> =
+        Result.failure(UnsupportedOperationException("Outcome threads are not available for this session."))
+    suspend fun outcomeThread(id: String): Result<com.outcomego.mobile.core.OutcomeThreadView> =
+        Result.failure(UnsupportedOperationException("Outcome threads are not available for this session."))
+    /** Send the owner's words to the goal's bot unchanged. */
+    suspend fun sendOutcomeThreadMessage(id: String, input: com.outcomego.mobile.core.SendOutcomeThreadMessageRequest): Result<com.outcomego.mobile.core.OutcomeThreadTurn> =
+        Result.failure(UnsupportedOperationException("Outcome threads are not available for this session."))
     suspend fun reviseOutcome(id: String, input: com.outcomego.mobile.core.CreateContractRevisionRequest): Result<OutcomeDetail> =
         Result.failure(UnsupportedOperationException("Outcome revision is not available for this session."))
     suspend fun approveOutcomeRevision(id: String, revision: Int, input: com.outcomego.mobile.core.ApproveContractRevisionRequest): Result<OutcomeDetail> =
@@ -518,8 +520,6 @@ interface FeatureGateway {
     suspend fun listExploreIdeas(cursor: String? = null): Result<com.outcomego.mobile.core.ExploreIdeaPage?> =
         Result.failure(UnsupportedOperationException("Explore is not available for this session."))
     suspend fun createExploreIdea(input: com.outcomego.mobile.core.CreateExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> =
-        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
-    suspend fun proposeExploreIdea(id: String, input: com.outcomego.mobile.core.ProposeExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreProposal> =
         Result.failure(UnsupportedOperationException("Explore is not available for this session."))
     suspend fun discardExploreIdea(id: String, input: com.outcomego.mobile.core.DiscardExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> =
         Result.failure(UnsupportedOperationException("Explore is not available for this session."))

@@ -22,7 +22,6 @@ data class ExploreIdea(
     val sourceOutcomeId: String? = null,
     val sourceReferences: List<ExploreSourceReference> = emptyList(),
     val budget: OutcomeBudget? = null,
-    val planningDraftId: String? = null,
     val proposedOutcomeId: String? = null,
     val createdAt: String,
     val updatedAt: String,
@@ -48,20 +47,8 @@ data class CreateExploreIdeaRequest(
 )
 
 @Serializable
-data class ProposeExploreIdeaRequest(
-    val botId: String? = null,
-    val clientRequestId: String,
-)
-
-@Serializable
 data class DiscardExploreIdeaRequest(
     val clientRequestId: String,
-)
-
-@Serializable
-data class ExploreProposal(
-    val idea: ExploreIdea,
-    val plan: OutcomePlanningDraft,
 )
 
 class TransportExploreApi(private val transport: OutcomeGoTransport) {
@@ -82,15 +69,6 @@ class TransportExploreApi(private val transport: OutcomeGoTransport) {
                 server,
                 token,
                 MobileRequest(HttpMethod.POST, "/api/v0/explore", body = mobileJson.encodeToString(input)),
-            ).requireSuccess().body,
-        )
-
-    suspend fun propose(server: String, token: String?, id: String, input: ProposeExploreIdeaRequest): ExploreProposal =
-        mobileJson.decodeFromString(
-            transport.execute(
-                server,
-                token,
-                MobileRequest(HttpMethod.POST, "${exploreItemPath(id)}/propose", body = mobileJson.encodeToString(input)),
             ).requireSuccess().body,
         )
 

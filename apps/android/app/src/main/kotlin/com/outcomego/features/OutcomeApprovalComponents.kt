@@ -92,7 +92,6 @@ internal fun OutcomeApprovalCard(
     revision: OutcomeContractRevision,
     intent: OutcomeBriefItem?,
     busy: Boolean,
-    editing: Boolean,
     onApprove: () -> Unit,
     onRequestChanges: () -> Unit,
 ) {
@@ -215,7 +214,7 @@ internal fun OutcomeApprovalCard(
                 onClick = onApprove,
             )
             SpatialSecondaryButton(
-                label = if (editing) localizedText("Close editor", "收起修订") else localizedText("Request changes", "请求修改"),
+                label = localizedText("Tell the bot what to change", "告诉机器人要改什么"),
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onRequestChanges,

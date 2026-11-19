@@ -188,6 +188,7 @@ internal fun OutcomeDetailScreen(
     var briefState by remember(id) { mutableStateOf(OutcomeBriefState()) }
     var briefRetry by remember(id) { mutableIntStateOf(0) }
     var showRevisionEditor by rememberSaveable(id) { mutableStateOf(false) }
+    var threadFocus by remember(id) { mutableIntStateOf(0) }
     var showExecutionRecords by rememberSaveable(id) { mutableStateOf(false) }
     var executionInitialWorkId by remember(id) { mutableStateOf<String?>(null) }
     var goalLines by rememberSaveable(id) { mutableStateOf("") }
@@ -345,7 +346,9 @@ internal fun OutcomeDetailScreen(
                 val progress = (doneTasks + passedCriteria).toFloat() / totalSteps.toFloat()
                 val revNum = value.currentRevision
                 val revStatus = value.currentRevisionView?.status
-                val canApprove = revNum != null && (value.status == "pending_approval" || revStatus == "pending_approval" || revStatus == "draft")
+                // While the bot is working on the goal the status is "planning": the owner cannot approve a contract it may be rewriting.
+                val canApprove = revNum != null && value.status != "planning" &&
+                    (value.status == "pending_approval" || revStatus == "pending_approval" || revStatus == "draft")
                 val canStart = revNum != null && (value.status == "approved" || revStatus == "approved") && value.status !in setOf("running", "accepted", "cancelled")
                 val canCancel = value.status !in setOf("accepted", "cancelled", "failed")
 
@@ -358,9 +361,8 @@ internal fun OutcomeDetailScreen(
                                 revision = rev,
                                 intent = briefState.brief?.intent,
                                 busy = mutating,
-                                editing = showRevisionEditor,
                                 onApprove = { approveRevision(revNum) },
-                                onRequestChanges = { showRevisionEditor = !showRevisionEditor },
+                                onRequestChanges = { threadFocus++ },
                             )
                         }
                     }
@@ -448,6 +450,22 @@ internal fun OutcomeDetailScreen(
                         }
                     }
                 }
+
+                // The goal's own bot thread: the owner's words go to the bot as they are. A pending plan shows it
+                // right under the decision; otherwise it follows the status card.
+                val threadItem: androidx.compose.foundation.lazy.LazyListScope.() -> Unit = {
+                    item(key = "outcome-thread") {
+                        OutcomeThreadPanel(
+                            gateway = gateway,
+                            outcomeId = value.id,
+                            canSend = value.status !in setOf("accepted", "cancelled"),
+                            focusRequest = threadFocus,
+                            onChanged = { scope.launch { load() } },
+                            onAuthenticationRequired = onAuthenticationRequired,
+                        )
+                    }
+                }
+                if (canApprove) threadItem()
 
                 // 1. Hero Status, Metrics & Progress Card
                 item {
@@ -567,6 +585,8 @@ internal fun OutcomeDetailScreen(
                         }
                     }
                 }
+
+                if (!canApprove) threadItem()
 
                 // 2. Segmented Section Switcher (reduces scrolling & wall-of-text!)
                 item {

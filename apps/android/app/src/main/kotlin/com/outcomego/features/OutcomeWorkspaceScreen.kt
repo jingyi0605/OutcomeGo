@@ -76,8 +76,7 @@ import com.outcomego.mobile.core.OutcomeInboxItem
 import com.outcomego.mobile.core.OutcomeInboxPage
 import com.outcomego.mobile.core.OutcomeLinkTarget
 import com.outcomego.mobile.core.OutcomeListPage
-import com.outcomego.mobile.core.OutcomePlanningDraft
-import com.outcomego.mobile.core.ProposeExploreIdeaRequest
+import com.outcomego.mobile.core.CreateOutcomeThreadRequest
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -87,7 +86,7 @@ private enum class WorkspaceTab { All, Inbox, Explore }
 
 private sealed interface WorkspaceRoute {
     data object Root : WorkspaceRoute
-    data class NewPlan(val initialPlan: OutcomePlanningDraft? = null) : WorkspaceRoute
+    data object NewOutcome : WorkspaceRoute
     data class Outcome(val id: String) : WorkspaceRoute
     data class Decision(val id: String) : WorkspaceRoute
     data class HumanAction(val id: String) : WorkspaceRoute
@@ -119,10 +118,9 @@ fun OutcomeWorkspaceScreen(
             route = WorkspaceRoute.Root
         }
         when (current) {
-            is WorkspaceRoute.NewPlan -> OutcomePlanningScreen(
+            WorkspaceRoute.NewOutcome -> NewOutcomeScreen(
                 gateway = gateway,
                 bots = bots,
-                initialDraft = current.initialPlan,
                 onBack = {
                     refreshVersion++
                     route = WorkspaceRoute.Root
@@ -197,7 +195,7 @@ fun OutcomeWorkspaceScreen(
                 SpatialIconOrb(
                     icon = Icons.Outlined.Add,
                     contentDescription = localizedText("New Outcome", "新建目标"),
-                    onClick = { route = WorkspaceRoute.NewPlan() },
+                    onClick = { route = WorkspaceRoute.NewOutcome },
                 )
             },
         ) {
@@ -218,7 +216,7 @@ fun OutcomeWorkspaceScreen(
                         bots = bots,
                         refreshVersion = refreshVersion,
                         onOpenOutcome = { route = WorkspaceRoute.Outcome(it) },
-                        onCreateNew = { route = WorkspaceRoute.NewPlan() },
+                        onCreateNew = { route = WorkspaceRoute.NewOutcome },
                         onUnsupported = onUnsupported,
                         onAuthenticationRequired = onAuthenticationRequired,
                     )
@@ -240,7 +238,6 @@ fun OutcomeWorkspaceScreen(
                         gateway = gateway,
                         bots = bots,
                         refreshVersion = refreshVersion,
-                        onOpenPlan = { plan -> route = WorkspaceRoute.NewPlan(plan) },
                         onOpenOutcome = { id -> route = WorkspaceRoute.Outcome(id) },
                         onAuthenticationRequired = onAuthenticationRequired,
                     )
@@ -621,7 +618,6 @@ private fun ExploreIdeasTab(
     gateway: FeatureGateway,
     bots: List<OutcomeBotOption>,
     refreshVersion: Int,
-    onOpenPlan: (OutcomePlanningDraft) -> Unit,
     onOpenOutcome: (String) -> Unit,
     onAuthenticationRequired: (OutcomeLinkTarget) -> Unit,
 ) {
@@ -637,6 +633,7 @@ private fun ExploreIdeasTab(
     var selectedBotId by rememberSaveable { mutableStateOf(bots.firstOrNull()?.id.orEmpty()) }
     val scope = rememberCoroutineScope()
     val loadExploreFailedMsg = localizedText("Could not load Explore ideas.", "无法加载探索想法。")
+    val ideaRequestIds = remember { mutableMapOf<String, String>() }
 
     LaunchedEffect(bots) {
         if (selectedBotId.isBlank() && bots.isNotEmpty()) selectedBotId = bots.first().id
@@ -754,18 +751,23 @@ private fun ExploreIdeasTab(
                     scope.launch {
                         mutatingId = idea.id
                         errorMessage = null
-                        gateway.proposeExploreIdea(
-                            idea.id,
-                            ProposeExploreIdeaRequest(
-                                botId = botId,
-                                clientRequestId = UUID.randomUUID().toString(),
+                        // The bot plans it on the goal's own thread; the idea's words go to it as they are.
+                        val words = listOf(idea.title, idea.note).filter { it.isNotBlank() }.joinToString("\n\n")
+                        gateway.createOutcomeThread(
+                            CreateOutcomeThreadRequest(
+                                text = words,
+                                botId = botId.orEmpty(),
+                                exploreIdeaId = idea.id,
+                                // One idea, one request: a retry reaches the server as the same request.
+                                clientRequestId = ideaRequestIds.getOrPut(idea.id + "\n" + botId.orEmpty()) { UUID.randomUUID().toString() },
                             ),
                         ).fold(
-                            onSuccess = { proposal ->
+                            onSuccess = { created ->
+                                ideaRequestIds.remove(idea.id + "\n" + botId.orEmpty())
                                 load()
-                                onOpenPlan(proposal.plan)
+                                onOpenOutcome(created.outcome.id)
                             },
-                            onFailure = { errorMessage = it.message ?: "Failed to propose" },
+                            onFailure = { errorMessage = it.message ?: "Failed to hand the idea to the bot" },
                         )
                         mutatingId = null
                     }
@@ -831,7 +833,7 @@ private fun ExploreIdeaCard(
                 val targetBot = idea.botId ?: bots.firstOrNull()?.id
                 if (idea.status in setOf("draft", "exploring")) {
                     SpatialPrimaryButton(
-                        label = localizedText("Propose", "生成提案"),
+                        label = localizedText("Hand to the bot", "交给机器人规划"),
                         enabled = !busy && targetBot != null,
                         loading = busy,
                         onClick = { onPropose(targetBot) },

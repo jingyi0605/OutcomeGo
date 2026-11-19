@@ -97,9 +97,17 @@ class OutcomeReadTests {
             override suspend fun execute(server: String, token: String?, request: MobileRequest): MobileResponse {
                 seen += request
                 return when {
-                    request.path.startsWith("/api/v0/outcomes/plans") -> MobileResponse(
+                    request.path == "/api/v0/outcomes/threads" -> MobileResponse(
+                        202,
+                        body = """{"outcome":$DETAIL,"turn":{"id":"t-1","purpose":"plan","trigger":"goal","status":"queued","createdAt":"now","updatedAt":"now"}}""",
+                    )
+                    request.path.endsWith("/thread/messages") -> MobileResponse(
+                        202,
+                        body = """{"id":"t-2","purpose":"owner_message","trigger":"取消目标","status":"queued","createdAt":"now","updatedAt":"now"}""",
+                    )
+                    request.path.endsWith("/thread") -> MobileResponse(
                         200,
-                        body = """{"planId":"p-1","status":"ready","sourceText":"goal","botId":"b-1"}""",
+                        body = """{"threadId":"th-1","turns":[{"id":"t-1","purpose":"plan","trigger":"goal","status":"completed","reply":"Done","createdAt":"now","updatedAt":"now"}]}""",
                     )
                     request.path.startsWith("/api/v0/explore?") && request.method == HttpMethod.GET -> MobileResponse(404)
                     else -> MobileResponse(
@@ -110,13 +118,27 @@ class OutcomeReadTests {
             }
         }
         val writeApi = TransportOutcomeWriteApi(transport)
-        val plan = writeApi.createPlan(
+        val created = writeApi.createThread(
             "https://fixture.invalid",
             "tok",
-            CreateOutcomePlanRequest("goal", CreateOutcomePlanContext("b-1"), "req-12345678"),
+            CreateOutcomeThreadRequest("goal", "b-1", clientRequestId = "req-12345678"),
         )
-        assertEquals("p-1", plan.planId)
-        assertEquals("ready", plan.status)
+        assertEquals("outcome-1", created.outcome.id)
+        assertTrue(created.turn.inProgress)
+        // The owner's words go out untouched: no template, no intent label.
+        val sent = writeApi.sendThreadMessage(
+            "https://fixture.invalid",
+            "tok",
+            "outcome-1",
+            SendOutcomeThreadMessageRequest("取消目标", "req-87654321"),
+        )
+        assertEquals("取消目标", sent.trigger)
+        assertEquals(HttpMethod.POST, seen.last().method)
+        assertTrue(seen.last().body!!.contains("\"text\":\"取消目标\""))
+        val thread = writeApi.thread("https://fixture.invalid", "tok", "outcome-1")
+        assertEquals("Done", thread.turns.single().reply)
+        assertEquals(false, thread.turns.single().inProgress)
+        assertEquals("/api/v0/outcomes/outcome-1/thread", outcomeThreadPath("outcome-1"))
         val exploreApi = TransportExploreApi(transport)
         assertNull(exploreApi.list("https://fixture.invalid", "tok"))
         val createdIdea = exploreApi.create(

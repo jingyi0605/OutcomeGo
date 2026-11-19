@@ -168,77 +168,54 @@ class TransportOutcomeReadApi(private val transport: OutcomeGoTransport) {
     }
 }
 
+/** The bot's turn on a goal's own thread. Words the owner sent are kept as sent (specs/004.8). */
 @Serializable
-data class OutcomePlanningOption(
+data class OutcomeThreadTurnError(
+    val code: String = "",
+    val message: String = "",
+)
+
+@Serializable
+data class OutcomeThreadTurn(
     val id: String,
-    val text: String,
-    val recommended: Boolean? = null,
-    val reason: String? = null,
-    val required: Boolean? = null,
-    val kind: String? = null,
-)
-
-@Serializable
-data class OutcomePlanningDimension(
-    val options: List<OutcomePlanningOption> = emptyList(),
-    val selectedOptionIds: List<String> = emptyList(),
-    val customEntries: List<String> = emptyList(),
-)
-
-@Serializable
-data class OutcomePlanningConflict(
-    val code: String,
-    val severity: String,
-    val dimensions: List<String> = emptyList(),
-    val message: String,
-    val resolutionHint: String? = null,
-)
-
-@Serializable
-data class OutcomePlanningError(
-    val code: String,
-    val retryable: Boolean = false,
-)
-
-@Serializable
-data class OutcomePlanningDraft(
-    val planId: String,
+    val purpose: String,
+    val trigger: String,
     val status: String,
-    val sourceText: String,
-    val botId: String,
-    val goal: OutcomePlanningDimension = OutcomePlanningDimension(),
-    val acceptance: OutcomePlanningDimension = OutcomePlanningDimension(),
-    val boundaries: OutcomePlanningDimension = OutcomePlanningDimension(),
-    val conflicts: List<OutcomePlanningConflict> = emptyList(),
-    val generatedAt: String = "",
-    val expiresAt: String = "",
-    val error: OutcomePlanningError? = null,
+    val reply: String? = null,
+    val error: OutcomeThreadTurnError? = null,
+    val runId: String? = null,
+    val createdAt: String,
+    val updatedAt: String,
+) {
+    /** Queued or running: the bot is still working on it. */
+    val inProgress: Boolean get() = status == "queued" || status == "running"
+}
+
+@Serializable
+data class OutcomeThreadView(
+    val threadId: String? = null,
+    val turns: List<OutcomeThreadTurn> = emptyList(),
 )
 
+/** A new goal described in the owner's own words; the chosen bot plans it. */
 @Serializable
-data class CreateOutcomePlanContext(val botId: String)
-
-@Serializable
-data class CreateOutcomePlanRequest(
-    val sourceText: String,
-    val context: CreateOutcomePlanContext,
+data class CreateOutcomeThreadRequest(
+    val text: String,
+    val botId: String,
+    val exploreIdeaId: String? = null,
     val clientRequestId: String,
 )
 
 @Serializable
-data class OutcomePlanningSelection(
-    val selectedOptionIds: List<String> = emptyList(),
-    val customEntries: List<String> = emptyList(),
+data class CreatedOutcomeThread(
+    val outcome: OutcomeDetail,
+    val turn: OutcomeThreadTurn,
 )
 
+/** The owner's words about a goal; they reach the bot unchanged. */
 @Serializable
-data class CreateOutcomeRequest(
-    val planId: String,
-    val goal: OutcomePlanningSelection,
-    val acceptance: OutcomePlanningSelection,
-    val boundaries: OutcomePlanningSelection,
-    val title: String,
-    val budget: OutcomeBudget? = null,
+data class SendOutcomeThreadMessageRequest(
+    val text: String,
     val clientRequestId: String,
 )
 
@@ -332,14 +309,14 @@ data class OutcomeTranscriptPage(
 )
 
 class TransportOutcomeWriteApi(private val transport: OutcomeGoTransport) {
-    suspend fun createPlan(server: String, token: String?, input: CreateOutcomePlanRequest): OutcomePlanningDraft =
-        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, "/api/v0/outcomes/plans", body = mobileJson.encodeToString(input))))
+    suspend fun createThread(server: String, token: String?, input: CreateOutcomeThreadRequest): CreatedOutcomeThread =
+        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, outcomeThreadsPath(), body = mobileJson.encodeToString(input))))
 
-    suspend fun getPlan(server: String, token: String?, planId: String): OutcomePlanningDraft =
-        decode(transport.execute(server, token, MobileRequest(HttpMethod.GET, outcomePlanPath(planId))))
+    suspend fun thread(server: String, token: String?, id: String): OutcomeThreadView =
+        decode(transport.execute(server, token, MobileRequest(HttpMethod.GET, outcomeThreadPath(id))))
 
-    suspend fun create(server: String, token: String?, input: CreateOutcomeRequest): OutcomeDetail =
-        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, "/api/v0/outcomes", body = mobileJson.encodeToString(input))))
+    suspend fun sendThreadMessage(server: String, token: String?, id: String, input: SendOutcomeThreadMessageRequest): OutcomeThreadTurn =
+        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, "${outcomeThreadPath(id)}/messages", body = mobileJson.encodeToString(input))))
 
     suspend fun revise(server: String, token: String?, id: String, input: CreateContractRevisionRequest): OutcomeDetail =
         decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, "${outcomeDetailPath(id)}/revisions", body = mobileJson.encodeToString(input))))
@@ -379,7 +356,9 @@ fun outcomeDetailPath(id: String): String = "/api/v0/outcomes/${outcomeSegment(i
 
 fun outcomeBriefPath(id: String): String = "${outcomeDetailPath(id)}/brief"
 
-fun outcomePlanPath(planId: String): String = "/api/v0/outcomes/plans/${outcomeSegment(planId)}"
+fun outcomeThreadsPath(): String = "/api/v0/outcomes/threads"
+
+fun outcomeThreadPath(id: String): String = "${outcomeDetailPath(id)}/thread"
 
 fun outcomeTranscriptPath(outcomeId: String, workItemId: String, before: Int? = null): String =
     "${outcomeDetailPath(outcomeId)}/work-items/${outcomeSegment(workItemId)}/transcript" +

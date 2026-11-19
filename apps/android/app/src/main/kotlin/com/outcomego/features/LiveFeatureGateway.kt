@@ -90,31 +90,31 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
         }
     }.onFailure { if (it is CancellationException) throw it }
 
-    override suspend fun createOutcomePlan(input: com.outcomego.mobile.core.CreateOutcomePlanRequest): Result<com.outcomego.mobile.core.OutcomePlanningDraft> = runCatching {
+    override suspend fun createOutcomeThread(input: com.outcomego.mobile.core.CreateOutcomeThreadRequest): Result<com.outcomego.mobile.core.CreatedOutcomeThread> = runCatching {
         mobileJson.decodeFromJsonElement(
-            com.outcomego.mobile.core.OutcomePlanningDraft.serializer(),
+            com.outcomego.mobile.core.CreatedOutcomeThread.serializer(),
             client.request(
                 HttpMethod.POST,
-                "/api/v0/outcomes/plans",
-                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.CreateOutcomePlanRequest.serializer(), input).jsonObject,
+                com.outcomego.mobile.core.outcomeThreadsPath(),
+                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.CreateOutcomeThreadRequest.serializer(), input).jsonObject,
             ),
         )
     }.onFailure { if (it is CancellationException) throw it }
 
-    override suspend fun getOutcomePlan(planId: String): Result<com.outcomego.mobile.core.OutcomePlanningDraft> = runCatching {
+    override suspend fun outcomeThread(id: String): Result<com.outcomego.mobile.core.OutcomeThreadView> = runCatching {
         mobileJson.decodeFromJsonElement(
-            com.outcomego.mobile.core.OutcomePlanningDraft.serializer(),
-            client.request(HttpMethod.GET, com.outcomego.mobile.core.outcomePlanPath(planId)),
+            com.outcomego.mobile.core.OutcomeThreadView.serializer(),
+            client.request(HttpMethod.GET, com.outcomego.mobile.core.outcomeThreadPath(id)),
         )
     }.onFailure { if (it is CancellationException) throw it }
 
-    override suspend fun createOutcome(input: com.outcomego.mobile.core.CreateOutcomeRequest): Result<OutcomeDetail> = runCatching {
+    override suspend fun sendOutcomeThreadMessage(id: String, input: com.outcomego.mobile.core.SendOutcomeThreadMessageRequest): Result<com.outcomego.mobile.core.OutcomeThreadTurn> = runCatching {
         mobileJson.decodeFromJsonElement(
-            OutcomeDetail.serializer(),
+            com.outcomego.mobile.core.OutcomeThreadTurn.serializer(),
             client.request(
                 HttpMethod.POST,
-                "/api/v0/outcomes",
-                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.CreateOutcomeRequest.serializer(), input).jsonObject,
+                "${com.outcomego.mobile.core.outcomeThreadPath(id)}/messages",
+                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.SendOutcomeThreadMessageRequest.serializer(), input).jsonObject,
             ),
         )
     }.onFailure { if (it is CancellationException) throw it }
@@ -266,17 +266,6 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
                 HttpMethod.POST,
                 "/api/v0/explore",
                 mobileJson.encodeToJsonElement(com.outcomego.mobile.core.CreateExploreIdeaRequest.serializer(), input).jsonObject,
-            ),
-        )
-    }.onFailure { if (it is CancellationException) throw it }
-
-    override suspend fun proposeExploreIdea(id: String, input: com.outcomego.mobile.core.ProposeExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreProposal> = runCatching {
-        mobileJson.decodeFromJsonElement(
-            com.outcomego.mobile.core.ExploreProposal.serializer(),
-            client.request(
-                HttpMethod.POST,
-                "${com.outcomego.mobile.core.exploreItemPath(id)}/propose",
-                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.ProposeExploreIdeaRequest.serializer(), input).jsonObject,
             ),
         )
     }.onFailure { if (it is CancellationException) throw it }
