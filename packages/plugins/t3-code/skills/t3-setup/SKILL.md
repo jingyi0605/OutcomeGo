@@ -5,7 +5,7 @@ description: Connect or troubleshoot T3 Code MCP URLs, sign-in, access levels, a
 
 The user installs one T3 Code plugin with its skills and adds an account for each environment. It connects an existing T3 installation; repositories and authenticated coding providers must already be available there.
 
-Use the plugin's account setup to collect the complete MCP URL copied from T3's environment menu or “Use T3 Code in another app (MCP).” Choose public-client OAuth with dynamic registration, not a manually registered client or API token. The URL must be HTTPS, or HTTP on localhost when the OpenTeam server itself runs beside T3. A container's localhost does not reach its host's desktop app. Prefer T3 Connect or reachable tailnet HTTPS for remote hosting.
+Use the plugin's account setup to collect the complete MCP URL copied from T3's environment menu or “Use T3 Code in another app (MCP).” Choose public-client OAuth with dynamic registration, not a manually registered client or API token. Use HTTPS for public IP addresses and domain names. HTTP is accepted for private IP addresses on trusted networks, or localhost when the OpenTeam server itself runs beside T3. A container's localhost does not reach its host's desktop app. Prefer T3 Connect or reachable tailnet HTTPS for remote hosting.
 
 The link is validated before sign-in; successful authenticated tool discovery establishes readiness. A valid-looking URL alone does not prove a working connection. Read environment identity/projects to check the intended machine without starting a coding job.
 

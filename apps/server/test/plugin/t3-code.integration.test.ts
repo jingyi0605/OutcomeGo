@@ -78,9 +78,12 @@ test.skipIf(!databaseUrl)(
         (p) => p.pluginKey === plugin.key
       )!.connections[0]!;
       expect(first.configured).toBe(false);
+      const privateEndpoint = "http://192.168.1.5:3773/mcp";
+      await client.savePluginConfiguration(first.id, { values: { mcpUrl: privateEndpoint } });
+      expect((await client.pluginConfiguration(first.id)).endpoint).toBe(privateEndpoint);
       await expect(
         client.savePluginConfiguration(first.id, {
-          values: { mcpUrl: "http://192.168.1.5:3773/mcp" },
+          values: { mcpUrl: "http://mcp.example.com:3773/mcp" },
         })
       ).rejects.toThrow("HTTPS");
       await expect(
@@ -150,7 +153,7 @@ test.skipIf(!databaseUrl)(
       expect((changed.credentials as any).oauth).toBeUndefined();
       expect(changed.status).toBe("disconnected");
       await expect(
-        client.savePluginConfiguration(second.id, { endpoint: "http://192.168.0.1/mcp" })
+        client.savePluginConfiguration(second.id, { endpoint: "http://8.8.8.8/mcp" })
       ).rejects.toThrow("HTTPS");
     } finally {
       other.close();

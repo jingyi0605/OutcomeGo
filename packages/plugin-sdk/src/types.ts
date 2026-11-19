@@ -4,14 +4,13 @@ export interface PluginField {
   key: string;
   label: string;
   type?: "string" | "number" | "integer" | "boolean";
-  /** A remote MCP endpoint: HTTPS, or HTTP on the client's loopback interface. */
   required: boolean;
   secret: boolean;
   default?: ConfigValue;
   enum?: ConfigValue[];
   placeholder?: string;
   helpText?: string | null;
-  /** Validate a self-hosted service's HTTPS origin without credentials or a path. */
+  /** Validate an MCP endpoint (HTTPS or local-network HTTP), or a bare HTTPS origin. */
   format?: "mcp-url" | "https-origin";
   /** Preserve significant whitespace, for example in a vault's master password. */
   preserveWhitespace?: boolean;

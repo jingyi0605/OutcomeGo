@@ -31,7 +31,7 @@
         "required": true,
         "secret": false,
         "placeholder": "https://your-environment.t3coderelay.com/mcp",
-        "helpText": "Paste the full URL ending in /mcp, not a pairing link or approval code. HTTPS is required except for localhost."
+        "helpText": "Paste the full URL ending in /mcp, not a pairing link or approval code. HTTPS is required except for localhost or private IP addresses."
       }
     ],
     "requiredScopes": ["orchestration:read", "orchestration:operate"]

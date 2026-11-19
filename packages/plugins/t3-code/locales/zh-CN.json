@@ -9,7 +9,7 @@
   "Authorize OpenTeam on T3's page. If T3 asks for a one-time approval code, enter it there; OpenTeam does not save that code.": "在 T3 页面上授权 OpenTeam。如果 T3 要求一次性批准码，请在那里输入；OpenTeam 不会保存该批准码。",
   "Choose your access level in T3. Read only can inspect threads. Auto lets the coding provider review routine actions automatically and ask about others; it is not unrestricted access.": "在 T3 中选择访问级别。只读权限可以查看线程；自动模式允许编码服务商自动审核常规操作，并就其他操作提问；它不是无限制访问。",
   "Return to OpenTeam. The connection is ready after its authenticated MCP tool discovery succeeds. Keep the T3 host online.": "返回 OpenTeam。认证后的 MCP 工具发现成功后，连接即可使用。请保持 T3 主机在线。",
-  "Paste the full URL ending in /mcp, not a pairing link or approval code. HTTPS is required except for localhost.": "粘贴以 /mcp 结尾的完整地址，不要粘贴配对链接或批准码。除 localhost 外必须使用 HTTPS。",
+  "Paste the full URL ending in /mcp, not a pairing link or approval code. HTTPS is required except for localhost or private IP addresses.": "粘贴以 /mcp 结尾的完整地址，不要粘贴配对链接或批准码。除 localhost 和私有 IP 地址外必须使用 HTTPS。",
   "Implement features, fix bugs, run tests, or research code through a connected T3 Code environment; start a worktree thread and follow its verified result.": "通过已连接的 T3 Code 环境实现功能、修复问题、运行测试或研究代码；发起一个 worktree 线程并跟踪经过验证的结果。",
   "Inspect T3 Code projects and existing threads, report progress, send follow-ups, or stop a specified remote coding run.": "查看 T3 Code 项目和已有线程、报告进度、发送后续消息，或停止指定的远程编码运行。",
   "Connect T3 Code or diagnose its MCP URL, sign-in, Auto access, offline host, or missing project/provider.": "连接 T3 Code，或诊断其 MCP 地址、登录、自动访问、离线主机或缺少项目/服务商的问题。"
