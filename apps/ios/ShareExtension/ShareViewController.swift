@@ -82,6 +82,13 @@ struct SharedFile: Identifiable {
   let suggested: String?
   private let context: NSExtensionContext?
   private var api: API?
+  private var owner: SessionRecord?
+
+  private func validateOwner(_ expected: SessionRecord) throws {
+    guard let current = try SecureSession.read(), current.sameCredentials(as: expected) else {
+      throw APIError("Your OutcomeGo account changed. Choose the conversation again.")
+    }
+  }
   private var itemsLoaded = false
   private var uploaded: [UUID: Asset] = [:]
   private var clientIDs: [String: String] = [:]
@@ -129,15 +136,23 @@ struct SharedFile: Identifiable {
         return
       }
       let api = try API(server: session.server, token: session.token)
+      let bootstrap = try await api.get("/api/v0/client-bootstrap", as: Bootstrap.self)
+      try validateOwner(session)
+      if let owner, !owner.sameCredentials(as: session) {
+        selected = []; sent = []; uploaded = [:]; clientIDs = [:]; photos = [:]
+      }
+      owner = session
       self.api = api
-      targets = Self.targets(try await api.get("/api/v0/client-bootstrap", as: Bootstrap.self))
+      targets = Self.targets(bootstrap)
       if let suggested, let index = targets.firstIndex(where: { $0.id == suggested }) {
         targets.insert(targets.remove(at: index), at: 0)
         if selected.isEmpty { selected = [suggested] }
       }
       phase = .ready
       for target in targets where target.bot?.hasAvatar ?? target.channel.hasAvatar {
-        photos[target.id] = await ConversationDonation.avatar(channel: target.channel, bot: target.bot, api: api)
+        let photo = await ConversationDonation.avatar(channel: target.channel, bot: target.bot, api: api)
+        try validateOwner(session)
+        photos[target.id] = photo
       }
     } catch let failure as APIError where failure.unauthorized {
       phase = .signedOut
@@ -192,29 +207,34 @@ struct SharedFile: Identifiable {
   /// Uploads each file once, then posts one message per chosen conversation. A retry reuses the
   /// uploaded assets and each conversation's client ID, so the server never duplicates a message.
   func send() async {
-    guard let api, canSend else { return }
+    guard let api, let owner, canSend else { return }
     sending = true
     error = nil
     defer { sending = false }
     do {
+      try validateOwner(owner)
       var assets: [Asset] = []
       for file in files {
+        try validateOwner(owner)
         if let asset = uploaded[file.id] {
           assets.append(asset)
           continue
         }
         let asset = try await upload(file, api: api)
+        try validateOwner(owner)
         uploaded[file.id] = asset
         assets.append(asset)
       }
       let content = text.trimmingCharacters(in: .whitespacesAndNewlines)
       for id in selected where !sent.contains(id) {
+        try validateOwner(owner)
         guard let target = targets.first(where: { $0.id == id }) else { continue }
         let clientID = clientIDs[id] ?? UUID().uuidString
         clientIDs[id] = clientID
         _ = try await api.send(
           channel: target.channel, bot: target.bot,
           input: SendInput(content: content, clientId: clientID, attachments: assets))
+        try validateOwner(owner)
         sent.insert(id)
         ConversationDonation.donateSent(
           channel: target.channel, bot: target.bot, image: photos[id] ?? target.avatars.first)

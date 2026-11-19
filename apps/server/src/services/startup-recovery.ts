@@ -1,5 +1,5 @@
 import type { PrismaClient } from "@outcomego/db";
-import { type AgentMessaging, renderSubagentRevivalPrompt, subagentRevivalBlock, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@outcomego/messaging";
+import { type AgentMessaging, renderSubagentRevivalPrompt, subagentRevivalBlock, recoverTaskInterruption, TASK_RECOVERY_LOCK, automationRetryDelay, requeueAutomationWake, lockAgentLifecycle } from "@outcomego/messaging";
 import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
 import type { AssetRef } from "@outcomego/contracts";
 import { subagentTitle } from "@outcomego/contracts/subagent-dispatch";
@@ -37,7 +37,7 @@ export async function recover(
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${TASK_RECOVERY_LOCK}))`;
     const activeRuns = await tx.run.findMany({
       where: { status: { in: [...SUBAGENT_RECOVERY_RUN_STATUSES] } },
-      include: { bot: { select: { status: true } }, inboxEvents: { take: 1, select: { payload: true } } },
+      include: { bot: { select: { status: true } }, inboxEvents: { take: 1, select: { id: true, type: true, attempts: true, payload: true } } },
     });
     // On a server-only restart the computer may still be executing. Settle its
     // old turn before scheduling reconciliation; a database status alone does
@@ -67,8 +67,22 @@ export async function recover(
       },
       select: { id: true, botId: true, channelId: true },
     });
+    const retriedAutomationRuns = new Set<string>();
+    for (const run of activeRuns) {
+      const inbox = run.inboxEvents[0];
+      if (run.status !== "running" || !inbox || automationRetryDelay(inbox.type, inbox.attempts) === null) continue;
+      // The exclusive recovery gate has stopped the previous runtime. Keep the same
+      // durable wake only if it has not acted; ordinary user recovery stays unchanged.
+      await lockAgentLifecycle(tx, run.botId);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${run.botId}`}))`;
+      await tx.$executeRaw`SELECT id FROM "outcomego_run" WHERE id = ${run.id}::uuid FOR NO KEY UPDATE`;
+      const delay = await requeueAutomationWake(tx, {
+        botId: run.botId, runId: run.id, inboxId: inbox.id, attempt: inbox.attempts,
+      }, new Error("Runtime restarted before automation acted"));
+      if (delay !== null) retriedAutomationRuns.add(run.id);
+    }
     const interrupted = await tx.run.updateMany({
-      where: { id: { in: activeRunIds }, status: "running" },
+      where: { id: { in: activeRunIds.filter((id) => !retriedAutomationRuns.has(id)) }, status: "running" },
       data: {
         status: "interrupted",
         completedAt: now,
@@ -274,7 +288,7 @@ export async function recover(
     // Ask for a resend only when no saved continuation will recover this turn.
     // A failed Task's parent also speaks through its own wake instead.
     for (const run of cutOffTurns) {
-      if (!run.channelId || subagentRunIds.has(run.id) || reconciledRunIds.has(run.id) || wokenParents.has(`${run.botId}:${run.channelId}`)) continue;
+      if (!run.channelId || retriedAutomationRuns.has(run.id) || subagentRunIds.has(run.id) || reconciledRunIds.has(run.id) || wokenParents.has(`${run.botId}:${run.channelId}`)) continue;
       await tx.channelMessage.createMany({
         data: [{
           channelId: run.channelId,

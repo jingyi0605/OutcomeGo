@@ -1,4 +1,4 @@
-import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "@outcomego/messaging";
+import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
 import {
   isManagedDraftWake,
   isTreatmentDraftWake,
@@ -73,12 +73,16 @@ import { Projection } from "./projection";
 import { workContinuously } from "./queue-dispatch";
 import { consumeComputerEvents } from "./computer-events";
 import { PushNotificationDispatcher } from "./push-notifications";
+import { lockWakeAttempt, ownsWakeAttempt, type WakeAttempt } from "./wake-attempt";
+
+export { AUTOMATION_ATTEMPT_LIMIT, AUTOMATION_RETRY_DELAYS_MS } from "@outcomego/messaging";
 
 const LEASE_MS = 2 * 60_000;
 /** Tries at a first greeting the computer cut off, the first included. */
 export const BOOTSTRAP_ATTEMPT_LIMIT = 4;
 /** How often a cut-off greeting asks whether the computer is ready again. */
 export const BOOTSTRAP_RETRY_PROBE_MS = 5_000;
+export const STALLED_WAKE_SCAN_MS = 30_000;
 export const AUTOMATION_RECONCILE_BATCH_SIZE = 8;
 export const TRANSCRIPT_FINGERPRINT_TTL_MS = 5_000;
 export const TRANSCRIPT_FINGERPRINT_CACHE_MAX_ENTRIES = 1_024;
@@ -167,18 +171,14 @@ interface TranscriptData {
   botId: string;
 }
 
-interface Claimed {
-  inboxId: string;
+interface Claimed extends WakeAttempt {
   inboxType: string;
-  runId: string;
-  botId: string;
   contextSessionId: string;
   /** The run's own channel; null for a home run. */
   runChannelId: string | null;
   screenBotId: string;
   pluginBotId: string;
   conversationId: string;
-  ownerId: string;
   content: string;
   images: RuntimeInlineImage[];
   clientId: string;
@@ -199,6 +199,11 @@ interface Claimed {
   /** The non-user run this typed message superseded. */
   interruptedRunId: string | null;
 }
+
+type SettlementClaim = Pick<Claimed,
+  "botId" | "runId" | "inboxId" | "inboxType" | "ownerId" | "attempt" |
+  "origin" | "runtimeProfile" | "channelId" | "runChannelId" | "deliveryId"
+>;
 
 export const contextScopeForRun = (
   origin: RunOrigin,
@@ -523,6 +528,8 @@ export class WakeWorker {
   private memoryReviewScanActive = false;
   private memoryReviewCursor: string | null = null;
   private readonly memoryReviews = new Map<string, Promise<void>>();
+  private stalledWakeTimer: ReturnType<typeof setInterval> | null = null;
+  private stalledWakeScanActive = false;
   private reconcilingAgentStores = false;
   private routinePassActive = false;
   private automationReconcileCursor: string | null = null;
@@ -591,6 +598,7 @@ export class WakeWorker {
     await this.messaging.recoverRounds();
     await this.recoverDurableWork();
     await this.recoverMemoryReviews();
+    await this.kickStalledWakes();
     await dispatchTaskContinuations(this.prisma, this.messaging);
     await dispatchRequestChecks(this.prisma, this.messaging);
     await recoverRequestProgress(this.prisma, this.messaging);
@@ -644,6 +652,10 @@ export class WakeWorker {
       void this.recoverMemoryReviews().catch((error) => console.error("memory review recovery", error));
     }, 5_000);
     this.memoryReviewTimer.unref();
+    this.stalledWakeTimer = setInterval(() => {
+      void this.kickStalledWakes().catch((error) => console.error("stalled wake recovery", error));
+    }, STALLED_WAKE_SCAN_MS);
+    this.stalledWakeTimer.unref();
   }
 
   async stop(): Promise<void> {
@@ -656,6 +668,8 @@ export class WakeWorker {
     this.pushNotificationTimer = null;
     if (this.memoryReviewTimer) clearInterval(this.memoryReviewTimer);
     this.memoryReviewTimer = null;
+    if (this.stalledWakeTimer) clearInterval(this.stalledWakeTimer);
+    this.stalledWakeTimer = null;
     await this.boss.stop({ graceful: true });
     await Promise.allSettled([...this.concurrentAutomations]);
     await Promise.allSettled([...this.memoryReviews.values()]);
@@ -909,6 +923,65 @@ export class WakeWorker {
       await this.boss.send("transcript-project", { botId: bot.id });
     }
     return adopted;
+  }
+
+  /** Durable rows survive a missed queue notification, an expired owner and a crash
+   * between completion projection and inbox settlement. Never interrupt a live lease. */
+  async kickStalledWakes(): Promise<void> {
+    if (this.stalledWakeScanActive) return;
+    this.stalledWakeScanActive = true;
+    try {
+      const now = new Date();
+      const terminal = await this.prisma.inboxEvent.findMany({
+        where: {
+          status: "processing",
+          run: {
+            status: { in: ["completed", "cancelled"] },
+            NOT: { lease: { is: { expiresAt: { gt: now } } } },
+          },
+        },
+        orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+        include: { run: { include: { lease: true } }, bot: { select: { subagentIdentity: { select: { id: true } } } } },
+        take: 100,
+      });
+      for (const inbox of terminal) {
+        try {
+          await this.settleCompletedWake({
+            botId: inbox.botId, runId: inbox.runId, inboxId: inbox.id, inboxType: inbox.type,
+            attempt: inbox.attempts, ownerId: inbox.run.lease?.ownerId ?? "",
+            origin: inbox.run.origin, runtimeProfile: inbox.bot.subagentIdentity ? "subagent" : "agent",
+            channelId: inbox.run.channelId ?? "", runChannelId: inbox.run.channelId, deliveryId: inbox.run.deliveryId,
+          });
+        } catch (error) {
+          console.error("deferred wake settlement", { runId: inbox.runId, error });
+        }
+      }
+      const stalled = await this.prisma.inboxEvent.findMany({
+        where: {
+          availableAt: { lte: now }, bot: { status: "active" },
+          OR: [
+            { status: "pending" },
+            { status: "processing", claimedAt: { lt: new Date(now.getTime() - LEASE_MS) } },
+          ],
+          run: {
+            status: { in: ["queued", "running"] },
+            NOT: { lease: { is: { expiresAt: { gt: now } } } },
+          },
+        },
+        orderBy: [{ availableAt: "asc" }, { id: "asc" }],
+        distinct: ["botId"], select: { botId: true }, take: 100,
+      });
+      for (const { botId } of stalled) {
+        await this.boss.send("bot-wake", { botId }, {
+          retryLimit: 5, retryDelay: 2, retryBackoff: true, expireInSeconds: 3 * 60,
+        });
+      }
+      if (terminal.length || stalled.length) console.info("wake recovery sweep", {
+        terminal: terminal.length, queuedBots: stalled.length,
+      });
+    } finally {
+      this.stalledWakeScanActive = false;
+    }
   }
 
   private async recoverDurableWork(): Promise<void> {
@@ -1322,8 +1395,10 @@ export class WakeWorker {
       const claimed = await this.claim(botId);
       if (!claimed) return;
       if (["routine", "outcome"].includes(claimed.origin)) {
-        const task = this.execute(claimed).catch(() => {
-          console.warn("Automation execution failed; durable recovery will reconcile its run", { runId: claimed.runId });
+        const task = this.execute(claimed).catch((error) => {
+          console.warn("Automation execution failed; durable recovery will reconcile its run", {
+            runId: claimed.runId, error: error instanceof Error ? error.message : String(error),
+          });
         }).finally(() => {
           this.concurrentAutomations.delete(task);
           if (!this.stopping) void this.handle(job).catch(() => { if (!this.stopping) console.warn("Automation queue resume failed", { botId }); });
@@ -1491,6 +1566,16 @@ export class WakeWorker {
           const conflicting = peers.filter(peer => outcomeParents.has(identity.parentRunId) || outcomeParents.has(peer.parentRunId));
           if (await tx.botRunLease.count({ where: { botId: { in: conflicting.map(peer => peer.childBotId) }, expiresAt: { gt: new Date() }, run: { status: "running" } } })) return null;
         }
+        if (inbox.run.origin === "bootstrap") {
+          // The first user message locks Bot before cancelling the greeting's Run.
+          // Claim in that order too, then recheck the snapshot before reviving work.
+          const [bot] = await tx.$queryRaw<Array<{ status: string; onboardingStatus: string }>>`
+            SELECT "status", "onboardingStatus" FROM "outcomego_bot" WHERE "id" = ${botId} FOR NO KEY UPDATE`;
+          const current = await tx.inboxEvent.findUnique({ where: { id: inbox.id }, include: { run: true } });
+          if (!bot || bot.status !== "active" || !["pending", "queued", "running"].includes(bot.onboardingStatus) ||
+              !current || !["queued", "running"].includes(current.run.status) ||
+              !(current.status === "pending" || (current.status === "processing" && current.claimedAt && current.claimedAt < staleAt))) return null;
+        }
         if (inbox.run.deliveryId && inbox.run.channelId) {
           // Selection is only a snapshot. Serialize the claim with room
           // supersession before changing any inbox, delivery, or run state.
@@ -1653,6 +1738,7 @@ export class WakeWorker {
           ...runtimeOwners,
           conversationId: inbox.conversationId,
           ownerId,
+          attempt: inbox.attempts + 1,
           content: batch?.content ?? payload.content,
           interruptedRunId: typeof payload.interruptedRunId === "string" ? payload.interruptedRunId : null,
           images: await this.messaging.assets.runtimeImages(assetRefs(payload.attachments)),
@@ -1690,8 +1776,6 @@ export class WakeWorker {
   }
 
   private async execute(claimed: Claimed): Promise<void> {
-    const needsMemoryReview = claimed.runtimeProfile === "agent" &&
-      ["user", "group"].includes(claimed.origin) && claimed.inboxType !== "user.reaction";
     const heartbeat = setInterval(() => {
       void this.heartbeat(claimed).catch((error) => console.error("run heartbeat", error));
     }, 30_000);
@@ -1767,12 +1851,16 @@ export class WakeWorker {
             reasoning: inferenceParent.inferenceReasoning
               ? normalizePiReasoningLevel(inferenceParent.inferenceReasoning) : inference.reasoning }
         : inference;
-      await this.prisma.run.update({ where: { id: claimed.runId }, data: {
-        inferenceProvider: selectedInference.providerId,
-        inferenceModel: selectedInference.modelId,
-        inferenceReasoning: selectedInference.reasoning,
-        taskConfiguration: JSON.parse(JSON.stringify(taskConfiguration)),
-      } });
+      await this.prisma.$transaction(async (tx) => {
+        await lockWakeAttempt(tx, claimed);
+        if (!(await ownsWakeAttempt(tx, claimed))) throw new Error("Wake attempt was superseded before dispatch");
+        await tx.run.update({ where: { id: claimed.runId }, data: {
+          inferenceProvider: selectedInference.providerId,
+          inferenceModel: selectedInference.modelId,
+          inferenceReasoning: selectedInference.reasoning,
+          taskConfiguration: JSON.parse(JSON.stringify(taskConfiguration)),
+        } });
+      });
       const turnRequest = {
         runId: claimed.runId,
         credentialScopeId: claimed.inferenceParentRunId ?? claimed.runId,
@@ -1833,16 +1921,17 @@ export class WakeWorker {
         },
         body: JSON.stringify(turnRequest),
         signal: AbortSignal.any([streamAbort.signal, dispatchSignal, AbortSignal.timeout(24 * 60 * 60_000)]),
-      }));
+      }), 60_000, claimed);
       if (!response.ok || !response.body) {
         throw new Error(`Computer rejected turn: ${response.status} ${await response.text()}`);
       }
       await consumeComputerEvents(response.body, async (event) => {
+        const projected = await this.projection.apply(claimed.runId, claimed.conversationId, claimed.botId, event, claimed);
+        if (!projected) throw new Error("Wake attempt was superseded during streaming");
         if (event.type === "prompt.delivered") {
           await this.prisma.run.updateMany({ where: { botId: claimed.botId, id: { in: [claimed.runId, ...missed.map((input) => input.runId)] }, inputDeliveredAt: null }, data: { inputDeliveredAt: new Date() } });
           await this.messaging.acknowledgePlatformPrompt(claimed.botId, claimed.contextSessionId, platformPrompt);
         }
-        await this.projection.apply(claimed.runId, claimed.conversationId, claimed.botId, event);
         // Only completion transitions can enqueue a push. Token
         // deltas are frequent and previously caused two empty outbox scans
         // per NDJSON event; the 2s safety timer still covers every other path.
@@ -1857,64 +1946,7 @@ export class WakeWorker {
         throw new Error("Computer stream ended without an authoritative turn completion");
       const completionFailure = turnCompletionFailure(completion);
       if (completionFailure) throw completionFailure;
-      await this.prisma.$transaction(async (tx) => {
-        if (claimed.origin === "routine") await this.lockRoutineRunLifecycle(tx, claimed.runId);
-        if (needsMemoryReview) await lockAgentLifecycle(tx, claimed.botId);
-        const completedAt = new Date();
-        await tx.inboxEvent.update({
-          where: { id: claimed.inboxId },
-          data: { status: "completed", completedAt },
-        });
-        if (needsMemoryReview) {
-          // Commit the review intent with settlement, before publication or inference.
-          const bot = await tx.bot.findUniqueOrThrow({ where: { id: claimed.botId }, select: { memoryRevision: true } });
-          const shared = await tx.memoryRevision.findUnique({ where: { scope: "user" }, select: { revision: true } });
-          await tx.run.update({ where: { id: claimed.runId }, data: {
-            memoryReviewPending: true,
-            memoryReviewRevision: bot.memoryRevision + (shared?.revision ?? 0),
-          } });
-        }
-        const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
-        if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
-        await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
-        if (claimed.origin === "bootstrap") {
-          const onboarding = await tx.bot.updateMany({
-            where: { id: claimed.botId, onboardingStatus: "running" },
-            data: {
-              onboardingStatus: "completed",
-              onboardingCompletedAt: completedAt,
-            },
-          });
-          if (onboarding.count > 0) {
-            await tx.event.create({
-              data: {
-                topic: "bot.bootstrap.completed",
-                entityId: claimed.botId,
-                payload: { botId: claimed.botId, runId: claimed.runId },
-              },
-            });
-          }
-        }
-        await tx.botRunLease.deleteMany({
-          where: { botId: claimed.botId, ownerId: claimed.ownerId },
-        });
-        await tx.event.create({
-          data: {
-            topic: "inbox.completed",
-            entityId: claimed.inboxId,
-            payload: { inboxId: claimed.inboxId, runId: claimed.runId },
-          },
-        });
-        await this.messaging.scheduleTranscriptProjection(tx, [claimed.botId]);
-        await this.completeSubagent(tx, claimed);
-        if (claimed.runtimeProfile !== "subagent" && !["routine", "outcome"].includes(claimed.origin)) await settleRequestProgress(tx, this.messaging, claimed.botId, claimed.runId);
-      });
-      // Memory extraction needs the published replies, not the buffered group outbox.
-      if (claimed.deliveryId) {
-        await this.messaging.completeDelivery(claimed.deliveryId, "completed", undefined, claimed.runId);
-      }
-      if (needsMemoryReview) await this.reviewMemoryRun(claimed.runId);
-      await this.syncRoutineRunFile(claimed.botId, claimed.runId);
+      await this.settleCompletedWake(claimed);
     } catch (error) {
       // Without a completion the computer never settled the turn: it was
       // unreachable or went away mid-stream. A reported failure is final.
@@ -1922,6 +1954,81 @@ export class WakeWorker {
     } finally {
       clearInterval(heartbeat);
     }
+  }
+
+  private async settleCompletedWake(claimed: SettlementClaim): Promise<void> {
+    const needsMemoryReview = claimed.runtimeProfile === "agent" &&
+      ["user", "group"].includes(claimed.origin ?? "") && claimed.inboxType !== "user.reaction";
+    const settlement = await this.prisma.$transaction(async (tx) => {
+      await lockWakeAttempt(tx, claimed);
+      if (!(await ownsWakeAttempt(tx, claimed, true))) return null;
+      const current = await tx.run.findUnique({ where: { id: claimed.runId } });
+      const inbox = await tx.inboxEvent.findUnique({ where: { id: claimed.inboxId } });
+      if (!inbox || inbox.status === "failed") return null;
+      if (current?.status === "cancelled") return "cancelled" as const;
+      if (current?.status !== "completed") return null;
+      if (inbox.status === "completed") return "already-settled" as const;
+      const completedAt = new Date();
+      await tx.inboxEvent.update({
+        where: { id: claimed.inboxId },
+        data: { status: "completed", completedAt },
+      });
+      if (needsMemoryReview) {
+        // Commit the review intent with settlement, before publication or inference.
+        const bot = await tx.bot.findUniqueOrThrow({ where: { id: claimed.botId }, select: { memoryRevision: true } });
+        const shared = await tx.memoryRevision.findUnique({ where: { scope: "user" }, select: { revision: true } });
+        await tx.run.update({ where: { id: claimed.runId }, data: {
+          memoryReviewPending: true,
+          memoryReviewRevision: bot.memoryRevision + (shared?.revision ?? 0),
+        } });
+      }
+      const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
+      if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
+      await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
+      if (claimed.origin === "bootstrap") {
+        const onboarding = await tx.bot.updateMany({
+          where: { id: claimed.botId, onboardingStatus: "running" },
+          data: {
+            onboardingStatus: "completed",
+            onboardingCompletedAt: completedAt,
+          },
+        });
+        if (onboarding.count > 0) {
+          await tx.event.create({
+            data: {
+              topic: "bot.bootstrap.completed",
+              entityId: claimed.botId,
+              payload: { botId: claimed.botId, runId: claimed.runId },
+            },
+          });
+        }
+      }
+      await tx.botRunLease.deleteMany({
+        where: { botId: claimed.botId, ownerId: claimed.ownerId },
+      });
+      await tx.event.create({
+        data: {
+          topic: "inbox.completed",
+          entityId: claimed.inboxId,
+          payload: { inboxId: claimed.inboxId, runId: claimed.runId },
+        },
+      });
+      await this.messaging.scheduleTranscriptProjection(tx, [claimed.botId]);
+      await this.completeSubagent(tx, claimed);
+      if (claimed.runtimeProfile !== "subagent" && !["routine", "outcome"].includes(claimed.origin ?? "")) await settleRequestProgress(tx, this.messaging, claimed.botId, claimed.runId);
+      return "settled" as const;
+    });
+    if (!settlement) return;
+    if (settlement === "cancelled") {
+      await this.fail(claimed, new TurnStoppedError("Turn was stopped before completion settled"));
+      return;
+    }
+    // A committed completion remains successful when delivery or file sync needs another pass.
+    if (claimed.deliveryId) {
+      await this.messaging.completeDelivery(claimed.deliveryId, "completed", undefined, claimed.runId);
+    }
+    if (settlement === "settled" && needsMemoryReview) await this.reviewMemoryRun(claimed.runId);
+    await this.syncRoutineRunFile(claimed.botId, claimed.runId);
   }
 
   private async reconcileContextState(claimed: Claimed): Promise<void> {
@@ -1937,7 +2044,9 @@ export class WakeWorker {
     if (event.type !== "context.state" || event.contextSessionId !== claimed.contextSessionId) {
       throw new Error("Computer returned an invalid context-state preflight response");
     }
-    await this.projection.apply(claimed.runId, claimed.conversationId, claimed.botId, event);
+    if (!(await this.projection.apply(claimed.runId, claimed.conversationId, claimed.botId, event, claimed))) {
+      throw new Error("Wake attempt was superseded during context reconciliation");
+    }
   }
 
   private async heartbeat(claimed: Claimed): Promise<void> {
@@ -1948,8 +2057,8 @@ export class WakeWorker {
       await this.computerFetch(COMPUTER_API_PATHS.turnCancel(claimed.runId), { method: "POST" }).catch(() => undefined);
     }
     const renewed = await this.prisma.botRunLease.updateMany({
-      where: { botId: claimed.botId, ownerId: claimed.ownerId,
-        ...(claimed.origin === "outcome" ? { runId: claimed.runId, expiresAt: { gt: new Date() } } : {}) },
+      where: { botId: claimed.botId, ownerId: claimed.ownerId, expiresAt: { gt: new Date() },
+        ...(claimed.origin === "outcome" ? { runId: claimed.runId } : {}) },
       data: {
         heartbeatAt: new Date(),
         expiresAt: new Date(Date.now() + LEASE_MS),
@@ -1980,10 +2089,11 @@ export class WakeWorker {
    * back in line instead of failing it; the computer's input receipt resumes
    * it without repeating the prompt, and a user who speaks first still skips it.
    */
-  private async requeueInterruptedBootstrap(claimed: Claimed, error: unknown): Promise<boolean> {
+  private async requeueInterruptedBootstrap(claimed: SettlementClaim, error: unknown): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
-      // skipBootstrapForUser takes the same row lock.
-      await tx.$queryRaw`SELECT "id" FROM "outcomego_bot" WHERE "id" = ${claimed.botId} FOR NO KEY UPDATE`;
+      await lockWakeAttempt(tx, claimed);
+      if (!(await ownsWakeAttempt(tx, claimed))) return false;
+      // lockWakeAttempt takes the same bot row as skipBootstrapForUser, before Run.
       const bot = await tx.bot.findUnique({
         where: { id: claimed.botId },
         select: { status: true, onboardingStatus: true },
@@ -2079,7 +2189,7 @@ export class WakeWorker {
   }
 
   /** A wake cut off by a typed or priority message runs again after it, a bounded number of times. */
-  private async redriveSupersededWake(tx: Prisma.TransactionClient, claimed: Claimed): Promise<void> {
+  private async redriveSupersededWake(tx: Prisma.TransactionClient, claimed: SettlementClaim): Promise<void> {
     const limit = WAKE_REDRIVE_LIMITS[claimed.origin];
     if (!limit) return;
     const inbox = await tx.inboxEvent.findUnique({
@@ -2127,7 +2237,7 @@ export class WakeWorker {
     if (run?.origin === "routine") await lockAgentLifecycle(tx, run.botId);
   }
 
-  private async fail(claimed: Claimed, error: unknown, interrupted = false): Promise<void> {
+  private async fail(claimed: SettlementClaim, error: unknown, interrupted = false): Promise<void> {
     if (
       interrupted &&
       claimed.origin === "bootstrap" &&
@@ -2136,15 +2246,38 @@ export class WakeWorker {
       void this.wakeBootstrapWhenComputerReady(claimed.botId);
       return;
     }
+    if (!(error instanceof TurnStoppedError) && automationRetryDelay(claimed.inboxType, claimed.attempt) !== null) {
+      const delay = await this.prisma.$transaction(async (tx) => {
+        await lockWakeAttempt(tx, claimed);
+        if (!(await ownsWakeAttempt(tx, claimed))) return null;
+        return requeueAutomationWake(tx, claimed, error);
+      });
+      if (delay !== null) {
+        console.warn("Automation retry queued", {
+          runId: claimed.runId, inboxId: claimed.inboxId, attempt: claimed.attempt,
+          nextAttempt: claimed.attempt + 1, attemptLimit: AUTOMATION_ATTEMPT_LIMIT, delayMs: delay,
+        });
+        await this.boss.send("bot-wake", { botId: claimed.botId }, {
+          startAfter: Math.ceil(delay / 1000), retryLimit: 5, retryDelay: 2,
+          retryBackoff: true, expireInSeconds: 3 * 60,
+        });
+        return;
+      }
+    }
     const details = {
       code: "runtime_interrupted",
       message: error instanceof Error ? error.message : String(error),
     } satisfies Prisma.InputJsonObject;
     let priorityInterrupted = false;
+    let projectedCompletion = false;
+    let ignored = false;
     await this.prisma.$transaction(async (tx) => {
-      if (claimed.origin === "routine") await this.lockRoutineRunLifecycle(tx, claimed.runId);
-      await tx.$executeRaw`SELECT id FROM "outcomego_run" WHERE id = ${claimed.runId}::uuid FOR NO KEY UPDATE`;
+      await lockWakeAttempt(tx, claimed);
+      if (!(await ownsWakeAttempt(tx, claimed, true))) { ignored = true; return; }
       const current = await tx.run.findUnique({ where: { id: claimed.runId } });
+      if (current?.status === "completed") { projectedCompletion = true; return; }
+      const inbox = await tx.inboxEvent.findUnique({ where: { id: claimed.inboxId }, select: { status: true } });
+      if (inbox?.status !== "processing") { ignored = true; return; }
       const currentError =
         current?.error && !Array.isArray(current.error) && typeof current.error === "object"
           ? (current.error as Prisma.InputJsonObject)
@@ -2158,13 +2291,10 @@ export class WakeWorker {
       const explicitlyStopped = error instanceof TurnStoppedError || (!!current && requestIsStopped(current));
       priorityInterrupted = !explicitlyStopped && (currentError?.code === "priority_peer_interrupt" ||
         (Boolean(supersededByUser) && current?.status !== "failed"));
-      let failureDetails: Prisma.InputJsonObject = details;
-      if (explicitlyStopped) {
-        failureDetails = currentError && currentError.code !== "priority_peer_interrupt"
-          ? currentError : { code: "cancelled_by_user", message: "The user stopped this turn" };
-      } else if ((priorityInterrupted || current?.status === "cancelled") && currentError) {
-        failureDetails = currentError;
-      }
+      const cancellationDetails = current?.status === "cancelled" && currentError?.code !== "priority_peer_interrupt" ? currentError : null;
+      const failureDetails = explicitlyStopped
+        ? cancellationDetails ?? { code: "cancelled_by_user", message: error instanceof Error ? error.message : "The user stopped this turn" }
+        : (priorityInterrupted || current?.status === "cancelled") && currentError ? currentError : details;
       const finalStatus =
         current?.status === "cancelled" || (explicitlyStopped && current?.status !== "failed")
           ? "cancelled"
@@ -2276,6 +2406,11 @@ export class WakeWorker {
       await this.messaging.scheduleTranscriptProjection(tx, [claimed.botId]);
       await this.failSubagent(tx, claimed, failureDetails, interrupted, finalStatus === "cancelled");
     });
+    if (ignored) return;
+    if (projectedCompletion) {
+      await this.settleCompletedWake(claimed);
+      return;
+    }
     await this.syncRoutineRunFile(claimed.botId, claimed.runId);
     if (claimed.deliveryId) {
       if (claimed.origin === "group" && priorityInterrupted) {
@@ -2465,7 +2600,7 @@ export class WakeWorker {
     if (reviewed) await this.prisma.run.updateMany({ where: { id: runId }, data: { memoryReviewPending: false } });
   }
 
-  private async completeSubagent(tx: Prisma.TransactionClient, claimed: Claimed): Promise<void> {
+  private async completeSubagent(tx: Prisma.TransactionClient, claimed: SettlementClaim): Promise<void> {
     const subagent = await tx.subagent.findFirst({
       where: { childBotId: claimed.botId, currentRunId: claimed.runId },
     });
@@ -2552,7 +2687,7 @@ export class WakeWorker {
 
   private async failSubagent(
     tx: Prisma.TransactionClient,
-    claimed: Claimed,
+    claimed: SettlementClaim,
     details: Prisma.InputJsonObject,
     interrupted: boolean,
     stopped = false

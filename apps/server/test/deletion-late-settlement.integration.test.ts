@@ -14,7 +14,8 @@ for (const kind of ["completion", "failure"] as const) {
     const db = createPrismaClient(url!);
     const bot = await db.bot.create({ data: { name: "Late settlement", defaultDirectory: "/unused", status: "active", conversation: { create: {} } }, include: { conversation: true } });
     const run = await db.run.create({ data: { botId: bot.id, conversationId: bot.conversation!.id, userMessageId: crypto.randomUUID(), status: "running" } });
-    const inbox = await db.inboxEvent.create({ data: { botId: bot.id, conversationId: run.conversationId, runId: run.id, idempotencyKey: crypto.randomUUID(), type: "user.message", status: "processing", payload: {} } });
+    const inbox = await db.inboxEvent.create({ data: { botId: bot.id, conversationId: run.conversationId, runId: run.id, idempotencyKey: crypto.randomUUID(), type: "user.message", status: "processing", attempts: 1, payload: {} } });
+    if (kind === "failure") await db.botRunLease.create({ data: { botId: bot.id, runId: run.id, ownerId: "fixture", expiresAt: new Date(Date.now() + 120_000) } });
     const read = gate(), release = gate();
     let settlement: Promise<unknown> | undefined, archive: Promise<unknown> | undefined;
     try {
@@ -36,7 +37,7 @@ for (const kind of ["completion", "failure"] as const) {
           prisma: wrapped, messaging: { scheduleTranscriptProjection: async () => {} },
           routines: { afterExecution: async () => {} },
         });
-        settlement = worker.fail({ runId: run.id, botId: bot.id, inboxId: inbox.id, origin: "user", ownerId: "fixture" }, new Error("late disconnect"), true);
+        settlement = worker.fail({ runId: run.id, botId: bot.id, inboxId: inbox.id, origin: "user", ownerId: "fixture", attempt: 1 }, new Error("late disconnect"), true);
       }
       await read.promise;
       let archived = false;
@@ -111,7 +112,8 @@ test.skipIf(!url)("parent deletion and a child's failure settle without a run/su
       parentToolCallId: sub.launchCallId, childRunId: childRun.id,
       description: sub.description, prompt: sub.prompt, status: "running",
     } });
-    const inbox = await db.inboxEvent.create({ data: { botId: bots[1]!, conversationId: childRun.conversationId, runId: childRun.id, idempotencyKey: crypto.randomUUID(), type: "subagent.task", status: "processing", payload: {} } });
+    const inbox = await db.inboxEvent.create({ data: { botId: bots[1]!, conversationId: childRun.conversationId, runId: childRun.id, idempotencyKey: crypto.randomUUID(), type: "subagent.task", status: "processing", attempts: 1, payload: {} } });
+    await db.botRunLease.create({ data: { botId: bots[1]!, runId: childRun.id, ownerId: "fixture", expiresAt: new Date(Date.now() + 120_000) } });
     const wrapped = new Proxy(db, { get(target, key) {
       if (key !== "$transaction") return Reflect.get(target, key);
       return (work: any) => target.$transaction((tx: any) => work(new Proxy(tx, { get(inner, prop) {
@@ -126,7 +128,7 @@ test.skipIf(!url)("parent deletion and a child's failure settle without a run/su
       prisma: wrapped, messaging: { scheduleTranscriptProjection: async () => {} },
       routines: { afterExecution: async () => {} }, notifySubagentParent: async () => {},
     });
-    failure = worker.fail({ runId: childRun.id, botId: bots[1]!, inboxId: inbox.id, origin: "subagent", ownerId: "fixture" }, new Error("late disconnect"), true)
+    failure = worker.fail({ runId: childRun.id, botId: bots[1]!, inboxId: inbox.id, origin: "subagent", ownerId: "fixture", attempt: 1 }, new Error("late disconnect"), true)
       .then(() => ({}), (error: unknown) => ({ error: String(error) }));
     await read.promise;
     const service = new BotService(db, {} as never, "/unused", async () => Response.json({ ok: true }), files as never);
@@ -134,8 +136,7 @@ test.skipIf(!url)("parent deletion and a child's failure settle without a run/su
     let waiting = false;
     const deadline = Date.now() + 3000;
     while (!waiting && Date.now() < deadline) {
-      const rows = await db.$queryRaw<any[]>`SELECT pid FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND query LIKE '%outcomego_run%' AND query NOT LIKE '%pg_stat_activity%'`;
-      waiting = rows.length > 0;
+      const rows = await db.$queryRaw<any[]>`SELECT pid FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND (query LIKE '%outcomego_run%' OR query LIKE '%pg_advisory_xact_lock%') AND query NOT LIKE '%pg_stat_activity%'`;      waiting = rows.length > 0;
       if (!waiting) await Bun.sleep(2);
     }
     release.resolve();

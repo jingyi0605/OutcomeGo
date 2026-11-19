@@ -83,6 +83,7 @@ export function useVirtualWindow({
   const latestLayout = useRef<VirtualLayout | null>(null);
   const readingAnchor = useRef<{ index: number; key: string; viewportOffset: number } | null>(null);
   const resizeAnchor = useRef<typeof readingAnchor.current>(null);
+  const retainMeasurementAnchor = useRef(() => {});
   const observedNodes = useRef(new Map<Element, { index: number; key: string }>());
   const observedNodeByKey = useRef(new Map<string, HTMLElement>());
   const observerRef = useRef<ResizeObserver | null>(null);
@@ -169,6 +170,7 @@ export function useVirtualWindow({
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
       let changed = false;
+      retainMeasurementAnchor.current();
       for (const entry of entries) {
         const metadata = observedNodes.current.get(entry.target);
         if (!metadata) continue;
@@ -181,7 +183,13 @@ export function useVirtualWindow({
             next
           ) || changed;
       }
-      if (!changed || revisionFrame.current !== null) return;
+      if (!changed) {
+        if (revisionFrame.current === null) resizeAnchor.current = null;
+        return;
+      }
+      // Preserve the old logical anchor before publishing changed offsets. The
+      // layout effect applies both offsets and scroll correction before paint.
+      if (revisionFrame.current !== null) return;
       revisionFrame.current = window.requestAnimationFrame(() => {
         revisionFrame.current = null;
         setSizeRevision((value) => value + 1);
@@ -212,6 +220,19 @@ export function useVirtualWindow({
     return computeVirtualLayout(count, measuredSizeAt);
   }, [count, measuredSizeAt, sizeRevision]);
   latestLayout.current = layout;
+  retainMeasurementAnchor.current = () => {
+    const element = scrollRef.current;
+    if (!element || initializing.current || initialTarget.current === undefined || followEnd?.()) return;
+    const offset = element.scrollTop - scopeOrigin();
+    const visible = computeVirtualRangeFromLayout({
+      ...layout, scrollOffset: offset, viewportSize: element.clientHeight, overscan: 0, maxItems: 1,
+    });
+    const index = visible.startIndex;
+    if (index >= count) return;
+    resizeAnchor.current ??= {
+      index, key: getKey(index), viewportOffset: (layout.offsets[index] ?? 0) - offset,
+    };
+  };
 
   useEffect(() => {
     if (measurements.rows.size === 0) return;
@@ -381,6 +402,7 @@ export function useVirtualWindow({
         )
           continue;
         checkedNodes.current.add(node);
+        retainMeasurementAnchor.current();
         changed =
           setVirtualMeasurement(
             measurements,

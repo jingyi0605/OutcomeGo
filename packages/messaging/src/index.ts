@@ -3,6 +3,8 @@ import { lockQuestions, dismissQuestions, questionScopeForReply } from "./questi
 import { OUTCOME_UPDATE_CARD_SOURCE } from "@outcomego/contracts/outcome-chat";
 export { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
 import { lockAgentLifecycle, canonicalAgentId } from "./agent-lifecycle";
+export { AUTOMATION_ATTEMPT_LIMIT, AUTOMATION_RETRY_DELAYS_MS, automationRetryDelay, requeueAutomationWake } from "./automation-retry";
+export { finalizeInterruptedItems } from "./interrupted-progress";
 export { cleanupRetiredAgent, RETIRED_AGENT_CLEANUP_RETRY_MS } from "./retired-agent-cleanup";
 export {
   draftNotificationVariant,

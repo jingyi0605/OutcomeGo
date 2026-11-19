@@ -38,6 +38,7 @@ import {
 } from "@outcomego/contracts/connector-transfers";
 import { createHash } from "node:crypto";
 import { DESKTOP_CAPABILITY_TOOLS, DESKTOP_MESSAGES_TOOLS } from "@outcomego/contracts/desktop-capabilities";
+import { GET_USER_LOCATION_TOOL, userLocationEnabled } from "@outcomego/contracts/user-location";
 import { agentFileIO } from "../agent-file-io";
 import { connectorResultParts, spillConnectorText } from "./connector-results";
 import { boundToolImage } from "./image-input";
@@ -2063,6 +2064,15 @@ export class RuntimeTools {
             this.callControlPlaneTool(turn, callId, definition.name, args, signal),
         })),
         ...bitwardenTools,
+        ...(active.runtimeProfile !== "subagent" && userLocationEnabled(process.env.OUTCOMEGO_LOCATION_ENABLED)
+          ? [{
+              ...GET_USER_LOCATION_TOOL,
+              source: "first-party",
+              decodeArguments: (args: unknown) => args ?? {},
+              execute: (turn: ActiveTurn, callId: string, args: unknown, signal?: AbortSignal) =>
+                this.callControlPlaneTool(turn, callId, GET_USER_LOCATION_TOOL.name, args, signal),
+            } satisfies RuntimeDynamicTool]
+          : []),
         // Workers that use the parent's connectors move files with them both ways;
         // graphical and media workers have no connector accounts.
         ...((active.runtimeProfile !== "subagent" || subagentUsesParentConnectors(active.subagentType)) && !active.readOnly

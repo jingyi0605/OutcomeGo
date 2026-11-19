@@ -341,6 +341,7 @@ contextBridge.exposeInMainWorld("outcomego", {
   },
   notifications: {
     clear: () => ipcRenderer.send("outcomego:notifications:clear"),
+    read: (state: unknown) => ipcRenderer.send("outcomego:notifications:read", state),
     activity: () => ipcRenderer.invoke("outcomego:notifications:activity"),
     onActivityChange: (callback: () => void) => {
       ipcRenderer.on("outcomego:notifications:activity-changed", callback);
@@ -453,14 +454,11 @@ contextBridge.exposeInMainWorld("outcomego", {
       listen("outcomego:screenbot:roster-request", () => callback()),
   },
   getProcessMetrics: () => ipcRenderer.invoke("outcomego:performance-snapshot"),
-  onNotificationClick: (listener: (target: DesktopNotificationTarget) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, target: unknown) => {
+  onNotificationClick: (listener: (target: DesktopNotificationTarget) => void) =>
+    listen("outcomego:notification-click", (target) => {
       const parsed = parseNotificationTarget(target);
       if (parsed) listener(parsed);
-    };
-    ipcRenderer.on("outcomego:notification-click", handler);
-    return () => ipcRenderer.removeListener("outcomego:notification-click", handler);
-  },
+    }),
   versions: Object.freeze({
     app: appVersion,
     electron: process.versions.electron,

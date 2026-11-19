@@ -366,7 +366,8 @@ export async function startComputerDns(
 ) {
   let active = 0,
     closing = false;
-  let boundPort = port;
+  let boundPort = port,
+    boundTcpPort = port;
   const sockets = new Set<Socket>();
   const udp: ReturnType<typeof createSocket>[] = [];
   const tcp: ReturnType<typeof createServer>[] = [];
@@ -439,8 +440,11 @@ export async function startComputerDns(
       tcp.push(server);
       await new Promise<void>((yes, no) => {
         server.once("error", no);
-        server.listen({ host, port: boundPort, ipv6Only: true }, () => {
+        // Port zero requests an independent kernel allocation in each transport.
+        // A UDP allocation does not reserve that number in the TCP namespace.
+        server.listen({ host, port: boundTcpPort, ipv6Only: true }, () => {
           server.off("error", no);
+          boundTcpPort = (server.address() as { port: number }).port;
           yes();
         });
       });
@@ -458,6 +462,7 @@ export async function startComputerDns(
   }
   return {
     port: boundPort,
+    tcpPort: boundTcpPort,
     close() {
       closing = true;
       for (const socket of udp) socket.close();

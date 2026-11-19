@@ -1,10 +1,11 @@
 {
   "name": "@outcomego/contracts",
-  "version": "0.1.0-beta.19",
+  "version": "0.1.0-beta.20",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
   "exports": {
+    "./user-location": "./src/user-location.ts",
     "./agent-file-access": "./src/agent-file-access.ts",
     "./app-deep-links": "./src/app-deep-links.ts",
     ".": "./src/index.ts",

@@ -177,6 +177,29 @@ describe("voice-note provider requests", () => {
     await expect(pending).rejects.toMatchObject({ code: "transcription_cancelled" });
     expect(cancelled).toBe(true);
   });
+  test("an upload cancelled before reading still releases its stream", async () => {
+    const config = await store();
+    await config.save(settings);
+    let cancelled = false;
+    const service = new TranscriptionService(
+      config,
+      fakeFetch(() => {
+        throw new Error("Provider must not be called");
+      })
+    );
+    const controller = new AbortController();
+    const request = new Request("http://local", {
+      method: "POST",
+      body: new ReadableStream({ cancel() { cancelled = true; } }),
+      headers: { "content-type": "audio/wav" },
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(service.transcribe(request)).rejects.toMatchObject({
+      code: "transcription_cancelled",
+    });
+    expect(cancelled).toBe(true);
+  });
   test("forwards a multipart recording with server credentials and normalizes the transcript", async () => {
     const config = await store();
     await config.save({ ...settings, apiKey: "private" });

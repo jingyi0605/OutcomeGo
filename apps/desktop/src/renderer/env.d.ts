@@ -172,6 +172,7 @@ interface Window {
     };
     notifications: {
       clear: () => void;
+      read: (state: import("@outcomego/contracts/notification-content").NotificationReadState) => void;
       activity: () => Promise<{ active: boolean; idleSeconds: number }>;
       onActivityChange: (callback: () => void) => () => void;
       sync: (snapshot: {

@@ -30,8 +30,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "25.0.5+8"
-      - run: bun install --frozen-lockfile --ignore-scripts --filter @openteam/plugins --filter @openteam/computer --filter @openteam/server
-      - run: bun run --filter @openteam/db db:generate
+      - run: bun install --frozen-lockfile --ignore-scripts --filter @outcomego/plugins --filter @outcomego/computer --filter @outcomego/server
+      - run: bun run --filter @outcomego/db db:generate
       - run: bun run prepare:plugins
       - name: Verify reproducible Java patch, protobuf deletion path, packaged runtime and connector regressions
         run: bun packages/plugins/signal/connector/test/patch-ci.ts

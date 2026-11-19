@@ -12,10 +12,12 @@ else if (mode === "hang") {
   setInterval(() => {}, 1000);
 }
 else if (args.includes("--events")) {
-  process.stderr.write(JSON.stringify({ event: "qr_code", data: { code: "private-qr-payload" } }) + "\n");
-  process.stderr.write("unstructured secret diagnostic\n");
+  // Publishing the first event lets the parent immediately request shutdown.
+  // Arm graceful termination before exposing that readiness boundary.
   process.on("SIGTERM", () => process.exit(0));
   setInterval(() => {}, 1000);
+  process.stderr.write(JSON.stringify({ event: "qr_code", data: { code: "private-qr-payload" } }) + "\n");
+  process.stderr.write("unstructured secret diagnostic\n");
 } else if (mode === "error") {
   console.log(JSON.stringify({ success: false, data: null, error: "specific upstream error" })); process.exit(1);
 } else if (mode === "store_warning") {

@@ -50,6 +50,9 @@ struct HomeView: View {
   /// The conversation list's width beside a chat, as last dragged; 0 until then.
   @AppStorage("sidebarWidth") private var draggedSidebarWidth: Double = 0
   @State private var dragStartWidth: CGFloat?
+  /// How much of the hidden list an edge swipe has pulled over the chat.
+  @State private var reveal = ListReveal()
+  private var listAnimation: Animation? { reduceMotion ? nil : .smooth(duration: 0.3) }
   @Environment(\.horizontalSizeClass) private var sizeClass
   @State private var swipedChannel: String?
   @State private var viewportChannelIDs: Set<String> = []
@@ -93,7 +96,14 @@ struct HomeView: View {
           splitLayout(width: geometry.size.width - rightColumnWidth, fold: HomeLayout.fold(in: geometry))
         } else { stackLayout }
       }
-      .onChange(of: split, initial: true) { _, value in splitAvailable = value }
+      .onChange(of: split, initial: true) { _, value in
+        splitAvailable = value
+        reveal.clear()
+      }
+      // A hidden list comes back once no chat is left to fill the screen.
+      .onChange(of: store.navigation.isEmpty) { _, empty in
+        if empty, listHidden { withAnimation(listAnimation) { listHidden = false } }
+      }
       .overlay(alignment: .topLeading) {
         if splitAvailable, listHidden, portrait || !barRegions.hasHinge, store.navigation.isEmpty {
           inboxHeader(isSidebar: false)
@@ -270,18 +280,7 @@ struct HomeView: View {
     let listWidth: CGFloat = fold?.midX ?? draggedWidth
     return HStack(spacing: 0) {
       if showsList {
-        // A gray column, edge to edge, beside the chat; the open chat is a card on it.
-        conversationList(isSidebar: referenceSidebar)
-          .environment(\.canvasColor, referenceSidebar ? SidebarFooterFade.canvas : NativePalette.sidebar)
-          // The list never reaches the side region beside a chat.
-          .environment(\.sideChrome, nil)
-          .safeAreaPadding(.trailing, foldInset)
-          .frame(width: listWidth)
-          .overlay(alignment: .trailing) {
-            NativePalette.separator.frame(width: 1 / displayScale)
-              .ignoresSafeArea(.container, edges: .vertical)
-              .allowsHitTesting(false).accessibilityHidden(true)
-          }
+        listColumn(width: listWidth, foldInset: foldInset)
           .transition(.move(edge: .leading).combined(with: .opacity))
       }
       if let selected {
@@ -296,7 +295,7 @@ struct HomeView: View {
           .environment(
             \.chatLeadingControl,
             ChatLeadingControl(title: listHidden ? "Show conversations" : "Hide conversations", external: barRegions.hasHinge && !portraitLayout) {
-              withAnimation(.smooth(duration: 0.3)) { listHidden.toggle() }
+              withAnimation(listAnimation) { listHidden.toggle() }
             })
           .safeAreaPadding(.leading, showsList ? foldInset : 0)
           .environment(\.chatColumnLeading, showsList ? listWidth : 0)
@@ -309,31 +308,76 @@ struct HomeView: View {
     // Above both columns, so neither scroll view takes the drag.
     .animation(.smooth(duration: 0.3), value: fold)
     .overlay(alignment: .leading) {
-      if showsList, fold == nil {
+      if showsList {
+        // Partly folded, the columns stay at the fold: the handle only hides the list.
+        let resizes = fold == nil
         SidebarResizeHandle(
           width: listWidth, range: range, dragging: dragStartWidth != nil,
           onDrag: { translation in
             let start = dragStartWidth ?? listWidth
             dragStartWidth = start
-            draggedSidebarWidth = min(range.upperBound, max(range.lowerBound, start + translation))
+            if resizes { draggedSidebarWidth = min(range.upperBound, max(range.lowerBound, start + translation)) }
           },
           onEnd: { translation in
             // Dragging well past the narrowest width hides the list beside a
             // chat; it comes back at the width it had before.
             let start = dragStartWidth ?? listWidth
-            if selected != nil, start + translation < range.lowerBound - 80 {
-              draggedSidebarWidth = start
-              withAnimation(.smooth(duration: 0.3)) { listHidden = true }
+            if selected != nil, resizes ? start + translation < range.lowerBound - 80 : translation < -80 {
+              if resizes { draggedSidebarWidth = start }
+              withAnimation(listAnimation) { listHidden = true }
             }
             dragStartWidth = nil
           },
-          onSet: { draggedSidebarWidth = $0 })
+          onSet: { if resizes { draggedSidebarWidth = $0 } })
+          .accessibilityHidden(!resizes)
           .offset(x: listWidth - SidebarResizeHandle.hitWidth / 2)
+      }
+    }
+    // An edge swipe pulls the hidden list over the chat; let go far enough and
+    // the chat makes room for it.
+    .overlay(alignment: .leading) {
+      ListRevealOverlay(reveal: reveal, listWidth: listWidth, dims: listHidden) {
+        listColumn(width: listWidth, foldInset: foldInset)
+          .environment(\.tracksListViewport, false)
+          .nativeCanvas()
+      }
+    }
+    .background {
+      if listHidden {
+        LeadingEdgeSwipe(
+          onChange: { reveal.drag(to: min(listWidth, max(0, $0))) },
+          onEnd: { translation, velocity in
+            // The direction of the release wins over how far the list came.
+            let shows = translation > 0
+              && (velocity > 500 || (translation > listWidth * 0.4 && velocity > -500))
+            let drag = reveal.drags
+            withAnimation(listAnimation) {
+              reveal.width = shows ? listWidth : 0
+              if shows { listHidden = false }
+            } completion: {
+              // A drag that began during the settle keeps its list.
+              if reveal.drags == drag { reveal.width = nil }
+            }
+          })
       }
     }
     // Lists slide over the page color, not the window, as they collapse.
     .nativeCanvas()
     .environment(\.opensConversationsInPlace, true)
+  }
+  /// A gray column, edge to edge, beside the chat; the open chat is a card on it.
+  private func listColumn(width: CGFloat, foldInset: CGFloat) -> some View {
+    conversationList(isSidebar: referenceSidebar)
+      .environment(\.canvasColor, referenceSidebar ? SidebarFooterFade.canvas : NativePalette.sidebar)
+      // The list never reaches the side region beside a chat.
+      .environment(\.sideChrome, nil)
+      .safeAreaPadding(.trailing, foldInset)
+      .frame(width: width)
+      .overlay(alignment: .trailing) {
+        NativePalette.separator.frame(width: 1 / displayScale)
+          .ignoresSafeArea(.container, edges: .vertical)
+          .allowsHitTesting(false).accessibilityHidden(true)
+      }
   }
   private func conversationList(isSidebar: Bool = false) -> some View {
     GeometryReader { geometry in
@@ -756,10 +800,7 @@ struct HomeView: View {
               }
           }
           .id(channel.id)
-          .onScrollVisibilityChange(threshold: 0.001) { isVisible in
-            if isVisible { viewportChannelIDs.insert(channel.id) }
-            else { viewportChannelIDs.remove(channel.id) }
-          }
+          .modifier(ListViewportTracking(id: channel.id, visible: $viewportChannelIDs))
           .modifier(
             LandingArrival(
               active: channel.id == store.landing,

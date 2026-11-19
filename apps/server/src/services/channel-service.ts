@@ -34,6 +34,7 @@ import {
   toJson,
 } from "./service-utils";
 import { toChannelMessageView as channelMessageView, serialize } from "./view-mappers";
+import type { UserLocationService } from "./user-location";
 
 /**
  * The reference may cut off a run before its input reached the model only when that input
@@ -53,7 +54,8 @@ export class ChannelService {
     private readonly workspaceRoot: string,
     private readonly computerFetch: ComputerFetch,
     private readonly agentData?: AgentDataStore,
-    private readonly assets?: AssetStore
+    private readonly assets?: AssetStore,
+    private readonly userLocations?: UserLocationService
   ) {
     this.groups = new GroupAdministration(
       prisma,
@@ -124,13 +126,13 @@ export class ChannelService {
       };
     });
 
-  sendDirectMessage = (conversationId: string, input: SendMessageInput) =>
+  sendDirectMessage = (conversationId: string, input: SendMessageInput, locationSessionId: string | null = null) =>
     serviceEffect(async () => {
       input = await this.normalizeMessageAttachments(input);
       const scope = `conversation:${conversationId}:message`;
       // Enrollment can finish between delivery retries. Origin is routing metadata,
       // not a content change; the first accepted message keeps its original origin.
-      const requestHash = hashRequest({ ...input, sourceMachineId: undefined });
+      const requestHash = hashRequest({ ...input, sourceMachineId: undefined, location: undefined });
       const existing = await this.prisma.idempotencyRecord.findUnique({
         where: { scope_key: { scope, key: input.clientId } },
       });
@@ -227,6 +229,10 @@ export class ChannelService {
           orderBy: { createdAt: "asc" },
         });
         const sourceMachineId = input.sourceMachineId && await tx.hostMachine.findUnique({ where: { machineId: input.sourceMachineId }, select: { machineId: true } }) ? input.sourceMachineId : undefined;
+        if (input.location) {
+          if (!this.userLocations) throw new ApiError(404, "location_disabled", "Location sharing is not enabled");
+          await this.userLocations.record(tx, locationSessionId, input.location);
+        }
         if (input.timeZone) await this.messaging.updateUserTimeZone(tx, { detected: input.timeZone });
         const address = await nextMessageAddress(tx, channel.id, "user");
         const visibleMessage = await tx.channelMessage.create({
@@ -315,7 +321,7 @@ export class ChannelService {
   sendGroupMessage = (
     channelId: string,
     input: SendMessageInput,
-    options?: { responderIds?: readonly string[] }
+    options?: { responderIds?: readonly string[]; locationSessionId?: string | null }
   ) =>
     serviceEffect(async () => {
       input = await this.normalizeMessageAttachments(input);
@@ -323,6 +329,7 @@ export class ChannelService {
       const requestHash = hashRequest({
         ...input,
         sourceMachineId: undefined,
+        location: undefined,
         ...(options?.responderIds ? { responderIds: [...options.responderIds] } : {}),
       });
       const existing = await this.prisma.idempotencyRecord.findUnique({
@@ -378,6 +385,10 @@ export class ChannelService {
         });
         await lockQuestions(tx, channelId);
         await dismissQuestions(tx, channelId, questionScopeId, "moved-on");
+        if (input.location) {
+          if (!this.userLocations) throw new ApiError(404, "location_disabled", "Location sharing is not enabled");
+          await this.userLocations.record(tx, options?.locationSessionId ?? null, input.location);
+        }
         const sourceMachineId = input.sourceMachineId && await tx.hostMachine.findUnique({ where: { machineId: input.sourceMachineId }, select: { machineId: true } }) ? input.sourceMachineId : undefined;
         if (input.timeZone) await this.messaging.updateUserTimeZone(tx, { detected: input.timeZone });
         const address = await nextMessageAddress(tx, channelId, "user");

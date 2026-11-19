@@ -1,8 +1,6 @@
 import "./permission-cards.css";
 import { SharedTemplateCard } from "./shared-template-card";
 import { parseExternalDraft } from "@outcomego/contracts/external-draft";
-import { ExternalDraftCard } from "./external-draft-card";
-import { IMessageSendCard } from "./imessage-send-card";
 import type {
   BotView,
   ChannelMessageView,
@@ -29,6 +27,8 @@ import { MonitorUp } from "lucide-react";
 import { PermissionIcon } from "./permission-icon";
 import {
   Fragment,
+  lazy,
+  Suspense,
   type ReactNode,
   useEffect,
   useId,
@@ -47,6 +47,13 @@ import { UserFormCard } from "./user-form-card";
 import { localizeComputerNetworkPolicyCard } from "../../lib/computer-network-policy-card";
 import { parseOutcomeChatCard } from "@outcomego/contracts/outcome-chat";
 import { OutcomeChatCardView } from "./outcomes/outcome-chat-card";
+
+const ExternalDraftCard = lazy(() =>
+  import("./external-draft-card").then((module) => ({ default: module.ExternalDraftCard }))
+);
+const IMessageSendCard = lazy(() =>
+  import("./imessage-send-card").then((module) => ({ default: module.IMessageSendCard }))
+);
 
 const editableTarget = (target: EventTarget | null) =>
   (typeof HTMLInputElement !== "undefined" && target instanceof HTMLInputElement) ||
@@ -706,7 +713,9 @@ export function RichMessage({ message, bot }: { message: ChannelMessageView; bot
   if (metadata.type === "external-draft") {
     try {
       return (
-        <ExternalDraftCard bot={bot} draft={parseExternalDraft(metadata.draft)} message={message} />
+        <Suspense fallback={null}>
+          <ExternalDraftCard bot={bot} draft={parseExternalDraft(metadata.draft)} message={message} />
+        </Suspense>
       );
     } catch {
       return null;
@@ -717,7 +726,7 @@ export function RichMessage({ message, bot }: { message: ChannelMessageView; bot
     metadata.imessage &&
     typeof metadata.imessage === "object"
   )
-    return <IMessageSendCard message={message} />;
+    return <Suspense fallback={null}><IMessageSendCard message={message} /></Suspense>;
   if (metadata.type === "user-form") {
     try {
       return <UserFormCard form={parseUserForm(metadata.form)} message={message} />;

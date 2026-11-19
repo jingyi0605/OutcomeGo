@@ -67,6 +67,8 @@ export interface OutcomeThreadToolHandlers {
   /** Step approval for Bitwarden reads; called with already validated candidates, never with agent input. */
   RequestBitwardenReadApproval?: OutcomeThreadToolHandler;
 }
+import { GET_USER_LOCATION_TOOL } from "@outcomego/contracts/user-location";
+import type { UserLocationService } from "./user-location";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const isBackgroundOrigin = (origin: string) => origin === "routine" || origin === "outcome";
@@ -119,6 +121,7 @@ export class InternalToolService {
     private readonly externalDelivery?: ExternalDeliveryService,
     private readonly outcomeThreadTools: OutcomeThreadToolHandlers = {},
     private readonly outcomeChatTools?: OutcomeChatTools,
+    private readonly userLocations?: UserLocationService
   ) {}
 
   /**
@@ -202,6 +205,16 @@ export class InternalToolService {
         if (!this.outcomeChatTools)
           throw new ApiError(503, "outcome_chat_unavailable", "Native Outcome conversation tools are not available");
         return this.outcomeChatTools.execute(request, context, signal);
+      }
+      if (request.tool === GET_USER_LOCATION_TOOL.name) {
+        if (childIdentity)
+          throw new ApiError(403, "user_location_unavailable", "Only the deployment owner's parent bot can read location");
+        if (!this.userLocations)
+          throw new ApiError(404, "location_disabled", "Location sharing is not enabled");
+        if (request.arguments != null &&
+            (typeof request.arguments !== "object" || Array.isArray(request.arguments) || Object.keys(request.arguments).length))
+          throw new ApiError(400, "invalid_arguments", "GetUserLocation takes no arguments");
+        return this.userLocations.readForTool();
       }
       // Private supervisor operation, never registered in any model catalog.
       if (request.tool === "RefreshToolCatalog") return {namespaces:await this.plugins.dynamicNamespaces(childIdentity?.parentBotId ?? request.botId)};

@@ -1,5 +1,7 @@
 import {
   ApiError,
+  LocationSubmission,
+  UpdateLocationSharingInput,
   MarkChannelReadInput,
   RegisterPushDeviceInput,
   UpdateNotificationPresenceInput,
@@ -21,6 +23,17 @@ import { searchCategories } from "./input";
 
 export async function clientRoutes(context: RouteContext): Promise<Response | undefined> {
   const { app, request, url, path, authMode, authenticatedSessionId } = context;
+
+  if (path === "/api/location") {
+    if (request.method === "GET")
+      return json(await app.userLocations.read(authenticatedSessionId), 200, { "cache-control": "no-store" });
+    if (request.method === "PUT")
+      return json(await app.userLocations.write(authenticatedSessionId, await parseBody(request, LocationSubmission)), 200, { "cache-control": "no-store" });
+    if (request.method === "DELETE")
+      return json(await app.userLocations.clear(authenticatedSessionId), 200, { "cache-control": "no-store" });
+  }
+  if (path === "/api/location/sharing" && request.method === "PUT")
+    return json(await app.userLocations.updateSharing(authenticatedSessionId, await parseBody(request, UpdateLocationSharingInput)), 200, { "cache-control": "no-store" });
 
   if (request.method === "POST" && path === "/api/notification-devices") {
     if (authMode === "required" && !authenticatedSessionId) {

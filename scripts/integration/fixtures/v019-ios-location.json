@@ -1,0 +1,16 @@
+{
+  "content": "Location contract fixture",
+  "clientId": "ios-location-fixture",
+  "attachments": [],
+  "timeZone": "UTC",
+  "location": {
+    "fix": {
+      "latitude": 47.6097,
+      "longitude": -122.3331,
+      "accuracyMeters": 125,
+      "capturedAt": "2026-11-17T02:00:00Z",
+      "device": "phone"
+    },
+    "sharingRevision": "7ec8d8cc-46e3-4b59-a996-1317cfaad0a0"
+  }
+}

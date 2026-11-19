@@ -203,8 +203,13 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         const response = await auth.handler(authRequest);
         if (response.ok && signingOutSession) {
           vnc.revokeSession(signingOutSession.session.id);
-          await run(app.disablePushDevicesForSession(signingOutSession.session.id));
-          await app.machines.revokeSession(signingOutSession.session.id);
+          try {
+            await app.userLocations.revokeOwner(signingOutSession.user.id);
+          } finally {
+            // Location cleanup must not prevent the existing device revocations.
+            await run(app.disablePushDevicesForSession(signingOutSession.session.id));
+            await app.machines.revokeSession(signingOutSession.session.id);
+          }
         }
         return withCors(response);
       }

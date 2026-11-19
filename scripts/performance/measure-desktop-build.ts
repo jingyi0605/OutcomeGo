@@ -419,6 +419,8 @@ const readLazyClosures = async () => {
     };
     const boundarySources = {
       workspace: ["src/renderer/App.tsx"],
+      externalDraft: ["src/renderer/components/outcomego/external-draft-card.tsx"],
+      imessageDraft: ["src/renderer/components/outcomego/imessage-send-card.tsx"],
       largeCode: ["src/renderer/components/ai-elements/message-response/large-code.tsx"],
       pluginDetail: ["src/renderer/components/outcomego/plugin-detail-view.tsx"],
       pluginConnection: ["src/renderer/components/outcomego/plugins/connection-configuration.tsx"],

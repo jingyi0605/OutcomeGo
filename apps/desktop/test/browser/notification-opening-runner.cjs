@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const directory = process.argv[3];
-const { DesktopNotificationManager, parseNotificationTarget } = require(
+const { DesktopNotificationManager, parseNotificationTarget, parseNotificationReadState } = require(
   path.join(directory, "notifications.cjs")
 );
 app.setPath("userData", path.join(directory, "profile"));
@@ -55,13 +55,26 @@ app
           native.emit("click");
         },
       },
-      () => clock
+      () => clock,
+      // These cases click already-delivered banners. Delivery grace/coalescing is
+      // tested separately by notification-manager's deterministic clock suite.
+      (callback) => { callback(); return () => {}; }
     );
     ipcMain.on("outcomego:notifications:sync", (_event, snapshot) => {
       clock += 6000;
       manager.sync(snapshot);
     });
     ipcMain.on("outcomego:notifications:clear", () => manager.clear());
+    const localReads = [];
+    ipcMain.on("outcomego:notifications:read", (_event, request) => {
+      const read = parseNotificationReadState(request);
+      if (read) {
+        // Capture parity for already-delivered OS clicks. Feeding these reads
+        // into delivery would suppress the intentionally replayed older banners;
+        // cancellation and read dismissal are covered by notification-manager.
+        localReads.push(read);
+      }
+    });
     const js = (source) => win.webContents.executeJavaScript(source);
     const until = async (source, timeout = 8000) => {
       const started = Date.now();
@@ -92,6 +105,7 @@ app
         const test = async (name, body) => {
           current = `${theme}: ${name}`;
           manager.clear();
+          localReads.length = 0;
           await win.loadURL(`${process.argv[2]}?theme=${theme}`);
           await until(visible("other-message"));
           await body();
@@ -106,6 +120,10 @@ app
             `${readCalls}.every(c => c.sequence === '25' && c.activity === '0')`,
             "Read exceeded the notified message"
           );
+          for (let i = 0; i < 40 && !localReads.length; i++) await pause(25);
+          if (!localReads.some((read) => read.channelId === "channel-research" &&
+            read.lastReadSequence === "25" && read.lastReadNotificationSequence === "0"))
+            throw new Error("Native suppression diverged from the server's read watermark");
           await check(
             "notificationFixture.bridgeTargets.at(-1).messageId === 'notice-25'",
             "Bridge lost the message ID"

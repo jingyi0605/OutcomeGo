@@ -15,6 +15,17 @@ final class SessionRecordTests: XCTestCase {
     ])
   }
 
+  func testLegacySessionDecodesAndReconnectEpochFencesIdenticalCredentials() throws {
+    let legacy = Data(#"{"server":"https://team.example","token":null,"userID":"owner","userName":"Owner","mode":"disabled"}"#.utf8)
+    let first = try JSONDecoder().decode(SessionRecord.self, from: legacy)
+    XCTAssertNil(first.ownershipID)
+    var reconnected = first
+    reconnected.ownershipID = UUID().uuidString
+    XCTAssertFalse(first.sameCredentials(as: reconnected))
+    let roundTrip = try JSONDecoder().decode(SessionRecord.self, from: JSONEncoder().encode(reconnected))
+    XCTAssertTrue(reconnected.sameCredentials(as: roundTrip))
+  }
+
   func testRefreshedNameSurvivesPersistedOfflineRelaunch() async throws {
     var disk = try JSONEncoder().encode(migrated)
     let connected = try await migrated.refreshIdentity(

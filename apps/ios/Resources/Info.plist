@@ -44,6 +44,8 @@
 	<string>OutcomeGo saves a photo to your library when you choose Save in the photo viewer.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>OutcomeGo connects to the self-hosted server you choose on your local network.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>OutcomeGo can include this iPhone’s location with messages when you enable Share location.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OutcomeGo records voice notes and sends them to your server for transcription when you choose the microphone.</string>
 	<key>NSUserActivityTypes</key>

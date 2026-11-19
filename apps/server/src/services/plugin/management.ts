@@ -463,6 +463,27 @@ export class PluginManagement {
           "The package changed; review the update again"
         );
       parsePluginDefinition(next);
+      for (const connection of installation.connections) {
+        if (jsonObject(connection.credentials).stateRemovalPending === true)
+          throw new ApiError(
+            409,
+            "plugin_account_removal_pending",
+            "Account removal must finish before updating this package."
+          );
+        const previousConnector = previous.connections.find(
+          (connector) => connector.key === connection.connectorKey
+        );
+        if (
+          previousConnector?.persistentState &&
+          !next.connections.find((connector) => connector.key === connection.connectorKey)
+            ?.persistentState
+        )
+          throw new ApiError(
+            409,
+            "plugin_update_private_storage",
+            "This update would orphan private storage. Remove its accounts and uninstall the package before changing its storage declaration."
+          );
+      }
       await assertPluginEnvironmentAvailable(this.prisma, next);
       for (const account of installation.connections) {
         if (jsonObject(account.credentials).stateRemovalPending === true)
@@ -501,7 +522,7 @@ export class PluginManagement {
           throw new ApiError(409, "plugin_update_conflict", "An account changed while the package was stopping; review the update again");
         // The UI review is tied to this installed snapshot as well as the candidate digest.
         const locked = await tx.pluginInstallation.updateMany({
-          where: { id: installation.id, updatedAt: installation.updatedAt },
+          where: { id: installation.id, updatedAt: installation.updatedAt, status: "installed" },
           data: {
             manifest: toJson(next),
             previousManifest: toJson(installation.manifest),
@@ -520,6 +541,25 @@ export class PluginManagement {
             "plugin_update_conflict",
             "This installation changed; review the update again"
           );
+        // Stopping may await account removal or configuration on another host.
+        // Claim every reviewed account before applying any changes; a stale
+        // snapshot aborts the entire transaction, including the manifest update.
+        for (const connection of installation.connections) {
+          const claimed = await tx.pluginConnection.updateMany({
+            where: {
+              id: connection.id,
+              runtimeGeneration: connection.runtimeGeneration,
+              updatedAt: connection.updatedAt,
+            },
+            data: { runtimeGeneration: { increment: 1 } },
+          });
+          if (claimed.count !== 1)
+            throw new ApiError(
+              409,
+              "plugin_update_conflict",
+              "An account changed while updating. Refresh its state and review the update again."
+            );
+        }
         for (const connector of next.connections) {
           const defaults = Object.fromEntries(
             fieldsForConnector(next, connector.key)
@@ -597,7 +637,6 @@ export class PluginManagement {
                 authType: connector.auth,
                 endpoint: compatible ? account.endpoint : connector.endpoint,
                 configuration: toJson(configuration),
-                runtimeGeneration: { increment: 1 },
                 ...(!compatible
                   ? {
                       credentials: {},

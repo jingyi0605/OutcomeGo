@@ -67,7 +67,10 @@ async function boundedBytes(
     throw response instanceof Request
       ? new ApiError(400, "empty_audio", "No recording was received.")
       : invalidResponse();
-  signal?.throwIfAborted();
+  if (signal?.aborted) {
+    await response.body.cancel().catch(() => undefined);
+    signal.throwIfAborted();
+  }
   const reader = response.body.getReader();
   const cancel = () => {
     void reader.cancel().catch(() => undefined);

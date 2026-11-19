@@ -64,6 +64,7 @@ import {
   parseNotificationTarget,
   DesktopOutcomeNotificationManager,
   parseOutcomeNotifications,
+  parseNotificationReadState,
 } from "./notifications";
 import { parseDesktopOutcomeLink, type DesktopOutcomeTarget } from "../renderer/lib/outcome-target";
 import {
@@ -926,6 +927,12 @@ ipcMain.on("outcomego:notifications:sync", (event, request: unknown) => {
 
 ipcMain.on("outcomego:notifications:clear", (event) => {
   if (mainWindow && event.sender === mainWindow.webContents) { desktopNotifications?.clear(); outcomeNotifications?.clear(); }
+});
+
+ipcMain.on("outcomego:notifications:read", (event, request: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return;
+  const state = parseNotificationReadState(request);
+  if (state) desktopNotifications?.markRead(state);
 });
 
 ipcMain.on("outcomego:notifications:visible-channel", (event, channelId: unknown) => {

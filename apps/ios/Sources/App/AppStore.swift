@@ -422,7 +422,7 @@ final class AppStore {
     }
     let next = SessionRecord(
       server: candidate.baseURL.absoluteString, token: login.token, userID: login.userID,
-      userName: login.name, mode: mode)
+      userName: login.name, mode: mode, ownershipID: UUID().uuidString)
     if mode == "required", !testing {
       UserDefaults.standard.set(
         username.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -510,9 +510,12 @@ final class AppStore {
       systemDraft = nil
       pendingSystemItem = nil
       botVoiceLaunch.reset()
-      SystemDiscovery.shared.clear(removeTransfers: true)
+      SystemDiscovery.shared.clear(removeTransfers: true, transferScope: systemScope)
     }
     record = next
+    #if canImport(UIKit)
+      LocationSharing.shared.bind(next)
+    #endif
     systemScope = scope
     systemDiscoveryEnabled = !testing && SystemDiscovery.enabled(scope: scope)
     SystemDiscovery.shared.clear()
@@ -1473,6 +1476,11 @@ final class AppStore {
       return false
     }
   }
+  /// Whether a flush sends this message now: it hasn't failed, and after a timeout it waits
+  /// for a requested retry before the same nonce is submitted again.
+  private func willSend(_ pending: PendingSend) -> Bool {
+    pending.failure == nil && (pending.deliveryUnconfirmed != true || requestedSendIDs.contains(pending.id))
+  }
   func flush() async {
     guard let api else { return }
     guard !sending else {
@@ -1481,6 +1489,12 @@ final class AppStore {
     }
     sending = true
     let epoch = generation
+    #if canImport(UIKit)
+      // Messages already sent from the composer still go out if the user switches apps.
+      let endBackgroundTime = state.outbox.contains(where: willSend)
+        ? BackgroundTime.begin("Send messages") : nil
+      defer { endBackgroundTime?() }
+    #endif
     defer {
       if epoch == generation {
         sending = false
@@ -1494,9 +1508,7 @@ final class AppStore {
       }
     }
     // One request per nonce at a time; after a timeout, reconcile before resubmitting that same nonce.
-    for pending in state.outbox where pending.failure == nil
-      && (pending.deliveryUnconfirmed != true || requestedSendIDs.contains(pending.id))
-    {
+    for pending in state.outbox where willSend(pending) {
       requestedSendIDs.remove(pending.id)
       activeSendID = pending.id
       sendRetryCounts[pending.id] = 0
@@ -1585,6 +1597,19 @@ final class AppStore {
             break sendAttempt
           }
           try budget.check()
+          var locatedInput = committed.input
+          #if canImport(UIKit)
+            let locationOwner = record
+            var locationSubmission: LocationSharing.Submission?
+            if let locationOwner {
+              locationSubmission = try await LocationSharing.shared.prepare(session: locationOwner)
+              locatedInput.location = locationSubmission?.location
+            }
+            let preparedLocation = locationSubmission
+          #endif
+          guard epoch == generation, !Task.isCancelled else { return }
+          try budget.check()
+          let input = locatedInput
           guard let index = state.outbox.firstIndex(where: { $0.id == pending.id }) else {
             break sendAttempt
           }
@@ -1596,8 +1621,15 @@ final class AppStore {
           submitting = true
           let targetBot = bot(for: channel)
           let message = try await sendOperation(id: pending.id, epoch: epoch, budget: budget) {
-            try await api.send(
-              channel: channel, bot: targetBot, input: committed.input,
+            #if canImport(UIKit)
+              if let locationOwner {
+                return try await LocationSharing.shared.perform(preparedLocation, session: locationOwner) {
+                  try await api.send(channel: channel, bot: targetBot, input: input,
+                    timeout: budget.overallRemaining())
+                }
+              }
+            #endif
+            return try await api.send(channel: channel, bot: targetBot, input: input,
               timeout: budget.overallRemaining())
           }
           submitting = false
@@ -2099,11 +2131,26 @@ final class AppStore {
       channelID: channelID, key: key, visible: visible)
   }
 
+  #if canImport(UIKit)
+    func refreshLocationSharing() async throws {
+      guard let record else { return }
+      try await LocationSharing.shared.refreshAvailability(session: record)
+    }
+    func setLocationSharing(_ enabled: Bool) async throws {
+      guard let record else { throw CancellationError() }
+      try await LocationSharing.shared.setEnabled(enabled, session: record)
+    }
+  #endif
+
   private func clearSystemContent() {
+    #if canImport(UIKit)
+      LocationSharing.shared.bind(nil)
+      VoiceMemoSessions.reset()
+    #endif
     systemOpenGeneration = UUID()
     systemVoiceRequestID = nil
     botVoiceLaunch.reset()
-    SystemDiscovery.shared.clear(removeTransfers: true)
+    SystemDiscovery.shared.clear(removeTransfers: true, transferScope: systemScope)
     systemScope = nil
     systemDiscoveryEnabled = false
     systemDraft = nil
@@ -2112,6 +2159,10 @@ final class AppStore {
   func signOut() async {
     guard let api, !busy.contains("sign-out") else { return }
     busy.insert("sign-out")
+    #if canImport(UIKit)
+      // Fence delayed fixes before notification retirement or remote sign-out awaits.
+      LocationSharing.shared.bind(nil)
+    #endif
     defer { busy.remove("sign-out") }
     do {
       mobileNetworkProvider.stop(revokeConsent: false)
@@ -2161,6 +2212,7 @@ final class AppStore {
       self.error = UserFacingError.message(error)
       #if canImport(UIKit)
         if let record {
+          LocationSharing.shared.bind(record)
           NativeNotifications.shared.bind(record)
           await NativeNotifications.shared.resume()
         }

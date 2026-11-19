@@ -1,6 +1,6 @@
 {
   "name": "@outcomego/desktop",
-  "version": "0.1.0-beta.19",
+  "version": "0.1.0-beta.20",
   "license": "GPL-3.0-only",
   "author": "OutcomeGo contributors",
   "main": "dist-electron/main.js",
@@ -177,6 +177,7 @@
     "test:reaction-order": "bun scripts/test-reaction-order.ts",
     "test:asset-resource-sharing": "bun scripts/test-asset-resource-sharing.ts",
     "test:button-motion": "bun scripts/test-button-motion.ts",
+    "test:desktop-delivery": "bun scripts/test-desktop-delivery.ts",
     "test:draft-send-off": "bun scripts/test-draft-send-off.ts",
     "test:panel-parity": "bun scripts/test-panel-parity.ts",
     "test:search-parity": "bun scripts/test-search-parity.ts",

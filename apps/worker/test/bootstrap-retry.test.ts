@@ -12,6 +12,7 @@ const claimed = {
   pluginBotId: "bot",
   conversationId: "conversation",
   ownerId: "owner",
+  attempt: 1,
   content: "[outcomeGo first start]",
   images: [],
   clientId: "bot:bot:bootstrap:v1",
@@ -47,7 +48,8 @@ const workerWith = (state: {
     return {};
   };
   const tx = {
-    $queryRaw: async () => [],
+    $executeRaw: async () => 0,
+    $queryRaw: async () => [{ live: true }],
     bot: {
       findUnique: async () => ({
         status: "active",
@@ -60,12 +62,12 @@ const workerWith = (state: {
       update: record("run.update"),
     },
     inboxEvent: {
-      findUnique: async () => ({ attempts: state.attempts ?? 1 }),
+      findUnique: async () => ({ attempts: state.attempts ?? 1, runId: "run", botId: "bot", status: "processing" }),
       update: record("inboxEvent.update"),
     },
     channelMessage: { findFirst: async () => (state.greeted ? { id: "hello" } : null) },
     runItem: { findMany: async () => [] },
-    botRunLease: { deleteMany: record("botRunLease.deleteMany") },
+    botRunLease: { findUnique: async () => ({ ownerId: "owner" }), deleteMany: record("botRunLease.deleteMany") },
     event: { create: record("event.create") },
   };
   const worker = Object.create(WakeWorker.prototype) as any;
@@ -210,9 +212,12 @@ describe("execute tells a computer outage from a reported failure", () => {
     worker.controlToken = "token";
     worker.prisma = {
       $executeRaw: async () => 0,
+      $queryRaw: async () => [{ live: true }],
       $transaction: async (body: (tx: unknown) => Promise<unknown>) => body(worker.prisma),
       pluginInstallation: { findMany: async () => [] },
       run: { update: async () => ({}), findUnique: async () => ({ status: "running" }) },
+      inboxEvent: { findUnique: async () => ({ attempts: 1, runId: "run", botId: "bot", status: "processing" }) },
+      botRunLease: { findUnique: async () => ({ ownerId: "owner" }) },
       subagent: { findUnique: async () => null },
       // execute looks up the triggering message to detect a realtime voice turn; none exists here.
       channelMessage: { findUnique: async () => null },
@@ -226,7 +231,7 @@ describe("execute tells a computer outage from a reported failure", () => {
       loadTaskConfiguration: async () => defaultTaskConfiguration(),
     };
     worker.messaging = { platformPrompt: async () => ({ instructions: "" }), userTimeZone: async () => "UTC" };
-    worker.projection = { apply: async () => {} };
+    worker.projection = { apply: async () => true };
     worker.pushNotifications = { drain: async () => {} };
     worker.fail = async (_claimed: unknown, error: unknown, interrupted: boolean) => {
       failures.push({ error, interrupted });

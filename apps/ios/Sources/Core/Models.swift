@@ -302,6 +302,36 @@ public struct Routine: Codable, Identifiable, Sendable {
     scheduleKind != "event" && (schedules?.count ?? 0) <= 1 && trigger?["type"].string != "group"
   }
 }
+/// A device fix. Identity is supplied by the authenticated session, never this payload.
+public struct DeviceLocation: Codable, Sendable, Equatable {
+  public var latitude: Double
+  public var longitude: Double
+  public var accuracyMeters: Double?
+  public var capturedAt: String
+  public var device: String
+  public init(latitude: Double, longitude: Double, accuracyMeters: Double?, capturedAt: Date) {
+    self.latitude = latitude
+    self.longitude = longitude
+    self.accuracyMeters = accuracyMeters
+    self.capturedAt = ISO8601DateFormatter().string(from: capturedAt)
+    self.device = "phone"
+  }
+}
+
+/// OutcomeGo's revision fence is required whenever an optional fix is submitted.
+public struct LocationSubmission: Codable, Sendable, Equatable {
+  public var fix: DeviceLocation
+  public var sharingRevision: String
+}
+public struct LocationSharingState: Decodable, Sendable {
+  public struct Sharing: Decodable, Sendable {
+    public var enabled: Bool
+    public var revision: String
+  }
+  public var sharing: Sharing
+  public var location: JSON
+}
+
 public struct SendInput: Codable, Sendable, Equatable {
   public var content: String
   public var clientId: String
@@ -309,6 +339,8 @@ public struct SendInput: Codable, Sendable, Equatable {
   public var replyToMessageId: String?
   public var isFork: Bool?
   public var timeZone: String
+  /// Prepared immediately before dispatch; never saved into an outbox entry.
+  public var location: LocationSubmission?
   public init(
     content: String, clientId: String = UUID().uuidString, attachments: [Asset] = [],
     replyToMessageId: String? = nil, isFork: Bool? = nil

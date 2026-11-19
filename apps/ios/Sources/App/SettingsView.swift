@@ -87,6 +87,7 @@ struct SettingsView: View {
         }
         Section { PushNotificationSettings() }
         SystemDiscoverySettings()
+        LocationSharingSettings()
         Section {
           Picker("Language", selection: $language) {
             ForEach(AppLanguage.allCases) { option in
