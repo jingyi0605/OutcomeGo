@@ -40,6 +40,36 @@ interface Window {
       onChange(callback: (view: KeyboardShortcutsView) => void): () => void;
       onShortcut(callback: (action: string) => void): () => void;
     };
+    /** Feeds the Bot floating window (src/renderer/hooks/use-bot-dock-sync.ts). */
+    botDock?: {
+      getEnabled(): Promise<boolean>;
+      setEnabled(enabled: boolean): Promise<void>;
+      onEnabledChange(callback: (enabled: boolean) => void): () => void;
+      notifyDrag(active: boolean): void;
+      publish(state: import("./lib/bot-dock-state").BotDockStateView | null): void;
+      /** Sends what was typed in the floating composer; reject to report a failure. */
+      onDeliver(
+        handler: (request: {
+          botId: string;
+          content: string;
+          nonce: string;
+          /** Files already written to the send staging area by main. */
+          staged: Array<{
+          stagingId: string;
+          fileName: string;
+          mimeType: string;
+          byteSize: number;
+          width?: number;
+          height?: number;
+        }>;
+        }) => Promise<void>
+      ): () => void;
+    };
+    accessibility?: {
+      check(): Promise<boolean>;
+      request(): Promise<boolean>;
+      openSettings(): Promise<void>;
+    };
     screenbot?: {
       publishRoster(roster: {
         accountScope: string | null;

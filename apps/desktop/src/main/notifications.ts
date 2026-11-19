@@ -127,6 +127,7 @@ export interface DesktopNotificationAdapter {
   deliver: (event: DesktopNotificationEvent) => void;
   /** Closes a delivered banner once its message is read on any device. */
   dismiss?: (notificationId: string) => void;
+  onMessagesArrived?: () => void;
   setBadge: (label: string) => void;
 }
 
@@ -302,6 +303,7 @@ export class DesktopNotificationManager {
     for (const [channelId, at] of this.lastAlertAt) {
       if (now - at >= NOTIFICATION_THROTTLE_MS) this.lastAlertAt.delete(channelId);
     }
+    if (pending.size > 0) this.adapter.onMessagesArrived?.();
     // While the window has focus, replies show in the app instead of as banners.
     if (this.adapter.isFocused()) {
       // Native focus can overtake the renderer's separate visible-channel IPC.

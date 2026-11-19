@@ -91,6 +91,7 @@ import { sidebarChannelOrder } from "./lib/sidebar-rows";
 import { readThemePreference, setThemePreference, THEME_CHANGE_EVENT } from "./lib/theme";
 import { useFeatureSettings } from "./hooks/use-feature-settings";
 import { useOutcomeThreadNotices } from "./hooks/use-outcome-thread-notices";
+import { useBotDockSync } from "./hooks/use-bot-dock-sync";
 import { useOutcomeActionCounts } from "./hooks/use-outcome-action-counts";
 import { useOutcomeGo } from "./state/use-outcomego";
 import { MessagesGrantsPrompt } from "./components/outcomego/settings/messages-permissions-dialog";
@@ -374,6 +375,46 @@ export default function App() {
   const { outcomesEnabled, loaded: featureSettingsLoaded } = useFeatureSettings();
   useOutcomeThreadNotices();
   const outcomeBadges = useOutcomeActionCounts(outcomesEnabled);
+  // The floating Bot capsule shows the same unread messages and waiting goals, per Bot.
+  useBotDockSync(snapshot, outcomeBadges.approvalByBot);
+
+  // Notify bot dock when files are being dragged in main window
+  useEffect(() => {
+    const bridge = window.outcomego?.botDock;
+    if (!bridge) return;
+    let dragging = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const hasFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files") === true;
+    const onEnter = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      clearTimeout(timer);
+      if (dragging) return;
+      dragging = true;
+      bridge.notifyDrag(true);
+    };
+    const onLeave = (event: DragEvent) => {
+      if (!dragging || event.relatedTarget) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        dragging = false;
+        bridge.notifyDrag(false);
+      }, 200);
+    };
+    const onDrop = () => {
+      clearTimeout(timer);
+      dragging = false;
+      bridge.notifyDrag(false);
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
   const [requestedOutcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
   // Goal management is opt-in: while it is off no goal view can be shown, however it was requested.
   const outcomeTarget = outcomesEnabled ? requestedOutcomeTarget : null;

@@ -1,43 +1,11 @@
 import type { BotView, ClientBootstrapView } from "@outcomego/contracts";
 import { readThemePreference, THEME_CHANGE_EVENT } from "./theme";
 import { api } from "../client/outcomego-api";
-import { API_BASE } from "../client/http";
-import { authHeaders, AUTH_CREDENTIALS_CHANGED_EVENT, getScreenBotAccountScope, subscribeAuthSnapshot } from "../client/auth";
+import { AUTH_CREDENTIALS_CHANGED_EVENT, getScreenBotAccountScope, subscribeAuthSnapshot } from "../client/auth";
+import { botAvatarDataUrl, clearBotAvatarDataUrls } from "./bot-avatar-data-url";
 import { desktopDurableSendController, discardDesktopDeliveryStages } from "./durable-sends";
 
 type Bridge = NonNullable<NonNullable<Window["outcomego"]>["screenbot"]>;
-
-const avatarCache = new Map<string, Promise<string | undefined>>();
-
-/** Custom avatars are authenticated resources; the overlay gets a small data URL instead. */
-const avatarDataUrl = (bot: BotView): Promise<string | undefined> => {
-  if (!bot.hasAvatar) return Promise.resolve(undefined);
-  const key = `${bot.id}:${bot.updatedAt}`;
-  const cached = avatarCache.get(key);
-  if (cached) return cached;
-  const result = (async () => {
-    try {
-      const response = await fetch(
-        `${API_BASE}/api/v0/bots/${encodeURIComponent(bot.id)}/avatar?v=${encodeURIComponent(bot.updatedAt)}`,
-        { headers: authHeaders() }
-      );
-      if (!response.ok) return undefined;
-      const bitmap = await createImageBitmap(await response.blob());
-      const canvas = document.createElement("canvas");
-      canvas.width = canvas.height = 96;
-      const context = canvas.getContext("2d");
-      if (!context) return undefined;
-      const side = Math.min(bitmap.width, bitmap.height);
-      context.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, 96, 96);
-      bitmap.close();
-      return canvas.toDataURL("image/png");
-    } catch {
-      return undefined;
-    }
-  })();
-  avatarCache.set(key, result);
-  return result;
-};
 
 /** Bots that can take a message, most recently active first. */
 const sendableBots = (snapshot: ClientBootstrapView): BotView[] => {
@@ -95,7 +63,7 @@ export function startScreenBotBridge(): () => void {
   };
   const reset = () => {
     session = null;
-    avatarCache.clear();
+    clearBotAvatarDataUrls();
     bridge.publishRoster({ accountScope: null, bots: [], dictation: false });
   };
   const refresh = (owner = session): Promise<void> => {
@@ -110,7 +78,7 @@ export function startScreenBotBridge(): () => void {
         owner.bots = next;
         publish(owner, rosterFor(next, dictation));
         if (next.some((bot) => bot.hasAvatar)) {
-          const avatars = await Promise.all(next.map(avatarDataUrl));
+          const avatars = await Promise.all(next.map(botAvatarDataUrl));
           if (current(owner) && owner.bots === next) publish(owner, rosterFor(next, dictation, avatars));
         }
       } catch {

@@ -89,6 +89,18 @@ const bundleCommands = [
     "--external",
     "electron",
   ],
+  [
+    "build",
+    "src/preload/botdock.ts",
+    "--outfile",
+    "dist-electron/botdock-preload.cjs",
+    "--target",
+    "node",
+    "--format",
+    "cjs",
+    "--external",
+    "electron",
+  ],
 ] as const;
 
 const delay = (milliseconds: number) =>

@@ -1,0 +1,313 @@
+import { describe, expect, mock, test } from "bun:test";
+import { parseHTML } from "linkedom";
+import { act, useEffect, useState } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { badgeText, BotDockApp, DockBots, MAX_VISIBLE_BOTS } from "../src/renderer/botdock/botdock-app";
+import { DockComposer, useDockComposer } from "../src/renderer/botdock/dock-composer";
+import type { BotDockBridge } from "../src/renderer/botdock/types";
+import type { BotDockBotView, BotDockStateView } from "../src/renderer/lib/bot-dock-state";
+
+const labels = { messages: "Unread messages", goals: "Pending action", open: "Open OutcomeGo" };
+const bot = (id: string, messages: number, goals: number): BotDockBotView => ({
+  id,
+  name: `Bot ${id}`,
+  color: "#22a99d",
+  icon: "round",
+  channelId: `dm-${id}`,
+  messages,
+  goals,
+});
+const render = (bots: BotDockBotView[]) =>
+  renderToStaticMarkup(<DockBots state={{ bots, labels } satisfies BotDockStateView} />);
+
+describe("Bot dock capsule", () => {
+  test("shows nothing on the right when no Bot has anything waiting", () => {
+    expect(render([])).toBe("");
+  });
+
+  test("marks unread messages red and goals waiting yellow, each only when there is something", () => {
+    const html = render([bot("a", 3, 0), bot("b", 0, 2), bot("c", 5, 1)]);
+    const buttons = html.split("<button").slice(1);
+    expect(buttons).toHaveLength(3);
+    expect(buttons[0]).toContain('data-dock-badge="messages"');
+    expect(buttons[0]).not.toContain('data-dock-badge="goals"');
+    expect(buttons[1]).toContain('data-dock-badge="goals"');
+    expect(buttons[1]).not.toContain('data-dock-badge="messages"');
+    expect(buttons[2]).toContain('data-dock-badge="messages"');
+    expect(buttons[2]).toContain('data-dock-badge="goals"');
+    expect(html).toContain("dock-badge-messages");
+    expect(html).toContain("dock-badge-goals");
+  });
+
+  test("stacks avatars with the earliest on top so every badge stays visible", () => {
+    const html = render([bot("a", 1, 0), bot("b", 1, 0), bot("c", 1, 0)]);
+    expect([...html.matchAll(/z-index:(\d+)/g)].map((match) => Number(match[1]))).toEqual([
+      3, 2, 1,
+    ]);
+  });
+
+  test("collapses Bots beyond the limit into a +N chip", () => {
+    const bots = Array.from({ length: MAX_VISIBLE_BOTS + 3 }, (_, index) =>
+      bot(String(index), 1, 0)
+    );
+    const html = render(bots);
+    expect(html.match(/data-dock-bot=/g)).toHaveLength(MAX_VISIBLE_BOTS);
+    expect(html).toContain("+3");
+  });
+
+  test("labels each Bot with its name and counts for assistive tech", () => {
+    const html = render([bot("a", 4, 2)]);
+    expect(html).toContain('aria-label="Bot a, Unread messages: 4, Pending action: 2"');
+  });
+
+  test("caps large counts", () => {
+    expect(badgeText(7)).toBe("7");
+    expect(badgeText(99)).toBe("99");
+    expect(badgeText(100)).toBe("99+");
+  });
+
+  test("draws a custom avatar when one is given, otherwise the robot glyph", () => {
+    const withAvatar = render([{ ...bot("a", 1, 0), avatarDataUrl: "data:image/png;base64,AAAA" }]);
+    expect(withAvatar).toContain('<img alt=""');
+    expect(withAvatar).toContain("data:image/png;base64,AAAA");
+    expect(render([bot("a", 1, 0)])).not.toContain("<img");
+  });
+
+  test("withholds the compact frame during collapse and shakes without resizing", async () => {
+    const dom = parseHTML("<html><body></body></html>");
+    Object.assign(dom.document, { oninput: null });
+    const layouts: string[] = [];
+    let hint: (active: boolean) => void = () => {};
+    const compactRequests: Array<{ id: number; hiddenAtRequest: boolean }> = [];
+    let viewportReady: (resizeId: number) => boolean = () => false;
+    let arrive: () => void = () => {};
+    let compose: (composer: { open: boolean; up: boolean; right: boolean }) => void = () => {};
+    const bridge: Partial<BotDockBridge> = {
+      getState: async () => ({ bots: [], roster: [bot("a", 0, 0)], labels }),
+      onState: () => () => {},
+      onMessageArrival(listener) {
+        arrive = listener;
+        return () => {};
+      },
+      onComposer(listener) {
+        compose = listener;
+        return () => {};
+      },
+      onCompactViewportReady(listener) {
+        viewportReady = listener;
+        return () => {};
+      },
+      onDragHint(listener) {
+        hint = listener;
+        return () => {};
+      },
+      resize(_width, _height, layout, id) {
+        layouts.push(layout);
+        if (id !== undefined) {
+          compactRequests.push({
+            id,
+            hiddenAtRequest: !!dom.document.querySelector(".dock-frame[data-awaiting-compact]"),
+          });
+        }
+      },
+    };
+    Object.defineProperty(dom.window, "botdock", { value: bridge });
+    const descriptors = new Map<string, PropertyDescriptor | undefined>();
+    for (const [key, value] of Object.entries({
+      window: dom.window,
+      document: dom.document,
+      IS_REACT_ACT_ENVIRONMENT: true,
+      matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }),
+      ResizeObserver: class {
+        observe() {}
+        disconnect() {}
+      },
+    })) {
+      descriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+      Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    }
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(dom.document.body);
+    const hover = (clientX: number, clientY: number) => {
+      const event = new dom.window.Event("dragover", { cancelable: true });
+      Object.assign(event, { clientX, clientY, dataTransfer: { types: ["Files"] } });
+      return act(async () => dom.window.dispatchEvent(event));
+    };
+    try {
+      await act(async () => root.render(<BotDockApp />));
+      const target = dom.document.querySelector(".dock-drop-target");
+      if (!target) throw new Error("Missing dock drop target");
+      Object.defineProperty(target, "getBoundingClientRect", {
+        value: () => ({ left: 10, top: 10, right: 80, bottom: 80 }),
+      });
+      const frame = dom.document.querySelector(".dock-frame");
+      expect(frame?.getAttribute("data-standby")).toBe("true");
+      expect(frame?.querySelector(".dock-home svg.dock-mascot")?.getAttribute("aria-hidden")).toBe(
+        "true"
+      );
+      await act(async () => hint(true));
+      expect(frame?.hasAttribute("data-dropping")).toBe(true);
+      expect(frame?.hasAttribute("data-standby")).toBe(false);
+      expect(frame?.hasAttribute("data-drop-target")).toBe(false);
+
+      await hover(40, 40);
+      expect(frame?.hasAttribute("data-drop-target")).toBe(true);
+      await hover(5, 40);
+      expect(frame?.hasAttribute("data-drop-target")).toBe(false);
+      expect(frame?.hasAttribute("data-dropping")).toBe(true);
+      expect(layouts).toEqual(["compact", "invitation"]);
+
+      await act(async () => {
+        const leave = new dom.window.Event("dragleave");
+        Object.assign(leave, { clientX: 0, clientY: 0 });
+        dom.window.dispatchEvent(leave);
+        hint(false);
+      });
+      expect(frame?.getAttribute("data-standby")).toBe("true");
+      expect(compactRequests).toEqual([{ id: 1, hiddenAtRequest: true }]);
+      expect(viewportReady(1)).toBe(true);
+      expect(frame?.hasAttribute("data-awaiting-compact")).toBe(false);
+      expect(layouts).toEqual(["compact", "invitation", "compact"]);
+
+      expect(frame?.hasAttribute("data-message-shake")).toBe(false);
+      await act(async () => arrive());
+      expect(frame?.getAttribute("data-message-shake")).toBe("true");
+      const motion = dom.document.querySelector(".dock-message-motion");
+      if (!motion) throw new Error("Missing dock shake element");
+      const animationEnd = new dom.window.Event("animationend", { bubbles: true });
+      Object.assign(animationEnd, { animationName: "dock-shake" });
+      await act(async () => motion.dispatchEvent(animationEnd));
+      expect(frame?.hasAttribute("data-message-shake")).toBe(false);
+      await act(async () => arrive());
+      expect(frame?.getAttribute("data-message-shake")).toBe("true");
+      expect(layouts).toEqual(["compact", "invitation", "compact"]);
+
+      await act(async () => compose({ open: true, up: false, right: true }));
+      expect(dom.document.querySelector("textarea")).not.toBeNull();
+      expect(frame?.hasAttribute("data-awaiting-compact")).toBe(false);
+      await act(async () => compose({ open: false, up: false, right: true }));
+      expect(dom.document.querySelector("textarea")).toBeNull();
+      expect(compactRequests.at(-1)).toEqual({ id: 2, hiddenAtRequest: true });
+      expect(viewportReady(1)).toBe(false);
+      expect(frame?.hasAttribute("data-awaiting-compact")).toBe(true);
+      expect(viewportReady(2)).toBe(true);
+      expect(frame?.hasAttribute("data-awaiting-compact")).toBe(false);
+      expect(layouts).toEqual(["compact", "invitation", "compact", "composer", "compact"]);
+    } finally {
+      await act(async () => root.unmount());
+      for (const [key, descriptor] of descriptors) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+      }
+    }
+  });
+
+  test("Enter selects an @ suggestion before sending, and only a successful send closes", async () => {
+    const dom = parseHTML("<html><body></body></html>");
+    Object.assign(dom.document, { oninput: null });
+    const descriptors = new Map<string, PropertyDescriptor | undefined>();
+    for (const [key, value] of Object.entries({
+      window: dom.window,
+      document: dom.document,
+      IS_REACT_ACT_ENVIRONMENT: true,
+      requestAnimationFrame: (callback: FrameRequestCallback) => {
+        callback(0);
+        return 0;
+      },
+    })) {
+      descriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+      Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    }
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(dom.document.body);
+    let finishSend: (result: { ok: boolean }) => void = () => {};
+    const send = mock(
+      (_message: Parameters<BotDockBridge["send"]>[0]) =>
+        new Promise<{ ok: boolean }>((resolve) => { finishSend = resolve; })
+    );
+    const closeComposer = mock(() => {});
+    const focusApp = mock(() => {});
+    const bridge = { send, closeComposer, focusApp } as unknown as BotDockBridge;
+    const state: BotDockStateView = {
+      bots: [],
+      roster: [
+        { ...bot("a", 0, 0), name: "Alpha", avatarDataUrl: "data:image/png;base64,AAAA" },
+        { ...bot("b", 0, 0), name: "Beta", avatarDataUrl: "data:image/png;base64,AAAA" },
+      ],
+      labels: {
+        ...labels,
+        placeholder: "Message",
+        to: "To",
+        send: "Send",
+        failed: "Send failed",
+        empty: "No Bot",
+        attachmentInvalid: "Invalid attachment",
+        removeAttachment: "Remove attachment",
+      },
+    };
+    const message = "First line\nSecond line";
+    const draft = `${message}\n@`;
+    function Fixture() {
+      const model = useDockComposer(bridge, state.roster);
+      const { change } = model;
+      const [ready, setReady] = useState(false);
+      useEffect(() => {
+        change(draft);
+        setReady(true);
+      }, [change]);
+      return ready ? <DockComposer bridge={bridge} model={model} state={state} /> : null;
+    }
+    try {
+      await act(async () => root.render(<Fixture />));
+      const input = dom.document.querySelector("textarea");
+      const picker = dom.document.querySelector<HTMLButtonElement>(".dock-target");
+      if (!input || !picker) throw new Error("Missing dock textarea or recipient picker");
+      Object.defineProperty(input, "setSelectionRange", { value: () => {} });
+      expect(picker.getAttribute("aria-expanded")).toBe("true");
+      const press = async (
+        key: string,
+        options: { shiftKey?: boolean; isComposing?: boolean; repeat?: boolean } = {}
+      ) => {
+        const event = new dom.window.Event("keydown", { bubbles: true, cancelable: true });
+        Object.assign(event, { key, ...options });
+        await act(async () => input.dispatchEvent(event));
+        return event.defaultPrevented;
+      };
+      expect(await press("Enter", { shiftKey: true })).toBe(false);
+      expect(await press("Enter", { isComposing: true })).toBe(false);
+      expect(send).not.toHaveBeenCalled();
+      expect(await press("ArrowDown")).toBe(true);
+      expect(dom.document.querySelector('[role="option"][aria-selected="true"]')?.textContent).toBe(
+        "Beta"
+      );
+      expect(await press("Enter")).toBe(true);
+      expect(picker.textContent).toBe("To Beta");
+      expect(picker.getAttribute("aria-expanded")).toBe("false");
+      expect(input.value).toBe(`${message}\n`);
+      expect(closeComposer).not.toHaveBeenCalled();
+      expect(await press("Enter", { repeat: true })).toBe(true);
+      expect(send).not.toHaveBeenCalled();
+
+      expect(await press("Enter")).toBe(true);
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({
+        botId: "b",
+        content: message,
+      }));
+      expect(closeComposer).not.toHaveBeenCalled();
+      await act(async () => finishSend({ ok: false }));
+      expect(closeComposer).not.toHaveBeenCalled();
+      expect(input.value).toBe(`${message}\n`);
+      expect(await press("Enter")).toBe(true);
+      await act(async () => finishSend({ ok: true }));
+      expect(closeComposer).toHaveBeenCalledTimes(1);
+      expect(focusApp).not.toHaveBeenCalled();
+      expect(input.value).toBe("");
+    } finally {
+      await act(async () => root.unmount());
+      for (const [key, descriptor] of descriptors) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+      }
+    }
+  });
+});

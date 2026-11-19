@@ -90,6 +90,7 @@ const harness = (
     supported?: () => boolean;
     honorCancellation?: boolean;
     observeDelivery?: (event: DesktopNotificationEvent) => void;
+    onMessagesArrived?: () => void;
   } = {}
 ) => {
   let now = 10_000;
@@ -119,6 +120,7 @@ const harness = (
         options.observeDelivery?.(event);
       },
       dismiss: (id) => dismissed.push(id),
+      onMessagesArrived: options.onMessagesArrived,
       setBadge: (label) => badges.push(label),
     },
     () => now,
@@ -144,6 +146,28 @@ const harness = (
 };
 
 describe("DesktopNotificationManager", () => {
+  test("reports only fresh unread messages once per update, independently of native banners", () => {
+    let arrivals = 0;
+    const { manager, pendingTimers } = harness({
+      focused: () => true,
+      supported: () => false,
+      onMessagesArrived: () => { arrivals++; },
+    });
+    manager.sync({ channels: [channel([alert(1)])] });
+    manager.sync({ channels: [channel([alert(1), alert(2, { kind: "reaction" })])] });
+    expect(arrivals).toBe(0);
+
+    const incoming = { channels: [channel([alert(3), alert(4)])] };
+    manager.sync(incoming);
+    manager.sync(incoming);
+    expect(arrivals).toBe(1);
+    expect(pendingTimers()).toBe(0);
+
+    manager.markRead({ channelId: "chat", lastReadSequence: "50", lastReadNotificationSequence: "5" });
+    manager.sync({ channels: [channel([alert(5)])] });
+    expect(arrivals).toBe(1);
+  });
+
   test("a full local read keeps the badge cleared through blur and a lagging server snapshot", () => {
     const { manager, badges } = harness();
     const snapshot = { channels: [channel([alert(1)])] };

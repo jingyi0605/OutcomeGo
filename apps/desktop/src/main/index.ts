@@ -31,7 +31,8 @@ import {
   systemPreferences,
 } from "electron";
 import type { AppUpdater } from "electron-updater";
-import { applicationMenuTemplate, type ApplicationMenuLocale } from "./application-menu";
+import { withBotDockToggle, applicationMenuTemplate, type ApplicationMenuLocale } from "./application-menu";
+import { DesktopBotDock } from "./bot-dock";
 import { DesktopScreenBot } from "./screenbot";
 import { ScreenBotShortcutController, requestInputMonitoring } from "./screenbot-shortcut";
 import { desktopSignIn, desktopSignOut } from "./auth-client";
@@ -1224,11 +1225,15 @@ const createWindow = async () => {
   mainWindow.webContents.on("render-process-gone", () => {
     screenBotShortcut.setRecording(false);
     screenbot.abandonRequests();
+    // The page that knew what to show is gone; the reloaded one publishes again.
+    botDock.reset();
   });
   mainWindow.once("closed", () => {
     disposeWindowActivity();
     screenBotShortcut.setRecording(false);
     screenbot.closeOverlay();
+    // Nothing is left to say, and on Windows and Linux the app quits with its last window.
+    botDock.reset();
     pluginOAuth.closeAll();
     mainWindow = null;
   });
@@ -1296,37 +1301,122 @@ const screenbot = new DesktopScreenBot({
   discardDelivery: (stagingId) => discardDeliveryFiles(deliveryStageDirectory(), [stagingId]),
 });
 
+// The native helper runs from app.asar.unpacked in packaged builds.
+const screenBotHelperPath =
+  process.platform === "darwin"
+    ? join(import.meta.dirname.replace(/app\.asar(?=[\\/]|$)/, "app.asar.unpacked"), "screenbot-keys")
+    : null;
+
+// The floating Bot capsule: unread messages (red) and goals waiting on the owner (yellow).
+const botDock = new DesktopBotDock({
+  preloadPath: join(import.meta.dirname, "botdock-preload.cjs"),
+  dragHelperPath: screenBotHelperPath,
+  settingsPath: join(app.getPath("userData"), "bot-dock-settings.json"),
+  loadPage: async (window, surface) => {
+    const rendererUrl = devRendererUrl();
+    if (rendererUrl) {
+      const url = new URL("botdock.html", rendererUrl.endsWith("/") ? rendererUrl : `${rendererUrl}/`);
+      url.searchParams.set("surface", surface);
+      await window.loadURL(url.href);
+    } else {
+      await window.loadFile(join(import.meta.dirname, "..", "dist", "botdock.html"), {
+        query: { surface },
+      });
+    }
+  },
+  mainWindow: () => mainWindow,
+  focusMainWindow: () => focusMainWindow(),
+  // The same navigation as a notification click: open the chat at its newest message.
+  openChat: (channelId) => {
+    focusMainWindow();
+    mainWindow?.webContents.send("outcomego:notification-click", { channelId });
+  },
+  openGoals: () => {
+    focusMainWindow();
+    queueOutcomeTarget({});
+  },
+  stageDelivery: (stagingId, bytes) =>
+    stageDeliveryFile(deliveryStageDirectory(), { stagingId, bytes }),
+  discardDelivery: (stagingId) => discardDeliveryFiles(deliveryStageDirectory(), [stagingId]),
+  locale: () => applicationMenuLocale,
+  onEnabledChange: () => {
+    mainWindow?.webContents.send("outcomego:botdock:enabled-changed", botDock.preferenceEnabled);
+    rebuildApplicationMenu();
+  },
+});
+
+const requireBotDockSettingsSender = (event: Electron.IpcMainInvokeEvent) => {
+  if (event.sender !== mainWindow?.webContents) throw new Error("Bot dock settings are unavailable");
+};
+
+const checkBotDockAccessibility = (prompt: boolean) => {
+  if (process.platform !== "darwin") return false;
+  const trusted = systemPreferences.isTrustedAccessibilityClient(prompt);
+  botDock.refreshGlobalDrag(trusted);
+  return trusted;
+};
+
+ipcMain.handle("outcomego:accessibility:check", (event) => {
+  requireBotDockSettingsSender(event);
+  return checkBotDockAccessibility(false);
+});
+
+ipcMain.handle("outcomego:accessibility:request", (event) => {
+  requireBotDockSettingsSender(event);
+  return checkBotDockAccessibility(true);
+});
+
+ipcMain.handle("outcomego:accessibility:open-settings", async (event) => {
+  requireBotDockSettingsSender(event);
+  if (process.platform !== "darwin") return;
+  await shell.openExternal("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility");
+});
+
+ipcMain.handle("outcomego:botdock:get-enabled", (event) => {
+  requireBotDockSettingsSender(event);
+  return botDock.preferenceEnabled;
+});
+
+ipcMain.handle("outcomego:botdock:set-enabled", (event, enabled: unknown) => {
+  requireBotDockSettingsSender(event);
+  if (typeof enabled !== "boolean") throw new Error("Invalid bot dock setting");
+  botDock.setEnabled(enabled);
+});
+
 const rebuildApplicationMenu = () => {
   const shortcut = screenBotShortcut.status().shortcut;
+  const template = applicationMenuTemplate(
+    process.platform,
+    applicationMenuLocale,
+    (action) => {
+      if (action === "screenbot") {
+        void screenbot.take();
+        return;
+      }
+      focusMainWindow();
+      mainWindow?.webContents.send("outcomego:app-menu", action);
+      if (
+        action === "updates" &&
+        !["checking", "downloading", "downloaded", "installing"].includes(
+          desktopUpdateSnapshot.status
+        )
+      ) {
+        void checkForDesktopUpdate();
+      }
+    },
+    (action, window) => {
+      if (!computerClipboardActive || window !== mainWindow) return false;
+      mainWindow?.webContents.send("outcomego:computer-clipboard", action);
+      return true;
+    },
+    // A two-key chord can't be shown as a menu accelerator.
+    shortcut.kind === "accelerator" ? shortcut.accelerator : null,
+    keyboardShortcuts.get("settings")
+  );
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
-      applicationMenuTemplate(
-        process.platform,
-        applicationMenuLocale,
-        (action) => {
-          if (action === "screenbot") {
-            void screenbot.take();
-            return;
-          }
-          focusMainWindow();
-          mainWindow?.webContents.send("outcomego:app-menu", action);
-          if (
-            action === "updates" &&
-            !["checking", "downloading", "downloaded", "installing"].includes(
-              desktopUpdateSnapshot.status
-            )
-          ) {
-            void checkForDesktopUpdate();
-          }
-        },
-        (action, window) => {
-          if (!computerClipboardActive || window !== mainWindow) return false;
-          mainWindow?.webContents.send("outcomego:computer-clipboard", action);
-          return true;
-        },
-        // A two-key chord can't be shown as a menu accelerator.
-        shortcut.kind === "accelerator" ? shortcut.accelerator : null,
-        keyboardShortcuts.get("settings")
+      withBotDockToggle(template, applicationMenuLocale, botDock.enabled, (enabled) =>
+        botDock.setEnabled(enabled)
       )
     )
   );
@@ -1391,11 +1481,6 @@ const dictateFromFn = (event: string) => {
   );
 };
 
-// The macOS helper that detects both-key chords; packaged apps run it from app.asar.unpacked.
-const screenBotHelperPath =
-  process.platform === "darwin"
-    ? join(import.meta.dirname.replace(/app\.asar(?=[\\/]|$)/, "app.asar.unpacked"), "screenbot-keys")
-    : null;
 let lastShortcutMenu: string | null | undefined;
 const screenBotShortcut = new ScreenBotShortcutController({
   platform: process.platform,
@@ -1565,6 +1650,7 @@ if (!hasSingleInstanceLock) {
       desktopNotifications = new DesktopNotificationManager({
         isFocused: () => mainWindow?.isFocused() ?? false,
         isSupported: () => Notification.isSupported(),
+        onMessagesArrived: () => botDock.notifyMessageArrival(),
         setBadge: (label) => app.dock?.setBadge(label),
         dismiss: (id) => {
           activityNotifications.get(id)?.close();
@@ -1755,6 +1841,7 @@ app.on("before-quit", () => {
   pluginOAuth.closeAll();
   screenBotShortcut.dispose();
   screenbot.dispose();
+  botDock.dispose();
   isQuitting = true;
   mainWindow?.webContents.send("outcomego:notifications:activity-changed");
   if (desktopUpdateTimer) clearInterval(desktopUpdateTimer);
