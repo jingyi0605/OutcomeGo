@@ -3,6 +3,7 @@ import type { ProductEvent } from "@outcomego/contracts";
 import {
   OUTCOME_REFRESH_DEBOUNCE_MS,
   refreshOutcomeViews,
+  subscribeOutcomeListRefresh,
   subscribeOutcomeRefresh,
 } from "../src/renderer/lib/outcome-events";
 
@@ -51,4 +52,19 @@ test("a snapshot reset refreshes every open goal", () => {
   const b = watch("b");
   refreshOutcomeViews(event("snapshot.required", null));
   expect([a(), b()]).toEqual([1, 1]);
+});
+
+test("goal status changes and reconnects refresh aggregate views, other topics do not", async () => {
+  let count = 0;
+  cleanups.push(subscribeOutcomeListRefresh(() => count++));
+  refreshOutcomeViews(event("goal.status.changed", "a"));
+  refreshOutcomeViews(event("goal.status.changed", "b"));
+  expect(count).toBe(0);
+  await wait(OUTCOME_REFRESH_DEBOUNCE_MS + 80);
+  expect(count).toBe(1);
+  refreshOutcomeViews(event("outcome.work_item.updated", "a"));
+  await wait(OUTCOME_REFRESH_DEBOUNCE_MS + 80);
+  expect(count).toBe(1);
+  refreshOutcomeViews();
+  expect(count).toBe(2);
 });

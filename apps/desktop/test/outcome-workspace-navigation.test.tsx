@@ -269,6 +269,22 @@ test("sidebar navigation exposes a selected page and stays usable when compact",
   expect(opened).toBe(2);
 });
 
+test("navigation shows a colored count badge for each status that needs the owner", async () => {
+  await mount(<OutcomeNavigation active={false} onOpen={() => {}} badges={{ approval: 2, review: 120 }} />);
+  const badges = [...host.querySelectorAll("[data-outcome-badge]")];
+  expect(badges.map((badge) => [badge.getAttribute("data-outcome-badge"), badge.textContent])).toEqual([
+    ["approval", "2"],
+    ["review", "99+"],
+  ]);
+  expect(host.querySelector("button")?.getAttribute("aria-label")).toBe(
+    "Outcomes, Pending action: 2, Awaiting review: 120"
+  );
+  await render(<OutcomeNavigation active={false} onOpen={() => {}} badges={{ approval: 0, review: 3 }} />);
+  expect(host.querySelectorAll("[data-outcome-badge]").length).toBe(1);
+  await render(<OutcomeNavigation compact active={false} onOpen={() => {}} badges={{ approval: 0, review: 0 }} />);
+  expect(host.querySelector("[data-outcome-badge]")).toBeNull();
+});
+
 test("workspace opens a full page with all goals, Bot names and execution statuses", async () => {
   await mount(page());
   expect(host.querySelector('[role="dialog"]')).toBeNull();

@@ -347,6 +347,7 @@ export const sourceTranslations: Record<string, string> = {
   "Awaiting approval": "待批准",
   "Ready to start": "待启动",
   "Awaiting review": "待验收",
+  "Pending action": "待处理",
   Accepted: "已验收",
   "Awaiting decision": "待决策",
   "Awaiting human action": "待人工处理",

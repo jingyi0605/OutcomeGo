@@ -123,6 +123,7 @@ import { SidebarActivityProvider, useSidebarComposing } from "./sidebar-activity
 import { SidebarUnreadAvatar, SidebarUnreadDot } from "./sidebar-unread";
 import { externalPlatformLabel } from "./external-delivery-status";
 import { OutcomeNavigation } from "./outcomes/outcome-navigation";
+import type { OutcomeActionCounts } from "../../hooks/use-outcome-action-counts";
 
 const EMPTY_PINNED_IDS: ReadonlySet<string> = new Set();
 
@@ -2150,6 +2151,7 @@ function CompactSidebarContent({
   onOpenPlugins,
   onOpenOutcomes,
   outcomesActive,
+  outcomeBadges,
 }: {
   groups: Array<{ id: string; rows: ChannelRowData[] }>;
   botById: ReadonlyMap<string, BotView>;
@@ -2160,6 +2162,7 @@ function CompactSidebarContent({
   onOpenPlugins: () => void;
   onOpenOutcomes?: () => void;
   outcomesActive?: boolean;
+  outcomeBadges?: OutcomeActionCounts;
 }) {
   const { t } = useI18n();
   const scrollRef = useRef<HTMLElement>(null);
@@ -2224,7 +2227,12 @@ function CompactSidebarContent({
     <>
       <div className="electron-drag h-11 shrink-0" />
       {onOpenOutcomes && (
-        <OutcomeNavigation compact active={Boolean(outcomesActive)} onOpen={onOpenOutcomes} />
+        <OutcomeNavigation
+          compact
+          active={Boolean(outcomesActive)}
+          onOpen={onOpenOutcomes}
+          badges={outcomeBadges}
+        />
       )}
       <div className="relative flex min-h-0 flex-1">
         <nav
@@ -2353,6 +2361,7 @@ export const Sidebar = memo(function Sidebar({
   onOpenOutcomes,
   onNewIdea,
   outcomesActive = false,
+  outcomeBadges,
   onSelect,
   onNewBot,
   onNewGroup,
@@ -2380,6 +2389,7 @@ export const Sidebar = memo(function Sidebar({
   onOpenOutcomes?: () => void;
   onNewIdea?: () => void;
   outcomesActive?: boolean;
+  outcomeBadges?: OutcomeActionCounts;
   onSelect: (id: string, focusComposer?: boolean) => void;
   onNewBot: () => void;
   onNewGroup: () => void;
@@ -2953,6 +2963,7 @@ export const Sidebar = memo(function Sidebar({
               onOpenPlugins={onOpenPlugins}
               onOpenOutcomes={onOpenOutcomes}
               outcomesActive={outcomesActive}
+              outcomeBadges={outcomeBadges}
               onSelect={onSelect}
               selectedId={selectedId}
               unreadIds={preferences.unreadIds}
@@ -2981,6 +2992,7 @@ export const Sidebar = memo(function Sidebar({
                     active={outcomesActive}
                     onOpen={onOpenOutcomes}
                     onNewIdea={onNewIdea}
+                    badges={outcomeBadges}
                   />
                 </div>
               )}
