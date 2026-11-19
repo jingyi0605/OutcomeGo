@@ -296,7 +296,7 @@ private fun AllGoalsTab(
     LaunchedEffect(gateway, statusFilter, refreshVersion) { load() }
 
     val itemsList = page?.items.orEmpty()
-    val runningCount = remember(itemsList) { itemsList.count { it.status == "running" || it.status == "queued" } }
+    val runningCount = remember(itemsList) { itemsList.count { it.status in setOf("planning", "running", "queued") } }
     val attentionCount = remember(itemsList) {
         itemsList.count {
             it.status in setOf("pending_approval", "review_pending", "needs_review", "decision_pending", "waiting_decision", "human_action_pending", "waiting_human")
@@ -314,7 +314,7 @@ private fun AllGoalsTab(
                 horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
             ) {
                 OutcomeMetricTile(
-                    label = localizedText("Running", "执行中"),
+                    label = localizedText("Running", "运行中"),
                     value = runningCount.toString(),
                     icon = Icons.Outlined.PlayCircle,
                     tint = colors.accent,
