@@ -2,313 +2,213 @@
 
 ## 项目背景
 
-这是一个跨工作区协作项目，需要在 OutcomeGo 中实现 DSH-WEB 插件，调用升级后的 DSH-WEB MCP 服务器，使 Bot 能够在 DSH-WEB 工作区中操作。
+这是一个跨工作区协作项目：在 OutcomeGo 中交付 DSH-WEB 插件，使 Bot 能通过升级后的 DSH-WEB MCP 服务在其工作区中操作。
 
 完整规格文档位置：`/Users/jackson/Code/openteam/specs/005.3-DSH-WEB插件集成/`
 
+## 先理解插件系统的规则（重要）
+
+OutcomeGo 的插件是**声明式**的。本项目按这些规则交付，不要写自定义 connector：
+
+- 插件包只包含 `plugin.json`（连接与配置字段声明）、`skills/dsh-web/SKILL.md`（Bot 使用说明）、`README.md`，以及测试。
+- DSH-WEB 通过 **Remote MCP** 连接。宿主负责连接、工具发现、输入 Schema 校验、账号隔离和 HTTP 错误处理。`plugin.json` 里 `connections[].tools` 保持空数组，工具清单来自发现结果。
+- 宿主不重放结果不确定的工具调用；工具调用时限由宿主统一管理（当前 60 分钟），连接与发现时限 30 秒，插件不能单独设置。
+- 插件不能监听端口。事件订阅使用宿主的**插件事件轮询**（Spec 005.4，宿主侧已完成）：插件清单声明 `events`，宿主定期调用后端 `session_events` 并对 Bot 隐藏该工具；Bot 创建触发器为 `{ "type": "plugin", "plugin": "dsh-web", ... }` 的 routine 来订阅。不需要公网地址，也没有 Webhook。
+- 不得在 `apps/server` 中写 DSH-WEB 专属分发逻辑；`scripts/generate.ts` 自动发现插件目录。
+
+因此，**不要**创建 `connector/`、`http-client.ts`、`webhook-handler.ts`，也不要使用 Webhook 或 `localhost:9999` 之类的端点。
+
 ## 你的职责
 
-在 OutcomeGo 中开发 DSH-WEB 插件，实现以下 4 个需求（F1-F4），分 2 个开发阶段完成，并与后端团队协作进行集成测试。
+围绕需求 F1–F4，在插件系统允许的形态内完成交付，并与后端团队联调：
 
-## 核心需求概览
+| 需求 | 交付方式 | 承担方 |
+| --- | --- | --- |
+| F1 MCP 连接与参数支持（P0） | 连接声明、配置字段、工具发现；`agentId`、`priority` 按后端 Schema 传递 | 插件包 + 宿主 + 后端 Schema |
+| F2 会话事件订阅（P0） | `plugin.json` 的 `events` 声明、`SKILL.md` 订阅指引、联调 | 宿主（已完成）+ 后端 `session_events` + 插件包 |
+| F3 工具映射与使用说明（P1） | `SKILL.md` 覆盖 22 个工具和错误码指引；契约测试 | 插件包 |
+| F4 错误处理与超时（P1） | 遵守宿主语义；`SKILL.md` 给出错误处理和"先查状态再重做"的规则 | 宿主 + 插件包 + 后端 |
 
-### F1：MCP 客户端参数支持（P0）
-- 升级 HTTP MCP 客户端，支持所有新参数（agentId、priority 等）
-- 支持所有 20 个 MCP 工具的调用：
-  - 工作区（6）：workspace_list、file_list、file_read、git_status、git_log、git_diff
-  - 会话（4）：session_list、create、continue、queue_peek
-  - 消息队列（3）：message_status、message_cancel、message_prioritize
-  - 问题/权限（4）：questions、answer、request_permission、permission_status
-  - 终端（3）：terminal_list、read、write
-- 完善的错误处理和类型检查
+## 当前进度（截至 2026-11-19）
 
-### F2：Webhook 接收与事件处理（P0）【重点】
-- 实现 Webhook 接收端点：`http://localhost:9999/webhook/dsh-web`
-- 解析和处理后端发来的 Webhook 事件
-- 根据 `agentId` 路由事件到对应的 Bot
-- 支持的事件：
-  - session.completed / session.failed
-  - session.question_asked / session.permission_requested
-  - message_queued / message_dequeued（新增）
+已完成（配置接入）：
 
-### F3：新工具的插件映射（P1）
-- 在 OutcomeGo 插件工具列表中声明所有 20 个工具
-- 实现工具处理器（tool handlers）
-- 参数序列化、结果格式化
-- 统一的错误码映射
+- `packages/plugins/dsh-web/plugin.json`、`README.md`、`skills/dsh-web/SKILL.md`（初版）
+- 私有网络 IP 可用 HTTP、公网和域名必须 HTTPS 的 URL 校验（`packages/plugin-sdk`，同步 iOS 校验与 t3-code 文案）
+- `packages/plugins/test/dsh-web.test.ts`（通过）；`apps/server/test/plugin/dsh-web.integration.test.ts`（需要 `OUTCOMEGO_TEST_DATABASE_URL`，否则跳过）
 
-### F4：错误处理与超时（P1）
-- 超时控制：30 秒
-- 网络错误自动重试（指数退避）
-- 清晰的用户友好错误消息
-- 完善的日志记录（不暴露敏感信息）
+未完成：
+
+- `SKILL.md` 覆盖 22 个工具和错误码指引，以及技能契约测试、模拟 MCP 服务的发现与调用测试（F1.1）
+- 事件订阅与真实后端的联调（F1.2；`plugin.json` 的 `events` 声明和 `SKILL.md` 订阅指引已完成，等待后端 `session_events`）
+
+宿主侧已完成（Spec 005.4）：插件清单支持 `events.source: "plugin"`（含 Remote MCP）、`plugin` 触发器、宿主定期拉取、事件去重、轮询工具对 Bot 隐藏。
+- Bot 工作流指引与联调（F2.1）
+- ≥ 10 个联调场景与文档（F2.2）
 
 ## 核心要点
 
-### 关键理解：消息队列透明化
+### 消息队列透明化
 
-这是本项目的**核心创新**。Bot 现在能够：
+这是本项目的核心能力。Bot 通过后端 MCP 工具获得：
 
 1. **发送消息时了解状态**
    ```
-   session_continue(sessionId, message, agentId="bot-1")
-   返回：{
-     messageId: "msg-123",
-     status: "queued" | "processing",
-     queuePosition: 2,
-     estimatedWaitMs: 8000
-   }
+   session_continue(sessionId, message, agentId?)
+   返回：{ messageId, status: "queued" | "processing" | "completed",
+          queuePosition?, estimatedWaitMs?, reason?, success }
    ```
+2. **查询消息状态**：`message_status(sessionId, messageId)` 返回状态、队列位置、`canCancel`、`canPrioritize`
+3. **操作消息队列**：`message_cancel`、`message_prioritize(…, priority)`、`session_queue_peek`
+4. **订阅队列事件**：`session_events` 事件 `session.message_queued`、`session.message_dequeued`，由 Bot 的订阅 routine 接收
 
-2. **查询消息状态**
-   ```
-   message_status(sessionId, messageId)
-   返回：消息当前状态、队列位置、是否可操作
-   ```
+`SKILL.md` 必须要求 Bot：先 `message_status` 再取消或插队；只报告实际返回的字段，不推断未返回的队列位置或预计等待时间。
 
-3. **操作消息队列**
-   ```
-   message_cancel(sessionId, messageId)          # 取消排队
-   message_prioritize(sessionId, messageId, 100) # 插队
-   session_queue_peek(sessionId)                 # 查看队列
-   ```
+### agentId 的使用
 
-4. **接收队列事件**
-   ```
-   Webhook: session.message_queued
-   Webhook: session.message_dequeued
-   ```
+只有工作流提供了稳定的 Bot 标识、且当前 Schema 接受 `agentId` 时才传；`session_create` 与 `session_continue` 使用同一个值。`agentId` 是 DSH-WEB 侧用于标签和审计的标识，**不用于 OutcomeGo 侧选择接收事件的 Bot**。
 
-Bot 基于这些能力，可以制定更智能的工作流。
+### 重试与副作用
 
-## 技术实现指引
+宿主不自动重放工具调用。只读工具可由 Bot 重试；有副作用的工具（`session_create`、`session_continue`、`message_cancel`、`message_prioritize`、`session_answer`、`terminal_write`）在网络中断或结果不确定时，先用 `session_list`、`message_status`、`session_queue_peek` 核对状态再决定是否重做。
 
-### 当前相关代码
+## 工具清单（22 个，以后端发现结果为准）
+
+| 类型 | MCP 工具 |
+| --- | --- |
+| 工作区（6） | `workspace_list`、`workspace_file_list`、`workspace_file_read`、`workspace_git_status`、`workspace_git_log`、`workspace_git_diff` |
+| 会话（6） | `session_list`、`session_create`、`session_continue`、`session_queue_peek`、`session_history`、`session_search` |
+| 消息队列（3） | `message_status`、`message_cancel`、`message_prioritize` |
+| 问题/权限（4） | `session_questions`、`session_answer`、`session_request_permission`、`session_permission_status` |
+| 终端（3） | `terminal_list`、`terminal_read`、`terminal_write` |
+
+参数、副作用和使用要点见 `design.md` §3.2.3。宿主侧显示名按其既有规则（插件、账号命名空间）生成，不要在文档里自定义 `dsh_web.` 之类的前缀。
+
+## 工作流示例
 
 ```
-packages/plugins/dsh-web/
-├── plugin.json                    # 插件元数据和工具声明
-├── package.json
-├── connector/
-│   └── src/
-│       ├── index.ts               # 插件入口
-│       ├── http-client.ts         # HTTP MCP 客户端
-│       ├── credential-manager.ts  # 凭证管理
-│       ├── webhook-handler.ts     # Webhook 接收（需升级）
-│       ├── tools/
-│       │   ├── workspace.ts       # 工作区工具
-│       │   ├── session.ts         # 会话工具
-│       │   ├── message.ts         # 消息队列工具（新建）
-│       │   ├── question.ts        # 问题工具
-│       │   ├── permission.ts      # 权限工具
-│       │   └── terminal.ts        # 终端工具
-│       └── types.ts               # 类型定义
-└── test/
-    └── integration.test.ts        # 集成测试
-```
-
-### 工作流示例
-
-```
-用户创建 Bot 工作流：
-
-1. Bot 调用 session_create
-   → OutcomeGo 插件调用 MCP 工具 session_create
+1. Bot 调用 session_create（带 workspaceId，必要时带 agentId、priority）
    → DSH-WEB 创建会话，返回 sessionId
-   → Bot 保存 sessionId
-
-2. Bot 发送消息
-   → OutcomeGo 插件调用 session_continue（带 agentId）
-   → DSH-WEB 处理消息，返回状态回执
-   → OutcomeGo 告诉 Bot：消息进入队列了（position: 2, waitTime: 5000）
-
+2. Bot 调用 session_continue
+   → 返回回执：messageId、status、queuePosition、estimatedWaitMs
 3. Bot 基于回执决定：
-   ├─ 如果立即处理 → 等待会话完成
-   ├─ 如果进入队列 → 可选择：
-   │  ├─ 查看队列状态（session_queue_peek）
-   │  ├─ 取消这条消息（message_cancel）
-   │  └─ 提升优先级（message_prioritize）
-   └─ 等待消息被处理
-
-4. 消息处理完成 → DSH-WEB 发送 Webhook 事件
-   → OutcomeGo Webhook 端点接收
-   → 根据 agentId 查找 Bot
-   → Bot 处理 Webhook 事件，继续后续工作流
+   ├─ processing → 等待完成
+   └─ queued → session_queue_peek 查看；先 message_status，再按需 message_cancel / message_prioritize
+4. 会话完成或失败
+   ├─ 已订阅（plugin 触发器的 routine）：宿主每 60 秒拉取 session_events，匹配则唤醒该 Bot → Bot 继续，并删除订阅
+   └─ 未订阅或怀疑漏事件：Bot 用 session_list / message_status 查询，不得声称已收到事件
 ```
 
 ## 开发阶段
 
-### 阶段 F1（2 周）：MCP 客户端升级与 Webhook 接收
+### 阶段 F1（2 周）：连接、技能契约与事件接入
 
-#### F1.1 升级 MCP 客户端（1 周）
-- 支持新参数（agentId、priority）
-- 支持所有 20 个工具
-- 参数验证和序列化
-- 错误码映射
-- 集成测试（需要后端 B1.1 完成）
+#### F1.1 MCP 连接配置、技能说明与工具契约测试（进行中）
+- 补全 `SKILL.md`：22 个工具、后端错误码处理指引、先查状态再操作的规则
+- 技能契约测试：`SKILL.md` 的工具名与 design §3.2.3 一致
+- 模拟 MCP 服务的集成测试：发现 22 个工具；`agentId`、`priority` 被正确传递；非法参数被宿主拒绝
+- 真实后端 Schema 核对（需要后端 B1.1）
 
-#### F1.2 实现 Webhook 接收（1 周）
-- Webhook 端点实现
-- 事件解析（需要后端 B2.2 完成）
-- 事件路由机制
-- 错误处理和日志
-- 集成测试
+#### F1.2 会话事件订阅与联调（清单和指引已完成，等待后端 B2.2 联调）
+- `plugin.json` 已声明 `events: { "pollTool": "session_events", "source": "plugin", "intervalSeconds": 60 }`（版本 0.1.3）。后端还没有该工具时，宿主只记录一条提示并每 15 分钟检查一次，不会每个周期报错，后端上线后自动生效
+- `SKILL.md` 写订阅方法：创建会话后用 `resourceIds`（会话）或 `actors`（`agentId`）创建 routine，事件类型用 `events` 收窄；保存的提示词写明事件到达后做什么；处理完成后删除 routine；怀疑漏事件时用 `session_list`、`message_status` 核对
+- 联调 6 类事件：`session.completed`、`session.failed`、`session.question_asked`、`session.permission_requested`、`session.message_queued`、`session.message_dequeued`
+- 验证：匹配的 Bot 被唤醒、不匹配的不被唤醒、重复拉取不重复运行、首次连接不集中唤醒历史事件
+- 核对 `<plugin_event>` 的内容形态并补进 `SKILL.md`；更新 `README.md` 的 Webhook 一节为事件订阅
 
 #### F1.3 阶段检查
-- 单元测试通过
-- 集成测试通过
-- 与后端联合测试通过
+- 自动化测试通过；事件订阅联调记录完整
 
-### 阶段 F2（1.5-2 周）：Bot 工作流集成与测试
+### 阶段 F2（1.5-2 周）：Bot 工作流与交付
 
-#### F2.1 实现 Bot 回调和事件处理（1 周）
-- Bot 在 session_create 时传递 agentId
-- Webhook 事件触发对应 Bot 的回调
-- 完整的工作流处理
-- 集成测试（完整的 Bot 场景）
+#### F2.1 Bot 工作流指引与联调
+- 固化 `agentId` 规则、队列流程、事件处理
+- 真实 Bot 跑完整流程（需要后端 B3.3）
+- 多个 Bot 各自订阅不同会话，事件只唤醒各自的 Bot，互不干扰
 
-#### F2.2 端到端测试和文档（0.5-1 周）
-- E2E 测试：覆盖所有 20 个工具
-- 错误场景测试：网络故障、超时、无效凭证
-- 用户文档：如何使用 DSH-WEB 插件
-- 开发者文档：如何在 Bot 中调用
+#### F2.2 联调场景与文档
+- 不少于 10 个联调或端到端场景，22 个工具均被覆盖
+- 错误场景：API Key 无效、网络中断后的状态核对、非法参数、后端错误码
+- 文档按 `docs/README.md` 清单编写（带日期的中文文件名）
 
 ## 与后端的同步点
 
-### 依赖关系
+| 后端完成 | 前端可开始 |
+| --- | --- |
+| B1.1 | F1.1 对真实后端的 Schema 核对 |
+| B2.2 | F1.2 事件订阅联调 |
+| B3.3 | F2.1 完整流程 |
 
-```
-后端完成              →  前端可开始
-─────────────────────────────────────
-B1.1 完成            →  F1.1（参数支持测试）
-B2.2 完成            →  F1.2（Webhook 事件格式）
-B3.3 完成            →  F2.1（完整流程测试）
-```
+每周同步进度；参数格式、错误码、事件内容有问题立即反馈；后端完成阶段时提供集成环境。
 
-### 沟通机制
+## 需要和后端确认的事项
 
-- **每周同步**：了解后端进度，获取最新 MCP 接口
-- **遇到问题立即反馈**：参数格式、错误码、事件内容等
-- **集成测试协调**：后端完成阶段时提供集成环境
+- 后端 `session_events` 的事件日志保留期（建议至少 7 天）与游标过期行为（建议 `session.events_gap`）
+- 首次调用（游标为空）只返回基线游标，不返回历史事件；每次最多返回 50 个，升序，游标只推进到最后一个已返回的事件
+- 默认 60 秒的轮询间隔是否满足场景；是否改为 30 秒（宿主最短 30 秒）
+- 后端在输入 Schema 中声明 `agentId`、`priority` 的类型、长度、格式和范围（宿主据此校验）
+- 文件和 Git 操作的后端超时（当前 5 秒保护）与超时错误形态
+- `agentId` 的格式规范，以及 Bot 稳定标识如何提供给工作流
 
 ## 完整规格文档章节引用
 
-- **需求定义**：`requirements.md` 中 F1-F4 部分
-- **工具接口**：`design.md` 中 §3.2.3（工具映射表）和 §3.1.1（MCP 工具定义）
-- **Webhook 事件**：`design.md` 中 §3.1.2（Webhook 事件格式）
-- **关键流程**：`design.md` 中 §2.2（三个关键流程）
-- **具体任务**：`tasks.md` 中 F 阶段 1-2
+- **需求定义**：`requirements.md` 中 F1–F4 部分
+- **交付形态与职责划分**：`design.md` §3.2.0
+- **工具接口**：`design.md` §3.1.1（MCP 工具定义）、§3.2.3（工具映射与技能说明）
+- **会话事件**：`design.md` §3.1.2（`session_events` 协议与事件类型）、§3.2.2（订阅方式）；宿主机制见 Spec 005.4
+- **错误处理**：`design.md` §3.2.4、§5
+- **关键流程**：`design.md` §2.2、§3.2.5
+- **具体任务**：`tasks.md` 中 F 阶段 1–2，含需求—设计—任务追踪表
 
 ## 验收标准
 
 ### F1 验收
-- [ ] HTTP MCP 客户端支持所有新参数
-- [ ] 所有 20 个工具都有处理器和测试
-- [ ] 参数验证完整（类型、长度、格式）
-- [ ] Webhook 端点能接收和解析事件
-- [ ] 事件路由根据 agentId 正确工作
-- [ ] 错误消息清晰易懂
-- [ ] 单元测试覆盖率 ≥ 80%
+- [ ] 连接后发现 22 个工具，Schema 与 design §3.1.1 一致（模拟服务和真实后端各验证一次）
+- [ ] `agentId`、`priority` 按 Schema 传递，非法参数被宿主拒绝
+- [ ] `plugin.json` 的 `tools` 为空，插件目录无 `connector/`，`apps/server` 无 DSH-WEB 专属代码
+- [ ] 目录与配置测试、集成测试通过
 
 ### F2 验收
-- [ ] Bot 能在 session_create 时提供 agentId
-- [ ] Webhook 事件能触发 Bot 的回调
-- [ ] 完整的 Bot 工作流正常运作
-- [ ] E2E 测试覆盖至少 10 个场景
-- [ ] 错误处理完善（超时、网络故障等）
-- [ ] 文档清晰完整
+- [ ] `plugin.json` 声明了 `events`，Bot 可见的工具仍是 22 个（`session_events` 不在其中）
+- [ ] 订阅步骤可复现；6 类事件能唤醒订阅它们的 Bot，不匹配的不唤醒，重复拉取不重复运行
+- [ ] 完整 Bot 工作流正常运作
+- [ ] 联调场景不少于 10 个，22 个工具被覆盖，每个场景有结果记录
+- [ ] 错误场景覆盖：凭证无效、网络中断后核对状态、非法参数、后端错误码
+- [ ] 文档清晰完整，`README.md` 的"当前边界"与实际一致
+
+### F3、F4 验收
+- [ ] `SKILL.md` 覆盖 22 个工具和错误码指引，契约测试通过
+- [ ] 凭证无效时提示检查 API Key；错误码与消息原样保留
+- [ ] 有副作用的调用不自动重放，`SKILL.md` 要求先查状态再重做
+- [ ] API Key 不出现在插件包、导出和对话中
 
 ### 端到端验收
 - [ ] Bot 能创建会话、发送消息、获取状态回执
 - [ ] Bot 能查询队列、取消消息、提升优先级
 - [ ] Bot 能读取文件和 Git 信息
 - [ ] Bot 能处理会话完成和错误事件
-- [ ] 多个 Bot 并发使用不互相干扰
-
-## 工具映射表
-
-| 类型 | OutcomeGo 工具 | 后端 MCP 工具 | 说明 |
-| --- | --- | --- | --- |
-| 工作区 | dsh_web.workspace_list | workspace_list | 列出工作区 |
-| | dsh_web.workspace_file_list | workspace_file_list | 列出文件 |
-| | dsh_web.workspace_file_read | workspace_file_read | 读取文件 |
-| | dsh_web.workspace_git_status | workspace_git_status | Git 状态 |
-| | dsh_web.workspace_git_log | workspace_git_log | Git 历史 |
-| | dsh_web.workspace_git_diff | workspace_git_diff | Git 变更 |
-| 会话 | dsh_web.session_list | session_list | 列出会话 |
-| | dsh_web.session_create | session_create | 创建会话 |
-| | dsh_web.session_continue | session_continue | 发送消息 |
-| | dsh_web.session_queue_peek | session_queue_peek | 查看队列 |
-| 消息 | dsh_web.message_status | message_status | 消息状态 |
-| | dsh_web.message_cancel | message_cancel | 取消消息 |
-| | dsh_web.message_prioritize | message_prioritize | 提升优先级 |
-| 问题 | dsh_web.session_questions | session_questions | 待回答问题 |
-| | dsh_web.session_answer | session_answer | 回答问题 |
-| 权限 | dsh_web.session_request_permission | session_request_permission | 请求权限 |
-| | dsh_web.session_permission_status | session_permission_status | 权限状态 |
-| 终端 | dsh_web.terminal_list | terminal_list | 列出终端 |
-| | dsh_web.terminal_read | terminal_read | 读取终端 |
-| | dsh_web.terminal_write | terminal_write | 写入终端 |
-
-## 关键实现提示
-
-1. **消息队列工具实现**（F1.1 中最重要）：
-   - message_status 需要明确返回 canCancel、canPrioritize 布尔值
-   - message_prioritize 需要返回新的队列位置
-   - session_queue_peek 返回当前处理的消息和队列列表
-
-2. **Webhook 接收实现**（F1.2 的核心）：
-   - 端点应在启动插件时注册到 OutcomeGo
-   - 需要能处理偶发的网络问题（不要 crash）
-   - 无法路由的事件应记录日志，不报错
-
-3. **Bot 工作流支持**（F2.1）：
-   - Bot 需要能在 session_create 中提供自己的 agentId
-   - 插件需要维护一个 agentId → Bot 的映射
-   - Webhook 事件到达时快速查找和触发 Bot 回调
-
-4. **错误处理**（F4）：
-   - 网络错误时使用指数退避重试
-   - 超时后立即返回清晰的"操作超时"错误
-   - 无效参数时返回具体的验证错误
-   - 凭证错误时提示"请检查 API Key"
-
-5. **性能考虑**：
-   - 缓存工作区列表（5 分钟更新周期）
-   - 大文件读取时检查大小限制（1MB）
-   - Git 操作要有超时保护（30s 总超时）
+- [ ] 多个 Bot 各自订阅不同会话，并发使用不互相干扰
 
 ## 测试策略
 
-### 单元测试
-- 参数序列化/反序列化
-- 错误码映射
-- Webhook 事件解析
-- agentId 路由逻辑
+- **目录与配置测试**：`packages/plugins/test/dsh-web.test.ts`（运行：`cd packages/plugins && bun test test/dsh-web.test.ts`）
+- **技能契约测试**：`SKILL.md` 与 design §3.2.3、§3.2.4 一致
+- **服务端集成测试**：`apps/server/test/plugin/dsh-web.integration.test.ts`，需要 `OUTCOMEGO_TEST_DATABASE_URL`；参考 `apps/server/test/plugin/mcp-transport.test.ts` 的 MCP 测试写法
+- **事件订阅联调**：为 Bot 创建 `plugin` 触发器的 routine，DSH-WEB 产生 6 类事件，观察唤醒与不唤醒
+- **端到端**：真实 Bot + 真实 DSH-WEB，覆盖 22 个工具
 
-### 集成测试（与后端协作）
-- 完整工作流：create → continue → queue_peek → dequeue
-- Webhook 接收和路由
-- 多 Bot 并发场景
-- 错误场景（无效凭证、网络故障、超时）
+原先"单元测试覆盖率 ≥ 80%"的目标取消：插件没有自定义运行时代码，质量由上述测试和联调记录保证。
 
-### 端到端测试
-- 真实 Bot 使用 DSH-WEB 插件
-- 所有 20 个工具的调用
-- Webhook 事件的完整处理
+## 注意事项
+
+- 不要提交 `.env`、凭证文件或真实令牌；文档示例使用占位符
+- 插件版本按插件规则提升，并在 `README.md` 标明对应的 dsh-codingns 版本
+- 当前工作树里 SDK、iOS、t3-code 的改动与 DSH-WEB 插件混在一起，提交前建议拆成独立提交
+- 提交消息使用中文，格式为 `前端：xxxxx` 或 `修复：xxxxxx`
 
 ## 有任何问题请参考
 
 - 完整规格：`/Users/jackson/Code/openteam/specs/005.3-DSH-WEB插件集成/`
 - 后端团队提示词：`BACKEND_PROMPT.md`（同目录）
+- 宿主文档：`packages/plugins/README.md`、`docs/usage/plugins.md`、`docs/usage/routines.md`
 - 后端 SKILL.md：`/Users/jackson/Code/CodingNS/data/dsh-codingns/SKILL.md`
-
----
-
-**开始开发前建议：**
-1. 完整阅读 Spec 文档的 requirements.md、design.md、tasks.md
-2. 了解与后端的三个同步点，制定详细计划
-3. 与后端团队沟通确认 MCP 接口的具体格式
-4. 准备好集成测试环境（本地 DSH-WEB 实例）
-
-**祝你开发愉快！** 🚀

@@ -1,76 +1,66 @@
 # 补充文档目录
 
-本目录存放与 DSH-WEB 插件集成相关的补充文档。
+本目录存放与 DSH-WEB 插件集成相关的补充文档，对应 `tasks.md` 的 F2.2。文件名按项目规则使用带日期的中文名（`日期-标题.md`），日期为创建日期。
 
 ## 文档清单
 
-### DSH-WEB MCP 参考
-- **`dsh-web-mcp-reference.md`**（待编写）
-  - DSH-WEB MCP 服务器的完整接口文档
-  - 所有 11 个工具的详细说明
-  - 错误码列表
-  - 来源：`/Users/jackson/Code/CodingNS/data/dsh-codingns/src/host/workspace-mcp/tools.ts`
+### 接口参考
+- **`20261119-DSH-WEB-MCP接口参考.md`**（待编写）
+  - 22 个 MCP 工具的输入、输出和错误码，与 `design.md` §3.1.1 一致
+  - 来源：后端 `src/host/workspace-mcp/tools.ts` 与后端 SKILL.md，以实际发现结果为准
 
-### 集成指南
-- **`configuration-guide.md`**（待编写）
+### 配置指南
+- **`20261119-DSH-WEB配置指南.md`**（待编写）
   - 如何在 DSH-WEB 中生成和管理 MCP API Key
-  - 如何在 OutcomeGo 中配置 DSH-WEB 账户
+  - 如何在 OutcomeGo 的插件账号设置中填写 MCP URL 与 API Key（私有 IP 可用 HTTP，公网和域名必须 HTTPS）
+  - 如何让 Bot 订阅会话事件：创建 `plugin` 触发器的 routine，用 `resourceIds` 或 `actors` 指定订阅范围（不需要公网地址）
   - 常见问题排查
 
 ### 开发者指南
-- **`developer-guide.md`**（待编写）
-  - 如何在 Bot 中调用 DSH-WEB 插件工具
-  - Bot 工作流示例（完整场景）
-  - 如何扩展插件（如果 DSH-WEB MCP 后续添加新工具）
+- **`20261119-DSH-WEB开发者指南.md`**（待编写）
+  - Bot 如何使用 DSH-WEB 工具：`agentId` 规则、消息队列流程、事件处理
+  - 完整场景示例：create → continue → 回执 → queue_peek / cancel / prioritize → 完成事件
 
 ### 错误处理
-- **`error-handling.md`**（待编写）
-  - 常见错误码和解决方案
-  - 网络故障恢复机制
-  - 日志分析方法
+- **`20261119-DSH-WEB错误处理.md`**（待编写）
+  - 后端错误码与处理指引，与 `design.md` §3.2.4 一致
+  - 宿主语义：不重放有副作用的调用、会话过期后的重新初始化
+  - 网络故障后如何核对状态
 
-### API Key 管理
-- **`api-key-management.md`**（待编写）
-  - API Key 的生成、轮换、撤销流程
-  - 安全最佳实践
-  - 多账户管理
+### 限制说明
+- **`20261119-DSH-WEB限制说明.md`**（待编写）
+  - 超时：连接与发现 30 秒；工具调用时限由宿主统一管理；文件和 Git 的后端保护时限
+  - 大小限制：`workspace_file_read` 1 MB、`terminal_read` 的 `limitBytes`、`session_events` 单次 50 个事件、`session_history` 每条消息 8 KiB 且每页文字 256 KiB
+  - 会话读取范围：`session_history`、`session_search` 只覆盖受管理工作区；搜索结果可能少于 `limit`
+  - 事件订阅的限制：延迟等于轮询间隔（默认 60 秒，最短 30 秒）、只收连接之后的事件、日志保留期、单次最多 50 个事件
 
-### 性能和限制
-- **`limits.md`**（待编写）
-  - 并发请求限制
-  - 数据大小限制（terminal_read、terminal_write）
-  - 超时设置
-  - 已知限制和规避方式
-
-### 测试指南
-- **`testing-guide.md`**（待编写）
-  - 如何设置本地测试环境（DSH-WEB + OutcomeGo）
-  - 单元测试编写方法
-  - 集成测试场景
+### 联调记录
+- **`20261119-DSH-WEB联调场景与记录.md`**（待编写）
+  - 不少于 10 个联调或端到端场景，覆盖 22 个工具、错误场景和 6 类会话事件的订阅
+  - 每个场景记录步骤、预期、实际结果和日期
 
 ## 编写优先级
 
 | 优先级 | 文档 | 原因 |
 | --- | --- | --- |
-| P0 | dsh-web-mcp-reference.md | 是实现的基础 |
-| P1 | configuration-guide.md | 用户上手的第一步 |
-| P1 | developer-guide.md | 开发者需要学习使用 |
-| P2 | error-handling.md | 问题排查时需要 |
-| P2 | api-key-management.md | 安全最佳实践 |
-| P3 | limits.md | 参考信息 |
-| P3 | testing-guide.md | 开发者指南 |
+| P0 | DSH-WEB配置指南 | 用户上手的第一步，也是 F1.2 的交付物 |
+| P0 | DSH-WEB-MCP接口参考 | 是技能说明与契约测试的依据 |
+| P1 | DSH-WEB开发者指南 | Bot 使用方式 |
+| P1 | DSH-WEB联调场景与记录 | F2.2 验收依据 |
+| P2 | DSH-WEB错误处理 | 问题排查时需要 |
+| P3 | DSH-WEB限制说明 | 参考信息 |
 
 ## 编写指南
 
-- **语言**：中文
+- **语言**：中文；代码标识符、路径、协议字段和命令保留原文
 - **格式**：Markdown
-- **代码示例**：包含清晰的代码片段和命令行示例
-- **截图**：如有 UI 操作，包含相应截图
+- **示例**：不写真实的 API Key、Bearer 密钥或服务地址，使用占位符
 - **链接**：引用相关文档或源代码时使用相对路径
+- **边界**：只描述插件系统允许的交付形态，不写插件内的自定义 connector 或监听端口
 
 ## 如何更新
 
-- 当实现新工具时，更新 `dsh-web-mcp-reference.md` 和 `developer-guide.md`
-- 当发现新的错误或限制时，更新 `error-handling.md` 和 `limits.md`
-- 当修改配置流程时，更新 `configuration-guide.md`
-- 定期检查文档是否与代码保持一致
+- 后端工具或 Schema 变化时，更新接口参考、技能说明和契约测试
+- 发现新的错误或限制时，更新错误处理和限制说明
+- 修改配置流程时，更新配置指南
+- 定期检查文档是否与 `plugin.json`、`SKILL.md` 和 `README.md` 保持一致

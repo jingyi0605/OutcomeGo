@@ -6,8 +6,8 @@
 
 | 工作区 | 负责人 | 任务 | 预期周期 |
 | --- | --- | --- | --- |
-| **dsh-codingns** | 后端团队 | B1-B6（后端升级） | 3-4 周 |
-| **openteam** | 前端团队 | F1-F4（前端插件） | 2-3 周 |
+| **dsh-codingns** | 后端团队 | B1-B7（后端升级；B7 为补充的会话历史与搜索，对应 B 阶段 5） | 3-4 周，B7 另加 0.5-1 周 |
+| **openteam** | 前端团队 | F1-F4（插件包与技能说明、事件订阅指引、联调与文档；不含自定义 connector。宿主侧事件轮询见 Spec 005.4，已完成） | 2-3 周 |
 
 两个工作区可并行开发，但前端需要等待后端 MCP 接口稳定后才能全面测试。
 
@@ -86,7 +86,7 @@
   - 对应需求：B1、B2
   - 对应设计：§3.1.1
 
-### B 阶段 2：会话队列、Webhook 增强（1-1.5 周）
+### B 阶段 2：会话队列、会话事件拉取（1-1.5 周）
 
 #### B2.1 实现消息队列透明化与操作工具
 
@@ -97,7 +97,7 @@
   - 先依赖什么：B1.1
   - 开始前先看：
     - `design.md` §3.1.1（session_continue 升级和四个新工具）
-    - `design.md` §3.1.2（session.message_queued、session.message_dequeued 事件）
+    - `design.md` §3.1.2（`session_events` 事件日志，含 session.message_queued、session.message_dequeued）
     - 需求 B3
   - 主要改哪里：
     - 消息存储和队列管理层（添加消息 ID 和队列位置追踪）
@@ -111,46 +111,49 @@
     4. message_cancel 工具能取消排队的消息
     5. message_prioritize 工具能调整消息优先级
     6. session_queue_peek 工具能查看当前队列
-    7. 队列状态变化时发送 Webhook 事件
+    7. 队列状态变化时写入事件日志（`session.message_queued`、`session.message_dequeued`），由 B2.2 的 `session_events` 读取
   - 怎么验证：
     - 单元测试：消息队列逻辑、优先级排序
     - 集成测试：发送多条消息，验证队列行为；调用取消、插队，验证结果
-    - 集成测试：验证 Webhook 事件正确生成
+    - 集成测试：验证队列事件被正确写入事件日志
   - 对应需求：B3
-  - 对应设计：§3.1.1（工具定义）、§3.1.2（Webhook 事件）
+  - 对应设计：§3.1.1（工具定义）、§3.1.2（会话事件）
 
-#### B2.2 升级 Webhook 事件和重试机制
+#### B2.2 实现会话事件日志与 `session_events` 拉取接口
 
 - [ ] 任务 B2.2
   - 状态：TODO
-  - 这一步到底做什么：为所有 Webhook 事件添加 agentId 字段，实现可靠的重试机制（指数退避、最多 3 次）
-  - 做完你能看到什么：Webhook 事件包含 agentId，失败时能自动重试，最终可被传递或记录为失败
+  - 这一步到底做什么：为受管理工作区内会话的状态变化写入持久的事件日志，并新增 `session_events` 工具，按游标返回事件。取代原来的 Webhook 推送、重试和投递目标管理。
+  - 做完你能看到什么：用游标反复调用 `session_events` 能按顺序读到会话完成、失败、提问、请求权限、消息入队/出队的事件，每个事件带 `agentId`（`actor`）和 `sessionId`（`resourceId`）；首次调用只返回基线游标
   - 先依赖什么：B1.1
   - 开始前先看：
-    - `src/host/workspace-mcp/webhook-events.ts`（当前事件实现）
-    - `src/host/workspace-mcp/webhook-store.ts`（存储管理）
-    - `design.md` §3.1.2（Webhook 事件格式）
+    - `design.md` §3.1.2（`session_events` 协议、事件类型、实现要求）
+    - Spec 005.4 `design.md` §3.3.1（轮询协议）
+    - 需求 B2、B6
   - 主要改哪里：
-    - `src/host/workspace-mcp/webhook-events.ts`
-    - `src/host/workspace-mcp/webhook-store.ts`
-    - `src/host/workspace-mcp/webhook-dispatcher.ts`（如需要创建）
-  - 这一步先不做什么：不处理 Webhook 端点的多个目标（先支持一个）
+    - `src/host/workspace-mcp/webhook-events.ts`（现有事件生成点，改为写入事件日志）
+    - `src/host/workspace-mcp/webhook-store.ts`（存储层，改为带序号的事件日志；是否改名由后端决定）
+    - `src/host/workspace-mcp/tools.ts`（新增 `session_events`）
+  - 这一步先不做什么：不做 Webhook 推送、重试和投递目标；不实现按 Bot 过滤（过滤由 OutcomeGo 的订阅完成）；不暴露受管理工作区以外的会话事件
   - 怎么算完成：
-    1. 所有 Webhook 事件都包含 agentId 字段
-    2. 失败事件被存储和重试
-    3. 重试遵循指数退避策略（1s、2s、4s）
-    4. 最多尝试 3 次
+    1. 事件日志持久、序号单调，服务重启后仍可读取，至少保留 7 天
+    2. 首次调用（游标为空）返回基线游标和空事件；之后返回游标之后的事件，升序，单次不超过 `limit`（默认且最大 50），游标只推进到最后一个已返回的事件
+    3. 同一事件重复返回时 `id` 相同；每个事件包含 `id`、`kind`、`text`、`occurredAt`、`actor`（如有）、`resourceId`
+    4. 游标早于保留期时，从最早保留的事件继续并先返回 `session.events_gap`
+    5. 已归档、未分组、受管理工作区以外的会话不产生可读事件
+    6. 响应在 500ms 内；错误以 MCP 错误结果返回
   - 怎么验证：
-    - 单元测试：重试逻辑、事件格式
-    - 集成测试：模拟 Webhook 端点故障，验证重试
+    - 单元测试：游标推进、基线、上限、保留期、范围过滤
+    - 集成测试：create → continue → 完成，用游标读到对应事件；重复读取得到相同 `id`
+    - 与 OutcomeGo 联调（见 F1.2）
   - 对应需求：B2、B6
-  - 对应设计：§3.1.2（Webhook 事件格式和重试）
+  - 对应设计：§3.1.2（`session_events`）、§4.2
 
 #### B2.3 阶段 B2 检查
 
 - [ ] 任务 B2.3
   - 状态：TODO
-  - 这一步到底做什么：验证队列和 Webhook 功能完整
+  - 这一步到底做什么：验证队列和会话事件拉取功能完整
   - 做完你能看到什么：确认可进入文件和 Git 工具实现阶段
   - 先依赖什么：B2.1、B2.2
   - 开始前先看：
@@ -245,9 +248,9 @@
 
 - [ ] 任务 B4.1
   - 状态：TODO
-  - 这一步到底做什么：编写升级后的 MCP API 文档、Webhook 事件文档、变更日志。发布新版本。
+  - 这一步到底做什么：编写升级后的 MCP API 文档、`session_events` 事件文档、变更日志。发布新版本。
   - 做完你能看到什么：前端团队能够清晰了解后端提供的所有功能
-  - 先依赖什么：B1.3、B2.3、B3.3
+  - 先依赖什么：B1.3、B2.3、B3.3、B5.2（B7 的两个工具也要写进文档后再发布）
   - 开始前先看：
     - 当前 `SKILL.md`
     - 当前 README
@@ -262,62 +265,129 @@
     3. README 更新为最新状态
   - 怎么验证：
     - 人工阅读，检查清晰易懂
-  - 对应需求：全部（B1-B6）
+  - 对应需求：全部（B1-B7）
   - 对应设计：全部
+
+### B 阶段 5：会话历史与搜索（B7 补充，0.5-1 周）
+
+这一阶段是在 B1-B6 做完后补的：目前 Bot 只能看到会话的标题、状态和时间，读不到「会话里聊了什么」，也不能按关键词找会话。
+
+#### B5.1 实现会话历史读取与会话搜索
+
+- [ ] 任务 B5.1
+  - 状态：代码和定向测试已在 dsh-codingns 工作区完成，尚未提交；未在真实 DSH 上验证
+  - 这一步到底做什么：新增 `session_history`（按页读取会话里的用户和助手消息）和 `session_search`（按关键词找会话），两者只面向受管理工作区。
+  - 做完你能看到什么：Bot 能读到某个会话「做到哪一步、上次说了什么」，也能按关键词找到相关会话；受管理工作区以外的会话读不到
+  - 先依赖什么：B1.1（会话保存 agentId）、B2.1（消息队列，用于在历史里标出消息由哪个 Agent 发出）
+  - 开始前先看：
+    - 需求 B7
+    - `design.md` §3.1.1 中 `session_history`、`session_search`
+    - `src/host/workspace-mcp/tools.ts` 里 `session_list` 如何判断会话属于哪个受管理工作区
+  - 主要改哪里：
+    - `src/host/workspace-mcp/history-handler.ts`（新建：读取、截短、分页、过滤）
+    - `src/host/workspace-mcp/tools.ts`（登记工具、检查会话归属）
+    - `src/dsh-capabilities/host/workspace-session-control-adapter.ts`（读历史和搜索的可选方法；DSH 不提供时工具返回“能力不可用”）
+    - `src/client/features/workspace-mcp.ts`、`src/client/locale.ts`（设置页里的工具说明）
+    - `tests/workspace-mcp-session-history.spec.ts`（新建）、`tests/workspace-mcp-capabilities.spec.ts`（适配器转发）
+  - 这一步先不做什么：不读受管理工作区以外的会话（包括未分组会话）；不返回工具调用、图片等没有文字的内容；不做跨 Host 搜索；不新增事件类型；不修改或删除会话
+  - 怎么算完成：
+    1. `session_history` 按页返回消息，用 `nextCursor` 往前翻页；单条最多 8 KiB、每页文字最多 256 KiB，被截短的消息有标记
+    2. 由 Agent 发出的消息带 `agentId`
+    3. `session_search` 返回会话 ID、所属工作区和命中片段，可用 `workspaceId` 限定范围
+    4. 受管理工作区以外、已归档的会话：`session_history` 返回“会话不可用”，`session_search` 直接略过
+    5. DSH 版本不提供读历史或搜索时，返回明确的“能力不可用”，其他工具不受影响
+    6. 出错信息不暴露路径等内部细节
+  - 怎么验证：
+    - 单元测试：排序和翻页、大小上限、Agent 标注、授权拒绝、参数校验、搜索过滤、适配器转发
+    - 集成测试：在真实 DSH 上读一个已有会话的历史，并搜索一个已知关键词，核对结果和受管理范围
+  - 对应需求：B7
+  - 对应设计：§3.1.1
+
+#### B5.2 阶段检查与文档同步
+
+- [ ] 任务 B5.2
+  - 状态：TODO（dsh-codingns 的 `SKILL.md` 和开发记录里已写明两个新工具；`CHANGES.md`、真实 DSH 验证和提交还没做）
+  - 这一步到底做什么：确认 B5.1 完成，把两个新工具写进变更日志，并在真实 DSH 上验证一次
+  - 做完你能看到什么：后端 22 个工具齐全，前端可据此补全技能说明和契约测试
+  - 先依赖什么：B5.1；B4.1 发布新版本前必须包含本阶段
+  - 开始前先看：需求 B7
+  - 主要改哪里：dsh-codingns 的 `SKILL.md`、`CHANGES.md`
+  - 这一步先不做什么：不扩大搜索范围；不优化性能
+  - 怎么算完成：
+    1. B5.1 完成
+    2. `SKILL.md`、`CHANGES.md` 记录两个工具，并写明“搜索结果可能少于 limit”的限制
+    3. 相关测试通过；真实 DSH 验证有记录
+  - 怎么验证：运行 B5.1 列出的测试文件；人工阅读文档；检查真实 DSH 验证记录
+  - 对应需求：B7
+  - 对应设计：§3.1.1
 
 ---
 
 ## 二、openteam 前端任务
 
-### F 阶段 1：MCP 客户端升级与 Webhook 接收（2 周）
+前端任务按插件系统规则执行：交付物是 `packages/plugins/dsh-web/` 下的声明与技能说明、测试和文档；连接、发现、校验、事件入口由宿主承担（见 design §3.2.0）。不新增 `connector/`、HTTP 客户端、监听端口或服务端专属代码。
 
-#### F1.1 升级 MCP 客户端支持新参数
+### F 阶段 1：连接、技能契约与事件接入（2 周）
+
+#### F1.1 MCP 连接配置、技能说明与工具契约测试
 
 - [ ] 任务 F1.1
-  - 状态：TODO
-  - 这一步到底做什么：修改 OutcomeGo DSH-WEB 插件的 HTTP MCP 客户端，支持所有新增参数（agentId、priority）和新工具（文件、Git、队列）。
-  - 做完你能看到什么：插件能够调用所有 15 个 MCP 工具（旧 11 个 + 新 4 个），并能传递新参数
-  - 先依赖什么：B1.1（后端 MCP 接口稳定）
+  - 状态：进行中（配置接入已完成；技能说明补全与契约测试未完成）
+  - 这一步到底做什么：保持插件为声明式 Remote MCP；把 `SKILL.md` 补全为覆盖 22 个工具和后端错误码的使用说明；增加技能契约测试和使用模拟 DSH-WEB MCP 服务的集成测试。
+  - 已完成：
+    - `plugin.json`（Remote MCP、`token` 认证、`mcpUrl` 与 `token` 配置字段、技能声明）
+    - 私有网络 IP 可用 HTTP、公网和域名必须 HTTPS 的 URL 校验（`packages/plugin-sdk`）
+    - `README.md` 与 `SKILL.md` 初版
+    - `packages/plugins/test/dsh-web.test.ts`（配置流程）、`apps/server/test/plugin/dsh-web.integration.test.ts`（保存配置，需 `OUTCOMEGO_TEST_DATABASE_URL`）
+  - 做完你能看到什么：连接 DSH-WEB 后发现 22 个工具；`SKILL.md` 与 design §3.2.3 的工具清单一致，测试能发现文档与契约脱节
+  - 先依赖什么：对真实后端的联调依赖 B1.1（接口 Schema 稳定）；模拟服务测试不依赖后端
   - 开始前先看：
-    - `packages/plugins/dsh-web/connector/src/http-client.ts`（当前 HTTP 客户端）
-    - `design.md` §3.1.1（新 MCP 工具和参数）
+    - `packages/plugins/dsh-web/plugin.json`、`skills/dsh-web/SKILL.md`
+    - `design.md` §3.1.1、§3.2.0–§3.2.4
+    - `apps/server/test/plugin/mcp-transport.test.ts`（现有 MCP 传输测试写法）
   - 主要改哪里：
-    - `packages/plugins/dsh-web/connector/src/http-client.ts`（修改，支持新参数）
-    - `packages/plugins/dsh-web/connector/src/tools/`（新增工具处理器）
-    - `packages/plugins/dsh-web/plugin.json`（更新工具声明）
-  - 这一步先不做什么：不处理 Webhook 接收；不实现 Bot 逻辑
+    - `packages/plugins/dsh-web/skills/dsh-web/SKILL.md`（补全工具和错误码指引）
+    - `packages/plugins/test/dsh-web.test.ts`（技能契约测试）
+    - `apps/server/test/plugin/dsh-web.integration.test.ts`（模拟 MCP 服务的发现与调用）
+    - `packages/plugins/dsh-web/plugin.json`（仅在声明变化时，并按规则提升版本）
+  - 这一步先不做什么：不新增 `connector/` 和 HTTP 客户端；不在 `apps/server` 中加入 DSH-WEB 专属代码；不在 `plugin.json` 里手写工具清单（`tools` 保持空数组）；不处理事件订阅（见 F1.2）
   - 怎么算完成：
-    1. HTTP 客户端支持新参数的序列化和传输
-    2. 所有 15 个工具都有处理器
-    3. 参数验证完整（类型、长度、格式）
+    1. `SKILL.md` 覆盖 design §3.2.3 的 22 个工具，并包含 §3.2.4 的错误码指引和"先查状态再取消、插队、重做"的规则
+    2. 契约测试校验 `SKILL.md` 中的工具名与 design §3.2.3 一致
+    3. 模拟 MCP 服务实现 §3.1.1 的 22 个工具 Schema，宿主发现 22 个工具；`session_create` 带 `agentId`、`priority`、`session_continue` 带 `agentId` 的调用被正确传递；超出范围或类型错误的参数被宿主拒绝
+    4. 插件目录通过共享校验和注册表生成
   - 怎么验证：
-    - 单元测试：参数序列化、工具处理
-    - 集成测试（需要 B1.1 完成）：实际调用后端工具
-  - 对应需求：F1
-  - 对应设计：§3.1.1、§3.2.3
+    - `cd packages/plugins && bun test test/dsh-web.test.ts`
+    - 设置 `OUTCOMEGO_TEST_DATABASE_URL` 后运行 `apps/server/test/plugin/dsh-web.integration.test.ts`
+    - B1.1 完成后，对真实 DSH-WEB 做一次发现并核对 Schema
+  - 对应需求：F1、F3、F4
+  - 对应设计：§3.2.0、§3.2.1、§3.2.3、§3.2.4
 
-#### F1.2 实现 Webhook 接收端点和事件路由
+#### F1.2 会话事件订阅与联调
 
 - [ ] 任务 F1.2
-  - 状态：TODO
-  - 这一步到底做什么：在 OutcomeGo 插件中实现 Webhook 接收端点（如 http://localhost:9999/webhook/dsh-web），解析事件并根据 agentId 路由回对应的机器人。
-  - 做完你能看到什么：DSH-WEB 的 Webhook 事件能被 OutcomeGo 接收和处理，正确路由到对应的 Bot
-  - 先依赖什么：B2.2（后端 Webhook 事件包含 agentId）
+  - 状态：IN_PROGRESS（宿主与插件侧已完成：`plugin.json` 已声明 `events`、`SKILL.md` 已写订阅指引；等待后端 B2.2 的 `session_events` 后联调）
+  - 这一步到底做什么：在 `plugin.json` 声明事件轮询，写出 Bot 订阅会话的指引和配置说明；与后端联调，验证订阅的 Bot 在会话状态变化时被唤醒。
+  - 做完你能看到什么：Bot 创建会话后用 `plugin` 触发器的 routine 订阅它，会话完成或失败后，该 Bot 被唤醒并读到事件；没有变化时不被唤醒
+  - 先依赖什么：B2.2（`session_events`）；Spec 005.4 任务 1.1–4.3（已完成）
   - 开始前先看：
-    - `packages/plugins/dsh-web/connector/src/`（当前插件结构）
-    - `design.md` §3.1.2（Webhook 事件格式）
+    - `design.md` §3.1.2、§3.2.2、§3.2.5
+    - Spec 005.4 `design.md` §3.3.1、`packages/plugins/README.md` 的 "Event sources"
+    - `docs/usage/routines.md` 中插件事件的说明
   - 主要改哪里：
-    - `packages/plugins/dsh-web/connector/src/webhook-handler.ts`（新建）
-    - `packages/plugins/dsh-web/connector/src/index.ts`（修改，注册 Webhook 端点）
-  - 这一步先不做什么：不实现 Webhook 签名验证（先信任 DSH-WEB）
+    - `packages/plugins/dsh-web/plugin.json`（`events: { "pollTool": "session_events", "source": "plugin", "intervalSeconds": 60 }`，提升版本；对应 Spec 005.4 任务 6.2）
+    - `packages/plugins/dsh-web/skills/dsh-web/SKILL.md`（订阅方法、触发器写法、事件类型、取消订阅、核对方法）
+    - `packages/plugins/dsh-web/README.md`（Webhook 一节改为事件订阅）
+    - `docs/` 下的配置指南（见 F2.2）
+  - 这一步先不做什么：不新增服务端路由或监听端口；不实现按账号过滤。清单可先于后端声明：服务端没有该工具时宿主安静地每 15 分钟检查一次，不会每个周期报错
   - 怎么算完成：
-    1. Webhook 端点能接收 POST 请求
-    2. 事件被正确解析
-    3. 根据 agentId 路由到对应的机器人
-    4. 无法路由的事件被记录，不报错
+    1. 清单校验通过；Bot 可见的工具仍是 22 个，`session_events` 不在其中
+    2. SKILL.md 说明：创建会话后用 `resourceIds` 或 `actors` 订阅；保存的提示词写明事件到达后做什么；处理完成后删除 routine；怀疑漏事件时用 `session_list`、`message_status` 核对
+    3. 联调 6 类事件：匹配的 Bot 被唤醒，不匹配的不被唤醒，重复拉取不重复运行，首次连接不集中唤醒历史事件
+    4. 核对 `<plugin_event>` 的内容形态并写入 SKILL.md；design §7 的相关待确认项有结论
   - 怎么验证：
-    - 单元测试：事件解析、路由逻辑
-    - 集成测试：模拟 DSH-WEB 发送 Webhook，验证路由
+    - 手工联调，记录每类事件的结果
+    - 文档由另一人按步骤复现一次
   - 对应需求：F2
   - 对应设计：§3.2.2
 
@@ -325,72 +395,75 @@
 
 - [ ] 任务 F1.3
   - 状态：TODO
-  - 这一步到底做什么：验证 MCP 客户端和 Webhook 接收功能完整
-  - 做完你能看到什么：确认可进入 Bot 集成阶段
+  - 这一步到底做什么：确认 F1.1 与 F1.2 完成，可进入 Bot 工作流阶段
+  - 做完你能看到什么：连接、技能说明、事件接入都有可复现的验证结果
   - 先依赖什么：F1.1、F1.2
-  - 开始前先看：
-    - 需求 F1、F2
+  - 开始前先看：需求 F1、F2、F3、F4
   - 主要改哪里：本阶段文件
   - 这一步先不做什么：不优化性能
   - 怎么算完成：
     1. F1.1 和 F1.2 都完成
-    2. 单元和集成测试通过
-    3. 手动测试 Webhook 路由正确
-  - 怎么验证：
-    - 运行测试
-    - 手动测试 Webhook 接收和路由
-  - 对应需求：F1、F2
+    2. 自动化测试通过
+    3. 事件订阅联调记录完整
+  - 怎么验证：运行测试；复核联调记录
+  - 对应需求：F1、F2、F3、F4
   - 对应设计：§3.2
 
-### F 阶段 2：Bot 工作流集成与测试（1.5-2 周）
+### F 阶段 2：Bot 工作流与交付（1.5-2 周）
 
-#### F2.1 实现 Bot 回调和事件处理
+#### F2.1 Bot 工作流指引与联调
 
 - [ ] 任务 F2.1
   - 状态：TODO
-  - 这一步到底做什么：在 OutcomeGo 插件中实现机制，使得 Bot 能够：1）在创建会话时传递自己的 ID；2）在接收到 Webhook 事件时处理并触发 Bot 的回调
-  - 做完你能看到什么：Bot 能够创建会话时关联自己，并在会话完成时收到事件通知
-  - 先依赖次什么：F1.3
+  - 这一步到底做什么：把 `agentId` 使用规则、消息队列流程、事件处理写成 Bot 可遵循的指引，并用真实 Bot 跑完整流程：create → continue → 回执 → queue_peek / cancel / prioritize → 完成事件。
+  - 做完你能看到什么：Bot 能创建会话并关联自己的标识，读到消息回执，必要时操作队列，并在完成或失败事件到达后继续工作
+  - 先依赖什么：F1.3，B3.3、B5.2（所有后端工具完成）
   - 开始前先看：
-    - `design.md` §2.2.1、§2.2.3（关键流程）
-    - OutcomeGo 的 Bot 文档
+    - `design.md` §2.2、§3.2.5
+    - `packages/plugins/dsh-web/skills/dsh-web/SKILL.md`
   - 主要改哪里：
-    - `packages/plugins/dsh-web/connector/src/bot-integration.ts`（新建）
-    - `packages/plugins/dsh-web/connector/src/webhook-handler.ts`（修改，添加回调触发）
-  - 这一步先不做什么：不处理 Bot 内部状态管理
+    - `packages/plugins/dsh-web/skills/dsh-web/SKILL.md`
+    - `docs/` 下的开发者指南（见 F2.2）
+  - 这一步先不做什么：不实现 Bot 内部状态管理；不新增 `agentId → Bot` 映射表（谁被唤醒由 Bot 自己创建的订阅决定）
   - 怎么算完成：
-    1. Bot 能在 session_create 时提供 agentId
-    2. Webhook 事件能触发对应 Bot 的回调
-    3. Bot 能接收会话完成/失败事件
-  - 怎么验证：
-    - 单元测试：回调机制
-    - 集成测试：完整 Bot 工作流（需要 B3.3 完成）
-  - 对应需求：F3、F4
-  - 对应设计：§2.2（关键流程）
+    1. Bot 仅在工作流提供稳定标识且 Schema 接受时传 `agentId`，`session_create` 与 `session_continue` 使用同一值
+    2. Bot 报告回执中的实际字段，不推断未返回的队列位置或等待时间
+    3. `session.completed`、`session.failed` 事件到达后 Bot 能继续或终止工作流
+    4. 多个 Bot 各自订阅不同会话，事件只唤醒各自的 Bot，互不干扰
+  - 怎么验证：真实 Bot 与真实 DSH-WEB 联调，保存对话与事件记录
+  - 对应需求：F2、F3、F4
+  - 对应设计：§2.2、§3.2.2、§3.2.5
 
-#### F2.2 端到端测试和文档
+#### F2.2 联调场景与文档
 
 - [ ] 任务 F2.2
   - 状态：TODO
-  - 这一步到底做什么：编写完整的端到端测试，覆盖所有 15 个工具和 Webhook 回传流程。编写用户和开发者文档。
-  - 做完你能看到什么：一个功能完整、文档清晰的插件，可交付给用户
+  - 这一步到底做什么：编写不少于 10 个联调或端到端场景，覆盖 22 个工具、错误场景和事件订阅；编写用户与开发者文档。
+  - 做完你能看到什么：一个文档清晰、验证记录完整的插件，可交付给用户
   - 先依赖什么：F2.1
-  - 开始前先看：
-    - `design.md` 全文
+  - 开始前先看：`design.md` §3.2、§6；`docs/README.md`（文档清单）
   - 主要改哪里：
-    - `packages/plugins/dsh-web/connector/test/e2e.test.ts`（新建或扩展）
-    - `packages/plugins/dsh-web/README.md`（更新）
-    - `packages/plugins/dsh-web/docs/`（新增或扩展）
-  - 这一步先不做什么：不做性能压力测试
+    - `apps/server/test/plugin/`（可自动化的场景）
+    - 本规格 `docs/` 目录（场景记录、配置指南、开发者指南、错误处理、限制说明）
+    - `packages/plugins/dsh-web/README.md`
+  - 这一步先不做什么：不做性能压力测试；不新增插件运行时代码
   - 怎么算完成：
-    1. E2E 测试覆盖至少 10 个场景
-    2. README 和文档清晰易懂
-    3. 用户能快速了解如何使用
-  - 怎么验证：
-    - 运行 E2E 测试
-    - 人工阅读文档
-  - 对应需求：全部（F1-F4）
-  - 对应设计：全部
+    1. 至少 10 个场景，22 个工具都被至少一个场景覆盖，每个场景有结果记录
+    2. 错误场景至少包括：API Key 无效、网络中断后的状态核对、非法参数、后端返回错误码（`NOT_FOUND`、`CANNOT_CANCEL` 等）
+    3. 文档覆盖：配置账号、订阅会话事件（含延迟、首次连接和取消订阅）、Bot 使用方式、错误与限制
+    4. `README.md` 的"当前边界"与实际一致
+  - 怎么验证：运行自动化测试；复核联调记录；人工阅读文档
+  - 对应需求：F1、F2、F3、F4
+  - 对应设计：§3.2、§6
+
+#### 前端需求—设计—任务追踪
+
+| 需求 | 设计章节 | 任务 | 验证方式 |
+| --- | --- | --- | --- |
+| F1 MCP 连接与参数支持 | §3.2.0、§3.2.1 | F1.1、F1.3 | 目录与配置测试、模拟 MCP 服务发现与调用、真实后端 Schema 核对 |
+| F2 会话事件订阅 | §3.2.2 | F1.2、F2.1 | 6 类事件联调、匹配与不匹配的订阅、重复拉取去重、首次连接基线 |
+| F3 工具映射与使用说明 | §3.2.3、§3.2.5 | F1.1、F2.1、F2.2 | 技能契约测试、22 个工具场景覆盖 |
+| F4 错误处理与超时 | §3.2.4 | F1.1、F2.2 | 错误场景联调（凭证、中断、非法参数、错误码） |
 
 ---
 
@@ -399,9 +472,9 @@
 ### 跨工作区协作建议
 
 1. **同步点**：
-   - B1.1 完成后 → F1.1 可开始
-   - B2.2 完成后 → F1.2 可开始
-   - B3.3 完成后 → F2.1 可开始
+   - B1.1 完成后 → F1.1 对真实后端的 Schema 核对可进行（模拟服务测试不依赖后端）
+   - B2.2 完成后 → F1.2 联调可开始（宿主和插件侧已就绪，清单已声明）
+   - B3.3、B5.2 完成后 → F2.1 可开始
 
 2. **沟通渠道**：
    - 后端每周发布工作进度和 MCP 接口文档
@@ -413,4 +486,4 @@
 
 4. **版本管理**：
    - dsh-codingns：v X.Y.Z（后端版本）
-   - openteam：v X.Y.Z-dsh-web（标记对应的后端版本）
+   - openteam：`packages/plugins/dsh-web/plugin.json` 的 `version` 按插件规则提升，并在 `README.md` 中标明所对应的 dsh-codingns 版本
