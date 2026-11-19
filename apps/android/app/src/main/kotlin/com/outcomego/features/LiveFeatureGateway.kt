@@ -81,6 +81,15 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
             client.request(HttpMethod.GET, outcomeDetailPath(id)))
     }.onFailure { if (it is CancellationException) throw it }
 
+    override suspend fun outcomeBrief(id: String): Result<com.outcomego.mobile.core.OutcomeBrief?> = runCatching {
+        try {
+            mobileJson.decodeFromJsonElement(com.outcomego.mobile.core.OutcomeBrief.serializer(),
+                client.request(HttpMethod.GET, com.outcomego.mobile.core.outcomeBriefPath(id)))
+        } catch (error: OutcomeGoRequestException) {
+            if (error.error.status == 404) null else throw error
+        }
+    }.onFailure { if (it is CancellationException) throw it }
+
     override suspend fun createOutcomePlan(input: com.outcomego.mobile.core.CreateOutcomePlanRequest): Result<com.outcomego.mobile.core.OutcomePlanningDraft> = runCatching {
         mobileJson.decodeFromJsonElement(
             com.outcomego.mobile.core.OutcomePlanningDraft.serializer(),

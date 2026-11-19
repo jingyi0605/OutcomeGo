@@ -185,7 +185,8 @@ internal fun OutcomeDetailScreen(
     var actionNotice by remember { mutableStateOf<String?>(null) }
 
     var section by rememberSaveable(id) { mutableIntStateOf(0) }
-    var briefExpanded by rememberSaveable(id) { mutableStateOf(false) }
+    var briefState by remember(id) { mutableStateOf(OutcomeBriefState()) }
+    var briefRetry by remember(id) { mutableIntStateOf(0) }
     var showRevisionEditor by rememberSaveable(id) { mutableStateOf(false) }
     var showExecutionRecords by rememberSaveable(id) { mutableStateOf(false) }
     var executionInitialWorkId by remember(id) { mutableStateOf<String?>(null) }
@@ -255,7 +256,45 @@ internal fun OutcomeDetailScreen(
         transcriptLoading = false
     }
 
+    fun approveRevision(revNum: Int) {
+        scope.launch {
+            mutating = true; actionError = null; actionNotice = null
+            gateway.approveOutcomeRevision(
+                id,
+                revNum,
+                ApproveContractRevisionRequest(
+                    expectedRevision = revNum,
+                    confirmationText = "Approved on mobile",
+                    clientRequestId = UUID.randomUUID().toString(),
+                ),
+            ).fold(
+                onSuccess = { detail = it; actionNotice = noticeApprovedMsg },
+                onFailure = { actionError = it.message ?: "Approve failed" },
+            )
+            mutating = false
+        }
+    }
+
     LaunchedEffect(gateway, id) { load() }
+
+    // The brief depends on the saved contract content: a changed description or revision restarts it,
+    // and a response for a previous revision is discarded instead of overwriting the new overview.
+    val briefSource = detail?.let { d ->
+        val rev = d.currentRevisionView
+        listOf(d.id, d.title, d.description, rev?.id, rev?.goal, rev?.criteria?.map { it.statement to it.required }, rev?.boundaries, rev?.budget, rev?.conflicts)
+    }
+    LaunchedEffect(gateway, id, briefSource, briefRetry) {
+        val current = detail ?: return@LaunchedEffect
+        briefState = OutcomeBriefState(loading = true)
+        gateway.outcomeBrief(id).fold(
+            onSuccess = { brief ->
+                val matches = brief != null && brief.outcomeId == current.id &&
+                    brief.revisionId == current.currentRevisionView?.id
+                briefState = OutcomeBriefState(loading = false, brief = brief.takeIf { matches }, failed = brief != null && !matches)
+            },
+            onFailure = { briefState = OutcomeBriefState(loading = false, failed = true) },
+        )
+    }
 
     val activeDetail = detail
     if (showExecutionRecords && activeDetail != null) {
@@ -304,153 +343,24 @@ internal fun OutcomeDetailScreen(
                 val passedCriteria = criteria.count { it.latestResult == "PASS" }
                 val totalSteps = (value.workItems.size + criteria.size).coerceAtLeast(1)
                 val progress = (doneTasks + passedCriteria).toFloat() / totalSteps.toFloat()
+                val revNum = value.currentRevision
+                val revStatus = value.currentRevisionView?.status
+                val canApprove = revNum != null && (value.status == "pending_approval" || revStatus == "pending_approval" || revStatus == "draft")
+                val canStart = revNum != null && (value.status == "approved" || revStatus == "approved") && value.status !in setOf("running", "accepted", "cancelled")
+                val canCancel = value.status !in setOf("accepted", "cancelled", "failed")
 
-                // 1. Hero Status, Metrics & Progress Card
-                item {
-                    OutcomeCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
-                        ) {
-                            OutcomeStatusPill(value.status)
-                            OutcomeBadgePill(text = "Rev ${value.currentRevision ?: "—"}")
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                text = formatOutcomeTimestamp(value.updatedAt),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colors.textTertiary,
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
-                        ) {
-                            OutcomeMetricTile(
-                                label = localizedText("Tasks", "工作项"),
-                                value = "$doneTasks/${value.workItems.size}",
-                                icon = Icons.Outlined.Checklist,
-                                tint = colors.accent,
-                                modifier = Modifier.weight(1f),
-                            )
-                            OutcomeMetricTile(
-                                label = localizedText("Criteria", "验收"),
-                                value = "$passedCriteria/${criteria.size}",
-                                icon = Icons.Outlined.Verified,
-                                tint = colors.success,
-                                modifier = Modifier.weight(1f),
-                            )
-                            OutcomeMetricTile(
-                                label = localizedText("Outputs", "产物"),
-                                value = value.outputs.size.toString(),
-                                icon = Icons.Outlined.Inventory2,
-                                tint = colors.warning,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        LinearProgressIndicator(
-                            progress = { progress.coerceIn(0f, 1f) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(6.dp)
-                                .clip(RoundedCornerShape(SpatialRadii.pill)),
-                            color = colors.accent,
-                            trackColor = colors.glassSubtle,
-                        )
-
-                        val revNum = value.currentRevision
-                        val revStatus = value.currentRevisionView?.status
-                        val canApprove = revNum != null && (value.status == "pending_approval" || revStatus == "pending_approval" || revStatus == "draft")
-                        val canStart = revNum != null && (value.status == "approved" || revStatus == "approved") && value.status !in setOf("running", "accepted", "cancelled")
-                        val canCancel = value.status !in setOf("accepted", "cancelled", "failed")
-
-                        if (canApprove || canStart || canCancel) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
-                            ) {
-                                if (canApprove && revNum != null) {
-                                    SpatialPrimaryButton(
-                                        label = localizedText("Approve", "批准修订"),
-                                        enabled = !mutating,
-                                        loading = mutating,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = {
-                                            scope.launch {
-                                                mutating = true; actionError = null; actionNotice = null
-                                                gateway.approveOutcomeRevision(
-                                                    id,
-                                                    revNum,
-                                                    ApproveContractRevisionRequest(
-                                                        expectedRevision = revNum,
-                                                        confirmationText = "Approved on mobile",
-                                                        clientRequestId = UUID.randomUUID().toString(),
-                                                    ),
-                                                ).fold(
-                                                    onSuccess = { detail = it; actionNotice = noticeApprovedMsg },
-                                                    onFailure = { actionError = it.message ?: "Approve failed" },
-                                                )
-                                                mutating = false
-                                            }
-                                        },
-                                    )
-                                }
-                                if (canStart && revNum != null) {
-                                    SpatialPrimaryButton(
-                                        label = localizedText("Start Run", "启动运行"),
-                                        enabled = !mutating,
-                                        loading = mutating,
-                                        modifier = Modifier.weight(1f),
-                                        onClick = {
-                                            scope.launch {
-                                                mutating = true; actionError = null; actionNotice = null
-                                                gateway.startOutcomeRun(
-                                                    id,
-                                                    StartOutcomeRunRequest(expectedRevision = revNum, clientRequestId = UUID.randomUUID().toString()),
-                                                ).fold(
-                                                    onSuccess = { detail = it; actionNotice = noticeStartedMsg },
-                                                    onFailure = { actionError = it.message ?: "Start failed" },
-                                                )
-                                                mutating = false
-                                            }
-                                        },
-                                    )
-                                }
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
-                        ) {
-                            if (canCancel) {
-                                SpatialSecondaryButton(
-                                    label = localizedText("Cancel", "取消目标"),
-                                    enabled = !mutating,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = {
-                                        scope.launch {
-                                            mutating = true; actionError = null; actionNotice = null
-                                            gateway.cancelOutcome(
-                                                id,
-                                                CancelOutcomeRequest(clientRequestId = UUID.randomUUID().toString()),
-                                            ).fold(
-                                                onSuccess = { detail = it; actionNotice = noticeCancelledMsg },
-                                                onFailure = { actionError = it.message ?: "Cancel failed" },
-                                            )
-                                            mutating = false
-                                        }
-                                    },
-                                )
-                            }
-                            SpatialSecondaryButton(
-                                label = localizedText("Execution", "执行记录"),
-                                enabled = !mutating,
-                                modifier = Modifier.weight(1f),
-                                onClick = {
-                                    executionInitialWorkId = null
-                                    showExecutionRecords = true
-                                },
+                // 0. Decision first: a pending plan asks its single question before any status or metrics.
+                if (canApprove && revNum != null) {
+                    value.currentRevisionView?.let { rev ->
+                        item {
+                            OutcomeApprovalCard(
+                                outcomeId = value.id,
+                                revision = rev,
+                                intent = briefState.brief?.intent,
+                                busy = mutating,
+                                editing = showRevisionEditor,
+                                onApprove = { approveRevision(revNum) },
+                                onRequestChanges = { showRevisionEditor = !showRevisionEditor },
                             )
                         }
                     }
@@ -539,6 +449,125 @@ internal fun OutcomeDetailScreen(
                     }
                 }
 
+                // 1. Hero Status, Metrics & Progress Card
+                item {
+                    OutcomeCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
+                        ) {
+                            OutcomeStatusPill(value.status)
+                            OutcomeBadgePill(text = "Rev ${value.currentRevision ?: "—"}")
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                text = formatOutcomeTimestamp(value.updatedAt),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.textTertiary,
+                            )
+                        }
+                        if (!canApprove) Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
+                        ) {
+                            OutcomeMetricTile(
+                                label = localizedText("Tasks", "工作项"),
+                                value = "$doneTasks/${value.workItems.size}",
+                                icon = Icons.Outlined.Checklist,
+                                tint = colors.accent,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutcomeMetricTile(
+                                label = localizedText("Criteria", "验收"),
+                                value = "$passedCriteria/${criteria.size}",
+                                icon = Icons.Outlined.Verified,
+                                tint = colors.success,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutcomeMetricTile(
+                                label = localizedText("Outputs", "产物"),
+                                value = value.outputs.size.toString(),
+                                icon = Icons.Outlined.Inventory2,
+                                tint = colors.warning,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        if (!canApprove) LinearProgressIndicator(
+                            progress = { progress.coerceIn(0f, 1f) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(SpatialRadii.pill)),
+                            color = colors.accent,
+                            trackColor = colors.glassSubtle,
+                        )
+
+                        if (canStart || canCancel) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
+                            ) {
+                                if (canStart && revNum != null) {
+                                    SpatialPrimaryButton(
+                                        label = localizedText("Start Run", "启动运行"),
+                                        enabled = !mutating,
+                                        loading = mutating,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = {
+                                            scope.launch {
+                                                mutating = true; actionError = null; actionNotice = null
+                                                gateway.startOutcomeRun(
+                                                    id,
+                                                    StartOutcomeRunRequest(expectedRevision = revNum, clientRequestId = UUID.randomUUID().toString()),
+                                                ).fold(
+                                                    onSuccess = { detail = it; actionNotice = noticeStartedMsg },
+                                                    onFailure = { actionError = it.message ?: "Start failed" },
+                                                )
+                                                mutating = false
+                                            }
+                                        },
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
+                        ) {
+                            if (canCancel) {
+                                SpatialSecondaryButton(
+                                    label = localizedText("Cancel", "取消目标"),
+                                    enabled = !mutating,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = {
+                                        scope.launch {
+                                            mutating = true; actionError = null; actionNotice = null
+                                            gateway.cancelOutcome(
+                                                id,
+                                                CancelOutcomeRequest(clientRequestId = UUID.randomUUID().toString()),
+                                            ).fold(
+                                                onSuccess = { detail = it; actionNotice = noticeCancelledMsg },
+                                                onFailure = { actionError = it.message ?: "Cancel failed" },
+                                            )
+                                            mutating = false
+                                        }
+                                    },
+                                )
+                            }
+                            SpatialSecondaryButton(
+                                label = localizedText("Execution", "执行记录"),
+                                enabled = !mutating,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    executionInitialWorkId = null
+                                    showExecutionRecords = true
+                                },
+                            )
+                        }
+                    }
+                }
+
                 // 2. Segmented Section Switcher (reduces scrolling & wall-of-text!)
                 item {
                     OutcomeSegmentedTabs(
@@ -554,7 +583,8 @@ internal fun OutcomeDetailScreen(
 
                 when (DetailSection.entries[section]) {
                     DetailSection.Overview -> {
-                        value.currentRevisionView?.let { rev ->
+                        // While approval is pending the full contract lives in the approval card's scope.
+                        if (!canApprove) value.currentRevisionView?.let { rev ->
                             if (rev.goal.isNotEmpty()) {
                                 item {
                                     SpatialGroupedSection(title = localizedText("Goals", "目标条款")) {
@@ -602,39 +632,12 @@ internal fun OutcomeDetailScreen(
                             }
                         }
 
-                        if (value.description.isNotBlank()) {
-                            item {
-                                SpatialGroupedSection(title = localizedText("Background & Brief", "背景说明")) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable { briefExpanded = !briefExpanded }
-                                            .padding(SpatialSpacing.md),
-                                        verticalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
-                                    ) {
-                                        Text(
-                                            text = value.description,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = colors.textSecondary,
-                                            maxLines = if (briefExpanded) Int.MAX_VALUE else 3,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = if (briefExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                                                contentDescription = null,
-                                                tint = colors.accent,
-                                                modifier = Modifier.size(16.dp),
-                                            )
-                                            Text(
-                                                text = if (briefExpanded) localizedText("Collapse", "收起") else localizedText("Expand full brief", "展开全文"),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = colors.accent,
-                                            )
-                                        }
-                                    }
-                                }
-                            }
+                        item {
+                            OutcomeBriefSections(
+                                outcome = value,
+                                state = briefState,
+                                onRetry = { briefRetry++ },
+                            )
                         }
                     }
 

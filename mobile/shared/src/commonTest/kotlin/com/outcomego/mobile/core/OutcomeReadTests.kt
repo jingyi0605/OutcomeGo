@@ -22,6 +22,25 @@ class OutcomeReadTests {
     }
 
     @Test
+    fun decodesBriefAndKeepsOlderDetailPayloadsWithoutConflictsOrDependencies() {
+        val brief = mobileJson.decodeFromString<OutcomeBrief>(
+            """{"outcomeId":"outcome-1","revisionId":null,"sourceKey":"k","futureField":1,
+            "background":{"title":"Why","explanation":"Because","quote":"Original"},
+            "intent":{"title":"Build it","explanation":"e","quote":"q"},
+            "prerequisites":[{"title":"API key","explanation":"e","quote":"q"}],
+            "risks":[],"proposedTasks":[{"title":"Step 1","explanation":"e","quote":"q"}]}""",
+        )
+        assertNull(brief.revisionId)
+        assertEquals("Build it", brief.intent.title)
+        assertEquals(1, brief.proposedTasks.size)
+        assertEquals("/api/v0/outcomes/outcome%2Fone/brief", outcomeBriefPath("outcome/one"))
+
+        val detail = mobileJson.decodeFromString<OutcomeDetail>(DETAIL)
+        assertTrue(detail.currentRevisionView?.conflicts?.isEmpty() == true)
+        assertTrue(detail.workItems.single().dependsOn.isEmpty())
+    }
+
+    @Test
     fun readsGetOnlyRoutesWithEncodedCursorAndSession() = runTest {
         val requests = mutableListOf<MobileRequest>()
         val api = TransportOutcomeReadApi(object : OutcomeGoTransport {

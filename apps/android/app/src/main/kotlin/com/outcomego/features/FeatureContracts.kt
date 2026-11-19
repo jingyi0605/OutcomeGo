@@ -482,6 +482,9 @@ interface FeatureGateway {
         Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
     suspend fun outcomeDetail(id: String): Result<OutcomeDetail> =
         Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
+    /** Null denotes a server without the read-only brief route; the detail page then falls back to saved records. */
+    suspend fun outcomeBrief(id: String): Result<com.outcomego.mobile.core.OutcomeBrief?> =
+        Result.failure(UnsupportedOperationException("Outcome brief is not available for this session."))
     suspend fun createOutcomePlan(input: com.outcomego.mobile.core.CreateOutcomePlanRequest): Result<com.outcomego.mobile.core.OutcomePlanningDraft> =
         Result.failure(UnsupportedOperationException("Outcome planning is not available for this session."))
     suspend fun getOutcomePlan(planId: String): Result<com.outcomego.mobile.core.OutcomePlanningDraft> =

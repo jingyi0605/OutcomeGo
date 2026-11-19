@@ -60,6 +60,34 @@ data class OutcomeContractRevision(
     val boundaries: OutcomeBoundaries? = null,
     val budget: OutcomeBudget? = null,
     val changeSummary: String? = null,
+    val conflicts: List<OutcomeContractConflict> = emptyList(),
+)
+
+/** Planning question recorded on a revision; only `blocking` ones gate approval. */
+@Serializable
+data class OutcomeContractConflict(
+    val severity: String,
+    val message: String,
+)
+
+/** Advisory presentation of saved records; it never carries approval, readiness or task status. */
+@Serializable
+data class OutcomeBriefItem(
+    val title: String,
+    val explanation: String,
+    val quote: String,
+)
+
+@Serializable
+data class OutcomeBrief(
+    val outcomeId: String,
+    val revisionId: String? = null,
+    val sourceKey: String = "",
+    val background: OutcomeBriefItem,
+    val intent: OutcomeBriefItem,
+    val prerequisites: List<OutcomeBriefItem> = emptyList(),
+    val risks: List<OutcomeBriefItem> = emptyList(),
+    val proposedTasks: List<OutcomeBriefItem> = emptyList(),
 )
 
 @Serializable
@@ -82,6 +110,7 @@ data class OutcomeWorkItem(
     val status: String,
     val statusReason: String? = null,
     val ordinal: Int,
+    val dependsOn: List<String> = emptyList(),
 )
 
 @Serializable
@@ -347,6 +376,8 @@ fun outcomeListPath(cursor: String? = null, status: String? = null, query: Strin
         (query?.takeIf { it.isNotBlank() }?.let { "&q=${outcomeSegment(it)}" } ?: "")
 
 fun outcomeDetailPath(id: String): String = "/api/v0/outcomes/${outcomeSegment(id)}"
+
+fun outcomeBriefPath(id: String): String = "${outcomeDetailPath(id)}/brief"
 
 fun outcomePlanPath(planId: String): String = "/api/v0/outcomes/plans/${outcomeSegment(planId)}"
 
