@@ -336,7 +336,23 @@ export const sourceTranslations: Record<string, string> = {
   "Enable goal management for bots": "为机器人启用目标管理功能",
   "Shows the Outcomes entry and the idea capture button, and lets your bots register and manage goals in conversation.":
     "开启后显示目标入口和记录想法按钮，并允许机器人在对话中登记和管理目标。",
-  "Couldn’t save this setting. Try again.": "无法保存此设置，请重试。",
+  "Enable bot floating window": "启用机器人浮窗",
+  "Shows a small floating window that displays unread messages and pending goals. Allows quick file drops to bots.":
+    "显示一个小型浮动窗口，展示未读消息和待处理目标。支持快速拖拽文件到机器人。",
+  "Accessibility permission": "辅助功能权限",
+  "Required for global file drag detection. Allows the floating window to detect when you start dragging files from anywhere.":
+    "用于全局文件拖拽检测。允许浮窗检测您从任何位置开始拖拽文件的操作。",
+  "Accessibility access": "辅助功能访问",
+  "Allow OutcomeGo in system accessibility settings.": "在系统辅助功能设置中允许 OutcomeGo。",
+  "Could not check accessibility access. Open System Settings to review it.": "无法检查辅助功能权限。请打开系统设置查看。",
+  "Could not open system settings. Open Accessibility settings and allow OutcomeGo.":
+    "无法打开系统设置。请打开辅助功能设置并允许 OutcomeGo。",
+  "Checking accessibility access": "正在检查辅助功能访问权限",
+  "Accessibility access {status}": "辅助功能访问：{status}",
+  "Enable accessibility": "启用辅助功能",
+  Enabled: "已启用",
+  "Requesting accessibility access…": "正在请求辅助功能访问权限…",
+  "Couldn't save this setting. Try again.": "无法保存此设置，请重试。",
   "Couldn’t load this setting.": "无法读取此设置。",
   "Outcome sections": "目标导航",
   "Plan goals, track execution and handle the decisions that need you.":
