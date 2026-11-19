@@ -76,6 +76,25 @@ final class OutcomeReadTests: XCTestCase, @unchecked Sendable {
     }
   }
 
+  func testGoalManagementSwitchDefaultsOffAndOldServersFallBack() async throws {
+    OutcomeProtocol.status = 200
+    OutcomeProtocol.response = Data(#"{"outcomesEnabled":true}"#.utf8)
+    let enabled = try await api().outcomesEnabled()
+    XCTAssertEqual(enabled, true)
+    XCTAssertEqual(OutcomeProtocol.received?.url?.path, "/team/api/v0/feature-settings")
+    XCTAssertEqual(OutcomeProtocol.received?.httpMethod, "GET")
+    OutcomeProtocol.response = Data("{}".utf8)
+    let missing = try await api().outcomesEnabled()
+    XCTAssertEqual(missing, false)
+    OutcomeProtocol.status = 404
+    OutcomeProtocol.response = Data()
+    let old = try await api().outcomesEnabled()
+    XCTAssertNil(old)
+    OutcomeProtocol.status = 500
+    do { _ = try await api().outcomesEnabled(); XCTFail("HTTP failure must remain visible") }
+    catch let error as APIError { XCTAssertEqual(error.status, 500) }
+  }
+
   func testDraftCanHaveNoRevisionAndEmptyTerminalPage() throws {
     let data = Data(#"{"items":[{"id":"draft","title":"Draft","status":"draft","botId":"b","currentRevision":null,"updatedAt":"now"}],"nextCursor":null}"#.utf8)
     let page = try JSONDecoder().decode(OutcomeListPage.self, from: data)

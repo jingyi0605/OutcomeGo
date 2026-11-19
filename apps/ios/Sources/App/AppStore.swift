@@ -1865,6 +1865,12 @@ final class AppStore {
     }
   }
 
+  /// Whether the owner switched goal management on; nil when the server predates the switch.
+  func outcomesEnabled() async throws -> Bool? {
+    do { return try await fetch("/api/v0/feature-settings", as: FeatureSettings.self).outcomesEnabled ?? false }
+    catch let error as APIError where error.status == 404 { return nil }
+  }
+
   func listOutcomes(cursor: String? = nil) async throws -> OutcomeListPage? {
     var query = ["limit": "20"]
     if let cursor { query["cursor"] = cursor }

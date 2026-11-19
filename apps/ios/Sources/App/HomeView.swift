@@ -20,6 +20,8 @@ struct HomeView: View {
   @State private var outcomeInitialTarget: OutcomeLinkTarget?
   @State private var outcomePresentation = UUID()
   @State private var outcomesSupported = false
+  /// True only once the server said goal management is off; until then a pending link may still open.
+  @State private var outcomesTurnedOff = false
   @State private var marketplace = false
   @State private var marketplaceRevision = 0
   @State private var marketplaceHovered = false
@@ -142,9 +144,21 @@ struct HomeView: View {
         if store.navigation.isEmpty, store.landing == nil { zoomChannel = nil }
       }
     }
-    .task(id: store.api?.resourceGeneration) {
-      outcomesSupported = false
-      if store.api == nil { outcomes = false; outcomeInitialTarget = nil }
+    .onChange(of: store.api?.resourceGeneration) { _, _ in outcomesSupported = false; outcomesTurnedOff = false }
+    .task(id: OutcomeProbeKey(generation: store.api?.resourceGeneration, active: scenePhase == .active)) {
+      // The switch lives in Desktop settings, so look again whenever the app returns to the foreground.
+      guard scenePhase == .active || store.api == nil else { return }
+      if store.api == nil { outcomesSupported = false; outcomes = false; outcomeInitialTarget = nil; return }
+      // Goal management is opt-in: off (or unreadable) hides the entry. A server without the switch
+      // answers 404 and keeps the older behaviour of probing the Outcome collection.
+      var enabled: Bool?
+      do { enabled = try await store.outcomesEnabled() }
+      catch {
+        if UserFacingError.isCancelled(error) || (error as? APIError)?.status == 401 { return }
+        enabled = false
+      }
+      outcomesTurnedOff = enabled == false
+      if enabled == false { outcomesSupported = false; outcomes = false; outcomeInitialTarget = nil; return }
       do { outcomesSupported = try await store.listOutcomes() != nil }
       catch {
         if !UserFacingError.isCancelled(error) && (error as? APIError)?.status != 401 {
@@ -154,6 +168,7 @@ struct HomeView: View {
     }
     .onChange(of: store.outcomeNavigation, initial: true) { _, target in
       guard let target else { return }
+      guard !outcomesTurnedOff else { store.consumeOutcomeNavigation(); return }
       outcomeInitialTarget = target
       outcomePresentation = UUID()
       outcomes = true
@@ -901,6 +916,11 @@ struct HomeView: View {
       await store.markRead(channel.id, through: store.latestMessage(channel.id)?.sequence ?? "0", fromInbox: true)
     } else { await store.markUnread(channel.id) }
   }
+}
+
+private struct OutcomeProbeKey: Hashable {
+  let generation: UUID?
+  let active: Bool
 }
 
 private struct ConversationPreview: View {
