@@ -471,6 +471,13 @@ interface FeatureGateway {
     suspend fun outcomeHumanWorkItem(id: String): Result<com.outcomego.mobile.core.OutcomeHumanWorkItem> =
         Result.failure(UnsupportedOperationException("Human actions are not available for this session."))
 
+    /**
+     * Whether the owner switched goal management on in Settings. Null means the server predates the
+     * switch, so the caller falls back to probing the Outcome API itself.
+     */
+    suspend fun outcomesEnabled(): Result<Boolean?> =
+        Result.failure(UnsupportedOperationException("Feature settings are not available for this session."))
+
     suspend fun listOutcomes(cursor: String? = null, status: String? = null, query: String? = null): Result<OutcomeListPage?> =
         Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
     suspend fun outcomeDetail(id: String): Result<OutcomeDetail> =

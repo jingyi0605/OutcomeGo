@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -318,23 +319,41 @@ fun OutcomeGoApp(
 
     var outcomeOpening by remember(state.session) { mutableStateOf<com.outcomego.mobile.core.OutcomeLinkTarget?>(null) }
     var outcomeOpeningGeneration by remember(state.session) { mutableStateOf(0) }
-    LaunchedEffect(state.pendingOutcomeLink, state.session) {
+    val outcomeGateway = appViewModel.outcomeReadGateway
+    var outcomesSupported by remember(state.session, outcomeGateway) { mutableStateOf(false) }
+    // True only once the server said goal management is off; until then a pending link may still open.
+    var outcomesTurnedOff by remember(state.session, outcomeGateway) { mutableStateOf(false) }
+    var resumeCount by remember { mutableStateOf(0) }
+    // The switch lives in Desktop settings, so look again whenever the app returns to the foreground.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { resumeCount += 1 }
+    LaunchedEffect(state.session, outcomeGateway, resumeCount) {
+        if (state.session == null) return@LaunchedEffect
+        // Goal management is opt-in: off (or unreadable) hides the entry. A server without the switch
+        // answers 404 and keeps the older behaviour of probing the Outcome API.
+        val enabled = outcomeGateway.outcomesEnabled().fold(
+            onSuccess = { it },
+            onFailure = { if (it is UnsupportedOperationException) null else false },
+        )
+        outcomesTurnedOff = enabled == false
+        if (enabled == false && navController.currentDestination?.route == OUTCOMES) navController.popBackStack()
+        outcomesSupported = if (enabled == false) false else outcomeGateway.listOutcomes().fold(
+            onSuccess = { it != null },
+            onFailure = { it !is UnsupportedOperationException },
+        )
+    }
+    LaunchedEffect(state.pendingOutcomeLink, state.session, outcomesTurnedOff) {
         val target = state.pendingOutcomeLink ?: return@LaunchedEffect
         if (state.session == null) return@LaunchedEffect
+        if (outcomesTurnedOff) {
+            appViewModel.consumeOutcomeDeepLink()
+            return@LaunchedEffect
+        }
         outcomeOpening = target
         outcomeOpeningGeneration += 1
         navController.navigate(OUTCOMES) { launchSingleTop = true }
         appViewModel.consumeOutcomeDeepLink()
     }
 
-    val outcomeGateway = appViewModel.outcomeReadGateway
-    var outcomesSupported by remember(state.session, outcomeGateway) { mutableStateOf(false) }
-    LaunchedEffect(state.session, outcomeGateway) {
-        if (state.session != null) outcomesSupported = outcomeGateway.listOutcomes().fold(
-            onSuccess = { it != null },
-            onFailure = { it !is UnsupportedOperationException },
-        )
-    }
 
     val liveVoiceActive = state.liveVoice.state != AndroidLiveVoiceState.Idle &&
         state.liveVoiceConversationId != null
@@ -564,9 +583,11 @@ fun OutcomeGoApp(
                             navController.navigate(ROUTINES)
                         },
                         onOpenOutcome = { outcomeId ->
-                            outcomeOpening = com.outcomego.mobile.core.OutcomeLinkTarget(outcomeId = outcomeId)
-                            outcomeOpeningGeneration += 1
-                            navController.navigate(OUTCOMES) { launchSingleTop = true }
+                            if (!outcomesTurnedOff) {
+                                outcomeOpening = com.outcomego.mobile.core.OutcomeLinkTarget(outcomeId = outcomeId)
+                                outcomeOpeningGeneration += 1
+                                navController.navigate(OUTCOMES) { launchSingleTop = true }
+                            }
                         },
                         loadOutcomeStatus = { outcomeId -> outcomeGateway.outcomeDetail(outcomeId).getOrNull()?.status },
                         error = state.error,

@@ -45,6 +45,22 @@ class OutcomeGatewayTest {
         }
     }
 
+    @Test
+    fun goalManagementSwitchDefaultsOffAndOldServersFallBack() = runBlocking {
+        val client = OutcomeClient()
+        val gateway = LiveFeatureGateway(client)
+        client.response = """{"outcomesEnabled":true}"""
+        assertEquals(true, gateway.outcomesEnabled().getOrThrow())
+        assertEquals("/api/v0/feature-settings", client.path)
+        assertEquals(HttpMethod.GET, client.method)
+        client.response = """{}"""
+        assertEquals(false, gateway.outcomesEnabled().getOrThrow())
+        client.status = 404
+        assertNull(gateway.outcomesEnabled().getOrThrow())
+        client.status = 500
+        assertTrue(gateway.outcomesEnabled().isFailure)
+    }
+
     private class OutcomeClient : MobileFeatureApi {
         var status = 200
         var path = ""
