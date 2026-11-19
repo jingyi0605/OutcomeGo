@@ -4,6 +4,15 @@ import { useI18n } from "../../../lib/i18n";
 import type { OutcomeActionCounts } from "../../../hooks/use-outcome-action-counts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 
+/** Shared by both row buttons so background, hover and focus behave identically. */
+const rowButtonClass = (active: boolean) =>
+  cn(
+    "electron-no-drag rounded-lg outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+    active
+      ? "bg-selected text-foreground"
+      : "text-foreground-secondary hover:bg-hover hover:text-foreground"
+  );
+
 const NO_BADGES: OutcomeActionCounts = { approval: 0, review: 0 };
 const badgeLabel = (count: number) => (count > 99 ? "99+" : String(count));
 
@@ -51,6 +60,7 @@ export function OutcomeNavigation({
   compact = false,
   onOpen,
   onNewIdea,
+  ideaActive = false,
   badges = NO_BADGES,
 }: {
   active: boolean;
@@ -58,8 +68,10 @@ export function OutcomeNavigation({
   onOpen: () => void;
   /** Goals waiting for the owner's approval or acceptance, shown as colored count badges. */
   badges?: OutcomeActionCounts;
-  /** Expanded sidebar only: shows a quick-capture lightbulb at the right end of the row. */
+  /** Expanded sidebar only: shows a square quick-capture button beside the Outcomes entry. */
   onNewIdea?: () => void;
+  /** True while the quick-capture window is open, so its button shows the same selected state as the entry. */
+  ideaActive?: boolean;
 }) {
   const { t } = useI18n();
   const showIdea = !compact && Boolean(onNewIdea);
@@ -77,12 +89,10 @@ export function OutcomeNavigation({
       aria-current={active ? "page" : undefined}
       onClick={onOpen}
       className={cn(
-        "electron-no-drag relative flex items-center rounded-lg text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+        rowButtonClass(active),
+        "relative flex items-center text-left",
         // The expanded icon starts at the same x as the search field's magnifier (8px inside a 12px gutter).
-        compact ? "mx-auto mb-2 size-12 justify-center" : "h-9 w-full gap-2 pl-2 pr-9",
-        active
-          ? "bg-selected text-foreground"
-          : "text-foreground-secondary hover:bg-hover hover:text-foreground"
+        compact ? "mx-auto mb-2 size-12 justify-center" : "h-9 min-w-0 flex-1 gap-2 px-2"
       )}
     >
       <Target
@@ -102,7 +112,7 @@ export function OutcomeNavigation({
       </Tooltip>
     );
   return (
-    <div className="relative mb-2">
+    <div className="mb-2 flex items-center gap-1">
       {button}
       {showIdea && (
         <Tooltip>
@@ -110,10 +120,11 @@ export function OutcomeNavigation({
             <button
               type="button"
               aria-label={t("Capture an idea")}
+              aria-pressed={ideaActive}
               onClick={onNewIdea}
-              className="electron-no-drag absolute right-1 top-1/2 grid size-7 -translate-y-1/2 place-items-center rounded-[7px] text-foreground-tertiary outline-none transition-colors hover:bg-subtle hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring dark:text-foreground-secondary"
+              className={cn(rowButtonClass(ideaActive), "grid size-9 shrink-0 place-items-center")}
             >
-              <Lightbulb aria-hidden="true" className="size-[15px]" strokeWidth={1.6} />
+              <Lightbulb aria-hidden="true" className="size-[14px]" strokeWidth={1.6} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">{t("Capture an idea")}</TooltipContent>

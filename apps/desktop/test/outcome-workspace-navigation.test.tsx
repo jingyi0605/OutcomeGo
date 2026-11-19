@@ -285,6 +285,30 @@ test("navigation shows a colored count badge for each status that needs the owne
   expect(host.querySelector("[data-outcome-badge]")).toBeNull();
 });
 
+test("quick idea capture is a separate square button beside the Outcomes entry", async () => {
+  let ideas = 0;
+  let opened = 0;
+  await mount(<OutcomeNavigation active={false} onOpen={() => opened++} onNewIdea={() => ideas++} />);
+  const open = host.querySelector('button[aria-label="Outcomes"]')!;
+  const idea = host.querySelector('button[aria-label="Capture an idea"]')!;
+  expect(open.contains(idea)).toBe(false);
+  expect(idea.parentElement).toBe(open.parentElement);
+  expect(idea.className).toContain("size-9");
+  expect(open.className).toContain("h-9");
+  await act(async () => {
+    idea.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect([ideas, opened]).toEqual([1, 0]);
+  expect(idea.className).not.toContain("bg-selected");
+  await render(<OutcomeNavigation active onOpen={() => {}} onNewIdea={() => {}} ideaActive />);
+  const selectedIdea = host.querySelector('button[aria-label="Capture an idea"]')!;
+  const selectedOpen = host.querySelector('button[aria-label="Outcomes"]')!;
+  for (const el of [selectedIdea, selectedOpen]) {
+    expect(el.className).toContain("bg-selected");
+    expect(el.className).toContain("rounded-lg");
+  }
+});
+
 test("workspace opens a full page with all goals, Bot names and execution statuses", async () => {
   await mount(page());
   expect(host.querySelector('[role="dialog"]')).toBeNull();

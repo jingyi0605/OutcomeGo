@@ -2360,6 +2360,7 @@ export const Sidebar = memo(function Sidebar({
   onSearch,
   onOpenOutcomes,
   onNewIdea,
+  newIdeaActive = false,
   outcomesActive = false,
   outcomeBadges,
   onSelect,
@@ -2388,6 +2389,7 @@ export const Sidebar = memo(function Sidebar({
   onSearch: () => void;
   onOpenOutcomes?: () => void;
   onNewIdea?: () => void;
+  newIdeaActive?: boolean;
   outcomesActive?: boolean;
   outcomeBadges?: OutcomeActionCounts;
   onSelect: (id: string, focusComposer?: boolean) => void;
@@ -2992,6 +2994,7 @@ export const Sidebar = memo(function Sidebar({
                     active={outcomesActive}
                     onOpen={onOpenOutcomes}
                     onNewIdea={onNewIdea}
+                    ideaActive={newIdeaActive}
                     badges={outcomeBadges}
                   />
                 </div>

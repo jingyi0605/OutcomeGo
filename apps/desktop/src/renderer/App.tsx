@@ -1462,6 +1462,7 @@ export default function App() {
             onPreloadSearch={preloadSearchDialog}
             onSearch={openSearch}
             onNewIdea={outcomesEnabled ? openQuickIdea : undefined}
+            newIdeaActive={quickIdeaOpen}
             onOpenOutcomes={
               outcomesEnabled
                 ? () => {
