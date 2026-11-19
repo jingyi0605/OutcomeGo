@@ -35,7 +35,6 @@ import {
   type BotDockSettings,
   type BotDockSnooze,
   type BotDockState,
-  type DockLayout,
   type DockRect,
 } from "./bot-dock-model";
 
@@ -45,7 +44,7 @@ const DRAG_INTERVAL_MS = 8;
 /** A drag whose release never arrives (the page died mid-gesture) must not follow the cursor forever. */
 const DRAG_MAX_MS = 30_000;
 const SAVE_DEBOUNCE_MS = 300;
-const COMPACT_PAINT_TIMEOUT_MS = 150;
+const DRAG_HANDOFF_MS = 80;
 const MAX_CRASH_RESTARTS = 3;
 /** The main window answers a delivery within this, or the composer reports a failure. */
 const DELIVERY_TIMEOUT_MS = 20_000;
@@ -66,7 +65,7 @@ export interface DesktopBotDockOptions {
   /** JSON file holding whether the dock is on and where the person left it. */
   settingsPath: string;
   /** Loads the dock page: the Vite server in development, the bundle otherwise. */
-  loadPage: (window: BrowserWindow, surface: "dock" | "composer") => Promise<void>;
+  loadPage: (window: BrowserWindow, surface: "dock" | "invitation" | "composer") => Promise<void>;
   mainWindow: () => BrowserWindow | null;
   /** Brings the main window forward without changing what it shows. */
   focusMainWindow: () => void;
@@ -114,14 +113,15 @@ const contextMenuText = (locale: "en-US" | "zh-CN") =>
  */
 export class DesktopBotDock {
   private window: BrowserWindow | null = null;
+  private invitationWindow: BrowserWindow | null = null;
+  private invitationSize: { width: number; height: number } | null = null;
   private composerWindow: BrowserWindow | null = null;
   private composerSize: { width: number; height: number } | null = null;
+  private composerPainted = false;
   private pendingDrop: { files: BotDockAttachment[]; rejected: boolean } | null = null;
   private settings: BotDockSettings;
   private state: BotDockState | null = null;
   private compactBounds: DockRect | null = null;
-  private layout: DockLayout = "compact";
-  private compactPaint: { resizeId: number; timer: ReturnType<typeof setTimeout> } | null = null;
   private disposed = false;
   private crashes = 0;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -133,11 +133,13 @@ export class DesktopBotDock {
   } | null = null;
   private composerOpen = false;
   private get expanded() {
-    return this.composerOpen || this.layout !== "compact";
+    return this.composerOpen || this.invitationWindow?.isVisible();
   }
   private readonly globalDragDetector: GlobalDragDetector | null;
   private globalDragActive = false;
   private mainWindowDragActive = false;
+  private readonly fileHover = new Set<Electron.WebContents>();
+  private dragHandoff: ReturnType<typeof setTimeout> | null = null;
   private snoozeTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly deliveries = new Map<string, (result: BotDockSendResult) => void>();
   private readonly cleanups: Array<() => void> = [];
@@ -151,7 +153,12 @@ export class DesktopBotDock {
     this.armSnooze();
     this.globalDragDetector = options.dragHelperPath
       ? new GlobalDragDetector(options.dragHelperPath, (dragging) => {
-          this.updateDragHint(this.mainWindowDragActive, dragging);
+          this.globalDragActive = dragging;
+          if (!dragging) {
+            this.mainWindowDragActive = false;
+            this.fileHover.clear();
+          }
+          this.updateInvitation();
         })
       : null;
 
@@ -178,29 +185,36 @@ export class DesktopBotDock {
     // Main window detected a file drag: notify the dock to grow.
     listen("outcomego:botdock:drag-hint", (event, value: unknown) => {
       if (event.sender !== this.options.mainWindow()?.webContents) return;
-      if (this.compactBounds) this.updateDragHint(value === true, this.globalDragActive);
+      this.mainWindowDragActive = value === true;
+      this.updateInvitation();
     });
     handle("botdock:get-state", (event) =>
-      this.ownsSender(event) || this.ownsSender(event, this.composerWindow) ? this.state : null
+      this.ownsCapsuleSender(event) || this.ownsSender(event, this.composerWindow) ? this.state : null
     );
     listen(
       "botdock:resize",
-      (event, width: unknown, height: unknown, layout: unknown, resizeId: unknown) => {
+      (event, width: unknown, height: unknown, layout: unknown) => {
         if (layout === "composer" && this.ownsSender(event, this.composerWindow)) {
           this.onComposerResize(width, height);
-        } else if (this.ownsSender(event)) {
-          this.onResize(width, height, layout, resizeId);
+        } else if (layout === "invitation" && this.ownsSender(event, this.invitationWindow)) {
+          const size = clampDockSize(width, height);
+          if (!size) return;
+          this.invitationSize = size;
+          this.placeInvitation();
+          this.updateInvitation();
+        } else if (layout === "compact" && this.ownsSender(event)) {
+          this.onResize(width, height);
         }
       }
     );
-    listen(
-      "botdock:compact-painted",
-      this.fromDock((_event, resizeId: unknown) => {
-        if (this.compactPaint && resizeId === this.compactPaint.resizeId && this.window) {
-          this.revealDock(this.window);
-        }
-      })
-    );
+    listen("botdock:file-hover", (event, active: unknown) => {
+      if (!this.ownsCapsuleSender(event)) return;
+      const previouslyHovered = this.fileHover.has(event.sender);
+      if (previouslyHovered === (active === true)) return;
+      if (active === true) this.fileHover.add(event.sender);
+      else this.fileHover.delete(event.sender);
+      this.updateInvitation();
+    });
     listen(
       "botdock:open",
       this.fromDock((_event, botId: unknown) => this.onOpen(botId))
@@ -212,14 +226,14 @@ export class DesktopBotDock {
         this.options.focusMainWindow();
       })
     );
-    listen(
-      "botdock:drop",
-      this.fromDock(() => this.onDrop())
-    );
-    listen("botdock:dropped-files", this.fromDock((_event, files: unknown, rejected: unknown) => {
+    listen("botdock:drop", (event) => {
+      if (this.ownsCapsuleSender(event)) this.onDrop();
+    });
+    listen("botdock:dropped-files", (event, files: unknown, rejected: unknown) => {
+      if (!this.ownsCapsuleSender(event)) return;
       const parsed = parseBotDockAttachments(files);
       if (parsed) this.attachDroppedFiles(parsed, rejected === true);
-    }));
+    });
     listen("botdock:composer-close", (event) => {
       if (this.ownsSender(event, this.composerWindow)) this.closeComposer();
     });
@@ -270,20 +284,62 @@ export class DesktopBotDock {
   }
 
   notifyMessageArrival() {
-    const window = this.window;
+    const window = this.invitationWindow?.isVisible() ? this.invitationWindow : this.window;
     if (window && !window.isDestroyed() && window.isVisible()) {
       window.webContents.send("botdock:message-arrival");
     }
   }
 
-  private updateDragHint(mainWindowActive: boolean, globalActive: boolean) {
-    const previous = this.mainWindowDragActive || this.globalDragActive;
-    this.mainWindowDragActive = mainWindowActive;
-    this.globalDragActive = globalActive;
-    const active = mainWindowActive || globalActive;
-    const window = this.window;
-    if (active !== previous && window && !window.isDestroyed())
-      window.webContents.send("botdock:drag-hint", active);
+  private get hasFileDrag() {
+    return (
+      !!this.state?.roster.length &&
+      (this.globalDragActive || this.mainWindowDragActive || this.fileHover.size > 0)
+    );
+  }
+
+  private updateInvitation() {
+    const dock = this.window;
+    if (!dock || !this.compactBounds) return;
+    const invitation = this.invitationWindow;
+    if (this.hasFileDrag) {
+      if (this.dragHandoff) clearTimeout(this.dragHandoff);
+      this.dragHandoff = null;
+      if (!invitation) {
+        this.warmSurface("invitation");
+      } else if (this.invitationSize && !invitation.isVisible()) {
+        this.stopDrag(true);
+        this.placeInvitation();
+        invitation.webContents.send("botdock:surface-visible", true);
+        invitation.showInactive();
+        if (invitation.isVisible()) {
+          dock.hide();
+          this.fileHover.delete(dock.webContents);
+        }
+      }
+    }
+    if (!this.hasFileDrag && invitation?.isVisible() && !this.dragHandoff) {
+      this.dragHandoff = setTimeout(() => this.hideInvitation(), DRAG_HANDOFF_MS);
+    }
+  }
+
+  private placeInvitation() {
+    const window = this.invitationWindow;
+    const compact = this.compactBounds;
+    if (!window || !compact || !this.invitationSize) return;
+    const workArea = screen.getDisplayMatching(compact).workArea;
+    this.applyBounds(window, resizeDockFromCenter(compact, this.invitationSize, workArea));
+  }
+
+  private hideInvitation() {
+    if (this.dragHandoff) clearTimeout(this.dragHandoff);
+    this.dragHandoff = null;
+    const window = this.invitationWindow;
+    if (!window || (!window.isDestroyed() && !window.isVisible())) return;
+    this.window?.showInactive();
+    if (!window.isDestroyed()) {
+      window.hide();
+      window.webContents.send("botdock:surface-visible", false);
+    }
   }
 
   private get snoozed() {
@@ -373,6 +429,9 @@ export class DesktopBotDock {
     if (window && !window.isDestroyed()) {
       window.webContents.send("botdock:state", this.state);
       this.composerWindow?.webContents.send("botdock:state", this.state);
+      this.invitationWindow?.webContents.send("botdock:state", this.state);
+      this.warmSurfaces();
+      if (!this.state.roster.length) this.hideInvitation();
       return;
     }
     void this.createWindow().catch((error: unknown) =>
@@ -380,7 +439,7 @@ export class DesktopBotDock {
     );
   }
 
-  private createSurface(surface: "dock" | "composer") {
+  private createSurface(surface: "dock" | "invitation" | "composer") {
     // Without its preload the page has no bridge, never reports a size, and so never shows.
     // Say so instead of leaving an invisible window (a stale dev build is the usual cause).
     if (!existsSync(this.options.preloadPath)) {
@@ -408,7 +467,7 @@ export class DesktopBotDock {
       type: darwin ? "panel" : "toolbar",
       hiddenInMissionControl: true,
       acceptFirstMouse: true,
-      title: surface === "dock" ? "OutcomeGo Bots" : "OutcomeGo Bot Composer",
+      title: surface === "composer" ? "OutcomeGo Bot Composer" : "OutcomeGo Bots",
       webPreferences: {
         preload: this.options.preloadPath,
         // Its own storage: it shows names and avatars only and holds no account.
@@ -460,13 +519,12 @@ export class DesktopBotDock {
     this.watchDisplays(false);
     const window = this.window;
     this.window = null;
-    if (this.compactPaint) clearTimeout(this.compactPaint.timer);
-    this.compactPaint = null;
     this.compactBounds = null;
-    this.layout = "compact";
     this.mainWindowDragActive = false;
     this.globalDragDetector?.stop();
     this.globalDragActive = false;
+    this.fileHover.clear();
+    this.destroyInvitation();
     this.destroyComposer();
     if (window && !window.isDestroyed()) window.destroy();
   }
@@ -481,78 +539,36 @@ export class DesktopBotDock {
   }
 
   /** The page measured its capsule: place the window on first size, then keep it in step. */
-  private onResize(width: unknown, height: unknown, layout: unknown, resizeId: unknown) {
+  private onResize(width: unknown, height: unknown) {
     const window = this.window;
     const size = clampDockSize(width, height);
     if (!window || window.isDestroyed() || !size) return;
-    if (layout !== "compact" && layout !== "invitation") return;
     const compact = this.compactBounds;
     if (!compact) {
-      if (layout !== "compact") return;
       this.compactBounds = this.initialBounds(size);
       window.setBounds(this.compactBounds);
       this.crashes = 0;
       if (!window.isVisible()) window.showInactive();
       this.refreshGlobalDrag();
+      this.warmSurfaces();
       return;
     }
-    this.layout = layout;
     const workArea = screen.getDisplayMatching(compact).workArea;
-    if (layout === "invitation") this.stopDrag(true);
-    const next =
-      layout === "invitation"
-        ? resizeDockFromCenter(compact, size, workArea)
-        : resizeDock(
-            compact,
-            size,
-            workArea,
-            this.drag ? { right: false, bottom: false } : undefined
-          );
-    if (layout === "compact") {
-      this.compactBounds = next;
-      if (!this.drag && !sameBounds(compact, next)) this.rememberPosition(next);
-    }
-    if (layout === "compact" && typeof resizeId === "number" && Number.isSafeInteger(resizeId)) {
-      this.restoreCompactBounds(window, next, resizeId);
-    } else {
-      this.applyBounds(window, next);
-      this.revealDock(window);
-    }
-    if (this.composerOpen && this.composerSize) this.placeComposer();
+    const next = resizeDock(
+      compact,
+      size,
+      workArea,
+      this.drag ? { right: false, bottom: false } : undefined
+    );
+    this.compactBounds = next;
+    if (!this.drag && !sameBounds(compact, next)) this.rememberPosition(next);
+    this.applyBounds(window, next);
+    this.placeInvitation();
+    this.placeComposer();
   }
 
   private applyBounds(window: BrowserWindow, next: DockRect) {
     if (!sameBounds(window.getBounds(), next)) window.setBounds(next);
-  }
-
-  private restoreCompactBounds(window: BrowserWindow, next: DockRect, resizeId: number) {
-    if (this.compactPaint) {
-      clearTimeout(this.compactPaint.timer);
-    } else {
-      window.webContents.setBackgroundThrottling(false);
-      window.hide();
-    }
-    this.applyBounds(window, next);
-    const { width, height } = window.getContentBounds();
-    const zoom = window.webContents.getZoomFactor();
-    this.compactPaint = {
-      resizeId,
-      timer: setTimeout(() => this.revealDock(window), COMPACT_PAINT_TIMEOUT_MS),
-    };
-    window.webContents.send("botdock:compact-viewport", {
-      resizeId,
-      width: width / zoom,
-      height: height / zoom,
-    });
-  }
-
-  private revealDock(window: BrowserWindow) {
-    if (!this.compactPaint) return;
-    clearTimeout(this.compactPaint.timer);
-    this.compactPaint = null;
-    if (window.isDestroyed()) return;
-    window.showInactive();
-    window.webContents.setBackgroundThrottling(true);
   }
 
   private initialBounds(size: { width: number; height: number }): DockRect {
@@ -573,7 +589,6 @@ export class DesktopBotDock {
     const window = this.window;
     const compact = this.compactBounds;
     if (!window || window.isDestroyed() || !compact) return;
-    const current = window.getBounds();
     const display = screen
       .getAllDisplays()
       .find((candidate) => overlaps(compact, candidate.workArea));
@@ -583,13 +598,9 @@ export class DesktopBotDock {
       : defaultDockPosition(compact, workArea);
     this.compactBounds = next;
     if (!sameBounds(compact, next)) this.rememberPosition(next);
-    this.applyBounds(
-      window,
-      this.layout === "invitation"
-        ? resizeDockFromCenter(next, current, workArea)
-        : resizeDock(next, current, workArea)
-    );
-    if (this.composerOpen && this.composerSize) this.placeComposer();
+    this.applyBounds(window, next);
+    this.placeInvitation();
+    this.placeComposer();
   }
 
   /** Nothing is unread and there is someone to write to: a click on the capsule starts a message. */
@@ -621,36 +632,62 @@ export class DesktopBotDock {
     if (!this.compactBounds || this.composerOpen) return;
     this.stopDrag(true);
     this.composerOpen = true;
-    if (this.composerWindow) {
-      this.showComposer();
-      return;
-    }
-    void this.createComposer().catch((error: unknown) =>
-      console.error("OutcomeGo bot composer failed to open", error)
-    );
+    this.warmSurfaces();
+    this.showComposer();
   }
 
-  private async createComposer() {
-    let window: BrowserWindow | undefined;
+  private warmSurfaces() {
+    if (!this.compactBounds || !this.state?.roster.length) return;
+    if (!this.composerWindow) this.warmSurface("composer");
+    if (!this.invitationWindow) this.warmSurface("invitation");
+  }
+
+  private warmSurface(surface: "invitation" | "composer") {
+    let window: BrowserWindow;
     try {
-      window = this.createSurface("composer");
-      const composer = window;
-      this.composerWindow = composer;
-      composer.on("blur", () => {
-        if (this.composerWindow === composer) this.closeComposer();
-      });
-      composer.webContents.on("render-process-gone", () => {
-        if (this.composerWindow === composer) this.destroyComposer();
-      });
-      composer.once("closed", () => {
-        if (this.composerWindow !== composer) return;
-        this.composerWindow = null;
-        this.destroyComposer();
-      });
-      await this.options.loadPage(composer, "composer");
+      window = this.createSurface(surface);
     } catch (error) {
-      if (!window || this.composerWindow === window) this.destroyComposer();
-      throw error;
+      if (surface === "composer") this.closeComposer();
+      console.error(`OutcomeGo bot ${surface} failed to open`, error);
+      return;
+    }
+    const contents = window.webContents;
+    const cleanup = () => {
+      if (this.composerWindow === window) this.destroyComposer();
+      if (this.invitationWindow === window) {
+        this.fileHover.delete(contents);
+        this.destroyInvitation();
+      }
+    };
+    if (surface === "composer") {
+      this.composerWindow = window;
+      window.once("ready-to-show", () => {
+        if (this.composerWindow !== window) return;
+        this.composerPainted = true;
+        this.showComposer();
+      });
+      window.on("blur", () => {
+        if (this.composerWindow === window) this.closeComposer();
+      });
+    } else {
+      this.invitationWindow = window;
+    }
+    window.once("closed", cleanup);
+    contents.once("render-process-gone", cleanup);
+    void this.options.loadPage(window, surface).catch((error: unknown) => {
+      cleanup();
+      console.error(`OutcomeGo bot ${surface} failed to load`, error);
+    });
+  }
+
+  private destroyInvitation() {
+    const window = this.invitationWindow;
+    this.hideInvitation();
+    this.invitationWindow = null;
+    this.invitationSize = null;
+    if (window && !window.isDestroyed()) {
+      this.fileHover.delete(window.webContents);
+      window.destroy();
     }
   }
 
@@ -663,7 +700,7 @@ export class DesktopBotDock {
       this.pendingDrop = null;
       this.attachDroppedFiles(files, rejected);
     }
-    if (this.composerOpen) this.showComposer();
+    this.showComposer();
   }
 
   private placeComposer() {
@@ -672,14 +709,17 @@ export class DesktopBotDock {
     if (!dock || !window || !this.composerSize) return;
     const workArea = screen.getDisplayMatching(dock).workArea;
     this.applyBounds(window, placeDockComposer(dock, this.composerSize, workArea));
-    this.window?.webContents.send("botdock:composer-anchor", dockAnchorFor(dock, workArea));
+    if (this.composerOpen && this.composerPainted) {
+      this.window?.webContents.send("botdock:composer-anchor", dockAnchorFor(dock, workArea));
+    }
   }
 
   private showComposer() {
     const window = this.composerWindow;
-    if (!window || !this.composerSize) return;
     this.placeComposer();
+    if (!this.composerOpen || !window || !this.composerSize || !this.composerPainted) return;
     if (!window.isVisible()) {
+      window.webContents.send("botdock:surface-visible", true);
       window.showInactive();
       window.focus();
     }
@@ -689,7 +729,10 @@ export class DesktopBotDock {
     if (!this.composerOpen) return;
     this.composerOpen = false;
     const window = this.composerWindow;
-    if (window?.isVisible()) window.hide();
+    if (window?.isVisible()) {
+      window.hide();
+      window.webContents.send("botdock:surface-visible", false);
+    }
     this.window?.webContents.send("botdock:composer-anchor", null);
   }
 
@@ -698,6 +741,7 @@ export class DesktopBotDock {
     this.composerWindow = null;
     this.closeComposer();
     this.composerSize = null;
+    this.composerPainted = false;
     this.pendingDrop = null;
     if (window && !window.isDestroyed()) window.destroy();
   }
@@ -720,6 +764,10 @@ export class DesktopBotDock {
   /** Files were dropped on the dock: the composer opens, whether anything is unread or not. The
    * page attaches the files. */
   private onDrop() {
+    this.fileHover.clear();
+    this.mainWindowDragActive = false;
+    this.globalDragActive = false;
+    this.hideInvitation();
     if (this.state && this.state.roster.length > 0) this.openComposer();
   }
 
@@ -906,6 +954,10 @@ export class DesktopBotDock {
       event.sender === window.webContents &&
       event.senderFrame === window.webContents.mainFrame
     );
+  }
+
+  private ownsCapsuleSender(event: IpcMainEvent | IpcMainInvokeEvent) {
+    return this.ownsSender(event) || this.ownsSender(event, this.invitationWindow);
   }
 
   private fromDock<Args extends unknown[]>(handler: (event: IpcMainEvent, ...args: Args) => void) {

@@ -34,42 +34,13 @@ contextBridge.exposeInMainWorld("botdock", {
     return () => ipcRenderer.removeListener("botdock:composer-anchor", listener);
   },
   /** The capsule's size in CSS pixels; main sizes the window to it and shows it. */
-  resize: (width: number, height: number, layout: DockLayout, compactResizeId?: number) =>
-    ipcRenderer.send("botdock:resize", width, height, layout, compactResizeId),
-  onCompactViewportReady: (callback: (resizeId: number) => boolean) => {
-    let pending: AbortController | undefined;
-    const listener = (
-      _event: Electron.IpcRendererEvent,
-      { resizeId, width, height }: { resizeId: number; width: number; height: number }
-    ) => {
-      pending?.abort();
-      const controller = new AbortController();
-      pending = controller;
-      const matchesViewport = () =>
-        Math.abs(window.innerWidth - width) <= 1 && Math.abs(window.innerHeight - height) <= 1;
-      const checkViewport = () => {
-        if (!matchesViewport()) return;
-        window.removeEventListener("resize", checkViewport);
-        if (!callback(resizeId)) return;
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (controller.signal.aborted) return;
-            if (matchesViewport()) {
-              ipcRenderer.send("botdock:compact-painted", resizeId);
-            } else {
-              window.addEventListener("resize", checkViewport, { signal: controller.signal });
-            }
-          });
-        });
-      };
-      window.addEventListener("resize", checkViewport, { signal: controller.signal });
-      checkViewport();
-    };
-    ipcRenderer.on("botdock:compact-viewport", listener);
-    return () => {
-      pending?.abort();
-      ipcRenderer.removeListener("botdock:compact-viewport", listener);
-    };
+  resize: (width: number, height: number, layout: DockLayout) =>
+    ipcRenderer.send("botdock:resize", width, height, layout),
+  onSurfaceVisible: (callback: (visible: boolean) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, visible: unknown) =>
+      callback(visible === true);
+    ipcRenderer.on("botdock:surface-visible", listener);
+    return () => ipcRenderer.removeListener("botdock:surface-visible", listener);
   },
   attachDroppedFiles: (files: BotDockAttachment[], rejected: boolean) =>
     ipcRenderer.send("botdock:dropped-files", files, rejected),
@@ -81,14 +52,7 @@ contextBridge.exposeInMainWorld("botdock", {
     ipcRenderer.on("botdock:dropped-files", listener);
     return () => ipcRenderer.removeListener("botdock:dropped-files", listener);
   },
-  /** Main window detected a file drag: the dock should grow. */
-  onDragHint: (callback: (active: boolean) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, active: unknown) => {
-      callback(active === true);
-    };
-    ipcRenderer.on("botdock:drag-hint", listener);
-    return () => ipcRenderer.removeListener("botdock:drag-hint", listener);
-  },
+  setFileHover: (active: boolean) => ipcRenderer.send("botdock:file-hover", active),
   /** Sends a message to a Bot through the signed-in window; this page has no account. */
   send: async (message: BotDockSendInput): Promise<{ ok: boolean }> => {
     try {

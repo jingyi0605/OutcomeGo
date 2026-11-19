@@ -175,33 +175,28 @@ export function useDockState(bridge: BotDockBridge | undefined) {
 
 /** The Bot floating window: a capsule with the app button on the left and, on the right, the
  * Bots that have something waiting, overlapped, each with a red (messages) and yellow (goals) badge. */
-export function BotDockApp() {
+export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
   const bridge = window.botdock;
   const state = useDockState(bridge);
   const frameRef = useRef<HTMLDivElement>(null);
   const dropTargetRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
-  const reported = useRef<{ key: string; layout: "compact" | "invitation" } | null>(
-    null
-  );
-  const compactResizeId = useRef(0);
+  const reported = useRef("");
   const [messageShake, setMessageShake] = useState(false);
   const [composerMotion, setComposerMotion] = useState<{
     anchor: DockComposerAnchor;
     open: boolean;
   } | null>(null);
-  const [fileHover, setFileHover] = useState<"outside" | "window" | "capsule">("outside");
-  const [dragHint, setDragHint] = useState(false);
+  const [overCapsule, setOverCapsule] = useState(false);
+  const [invitationVisible, setInvitationVisible] = useState(false);
   const rosterSize = state?.roster.length ?? 0;
-  const dropInvitation = (fileHover !== "outside" || dragHint) && rosterSize > 0;
-  const layout = dropInvitation ? "invitation" : "compact";
+  const hasState = state !== null;
   const rosterSizeRef = useRef(rosterSize);
   rosterSizeRef.current = rosterSize;
 
   useEffect(() => {
     if (!bridge) return;
     const stopMessageArrival = bridge.onMessageArrival(() => setMessageShake(true));
-    const stopDragHint = bridge.onDragHint(setDragHint);
     const stopComposerAnchor = bridge.onComposerAnchor((anchor) => {
       setComposerMotion((previous) =>
         anchor ? { anchor, open: true } : previous && { ...previous, open: false }
@@ -209,7 +204,6 @@ export function BotDockApp() {
     });
     return () => {
       stopMessageArrival();
-      stopDragHint();
       stopComposerAnchor();
     };
   }, [bridge]);
@@ -219,10 +213,14 @@ export function BotDockApp() {
   useEffect(() => {
     if (!bridge) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let hovering = false;
     const hasFiles = (event: DragEvent) => event.dataTransfer?.types.includes("Files") === true;
     const endHover = () => {
       clearTimeout(timer);
-      setFileHover("outside");
+      setOverCapsule(false);
+      if (!hovering) return;
+      hovering = false;
+      bridge.setFileHover(false);
     };
     const onOver = (event: DragEvent) => {
       if (!hasFiles(event)) return;
@@ -230,13 +228,17 @@ export function BotDockApp() {
       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
       if (rosterSizeRef.current === 0) return;
       const target = dropTargetRef.current?.getBoundingClientRect();
-      const overCapsule =
+      const withinCapsule =
         target &&
         event.clientX >= target.left &&
         event.clientX < target.right &&
         event.clientY >= target.top &&
         event.clientY < target.bottom;
-      setFileHover(overCapsule ? "capsule" : "window");
+      setOverCapsule(Boolean(withinCapsule));
+      if (!hovering) {
+        hovering = true;
+        bridge.setFileHover(true);
+      }
       // dragover repeats while the pointer is over the window: silence means it left.
       clearTimeout(timer);
       timer = setTimeout(endHover, 600);
@@ -256,7 +258,6 @@ export function BotDockApp() {
       // The list is cleared once the handler returns: copy it out now.
       const files = [...(event.dataTransfer?.files ?? [])];
       endHover();
-      setDragHint(false);
       if (rosterSizeRef.current === 0) return;
       bridge.drop();
       if (files.length > 0) void forwardDockFiles(bridge, files);
@@ -277,35 +278,26 @@ export function BotDockApp() {
   // Main sizes the window to the capsule, and shows it once it has a size.
   useLayoutEffect(() => {
     const frame = frameRef.current;
-    if (!frame || !bridge) return;
-    let pendingCompactId: number | undefined;
-    const stop = bridge.onCompactViewportReady((resizeId) => {
-      if (resizeId !== pendingCompactId) return false;
-      frame.removeAttribute("data-awaiting-compact");
-      return true;
-    });
+    if (!frame || !bridge || (invitation && !hasState)) return;
+    const stopVisibility = invitation
+      ? bridge.onSurfaceVisible(setInvitationVisible)
+      : undefined;
     const report = () => {
       const { width, height } = frame.getBoundingClientRect();
+      const layout = invitation ? "invitation" : "compact";
       const key = `${layout}:${Math.ceil(width)}x${Math.ceil(height)}`;
-      const previous = reported.current;
-      if (key === previous?.key) return;
-      const restoring =
-        layout === "compact" &&
-        (frame.hasAttribute("data-awaiting-compact") ||
-          (previous !== null && previous.layout !== "compact"));
-      pendingCompactId = restoring ? ++compactResizeId.current : undefined;
-      frame.toggleAttribute("data-awaiting-compact", restoring);
-      reported.current = { key, layout };
-      bridge.resize(width, height, layout, pendingCompactId);
+      if (key === reported.current) return;
+      reported.current = key;
+      bridge.resize(width, height, layout);
     };
     report();
     const observer = new ResizeObserver(report);
     observer.observe(frame);
     return () => {
       observer.disconnect();
-      stop();
+      stopVisibility?.();
     };
-  }, [bridge, layout]);
+  }, [bridge, invitation, hasState]);
 
   if (!bridge) return null;
   // Show placeholder until state arrives
@@ -371,10 +363,11 @@ export function BotDockApp() {
     <div className="dock-viewport">
       <div
         className="dock-frame"
-        data-dropping={dropInvitation ? true : undefined}
-        data-drop-target={dropInvitation && fileHover === "capsule" ? true : undefined}
+        data-dropping={invitation || undefined}
+        data-invitation-visible={(invitation && invitationVisible) || undefined}
+        data-drop-target={(invitation && overCapsule) || undefined}
         data-message-shake={messageShake ? true : undefined}
-        data-standby={layout === "compact" ? true : undefined}
+        data-standby={!invitation || undefined}
         ref={frameRef}
       >
         <div

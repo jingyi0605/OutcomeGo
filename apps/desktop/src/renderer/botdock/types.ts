@@ -18,17 +18,12 @@ export interface BotDockBridge {
   onState(callback: (state: BotDockStateView | null) => void): () => void;
   onMessageArrival(callback: () => void): () => void;
   onComposerAnchor(callback: (anchor: DockComposerAnchor | null) => void): () => void;
-  resize(
-    width: number,
-    height: number,
-    layout: "compact" | "invitation" | "composer",
-    compactResizeId?: number
-  ): void;
-  onCompactViewportReady(callback: (resizeId: number) => boolean): () => void;
+  resize(width: number, height: number, layout: "compact" | "invitation" | "composer"): void;
+  onSurfaceVisible(callback: (visible: boolean) => void): () => void;
   open(botId?: string): void;
   attachDroppedFiles(files: DockFile[], rejected: boolean): void;
   onDroppedFiles(callback: (drop: { files: DockFile[]; rejected: boolean }) => void): () => void;
-  onDragHint(callback: (active: boolean) => void): () => void;
+  setFileHover(active: boolean): void;
   send(message: {
     botId: string;
     content: string;

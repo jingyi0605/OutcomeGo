@@ -74,14 +74,13 @@ describe("Bot dock capsule", () => {
     expect(render([bot("a", 1, 0)])).not.toContain("<img");
   });
 
-  test("keeps the dock and composer in separate surfaces and withholds the drag collapse frame", async () => {
+  test("keeps capsule layouts fixed during drag and animates only the visible composer", async () => {
     const dom = parseHTML("<html><body></body></html>");
     Object.assign(dom.document, { oninput: null });
     const layouts: string[] = [];
-    let hint: (active: boolean) => void = () => {};
+    const fileHover = mock((_active: boolean) => {});
     let composerAnchor: Parameters<BotDockBridge["onComposerAnchor"]>[0] = () => {};
-    const compactRequests: Array<{ id: number; hiddenAtRequest: boolean }> = [];
-    let viewportReady: (resizeId: number) => boolean = () => false;
+    let surfaceVisible: (visible: boolean) => void = () => {};
     let arrive: () => void = () => {};
     let receiveFiles: Parameters<BotDockBridge["onDroppedFiles"]>[0] = () => {};
     const bridge: Partial<BotDockBridge> = {
@@ -91,14 +90,11 @@ describe("Bot dock capsule", () => {
         arrive = listener;
         return () => {};
       },
-      onCompactViewportReady(listener) {
-        viewportReady = listener;
+      onSurfaceVisible(listener) {
+        surfaceVisible = listener;
         return () => {};
       },
-      onDragHint(listener) {
-        hint = listener;
-        return () => {};
-      },
+      setFileHover: fileHover,
       onComposerAnchor(listener) {
         composerAnchor = listener;
         return () => {};
@@ -107,14 +103,8 @@ describe("Bot dock capsule", () => {
         receiveFiles = listener;
         return () => {};
       },
-      resize(_width, _height, layout, id) {
+      resize(_width, _height, layout) {
         layouts.push(layout);
-        if (id !== undefined) {
-          compactRequests.push({
-            id,
-            hiddenAtRequest: !!dom.document.querySelector(".dock-frame[data-awaiting-compact]"),
-          });
-        }
       },
     };
     Object.defineProperty(dom.window, "botdock", { value: bridge });
@@ -156,14 +146,20 @@ describe("Bot dock capsule", () => {
       expect(target.getAttribute("data-composer-x")).toBe("right");
       expect(target.getAttribute("data-composer-y")).toBe("bottom");
       expect(layouts).toEqual(["compact"]);
-      await act(async () => hint(true));
-      expect(frame?.hasAttribute("data-dropping")).toBe(true);
-      expect(frame?.hasAttribute("data-standby")).toBe(false);
-      expect(frame?.hasAttribute("data-drop-target")).toBe(false);
+      await hover(40, 40);
+      expect(fileHover).toHaveBeenLastCalledWith(true);
+      expect(frame?.hasAttribute("data-dropping")).toBe(false);
+      expect(frame?.hasAttribute("data-standby")).toBe(true);
       await act(async () => composerAnchor(null));
       expect(target.hasAttribute("data-composer-open")).toBe(false);
       expect(target.getAttribute("data-composer-x")).toBe("right");
-      expect(layouts).toEqual(["compact", "invitation"]);
+
+      await act(async () => root.render(<BotDockApp invitation />));
+      expect(frame?.hasAttribute("data-dropping")).toBe(true);
+      expect(frame?.hasAttribute("data-invitation-visible")).toBe(false);
+      await act(async () => surfaceVisible(true));
+      expect(frame?.getAttribute("data-invitation-visible")).toBe("true");
+      expect(frame?.hasAttribute("data-standby")).toBe(false);
 
       await hover(40, 40);
       expect(frame?.hasAttribute("data-drop-target")).toBe(true);
@@ -176,13 +172,10 @@ describe("Bot dock capsule", () => {
         const leave = new dom.window.Event("dragleave");
         Object.assign(leave, { clientX: 0, clientY: 0 });
         dom.window.dispatchEvent(leave);
-        hint(false);
       });
-      expect(frame?.getAttribute("data-standby")).toBe("true");
-      expect(compactRequests).toEqual([{ id: 1, hiddenAtRequest: true }]);
-      expect(viewportReady(1)).toBe(true);
-      expect(frame?.hasAttribute("data-awaiting-compact")).toBe(false);
-      expect(layouts).toEqual(["compact", "invitation", "compact"]);
+      expect(fileHover).toHaveBeenLastCalledWith(false);
+      expect(frame?.hasAttribute("data-dropping")).toBe(true);
+      expect(layouts).toEqual(["compact", "invitation"]);
 
       expect(frame?.hasAttribute("data-message-shake")).toBe(false);
       await act(async () => arrive());
@@ -195,13 +188,19 @@ describe("Bot dock capsule", () => {
       expect(frame?.hasAttribute("data-message-shake")).toBe(false);
       await act(async () => arrive());
       expect(frame?.getAttribute("data-message-shake")).toBe("true");
-      expect(layouts).toEqual(["compact", "invitation", "compact"]);
+      expect(layouts).toEqual(["compact", "invitation"]);
 
       expect(dom.document.querySelector("textarea")).toBeNull();
       await act(async () => root.render(<DockComposerApp />));
       expect(dom.document.querySelector(".dock-capsule")).toBeNull();
       expect(dom.document.querySelector("textarea")).not.toBeNull();
       expect(layouts.at(-1)).toBe("composer");
+      const composerFrame = dom.document.querySelector(".dock-composer-frame");
+      expect(composerFrame?.hasAttribute("data-visible")).toBe(false);
+      await act(async () => surfaceVisible(true));
+      expect(composerFrame?.getAttribute("data-visible")).toBe("true");
+      await act(async () => surfaceVisible(false));
+      expect(composerFrame?.hasAttribute("data-visible")).toBe(false);
       await act(async () => receiveFiles({
         files: [{ bytes: new Uint8Array([65]), fileName: "notes.txt", mimeType: "text/plain" }],
         rejected: false,

@@ -73,10 +73,6 @@ body {
   zoom: 1.2;
 }
 
-.dock-frame[data-awaiting-compact] {
-  visibility: hidden;
-}
-
 .dock-composer-frame {
   padding: 10px 22px;
 }
@@ -263,6 +259,9 @@ body {
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
   backdrop-filter: blur(20px) saturate(1.6);
   color: var(--dock-ink);
+}
+
+.dock-composer-frame[data-visible] .dock-composer {
   animation: dock-pop 160ms ease-out both;
 }
 
@@ -504,11 +503,12 @@ body {
   zoom: 1.95;
 }
 
-.dock-frame[data-dropping="true"] .dock-capsule {
+.dock-frame[data-invitation-visible] .dock-capsule {
   animation: dock-flash 700ms ease-in-out infinite;
 }
 
-.dock-frame[data-drop-target="true"]:where(:not([data-message-shake="true"])) .dock-capsule {
+.dock-frame[data-invitation-visible][data-drop-target="true"]:where(:not([data-message-shake="true"]))
+  .dock-capsule {
   animation: dock-flash 700ms ease-in-out infinite, dock-shake 3s ease-in-out infinite;
 }
 
@@ -536,7 +536,7 @@ body {
   }
 }
 
-.dock-frame[data-dropping="true"] .dock-bot {
+.dock-frame[data-invitation-visible] .dock-bot {
   animation: dock-flash 700ms ease-in-out infinite;
 }
 
@@ -558,21 +558,23 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dock-composer-frame[data-visible] .dock-composer {
+    animation: none;
+  }
   .dock-drop-target {
     transition: none;
   }
   .dock-frame[data-message-shake="true"] .dock-message-motion {
     animation-duration: 0s;
   }
-  .dock-frame[data-dropping="true"] .dock-capsule,
-  .dock-frame[data-drop-target="true"] .dock-capsule {
+  .dock-frame[data-invitation-visible] .dock-capsule {
     animation: none;
     box-shadow:
       var(--dock-shadow),
       inset 0 0 0 0.5px var(--dock-edge),
       0 0 0 3px #0a84ff;
   }
-  .dock-frame[data-dropping="true"] .dock-bot {
+  .dock-frame[data-invitation-visible] .dock-bot {
     animation: none;
     box-shadow: 0 0 0 2px var(--dock-badge-ring),
       0 0 0 3px #0a84ff;

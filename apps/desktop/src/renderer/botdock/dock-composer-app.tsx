@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useDockState } from "./botdock-app";
 import { DockComposer, useDockComposer } from "./dock-composer";
 
@@ -7,12 +7,14 @@ export function DockComposerApp() {
   const state = useDockState(bridge);
   const model = useDockComposer(bridge, state?.roster ?? []);
   const frameRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
   const hasState = state !== null;
   const { addFiles } = model;
 
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (!frame || !bridge || !hasState) return;
+    const stopVisibility = bridge.onSurfaceVisible(setVisible);
     const stop = bridge.onDroppedFiles(({ files, rejected }) => {
       void addFiles(files, rejected);
     });
@@ -36,6 +38,7 @@ export function DockComposerApp() {
     return () => {
       observer.disconnect();
       stop();
+      stopVisibility();
       window.removeEventListener("dragover", onDragOver);
       window.removeEventListener("drop", onDrop);
     };
@@ -43,7 +46,11 @@ export function DockComposerApp() {
 
   if (!bridge || !state) return null;
   return (
-    <div className="dock-frame dock-composer-frame" ref={frameRef}>
+    <div
+      className="dock-frame dock-composer-frame"
+      data-visible={visible || undefined}
+      ref={frameRef}
+    >
       <DockComposer bridge={bridge} model={model} state={state} />
     </div>
   );

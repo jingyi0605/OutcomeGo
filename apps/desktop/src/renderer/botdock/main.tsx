@@ -6,10 +6,14 @@ import "./botdock.css";
 
 const root = document.getElementById("botdock-root");
 if (root) {
-  const isComposer = new URLSearchParams(window.location.search).get("surface") === "composer";
+  const surface = new URLSearchParams(window.location.search).get("surface");
   createRoot(root).render(
     <StrictMode>
-      {isComposer ? <DockComposerApp /> : <BotDockApp />}
+      {surface === "composer" ? (
+        <DockComposerApp />
+      ) : (
+        <BotDockApp invitation={surface === "invitation"} />
+      )}
     </StrictMode>
   );
 }
