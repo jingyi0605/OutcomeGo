@@ -248,13 +248,21 @@ class HttpNotificationPresenceTransport(
         val response = PlatformHttp.request(baseUrl, bearerToken, "POST", "/api/notification-presence", """
             {"clientId":"${payload.clientId}","sequence":${payload.sequence},"platform":"android","active":${payload.active}}
         """.trimIndent())
-        val json = org.json.JSONObject(response)
-        return NotificationRouting(
-            json.optBoolean("smartEnabled", true), json.optLong("serverTime"),
-            json.optLong("iosActiveUntil"), json.optLong("macActiveUntil"),
-            json.optLong("androidActiveUntil"), json.optLong("windowsActiveUntil"),
-        )
+        return parseNotificationRouting(response)
     }
+
+    /** Reads the current routing without reporting presence; used before showing local alerts. */
+    suspend fun routing(): NotificationRouting =
+        parseNotificationRouting(PlatformHttp.request(baseUrl, bearerToken, "GET", "/api/notification-preferences", ""))
+}
+
+private fun parseNotificationRouting(response: String): NotificationRouting {
+    val json = org.json.JSONObject(response)
+    return NotificationRouting(
+        json.optBoolean("smartEnabled", true), json.optLong("serverTime"),
+        json.optLong("iosActiveUntil"), json.optLong("macActiveUntil"),
+        json.optLong("androidActiveUntil"), json.optLong("windowsActiveUntil"),
+    )
 }
 
 class HttpNotificationReadTransport(
@@ -285,8 +293,11 @@ private object PlatformHttp {
                 connection.setRequestProperty("Accept", "application/json")
                 bearerToken?.takeIf { it.isNotBlank() }?.let { connection.setRequestProperty("Authorization", "Bearer $it") }
                 connection.setRequestProperty("Content-Type", "application/json")
-                connection.doOutput = true
-                connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                // HttpURLConnection silently turns a GET with an output stream into a POST.
+                if (method != "GET") {
+                    connection.doOutput = true
+                    connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                }
                 val status = connection.responseCode
                 val stream = if (status in 200..299) connection.inputStream else connection.errorStream
                 val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
@@ -340,7 +351,15 @@ data class NotificationRouting(
     val macActiveUntil: Long,
     val androidActiveUntil: Long = 0,
     val windowsActiveUntil: Long = 0,
-)
+) {
+    /**
+     * Mirrors suppressMobileNotification in packages/contracts: when smart routing is on and a
+     * desktop is active while this phone is not, the phone stays quiet. Local alerts, which are
+     * used when FCM is unavailable, never pass through the server, so they must apply it here.
+     */
+    fun suppressesAndroid(now: Long = serverTime): Boolean =
+        smartEnabled && androidActiveUntil <= now && maxOf(macActiveUntil, windowsActiveUntil) > now
+}
 
 /** Android foreground presence uses the same lease protocol as iOS, with ordered heartbeats. */
 class NotificationPresenceController(

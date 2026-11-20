@@ -1,15 +1,17 @@
 # OutcomeGo app icons
 
 `OutcomeGo.icon` is the shared, editable Icon Composer source for iOS and macOS.
-It holds one layer, `Assets/logo.png`, the OutcomeGo prism mark (trimmed from
-`apps/landing/public/outcomego-concept-02-prism.png`), on a charcoal gradient
-background. Colors are defined in `icon.json`. The robot artwork that upstream
-OutcomeGo ships here was removed in this fork.
+It holds one layer, `Assets/logo.png`: the OutcomeGo planet mark (glass sphere with
+a glowing ring), the same artwork as the desktop floating bot dock icon. The layer
+is a 1024px full-bleed square, so the system applies its own icon mask. Its corners
+and outer band are a smooth gradient rebuilt from the rounded-tile master, so no
+white or rounded edge shows through. The fill in `icon.json` only matches the
+layer's average navy.
 
-The prism layer's `position.scale` in `icon.json` is `1.26`, which makes the mark
-fill about 75% of the icon width (Icon Composer's scale `1` renders it at ~60%).
-Increase or decrease that value to make the mark larger or smaller; the flat
-platform icons read the same value so every platform stays in sync.
+The layer's `position.scale` in `icon.json` is `1`, which makes the 1024px image
+fill the artboard 1:1. The flat platform icons read the same value, so every
+platform stays in sync. The README logo (`docs/images/outcomego-logo.png`) and the
+landing favicons use the same artwork with transparent rounded corners.
 
 ## Build integration
 

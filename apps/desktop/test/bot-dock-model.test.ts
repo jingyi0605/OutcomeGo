@@ -67,6 +67,11 @@ describe("Bot dock state", () => {
     expect(state?.bots.map((entry) => entry.id)).toEqual(["two"]);
   });
 
+  test("keeps the running indicator independent of unread bots", () => {
+    expect(parseBotDockState({ bots: [], running: true })?.running).toBe(true);
+    expect(parseBotDockState({ bots: [], running: "true" })?.running).toBeUndefined();
+  });
+
   test("accepts only image data URLs as avatars", () => {
     const image = "data:image/png;base64,AAAA";
     expect(

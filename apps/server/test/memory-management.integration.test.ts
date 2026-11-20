@@ -85,6 +85,7 @@ async function fixture(
   } finally {
     await store.stopWatching();
     await app.eventWakeup.stop();
+    await app.plugins.close();
     await app.prisma.memoryFact.deleteMany({ where: { writtenByBotId: { in: [botId, peerId] } } });
     await app.prisma.event.deleteMany({ where: { entityId: { in: [botId, peerId] } } });
     await app.prisma.bot.deleteMany({ where: { id: { in: [botId, peerId] } } });

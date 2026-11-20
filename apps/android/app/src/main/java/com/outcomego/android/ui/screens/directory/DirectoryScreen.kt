@@ -29,6 +29,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,18 +39,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.outcomego.android.R
 import com.outcomego.android.data.Conversation
 import com.outcomego.android.data.SearchResult
 import com.outcomego.android.data.SidebarPreferences
@@ -62,7 +68,6 @@ import com.outcomego.android.ui.designsystem.SpatialTheme
 import com.outcomego.android.ui.designsystem.rememberSpatialGlassBackdrop
 import com.outcomego.android.ui.designsystem.spatialGlassBackdropSource
 import com.outcomego.android.ui.groupConversations
-import androidx.compose.material3.TextButton
 import com.outcomego.features.HapticEffect
 import com.outcomego.features.LocalAppHaptics
 import com.outcomego.features.localizedText
@@ -87,6 +92,7 @@ internal fun DirectoryScreen(
     onMoveToSection: (String, String?) -> Unit,
     onToggleSection: (String?) -> Unit,
     onOutcomes: (() -> Unit)? = null,
+    hasPendingOutcomes: Boolean = false,
 ) {
     var searchVisible by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -97,6 +103,7 @@ internal fun DirectoryScreen(
     val activity = LocalContext.current as? ComponentActivity
     val colors = SpatialTheme.colors
     val haptic = LocalAppHaptics.current
+    val openOutcomes by rememberUpdatedState(onOutcomes)
 
     // Only manually pinned chats appear in the top row, and they are removed from the
     // grouped list below so each chat is shown in exactly one place.
@@ -153,10 +160,12 @@ internal fun DirectoryScreen(
                         fired = true
                         haptic.play(HapticEffect.Medium)
                         onSettings()
-                    } else if (!fired && total <= -trigger && onOutcomes != null) {
-                        fired = true
-                        haptic.play(HapticEffect.Medium)
-                        onOutcomes()
+                    } else if (!fired && total <= -trigger) {
+                        openOutcomes?.let { open ->
+                            fired = true
+                            haptic.play(HapticEffect.Medium)
+                            open()
+                        }
                     }
                 }
             },
@@ -334,8 +343,17 @@ internal fun DirectoryScreen(
                         }
                         Spacer(Modifier.weight(1f))
                         onOutcomes?.let { open ->
-                            TextButton(onClick = open) {
-                                Text(localizedText("Outcomes", "成果"))
+                            BadgedBox(badge = { if (hasPendingOutcomes) Badge() }) {
+                                SpatialIconOrb(
+                                    icon = ImageVector.vectorResource(R.drawable.ic_outcomes_target),
+                                    contentDescription = if (hasPendingOutcomes) {
+                                        localizedText("Outcomes, actions pending", "成果，有待处理事项")
+                                    } else {
+                                        localizedText("Outcomes", "成果")
+                                    },
+                                    iconSize = 24.dp,
+                                    onClick = open,
+                                )
                             }
                         }
                         SpatialIconOrb(

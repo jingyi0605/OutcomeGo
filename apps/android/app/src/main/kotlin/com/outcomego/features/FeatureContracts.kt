@@ -464,6 +464,8 @@ data class Plugin(
 interface FeatureGateway {
     suspend fun outcomeInbox(category: String? = null, cursor: String? = null): Result<com.outcomego.mobile.core.OutcomeInboxPage?> =
         Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
+    suspend fun hasPendingOutcomes(): Result<Boolean> =
+        Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
     suspend fun outcomeDecision(id: String): Result<com.outcomego.mobile.core.OutcomeDecision> =
         Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
     suspend fun resolveOutcomeDecision(id: String, input: com.outcomego.mobile.core.ResolveOutcomeDecision): Result<com.outcomego.mobile.core.OutcomeDecisionResolution> =

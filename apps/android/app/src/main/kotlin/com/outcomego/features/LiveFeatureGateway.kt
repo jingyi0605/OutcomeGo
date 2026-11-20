@@ -4,8 +4,10 @@ import com.outcomego.android.data.MobileFeatureApi
 import com.outcomego.mobile.core.HttpMethod
 import com.outcomego.mobile.core.OutcomeDetail
 import com.outcomego.mobile.core.OutcomeGoRequestException
+import com.outcomego.mobile.core.OutcomeInboxPage
 import com.outcomego.mobile.core.OutcomeListPage
 import com.outcomego.mobile.core.outcomeDetailPath
+import com.outcomego.mobile.core.outcomeInboxPath
 import com.outcomego.mobile.core.outcomeListPath
 import kotlinx.coroutines.CancellationException
 import com.outcomego.mobile.core.mobileJson
@@ -34,10 +36,17 @@ import java.net.URLDecoder
  * request client owns tokens, redirects, file I/O, and error translation.
  */
 class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway {
-    override suspend fun outcomeInbox(category: String?, cursor: String?): Result<com.outcomego.mobile.core.OutcomeInboxPage?> = runCatching {
+    override suspend fun outcomeInbox(category: String?, cursor: String?): Result<OutcomeInboxPage?> =
+        loadOutcomeInbox(outcomeInboxPath(category, cursor))
+
+    override suspend fun hasPendingOutcomes(): Result<Boolean> =
+        loadOutcomeInbox("/api/v0/outcome-inbox?status=pending&limit=1").map { page ->
+            page?.items?.any { it.requiresAction } == true
+        }
+
+    private suspend fun loadOutcomeInbox(path: String): Result<OutcomeInboxPage?> = runCatching {
         try {
-            mobileJson.decodeFromJsonElement(com.outcomego.mobile.core.OutcomeInboxPage.serializer(),
-                client.request(HttpMethod.GET, com.outcomego.mobile.core.outcomeInboxPath(category, cursor)))
+            mobileJson.decodeFromJsonElement(OutcomeInboxPage.serializer(), client.request(HttpMethod.GET, path))
         } catch (error: OutcomeGoRequestException) {
             if (error.error.status == 404) null else throw error
         }

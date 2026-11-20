@@ -14,12 +14,19 @@ final class LaunchScreenCacheTests: XCTestCase {
   override func tearDownWithError() throws { try? FileManager.default.removeItem(at: folder) }
 
   /// Writes a fill the way iOS caches it: Apple's texture container in a .ktx file.
-  private func cache(_ name: String, dark: Bool, width: Int = 120, height: Int = 260) throws {
+  private func cache(
+    _ name: String, dark: Bool, glyph: Bool = false, width: Int = 120, height: Int = 260
+  ) throws {
     let context = try XCTUnwrap(CGContext(
       data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
       space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
     context.setFillColor(red: dark ? 0 : 1, green: dark ? 0 : 1, blue: dark ? 0 : 1, alpha: 1)
     context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+    if glyph {
+      // The launch glyph: ink opposite to the canvas, centred, a few percent of the screen.
+      context.setFillColor(red: dark ? 1 : 0, green: dark ? 1 : 0, blue: dark ? 1 : 0, alpha: 1)
+      context.fillEllipse(in: CGRect(x: width * 2 / 5, y: height * 9 / 20, width: width / 5, height: width / 5))
+    }
     let url = folder.appendingPathComponent(name)
     try FileManager.default.createDirectory(
       at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -51,6 +58,17 @@ final class LaunchScreenCacheTests: XCTestCase {
     XCTAssertEqual(sync(.light), 2)
     XCTAssertEqual(try isDark("light@3x.ktx"), false)
     XCTAssertEqual(try isDark("dark@3x.ktx"), false)
+  }
+
+  func testCentredGlyphDoesNotChangeWhichAppearanceAPictureIsRead() throws {
+    try cache("light@3x.ktx", dark: false, glyph: true)
+    try cache("dark@3x.ktx", dark: true, glyph: true)
+    XCTAssertEqual(try isDark("light@3x.ktx"), false)
+    XCTAssertEqual(try isDark("dark@3x.ktx"), true)
+    XCTAssertEqual(sync(.dark), 1)
+    XCTAssertEqual(try isDark("light@3x.ktx"), true)
+    XCTAssertEqual(sync(.system), 1)
+    XCTAssertEqual(try isDark("light@3x.ktx"), false)
   }
 
   func testSystemRestoresEachPicturesOriginalFill() throws {

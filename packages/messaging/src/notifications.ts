@@ -192,6 +192,10 @@ export const channelNotificationStates = async (
       notificationCursor: bigint;
       notifications: ChannelNotificationView[];
       activityUnreadCount: bigint;
+      dockUnreadCount: bigint | null;
+      dockNotificationSequence: bigint | null;
+      dockMessageSequence: bigint | null;
+      dockCreatedAt: Date | null;
     }>
   >(Prisma.sql`
     SELECT requested."channelId", COALESCE(state."lastReadSequence", 0) AS "lastReadSequence",
@@ -212,13 +216,35 @@ export const channelNotificationStates = async (
       (SELECT COUNT(*) FROM "outcomego_channel_notification" n WHERE n."channelId" = requested."channelId"
         AND NOT n.revoked AND n.kind = 'reaction'
         AND EXISTS (SELECT 1 FROM "outcomego_bot" b WHERE b.id = n."botId" AND b."notificationsEnabled" AND NOT b."hiddenFromSidebar")
-        AND n.sequence > COALESCE(state."lastReadNotificationSequence", 0)) AS "activityUnreadCount"
+        AND n.sequence > COALESCE(state."lastReadNotificationSequence", 0)) AS "activityUnreadCount",
+      dock."unreadCount" AS "dockUnreadCount", dock.sequence AS "dockNotificationSequence",
+      dock."messageSequence" AS "dockMessageSequence", dock."createdAt" AS "dockCreatedAt"
     FROM unnest(${channelIds}::uuid[]) requested("channelId")
     JOIN "outcomego_channel" channel ON channel.id = requested."channelId"
     LEFT JOIN "outcomego_channel_read_state" state ON state."channelId" = requested."channelId"
+    LEFT JOIN LATERAL (
+      SELECT COUNT(*) OVER () AS "unreadCount", n.sequence, n."messageSequence", n."createdAt"
+      FROM "outcomego_channel_notification" n
+      JOIN "outcomego_bot" bot ON bot.id = n."botId"
+      JOIN "outcomego_channel_message" m ON m."channelId" = n."channelId"
+        AND m.sequence = n."messageSequence"
+      WHERE n."channelId" = requested."channelId" AND n.kind = 'message' AND NOT n.revoked
+        AND NOT channel."notificationsMuted" AND n.sequence > channel."mutedThroughNotificationSequence"
+        AND bot."notificationsEnabled" AND NOT bot."hiddenFromSidebar"
+        AND n."messageSequence" > COALESCE(state."lastReadSequence", 0)
+        AND (
+          m.metadata->'end_turn' = 'true'::jsonb
+          OR m.metadata ? 'draftOutcomeNotification'
+          OR m.metadata->>'type' IN ('widget', 'secret-request', 'computer-handoff', 'user-form')
+          OR (m.metadata->>'type' IN ('external-draft', 'imessage-send')
+            AND COALESCE(m.metadata->>'cardState', 'pending') <> 'sending')
+          OR (m.metadata->>'type' = 'bot-template' AND m.metadata->>'cardState' = 'draft')
+        )
+      ORDER BY n.sequence DESC LIMIT 1
+    ) dock ON true
   `);
   return new Map(
-    rows.map((row) => [
+    rows.map(({ dockUnreadCount, dockNotificationSequence, dockMessageSequence, dockCreatedAt, ...row }) => [
       row.channelId,
       {
         ...row,
@@ -226,6 +252,17 @@ export const channelNotificationStates = async (
         lastReadNotificationSequence: row.lastReadNotificationSequence.toString(),
         notificationCursor: row.notificationCursor.toString(),
         activityUnreadCount: Number(row.activityUnreadCount),
+        botDock: {
+          unreadCount: Number(dockUnreadCount ?? 0n),
+          latest:
+            dockNotificationSequence != null && dockMessageSequence != null && dockCreatedAt != null
+              ? {
+                  notificationSequence: dockNotificationSequence.toString(),
+                  messageSequence: dockMessageSequence.toString(),
+                  createdAt: dockCreatedAt.toISOString(),
+                }
+              : null,
+        },
       },
     ])
   );

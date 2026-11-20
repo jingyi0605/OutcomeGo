@@ -84,9 +84,28 @@ describe("Bot dock capsule", () => {
     let surfaceVisible: (visible: boolean) => void = () => {};
     let arrive: () => void = () => {};
     let receiveFiles: Parameters<BotDockBridge["onDroppedFiles"]>[0] = () => {};
+    let publishState: Parameters<BotDockBridge["onState"]>[0] = () => {};
+    const idleState = {
+      bots: [],
+      roster: [bot("a", 0, 0)],
+      labels: {
+        ...labels,
+        running: "Bot activity in progress",
+        placeholder: "Message the main Bot",
+        send: "Send",
+        to: "To",
+        failed: "Could not send",
+        empty: "No Bot is available",
+        attachmentInvalid: "Invalid file",
+        removeAttachment: "Remove attachment",
+      },
+    };
     const bridge: Partial<BotDockBridge> = {
-      getState: async () => ({ bots: [], roster: [bot("a", 0, 0)], labels }),
-      onState: () => () => {},
+      getState: async () => idleState,
+      onState(listener) {
+        publishState = listener;
+        return () => {};
+      },
       onMessageArrival(listener) {
         arrive = listener;
         return () => {};
@@ -142,8 +161,16 @@ describe("Bot dock capsule", () => {
         value: () => ({ left: 10, top: 10, right: 80, bottom: 80 }),
       });
       const frame = dom.document.querySelector(".dock-frame");
+      const capsule = frame?.querySelector(".dock-capsule");
+      const home = frame?.querySelector(".dock-home");
       expect(frame?.getAttribute("data-standby")).toBe("true");
-      expect(frame?.querySelector(".dock-home")?.getAttribute("aria-label")).toBe(labels.open);
+      expect(home?.getAttribute("aria-label")).toBe(labels.open);
+      expect(capsule?.hasAttribute("data-running")).toBe(false);
+      await act(async () => publishState({ ...idleState, running: true }));
+      expect(capsule?.getAttribute("data-running")).toBe("true");
+      expect(home?.getAttribute("aria-label")).toContain(idleState.labels.running);
+      await act(async () => publishState(idleState));
+      expect(capsule?.hasAttribute("data-running")).toBe(false);
       expect(frame?.getAttribute("data-dock-side")).toBe("left");
       await act(async () => dockSide("right"));
       expect(frame?.getAttribute("data-dock-side")).toBe("right");

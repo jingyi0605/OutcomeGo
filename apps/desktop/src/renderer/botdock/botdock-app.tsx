@@ -305,6 +305,7 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
       else bridge.open();
     }
   };
+  const runningLabel = state.running ? state.labels.running ?? "Bot activity in progress" : undefined;
 
   return (
     <div className="dock-viewport">
@@ -336,6 +337,7 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
             <div
               aria-label="OutcomeGo"
               className="dock-capsule"
+              data-running={state.running || undefined}
               onContextMenu={(event) => {
                 event.preventDefault();
                 finish(false);
@@ -348,10 +350,11 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
               onPointerUp={() => finish(true)}
             >
               <button
-                aria-label={state.labels.open}
+                aria-label={runningLabel ? `${state.labels.open}, ${runningLabel}` : state.labels.open}
                 className="dock-home"
                 data-dock-open=""
                 type="button"
+                title={runningLabel}
               />
               <DockBots state={state} />
             </div>

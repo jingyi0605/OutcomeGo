@@ -1,5 +1,21 @@
 import type { ComputerEvent } from "@outcomego/contracts";
 
+type StreamOptions = { heartbeatMs?: number; onCancel?: () => void | Promise<void> };
+
+export const computerEventResponse = (
+  request: Request,
+  server: { timeout(request: Request, seconds: number): void },
+  events: AsyncIterable<ComputerEvent>,
+  options: StreamOptions = {}
+): Response => {
+  // The worker and runtime own the turn lifetime. Keep the HTTP response open
+  // even when Bun does not count the NDJSON heartbeats as socket activity.
+  server.timeout(request, 0);
+  return new Response(computerEventStream(events, undefined, options), {
+    headers: { "content-type": "application/x-ndjson", "cache-control": "no-store" },
+  });
+};
+
 /**
  * Converts runtime events to NDJSON one pull at a time. The previous async
  * start loop drained the iterable into ReadableStream's queue regardless of
@@ -8,7 +24,7 @@ import type { ComputerEvent } from "@outcomego/contracts";
 export const computerEventStream = (
   events: AsyncIterable<ComputerEvent>,
   encoder = new TextEncoder(),
-  options: { heartbeatMs?: number; onCancel?: () => void | Promise<void> } = {}
+  options: StreamOptions = {}
 ): ReadableStream<Uint8Array> => {
   const iterator = events[Symbol.asyncIterator]();
   let finished = false;

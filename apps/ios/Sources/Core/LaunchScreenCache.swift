@@ -3,14 +3,16 @@ import Foundation
 import ImageIO
 
 /// iOS shows a cached picture of the launch screen before any app code runs,
-/// drawn in the phone's appearance: white in Light mode and black in Dark. With
-/// Day or Night chosen in Settings, a launch whose phone appearance differs
-/// showed that picture, then faded to the app's color.
+/// drawn in the phone's appearance: the app's light canvas in Light mode and its
+/// dark canvas in Dark, with the planet glyph centred. With Day or Night chosen in
+/// Settings, a launch whose phone appearance differs showed that picture, then
+/// faded to the app's color.
 ///
-/// The pictures are plain fills, cached per appearance and window size as they
-/// are first needed, in the app's Library (iPad also keeps downscaled copies).
-/// This repaints them in the chosen appearance, and back to their original fill
-/// for System. iOS stretches a picture over the screen, so a small fill does.
+/// The pictures are cached per appearance and window size as they are first
+/// needed, in the app's Library (iPad also keeps downscaled copies). This repaints
+/// them as a plain canvas fill in the chosen appearance (the in-app launch view
+/// then draws the glyph over it), and back to their original picture for System.
+/// iOS stretches a picture over the screen, so a small fill does.
 ///
 /// Each picture records its original fill on the file itself, so the record
 /// survives clearing local data and is gone when iOS writes the picture again,
@@ -97,7 +99,8 @@ public enum LaunchScreenCache {
         space: CGColorSpaceCreateDeviceRGB(),
         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
     else { return false }
-    let value: CGFloat = dark ? 0 : 1
+    // The app's canvas (NativePalette.background): 141414 in Dark, FCFCFC in Light.
+    let value: CGFloat = dark ? 0x14 / 255 : 0xFC / 255
     context.setFillColor(red: value, green: value, blue: value, alpha: 1)
     context.fill(CGRect(x: 0, y: 0, width: fillSide, height: fillSide))
     guard let image = context.makeImage() else { return false }

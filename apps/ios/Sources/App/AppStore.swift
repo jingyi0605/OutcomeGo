@@ -1835,8 +1835,13 @@ final class AppStore {
     }
   }
   func outcomeInbox(category: String? = nil, cursor: String? = nil) async throws -> OutcomeInboxPage? {
-    do { return try await fetch("/api/v0/outcome-inbox", as: OutcomeInboxPage.self,
-      query: API.outcomeInboxQuery(category: category, cursor: cursor)) }
+    try await fetchOutcomeInbox(query: API.outcomeInboxQuery(category: category, cursor: cursor))
+  }
+  func hasPendingOutcomes() async throws -> Bool {
+    try await fetchOutcomeInbox(query: ["status": "pending", "limit": "1"])?.hasPendingActions ?? false
+  }
+  private func fetchOutcomeInbox(query: [String: String]) async throws -> OutcomeInboxPage? {
+    do { return try await fetch("/api/v0/outcome-inbox", as: OutcomeInboxPage.self, query: query) }
     catch let error as APIError where error.status == 404 { return nil }
   }
   func readOutcomeDetail(_ id: String) async throws -> OutcomeDetail {
