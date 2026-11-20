@@ -39,6 +39,9 @@ import type {
   ChannelClientState,
   ChannelHistoryPage,
   ChannelLibraryPage,
+  GroupTaskBoard,
+  GroupTaskUserAction,
+  GroupTaskView,
   ChannelMessageContextOptions,
   ChannelMessageContextView,
   ChannelMessageView,
@@ -585,6 +588,17 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         { signal }
       );
     },
+    /** The group's shared task board (specs/010-群任务看板). Only group chats have one. */
+    groupTasks: (channelId: string, includeClosed = false, signal?: AbortSignal) =>
+      transport.request<GroupTaskBoard>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/tasks${includeClosed ? "?includeClosed=true" : ""}`,
+        { signal }
+      ),
+    actOnGroupTask: (channelId: string, number: number, input: GroupTaskUserAction) =>
+      transport.request<{ task: GroupTaskView }>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/tasks/${number}`,
+        { method: "PATCH", body: JSON.stringify(input) }
+      ),
     search: (query: string, category: SearchCategory = "all", signal?: AbortSignal) => {
       const params = new URLSearchParams({ q: query, category });
       return transport.request<SearchResponse>(`/api/v0/search?${params}`, { signal });
