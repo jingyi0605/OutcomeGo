@@ -1,5 +1,5 @@
 import { useDayClock } from "../../hooks/use-day-clock";
-import { isOutcomeUpdateCardMetadata } from "@outcomego/contracts/outcome-chat";
+import { isOutcomeUpdateCardMetadata } from "@outcomego/contracts/outcome-chat-card";
 import { ResourceActivityProvider } from "../../hooks/resource-activity";
 import { ThinkingCaption } from "./thinking-caption";
 import { thinkingActivity } from "../../lib/thinking-activity";
@@ -141,9 +141,14 @@ import {
 import { BotAvatar } from "./avatar";
 import { EmojiPanel, EmojiPicker, MoreEmojiIcon, QUICK_REACTIONS } from "./emoji/picker";
 import { MessageImageGallery } from "./image-attachment";
-import { RichMessage } from "./rich-message";
-import { ThreadTray } from "./thread-tray";
 import { isWindowVisible } from "../../lib/window-visibility";
+
+const RichMessage = lazy(() =>
+  import("./rich-message").then((module) => ({ default: module.RichMessage }))
+);
+const ThreadTray = lazy(() =>
+  import("./thread-tray").then((module) => ({ default: module.ThreadTray }))
+);
 
 const MessageFileAttachments = lazy(() =>
   import("./file-attachment").then((module) => ({ default: module.MessageFileAttachments }))
@@ -674,7 +679,9 @@ const MessageRow = memo(function MessageRow({
                 )}
               >
                 {display.richMessage ? (
-                  <RichMessage bot={senderBot} message={message} />
+                  <Suspense fallback={<MessageResponse>{message.content}</MessageResponse>}>
+                    <RichMessage bot={senderBot} message={message} />
+                  </Suspense>
                 ) : hasAttachmentStack ? (
                   <div
                     className={`flex max-w-full flex-col gap-1.5 ${
@@ -2015,6 +2022,7 @@ export const ChatPane = memo(function ChatPane({
         </div>
       )}
       {threadState && (
+        <Suspense fallback={null}>
         <ThreadTray
           key={threadState.pin.root.id}
           transcriptionConfigured={runtime.transcription === "configured"}
@@ -2042,6 +2050,7 @@ export const ChatPane = memo(function ChatPane({
           repliesTruncated={threadState.pin.truncated}
           root={threadState.pin.root}
         />
+        </Suspense>
       )}
     </div>
   );

@@ -8,7 +8,10 @@ export async function outcomeThreadFixture() {
   const db = createPrismaClient(process.env.OUTCOMEGO_TEST_DATABASE_URL!);
   const root = await mkdtemp(join(tmpdir(), "outcome-thread-"));
   const store = new AgentDataStore(db, { root: join(root, "agent-data"), workspaceRoot: root });
-  const messaging = new AgentMessaging(db, { send: async () => "job" } as never, store);
+  const messaging = new AgentMessaging(db, {
+    send: async () => "job",
+    sendDebounced: async () => "projection-job",
+  } as never, store);
   const bot = await db.bot.create({ data: { name: "Outcome runtime fixture", defaultDirectory: root, status: "active", conversation: { create: {} } }, include: { conversation: true } });
   const channel = await db.channel.create({ data: { kind: "bot_dm", name: "Fixture", directKey: `bot:${bot.id}`, members: { create: { botId: bot.id, ordinal: 0 } } } });
   const outcome = await db.outcome.create({ data: { botId: bot.id, title: "Compare backup approaches" } });

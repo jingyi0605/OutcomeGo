@@ -129,7 +129,7 @@
     "build:electron": "bun run build:main && bun run build:utility && bun run build:server-updater && bun run build:preload && bun run build:native",
     "build": "bun run clean && vite build && bun run build:electron",
     "package": "bun run clean:release && bun run build && electron-builder --publish never && bun ../../scripts/performance/check-desktop-budgets.ts --release",
-    "package:mac-release": "bun run clean:release && bun run build && bun run scripts/package-macos-release.ts && bun ../../scripts/performance/check-desktop-budgets.ts --release && bun run verify:mac-notifications",
+    "package:mac-release": "bun run clean:release && OUTCOMEGO_MAC_HELPER_ARCH=$(node -p process.arch) bun run build && bun run scripts/package-macos-release.ts && bun ../../scripts/performance/check-desktop-budgets.ts --release && bun run verify:mac-notifications",
     "package:mac-local": "bun run clean:release-local && bun run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dir --publish never -c.forceCodeSigning=true -c.mac.identity=- -c.mac.hardenedRuntime=false -c.mac.notarize=false -c.directories.output=release-local && bun run scripts/verify-macos-notifications.ts --allow-adhoc release-local",
     "clean:release-local": "bun run scripts/clean-release.ts release-local",
     "verify:mac-notifications": "bun run scripts/verify-macos-notifications.ts",

@@ -217,6 +217,18 @@ if (result.renderer.violations.wasm.length > 0) {
 
 const lazyBudgets: Record<string, number> = {
   workspace: 800_000,
+  workspaceApi: 100,
+  botAvatar: 100,
+  richMessage: 94_000,
+  threadTray: 10_000,
+  outcomeWorkspace: 171_000,
+  outcomeDetail: 152_000,
+  outcomeAsset: 31_000,
+  quickIdea: 36_000,
+  settingsKeyboard: 19_000,
+  settingsBotDock: 11_000,
+  settingsTimeZone: 16_000,
+  vncViewer: 7_500,
   // Durable draft review loads only for its message type, including its journal.
   externalDraft: 40_000,
   imessageDraft: 30_000,

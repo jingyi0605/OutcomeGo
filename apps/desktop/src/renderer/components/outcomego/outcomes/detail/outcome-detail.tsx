@@ -21,7 +21,7 @@ import { useI18n } from "../../../../lib/i18n";
 import { subscribeOutcomeRefresh } from "../../../../lib/outcome-events";
 import { OutcomeAsset } from "../outcome-asset";
 import { OutcomeButton, OutcomeRefresh } from "../outcome-ui";
-import { outcomeCardStage } from "@outcomego/contracts/outcome-chat";
+import { outcomeCardStage } from "@outcomego/contracts/outcome-chat-card";
 import { outcomeStatusLabels } from "../outcome-list";
 import { outcomeNextSteps } from "../outcome-presentation";
 import { OutcomeActionItems, OutcomeApprovalScope, OutcomeBriefView } from "../outcome-brief";

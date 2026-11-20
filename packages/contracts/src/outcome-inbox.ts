@@ -1,10 +1,10 @@
 import { JSONSchema, Schema } from "effect";
 import { CreateContractRevisionInput, type DecisionEffect } from "./outcomes";
+import { OUTCOME_INBOX_CATEGORIES, type OutcomeInboxCategory } from "./outcome-inbox-categories";
 
 export const DECISION_STATUSES = ["open", "presented", "resolved", "expired", "withdrawn"] as const;
 export type DecisionStatus = (typeof DECISION_STATUSES)[number];
-export const OUTCOME_INBOX_CATEGORIES = ["decision_pending", "acceptance_pending", "human_action_pending", "completed"] as const;
-export type OutcomeInboxCategory = (typeof OUTCOME_INBOX_CATEGORIES)[number];
+export { CREDENTIAL_ACCESS_REASON_CODE, OUTCOME_INBOX_CATEGORIES, type OutcomeInboxCategory } from "./outcome-inbox-categories";
 
 export interface DecisionActionCard {
   title: string;
@@ -41,9 +41,6 @@ export interface CredentialGrantItem {
   hostname: string;
   instanceName: string;
 }
-
-/** Decisions with this reason ask the owner to let an Outcome read password-manager items. */
-export const CREDENTIAL_ACCESS_REASON_CODE = "credential_access_required";
 
 /** Internal service input; never accepted directly from the public resolve route. */
 export interface DecisionCreateInput {

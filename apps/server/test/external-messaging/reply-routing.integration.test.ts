@@ -25,6 +25,10 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
   const world = async (platform = `p${crypto.randomUUID().slice(0, 6)}`) => {
     const bot = await h.bot();
     const connection = await h.connection({ platform });
+    await h.prisma.pluginConnection.update({
+      where: { id: connection.id },
+      data: { configuration: { runtime: "desktop" } },
+    });
     const binding = await h.bind(connection.id, bot.id);
     // The Bot's own chat: where the owner's messages from outside land, and where everything is shown.
     const dm = { id: await h.home(bot.id) };

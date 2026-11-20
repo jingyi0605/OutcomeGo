@@ -10,7 +10,7 @@ import {
 import type { BotView, ScreenStatusView } from "@outcomego/contracts";
 import { clientErrorMessage } from "@outcomego/product-core/redaction";
 import { Minimize2, Monitor, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { API_BASE } from "../../client/http";
 import { api } from "../../client/outcomego-api";
@@ -29,7 +29,7 @@ import { BrowserNetworkIndicator } from "./browser-network-indicator";
 import { ComputerConnectionStatus } from "./computer-connection-status";
 import { Skeleton } from "../ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import VncComputer from "./vnc-computer";
+const VncComputer = lazy(() => import("./vnc-computer"));
 
 const statusRequests = createKeyedRequestCoordinator();
 
@@ -451,17 +451,19 @@ export function BotScreen({
                 style={{ width: "min(100cqw, 160cqh)" }}
               >
                 {viewerReady && visible ? (
-                  <VncComputer
-                    key={bot.id}
-                    botId={bot.id}
-                    name={bot.name}
-                    serverUrl={API_BASE}
-                    createSession={api.screenVncSession}
-                    clipboard={(input, signal) => api.screenClipboard(bot.id, input, signal)}
-                    viewOnly={!controlling || controlPending}
-                    onReady={recordViewerReady}
-                    onClose={closeViewer}
-                  />
+                  <Suspense fallback={<ComputerConnectionStatus loading>{t("Connecting…")}</ComputerConnectionStatus>}>
+                    <VncComputer
+                      key={bot.id}
+                      botId={bot.id}
+                      name={bot.name}
+                      serverUrl={API_BASE}
+                      createSession={api.screenVncSession}
+                      clipboard={(input, signal) => api.screenClipboard(bot.id, input, signal)}
+                      viewOnly={!controlling || controlPending}
+                      onReady={recordViewerReady}
+                      onClose={closeViewer}
+                    />
+                  </Suspense>
                 ) : (
                   <div className="absolute inset-0 grid place-items-center text-center">
                     <div>
