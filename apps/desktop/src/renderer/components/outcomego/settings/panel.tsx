@@ -75,17 +75,16 @@ const navigation: Array<{
   id: SettingsView;
   label: string;
   icon: typeof Settings;
-  available: boolean;
 }> = [
-  { id: "general", label: "General", icon: Settings, available: true },
-  { id: "keyboard", label: "Keyboard", icon: Keyboard, available: true },
-  { id: "computer", label: "Computer", icon: Monitor, available: true },
-  { id: "model", label: "Model", icon: BrainCircuit, available: true },
-  { id: "voice", label: "Voice notes", icon: Mic, available: true },
-  { id: "realtime-voice", label: "Realtime voice", icon: AudioLines, available: true },
-  { id: "server", label: "Server", icon: Server, available: true },
-  { id: "providers", label: "Providers", icon: Globe, available: true },
-  { id: "updates", label: "Updates", icon: CloudDownload, available: true },
+  { id: "general", label: "General", icon: Settings },
+  { id: "keyboard", label: "Keyboard", icon: Keyboard },
+  { id: "computer", label: "Computer", icon: Monitor },
+  { id: "model", label: "Model", icon: BrainCircuit },
+  { id: "voice", label: "Voice notes", icon: Mic },
+  { id: "realtime-voice", label: "Realtime voice", icon: AudioLines },
+  { id: "server", label: "Server", icon: Server },
+  { id: "providers", label: "Providers", icon: Globe },
+  { id: "updates", label: "Updates", icon: CloudDownload },
 ];
 
 export function SettingsPanel({
@@ -169,18 +168,12 @@ export function SettingsPanel({
               return (
                 <button
                   aria-current={view === item.id ? "page" : undefined}
-                  aria-disabled={!item.available}
                   className={cn(
                     "flex h-7 w-full items-center gap-2 rounded-[7px] px-2 text-left text-[13px] font-normal outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/35 max-[512px]:justify-center",
-                    view === item.id
-                      ? "bg-selected"
-                      : item.available
-                        ? "hover:bg-hover"
-                        : "cursor-default"
+                    view === item.id ? "bg-selected" : "hover:bg-hover"
                   )}
                   key={item.id}
                   onClick={() => {
-                    if (!item.available) return;
                     setView(item.id);
                     scrollRef.current?.scrollTo({ top: 0 });
                   }}

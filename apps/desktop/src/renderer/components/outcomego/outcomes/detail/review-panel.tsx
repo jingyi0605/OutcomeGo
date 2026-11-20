@@ -15,13 +15,15 @@ import {
   REVIEW_RESULTS,
   OUTCOME_LIMITS,
   requiredCriteriaSatisfied,
-  type ContractRevisionView,
-  type EvidenceCredibility,
-  type EvidenceView,
-  type OutcomeDetail,
-  type OutputView,
-  type ReviewResult,
-  type SubmitOutcomeReviewInput,
+} from "@outcomego/contracts/outcome-view";
+import type {
+  ContractRevisionView,
+  EvidenceCredibility,
+  EvidenceView,
+  OutcomeDetail,
+  OutputView,
+  ReviewResult,
+  SubmitOutcomeReviewInput,
 } from "@outcomego/contracts/outcomes";
 import { useOutcomeAttention } from "../../../../hooks/use-outcome-attention";
 import type { OutcomeClient } from "../../../../client/outcome-api";

@@ -1,4 +1,4 @@
-import { OUTCOME_INBOX_CATEGORIES } from "./outcome-inbox";
+import { OUTCOME_INBOX_CATEGORIES } from "./outcome-inbox-categories";
 import { outcomeDeepLink, outcomeDecisionDeepLink } from "./app-deep-links";
 /** Cross-process PostgreSQL advisory lock protecting the final push authorization/send boundary. */
 export const PUSH_DELIVERY_ADVISORY_LOCK = {

@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import type { ComputerTurnRequest } from "@outcomego/contracts";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
@@ -38,6 +39,7 @@ test.skipIf(!databaseUrl)(
         if (path !== "/v1/turns") return Response.json({ ok: true, quarantined: [] });
         const input = (await request.json()) as ComputerTurnRequest;
         turns.push(input);
+        return turnResponse(async () => {
         // The first member's turn of the first room run stays busy while more mail arrives.
         if (input.content.includes("GROUP_COALESCE_FIXTURE") && routineTurns().length === 1) await gate;
         const events = [
@@ -49,8 +51,7 @@ test.skipIf(!databaseUrl)(
           { type: "item.completed", turnId: input.runId, item: { id: `final-${input.runId}`, type: "agentMessage", text: "Nothing to add." } },
           { type: "turn.completed", turnId: input.runId, status: "completed" },
         ];
-        return new Response(events.map((event) => JSON.stringify(event)).join("\n") + "\n", {
-          headers: { "content-type": "application/x-ndjson" },
+        return events;
         });
       },
     });

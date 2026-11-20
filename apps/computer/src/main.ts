@@ -24,7 +24,7 @@ import { Schema } from "effect";
 import { keepSources } from "./apt-packages";
 import { createBoxClock } from "./box-clock";
 import { BoxStoreSync } from "./box-store-sync";
-import { computerEventStream } from "./computer-event-stream";
+import { computerEventResponse } from "./computer-event-stream";
 import { BotAgentStore } from "./bot-agent-store";
 import { StdioMcpManager } from "./mcp-manager";
 import { EXCHANGE_MAX_BYTES, ExchangeError, McpExchange } from "./mcp-exchange";
@@ -761,17 +761,11 @@ const server = Bun.serve({
         safePath(input.cwd);
         await setBoxClock(input.timeZone);
         const events = await runtime.run(input, request.signal);
-        const body = computerEventStream(events, undefined, {
+        return computerEventResponse(request, requestServer, events, {
           onCancel: async () => {
             // A disconnected worker must not leave tools or child tasks
             // alive on a run it has already marked interrupted.
             await runtime.cancel(input.runId).catch(() => {});
-          },
-        });
-        return new Response(body, {
-          headers: {
-            "content-type": "application/x-ndjson",
-            "cache-control": "no-store",
           },
         });
       }

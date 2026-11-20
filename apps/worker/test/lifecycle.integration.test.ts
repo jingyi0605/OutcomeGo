@@ -3,6 +3,7 @@ import { mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
@@ -111,6 +112,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
       if (request.method === "POST" && url.pathname === "/v1/turns") {
         const input = (await request.json()) as TurnInput;
         seenTurns.push(input);
+        return turnResponse(async () => {
         await onTurn(input);
         turnNumber += 1;
         const sessionPath =
@@ -166,8 +168,7 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
           },
           { type: "turn.completed", turnId, status: "completed" },
         ];
-        return new Response(`${events.map((event) => JSON.stringify(event)).join("\n")}\n`, {
-          headers: { "content-type": "application/x-ndjson" },
+        return events;
         });
       }
       return Response.json({ error: "not_found" }, { status: 404 });
@@ -257,9 +258,8 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
     const waitFor = async (runId: string) => {
       const deadline = Date.now() + 10_000;
       while (Date.now() < deadline) {
-        const snapshot = await Effect.runPromise(app!.snapshot());
-        const run = snapshot.runs.find((candidate) => candidate.id === runId);
-        if (run?.status === "completed") return snapshot;
+        const run = await app!.prisma.run.findUnique({ where: { id: runId }, select: { status: true } });
+        if (run?.status === "completed") return Effect.runPromise(app!.snapshot());
         await Bun.sleep(50);
       }
       throw new Error(`run ${runId} did not complete`);

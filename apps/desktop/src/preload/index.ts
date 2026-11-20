@@ -114,6 +114,32 @@ const listen = (channel: string, callback: (value: unknown) => void) => {
   };
 };
 
+const request = <Args extends unknown[] = [], Result = unknown>(channel: string) =>
+  (...args: Args): Promise<Result> => ipcRenderer.invoke(`outcomego:${channel}`, ...args);
+
+const publish = <Args extends unknown[] = []>(channel: string) =>
+  (...args: Args): void => ipcRenderer.send(`outcomego:${channel}`, ...args);
+
+const subscribe = (channel: string, callback: (value: unknown) => void) =>
+  listen(`outcomego:${channel}`, callback);
+
+const subscribeFlag = (channel: string, callback: (value: boolean) => void) => {
+  let active = true;
+  let receivedEvent = false;
+  const unsubscribe = subscribe(`${channel}-changed`, (value) => {
+    if (typeof value !== "boolean") return;
+    receivedEvent = true;
+    if (active) callback(value);
+  });
+  void request<[], boolean>(channel)().then((value) => {
+    if (active && !receivedEvent && typeof value === "boolean") callback(value);
+  }).catch(() => {});
+  return () => {
+    active = false;
+    unsubscribe();
+  };
+};
+
 /** What the floating composer shows when the chat window couldn't do what it asked. Network
  * failures surface from fetch as a bare "Failed to fetch"; say what that means instead. */
 const screenBotError = (error: unknown, fallback: string) => {
@@ -144,7 +170,7 @@ contextBridge.exposeInMainWorld("outcomego", {
       const value = await ipcRenderer.invoke("outcomego:outcomes:take-pending");
       return value === null ? null : parseDesktopOutcomeTarget(value);
     },
-    onTargetAvailable: (callback: () => void) => listen("outcomego:outcomes:target-available", () => callback()),
+    onTargetAvailable: (callback: () => void) => subscribe("outcomes:target-available", callback),
     syncNotifications: (notifications: unknown[]) => {
       if (!Array.isArray(notifications) || notifications.length > 100) throw new Error("Outcome notifications are invalid");
       ipcRenderer.send("outcomego:outcomes:notifications", notifications);
@@ -152,84 +178,33 @@ contextBridge.exposeInMainWorld("outcomego", {
   },
   platform: process.platform,
   clipboard: {
-    readText: (): Promise<string> => ipcRenderer.invoke("outcomego:computer-clipboard-read"),
-    writeText: (text: string): Promise<void> =>
-      ipcRenderer.invoke("outcomego:computer-clipboard-write", text),
+    readText: request<[], string>("computer-clipboard-read"),
+    writeText: request<[string], void>("computer-clipboard-write"),
     setComputerActive: (active: boolean) => {
       if (typeof active === "boolean")
         ipcRenderer.send("outcomego:computer-clipboard-active", active);
     },
-    onComputerAction: (callback: (action: "copy" | "cut" | "paste") => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, action: unknown) => {
+    onComputerAction: (callback: (action: "copy" | "cut" | "paste") => void) =>
+      subscribe("computer-clipboard", (action) => {
         if (action === "copy" || action === "cut" || action === "paste") callback(action);
-      };
-      ipcRenderer.on("outcomego:computer-clipboard", listener);
-      return () => ipcRenderer.removeListener("outcomego:computer-clipboard", listener);
-    },
+      }),
   },
-  onMenuAction: (callback: (action: ApplicationMenuAction) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, action: unknown) => {
+  onMenuAction: (callback: (action: ApplicationMenuAction) => void) =>
+    subscribe("app-menu", (action) => {
       if (action === "about" || action === "updates" || action === "settings") callback(action);
-    };
-    ipcRenderer.on("outcomego:app-menu", listener);
-    return () => ipcRenderer.removeListener("outcomego:app-menu", listener);
-  },
-  setApplicationMenuLocale: (locale: "en-US" | "zh-CN") =>
-    ipcRenderer.invoke("outcomego:application-menu-locale", locale),
+    }),
+  setApplicationMenuLocale: request<["en-US" | "zh-CN"]>("application-menu-locale"),
   visibility: {
-    subscribeActivity: (callback: (active: boolean) => void) => {
-      let subscribed = true;
-      let receivedEvent = false;
-      const listener = (_event: Electron.IpcRendererEvent, active: unknown) => {
-        if (typeof active !== "boolean") return;
-        receivedEvent = true;
-        if (subscribed) callback(active);
-      };
-      ipcRenderer.on("outcomego:window-activity-changed", listener);
-      void ipcRenderer
-        .invoke("outcomego:window-activity")
-        .then((active) => {
-          if (subscribed && !receivedEvent && typeof active === "boolean") callback(active);
-        })
-        .catch(() => {
-          /* Browser focus remains the fallback during shutdown. */
-        });
-      return () => {
-        subscribed = false;
-        ipcRenderer.removeListener("outcomego:window-activity-changed", listener);
-      };
-    },
-    subscribe: (callback: (visible: boolean) => void) => {
-      let active = true;
-      let receivedEvent = false;
-      const listener = (_event: Electron.IpcRendererEvent, visible: unknown) => {
-        if (typeof visible !== "boolean") return;
-        receivedEvent = true;
-        if (active) callback(visible);
-      };
-      ipcRenderer.on("outcomego:window-visibility-changed", listener);
-      void ipcRenderer
-        .invoke("outcomego:window-visibility")
-        .then((visible) => {
-          if (active && !receivedEvent && typeof visible === "boolean") callback(visible);
-        })
-        .catch(() => {
-          /* Browser visibility remains the fallback during shutdown. */
-        });
-      return () => {
-        active = false;
-        ipcRenderer.removeListener("outcomego:window-visibility-changed", listener);
-      };
-    },
+    subscribeActivity: (callback: (active: boolean) => void) =>
+      subscribeFlag("window-activity", callback),
+    subscribe: (callback: (visible: boolean) => void) =>
+      subscribeFlag("window-visibility", callback),
   },
   auth: {
-    connectMachine: (serverUrl: string) =>
-      ipcRenderer.invoke("outcomego:machine:connect", serverUrl),
-    machineStatus: () => ipcRenderer.invoke("outcomego:machine:status"),
-    signIn: (serverUrl: string, username: string, password: string) =>
-      ipcRenderer.invoke("outcomego:auth:sign-in", serverUrl, username, password),
-    signOut: (serverUrl: string, token: string) =>
-      ipcRenderer.invoke("outcomego:auth:sign-out", serverUrl, token),
+    connectMachine: request<[serverUrl: string]>("machine:connect"),
+    machineStatus: request("machine:status"),
+    signIn: request<[serverUrl: string, username: string, password: string]>("auth:sign-in"),
+    signOut: request<[serverUrl: string, token: string]>("auth:sign-out"),
     readToken: async () =>
       authTokenStorageResult(await ipcRenderer.invoke("outcomego:auth-token:read")),
     writeToken: async (token: string) => {
@@ -244,49 +219,32 @@ contextBridge.exposeInMainWorld("outcomego", {
   pluginOAuth: {
     start: (connectionId: string, force = false) =>
       ipcRenderer.invoke("outcomego:plugin-oauth:start", connectionId, force),
-    cancel: (connectionId: string, state: string) =>
-      ipcRenderer.invoke("outcomego:plugin-oauth:cancel", connectionId, state),
-    close: () => ipcRenderer.invoke("outcomego:plugin-oauth:close"),
+    cancel: request<[connectionId: string, state: string]>("plugin-oauth:cancel"),
+    close: request("plugin-oauth:close"),
     onResult: (
       callback: (result: {
         connectionId: string;
         status: "ready" | "cancelled" | "error";
         message?: string;
       }) => void
-    ) => {
-      const listener = (
-        _event: Electron.IpcRendererEvent,
-        result: Parameters<typeof callback>[0]
-      ) => callback(result);
-      ipcRenderer.on("outcomego:plugin-oauth:result", listener);
-      return () => ipcRenderer.removeListener("outcomego:plugin-oauth:result", listener);
-    },
+    ) => subscribe("plugin-oauth:result", (result) => callback(result as Parameters<typeof callback>[0])),
   },
   localServer: {
-    detect: () => ipcRenderer.invoke("outcomego:local-server:detect"),
+    detect: request("local-server:detect"),
   },
   providerSignIn: {
-    capture: (authorizationUrl: string, redirectUri: string) =>
-      ipcRenderer.invoke("outcomego:provider-sign-in:capture", authorizationUrl, redirectUri),
-    cancel: () => ipcRenderer.invoke("outcomego:provider-sign-in:cancel"),
+    capture: request<[authorizationUrl: string, redirectUri: string]>("provider-sign-in:capture"),
+    cancel: request("provider-sign-in:cancel"),
   },
   computer: {
-    network: () => ipcRenderer.invoke("outcomego:network:get"),
-    shareNetwork: (enabled: boolean) => ipcRenderer.invoke("outcomego:network:share", enabled),
-    get: () => ipcRenderer.invoke("outcomego:computer:get"),
-    update: (request: { machineLabel?: string; messagesEnabled?: boolean }) =>
-      ipcRenderer.invoke("outcomego:computer:update", request),
+    network: request("network:get"),
+    shareNetwork: request<[boolean]>("network:share"),
+    get: request("computer:get"),
+    update: request<[{ machineLabel?: string; messagesEnabled?: boolean }]>("computer:update"),
     messagesPermissions: (request?: "fullDiskAccess" | "automation" | "contacts") =>
       ipcRenderer.invoke("outcomego:computer:messages-permissions", request ?? null),
-    messagesIcon: (): Promise<string | null> =>
-      ipcRenderer.invoke("outcomego:computer:messages-icon"),
-    onMessagesGrantsNeeded: (listener: () => void) => {
-      const handler = () => listener();
-      ipcRenderer.on("outcomego:messages-grants-needed", handler);
-      return () => {
-        ipcRenderer.removeListener("outcomego:messages-grants-needed", handler);
-      };
-    },
+    messagesIcon: request<[], string | null>("computer:messages-icon"),
+    onMessagesGrantsNeeded: (listener: () => void) => subscribe("messages-grants-needed", listener),
   },
   files: {
     downloadAll: (files: Array<{ fileName: string; url: string }>) =>
@@ -318,35 +276,29 @@ contextBridge.exposeInMainWorld("outcomego", {
     }) => ipcRenderer.invoke("outcomego:tailscale", request),
   },
   updates: {
-    status: () => ipcRenderer.invoke("outcomego:updates:status"),
-    check: () => ipcRenderer.invoke("outcomego:updates:check"),
-    openDownload: () => ipcRenderer.invoke("outcomego:updates:open-download"),
-    installClient: () => ipcRenderer.invoke("outcomego:updates:install-client"),
-    getChannel: () => ipcRenderer.invoke("outcomego:updates:get-channel"),
+    status: request("updates:status"),
+    check: request("updates:check"),
+    openDownload: request("updates:open-download"),
+    installClient: request("updates:install-client"),
+    getChannel: request("updates:get-channel"),
     setChannel: (channel: string) => {
       if (channel !== "stable" && channel !== "beta")
         throw new Error("Invalid update channel");
       return ipcRenderer.invoke("outcomego:updates:set-channel", channel);
     },
-    onClientProgress: (listener: (status: unknown) => void) => {
-      const handler = (_event: Electron.IpcRendererEvent, status: unknown) => listener(status);
-      ipcRenderer.on("outcomego:desktop-update-progress", handler);
-      return () => ipcRenderer.removeListener("outcomego:desktop-update-progress", handler);
-    },
+    onClientProgress: (listener: (status: unknown) => void) =>
+      subscribe("desktop-update-progress", listener),
   },
   microphone: {
-    status: () => ipcRenderer.invoke("outcomego:microphone:status"),
-    requestPermission: () => ipcRenderer.invoke("outcomego:microphone:request-permission"),
-    openSettings: () => ipcRenderer.invoke("outcomego:microphone:open-settings"),
+    status: request("microphone:status"),
+    requestPermission: request("microphone:request-permission"),
+    openSettings: request("microphone:open-settings"),
   },
   notifications: {
-    clear: () => ipcRenderer.send("outcomego:notifications:clear"),
-    read: (state: unknown) => ipcRenderer.send("outcomego:notifications:read", state),
-    activity: () => ipcRenderer.invoke("outcomego:notifications:activity"),
-    onActivityChange: (callback: () => void) => {
-      ipcRenderer.on("outcomego:notifications:activity-changed", callback);
-      return () => ipcRenderer.removeListener("outcomego:notifications:activity-changed", callback);
-    },
+    clear: publish("notifications:clear"),
+    read: publish<[unknown]>("notifications:read"),
+    activity: request("notifications:activity"),
+    onActivityChange: (callback: () => void) => subscribe("notifications:activity-changed", () => callback()),
     sync: (snapshot: unknown) =>
       ipcRenderer.send("outcomego:notifications:sync", notificationSnapshot(snapshot)),
     setVisibleChannel: (channelId: string | null) => {
@@ -358,28 +310,27 @@ contextBridge.exposeInMainWorld("outcomego", {
       }
       ipcRenderer.send("outcomego:notifications:visible-channel", channelId);
     },
-    status: () => ipcRenderer.invoke("outcomego:notifications:status"),
-    openSettings: () => ipcRenderer.invoke("outcomego:notifications:open-settings"),
+    status: request("notifications:status"),
+    openSettings: request("notifications:open-settings"),
   },
   /** Rebindable app shortcuts (Settings › Keyboard), and the ones only main sees (Fn). */
   shortcuts: {
-    get: () => ipcRenderer.invoke("outcomego:shortcuts:get"),
-    set: (action: string, binding: string | null) =>
-      ipcRenderer.invoke("outcomego:shortcuts:set", action, binding),
+    get: request("shortcuts:get"),
+    set: request<[action: string, binding: string | null]>("shortcuts:set"),
     recordFn: (recording: boolean) =>
       ipcRenderer.invoke("outcomego:shortcuts:record-fn", recording === true),
     onChange: (callback: (view: unknown) => void) =>
-      listen("outcomego:shortcuts-changed", callback),
+      subscribe("shortcuts-changed", callback),
     onShortcut: (callback: (action: string) => void) =>
-      listen("outcomego:shortcut", (action) => {
+      subscribe("shortcut", (action) => {
         if (typeof action === "string") callback(action);
       }),
   },
   botDock: {
-    getEnabled: () => ipcRenderer.invoke("outcomego:botdock:get-enabled"),
-    setEnabled: (enabled: boolean) => ipcRenderer.invoke("outcomego:botdock:set-enabled", enabled),
+    getEnabled: request("botdock:get-enabled"),
+    setEnabled: request<[boolean]>("botdock:set-enabled"),
     onEnabledChange: (callback: (enabled: boolean) => void) =>
-      listen("outcomego:botdock:enabled-changed", (value) => {
+      subscribe("botdock:enabled-changed", (value) => {
         if (typeof value === "boolean") callback(value);
       }),
     /** What the Bot floating window shows (Bots with unread messages or goals waiting), or
@@ -407,8 +358,7 @@ contextBridge.exposeInMainWorld("outcomego", {
           height?: number;
         }>;
       }) => Promise<void>
-    ) => {
-      const listener = (_event: Electron.IpcRendererEvent, value: unknown) => {
+    ) => subscribe("botdock:deliver", (value) => {
         const request = record(value, "Bot dock delivery");
         const { requestId, botId, content, nonce, staged } = request;
         if (
@@ -445,10 +395,7 @@ contextBridge.exposeInMainWorld("outcomego", {
           () => reply(true),
           () => reply(false)
         );
-      };
-      ipcRenderer.on("outcomego:botdock:deliver", listener);
-      return () => ipcRenderer.removeListener("outcomego:botdock:deliver", listener);
-    },
+    }),
   },
   screenbot: {
     /** Bots the floating screenbot composer can send to, most recent first. */
@@ -456,8 +403,8 @@ contextBridge.exposeInMainWorld("outcomego", {
       ipcRenderer.send("openteam:screenbot:roster", record(roster, "ScreenBot roster")),
     /** Delivers a ScreenBot already staged on disk by main (which validated it): only a
      * reference crosses IPC. */
-    onDeliver: (handler: (request: ScreenBotDelivery) => Promise<void>) => {
-      const listener = (_event: Electron.IpcRendererEvent, value: unknown) => {
+    onDeliver: (handler: (request: ScreenBotDelivery) => Promise<void>) =>
+      listen("openteam:screenbot:deliver", (value) => {
         const request = record(value, "ScreenBot delivery") as unknown as ScreenBotDelivery & {
           requestId: string;
         };
@@ -475,10 +422,7 @@ contextBridge.exposeInMainWorld("outcomego", {
               error: screenBotError(error, "This screenshot couldn’t be sent."),
             })
         );
-      };
-      ipcRenderer.on("openteam:screenbot:deliver", listener);
-      return () => ipcRenderer.removeListener("openteam:screenbot:deliver", listener);
-    },
+      }),
     /** Dictation in the screenbot composer: transcribe a recording made by the overlay. */
     onTranscribe: (
       handler: (request: {
@@ -486,8 +430,7 @@ contextBridge.exposeInMainWorld("outcomego", {
         audio: Uint8Array;
         mimeType: string;
       }) => Promise<string>
-    ) => {
-      const listener = (_event: Electron.IpcRendererEvent, value: unknown) => {
+    ) => listen("openteam:screenbot:transcribe", (value) => {
         const { requestId, accountScope, audio, mimeType } = record(
           value,
           "ScreenBot transcription"
@@ -508,29 +451,25 @@ contextBridge.exposeInMainWorld("outcomego", {
               error: screenBotError(error, "Transcription failed. Try again."),
             })
         );
-      };
-      ipcRenderer.on("openteam:screenbot:transcribe", listener);
-      return () => ipcRenderer.removeListener("openteam:screenbot:transcribe", listener);
-    },
+    }),
     /** The screenbot trigger: both ⌘ keys by default, or a shortcut of the person's choosing. */
     shortcut: {
-      get: () => ipcRenderer.invoke("outcomego:screenbot:shortcut:get"),
-      set: (shortcut: unknown) =>
-        ipcRenderer.invoke("outcomego:screenbot:shortcut:set", shortcut),
+      get: request("screenbot:shortcut:get"),
+      set: request<[unknown]>("screenbot:shortcut:set"),
       reset: () => ipcRenderer.invoke("outcomego:screenbot:shortcut:set", null),
       setRecording: (recording: boolean) =>
         ipcRenderer.invoke("outcomego:screenbot:shortcut:recording", recording === true),
-      requestAccess: () => ipcRenderer.invoke("outcomego:screenbot:shortcut:request-access"),
+      requestAccess: request("screenbot:shortcut:request-access"),
       onChange: (callback: (status: unknown) => void) =>
-        listen("outcomego:screenbot:shortcut-changed", callback),
+        subscribe("screenbot:shortcut-changed", callback),
     },
     /** Main asks for a fresh Bot list each time a ScreenBot is taken. */
     onRosterRequest: (callback: () => void) =>
-      listen("outcomego:screenbot:roster-request", () => callback()),
+      subscribe("screenbot:roster-request", () => callback()),
   },
-  getProcessMetrics: () => ipcRenderer.invoke("outcomego:performance-snapshot"),
+  getProcessMetrics: request("performance-snapshot"),
   onNotificationClick: (listener: (target: DesktopNotificationTarget) => void) =>
-    listen("outcomego:notification-click", (target) => {
+    subscribe("notification-click", (target) => {
       const parsed = parseNotificationTarget(target);
       if (parsed) listener(parsed);
     }),

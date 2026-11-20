@@ -45,7 +45,7 @@ import { openComputerHandoff } from "../../lib/computer-handoff";
 import { parseUserForm } from "@outcomego/contracts/user-forms";
 import { UserFormCard } from "./user-form-card";
 import { localizeComputerNetworkPolicyCard } from "../../lib/computer-network-policy-card";
-import { parseOutcomeChatCard } from "@outcomego/contracts/outcome-chat";
+import { parseOutcomeChatCard } from "@outcomego/contracts/outcome-chat-card";
 import { OutcomeChatCardView } from "./outcomes/outcome-chat-card";
 
 const ExternalDraftCard = lazy(() =>

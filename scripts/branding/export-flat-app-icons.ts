@@ -12,7 +12,8 @@ export const FLAT_ICON_TARGETS: readonly FlatIconTarget[] = [
   { path: "apps/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png", size: 96 },
   { path: "apps/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png", size: 144 },
   { path: "apps/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png", size: 192 },
-  { path: "apps/desktop/src/renderer/assets/outcomego-icon.png", size: 256 },
+  // The About dialog renders this at 64 CSS pixels.
+  { path: "apps/desktop/src/renderer/assets/outcomego-icon.png", size: 128 },
 ];
 
 /** Read the logo layer's `position.scale` so the flat icons keep matching the Icon Composer source. */

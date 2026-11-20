@@ -25,6 +25,10 @@ describe("local time", () => {
 });
 
 describe.skipIf(!databaseUrl)("daily reminder", () => {
+  const ZONE = "Asia/Shanghai";
+  const EVENING = new Date("2026-11-16T12:30:00Z");
+  const ANSWER_TIME = new Date("2026-11-16T12:35:00Z");
+
   let h: Harness;
   let inbound: ExternalInboundMessageService;
   beforeAll(async () => {
@@ -32,6 +36,7 @@ describe.skipIf(!databaseUrl)("daily reminder", () => {
     inbound = new ExternalInboundMessageService({
       prisma: h.prisma, messaging: h.messaging, assets: h.assets, exchange: h.exchange,
       computerFetch: async () => new Response("{}"), interruptRun: async () => {},
+      now: () => ANSWER_TIME,
     });
   });
   afterAll(() => h.cleanup());
@@ -39,10 +44,6 @@ describe.skipIf(!databaseUrl)("daily reminder", () => {
   beforeEach(async () => {
     await h.prisma.externalMessagingBinding.updateMany({ where: { botId: { in: h.bots } }, data: { reminderEnabled: false } });
   });
-
-  const ZONE = "Asia/Shanghai";
-  /** 20:30 on 16 November in the zone above. */
-  const EVENING = new Date("2026-11-16T12:30:00Z");
 
   const setup = async (options: { reminder?: boolean; time?: string } = {}) => {
     const bot = await h.bot();
@@ -183,7 +184,7 @@ describe.skipIf(!databaseUrl)("daily reminder", () => {
 
     test("only the first answer is swallowed: a later '1' is an ordinary message", async () => {
       const s = await remind();
-      await inbound.accept(s.context, entry(message({ providerMessageId: `a1-${crypto.randomUUID()}`, text: "1" })));
+      expect(await inbound.accept(s.context, entry(message({ providerMessageId: `a1-${crypto.randomUUID()}`, text: "1" })))).toEqual({ status: "accepted", runId: null });
       const second = await inbound.accept(s.context, entry(message({ providerMessageId: `a2-${crypto.randomUUID()}`, text: "1" })));
       expect((second as { runId: string | null }).runId).not.toBeNull();
     });
@@ -203,7 +204,7 @@ describe.skipIf(!databaseUrl)("daily reminder", () => {
 
     test("a reminder from days ago is no longer being answered", async () => {
       const s = await remind();
-      await h.prisma.externalMessagingBinding.update({ where: { id: s.binding.id }, data: { lastReminderAt: new Date(Date.now() - 3 * 24 * 3600 * 1000) } });
+      await h.prisma.externalMessagingBinding.update({ where: { id: s.binding.id }, data: { lastReminderAt: new Date(ANSWER_TIME.getTime() - 3 * 24 * 3600 * 1000) } });
       const result = await inbound.accept(s.context, entry(message({ providerMessageId: `old-${crypto.randomUUID()}`, text: "1" })));
       expect((result as { runId: string | null }).runId).not.toBeNull();
     });

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { Effect } from 'effect';
 import { AppService } from '../../server/src/app-service';
 import { WakeWorker } from '../src/worker';
+import { turnResponse } from './fixtures/turn-response';
 const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 test.skipIf(!databaseUrl)('worker replays an unacknowledged user input and clears its watermark only after durable delivery', async () => {
  const root = await mkdtemp(join(tmpdir(), 'input-delivery-')); let app: AppService | undefined, worker: WakeWorker | undefined;
@@ -23,9 +24,10 @@ test.skipIf(!databaseUrl)('worker replays an unacknowledged user input and clear
   if (path !== '/v1/turns') return Response.json({ ok: true, quarantined: [] });
   const input = await request.json() as any; seen.push(input);
   if (input.content.includes('This user input must survive') && !failed) { failed = true; return new Response('Synthetic pre-insertion interruption', { status: 503 }); }
-  await Effect.runPromise(app!.handleDynamicTool({ runId: input.runId, botId: input.botId, conversationId: input.conversationId, channelId: input.channelId, deliveryId: input.deliveryId, callId: `delivery:${input.runId}`, tool: 'SendToUser', arguments: { type: 'text', content: 'Delivery fixture completed' } }));
-  const events = [{ type: 'session.attached', runtimeEngine: 'pi', inferenceProvider: 'openai-codex', contextSessionId: input.contextSessionId, sessionPath: input.sessionPath ?? `/var/lib/outcomego/pi/${input.contextSessionId}.jsonl`, sessionId: input.contextSessionId, model: 'fake' }, { type: 'context.state', contextSessionId: input.contextSessionId, epoch: 0, archives: [] }, { type: 'turn.started', turnId: input.runId }, { type: 'prompt.delivered', turnId: input.runId }, { type: 'turn.completed', turnId: input.runId, status: 'completed' }];
-  return new Response(events.map((event) => JSON.stringify(event)).join('\n') + '\n', { headers: { 'content-type': 'application/x-ndjson' } });
+  return turnResponse(async () => {
+   await Effect.runPromise(app!.handleDynamicTool({ runId: input.runId, botId: input.botId, conversationId: input.conversationId, channelId: input.channelId, deliveryId: input.deliveryId, callId: `delivery:${input.runId}`, tool: 'SendToUser', arguments: { type: 'text', content: 'Delivery fixture completed' } }));
+   return [{ type: 'session.attached', runtimeEngine: 'pi', inferenceProvider: 'openai-codex', contextSessionId: input.contextSessionId, sessionPath: input.sessionPath ?? `/var/lib/outcomego/pi/${input.contextSessionId}.jsonl`, sessionId: input.contextSessionId, model: 'fake' }, { type: 'context.state', contextSessionId: input.contextSessionId, epoch: 0, archives: [] }, { type: 'turn.started', turnId: input.runId }, { type: 'prompt.delivered', turnId: input.runId }, { type: 'turn.completed', turnId: input.runId, status: 'completed' }];
+  });
  } });
  const keys = ['DATABASE_URL', 'OUTCOMEGO_COMPUTER_URL', 'OUTCOMEGO_CONTROL_TOKEN', 'OUTCOMEGO_WORKSPACE_ROOT', 'OUTCOMEGO_AGENT_DATA_ROOT'] as const; const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
  try {

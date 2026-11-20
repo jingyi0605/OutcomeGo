@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
+import { turnResponse } from "./fixtures/turn-response";
 import { AppService } from "../../server/src/app-service";
 import { WakeWorker } from "../src/worker";
 
@@ -49,6 +50,7 @@ for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
       }
       if (path !== "/v1/turns") return Response.json({ ok: true, quarantined: [] });
       const input = await request.json() as { runId: string; botId: string; conversationId: string; channelId: string; deliveryId: string | null; content: string };
+      return turnResponse(async () => {
       const call = (tool: string, args: unknown) => Effect.runPromise(app!.handleDynamicTool({
         runId: input.runId, botId: input.botId, conversationId: input.conversationId,
         channelId: input.channelId, deliveryId: input.deliveryId, callId: crypto.randomUUID(), tool, arguments: args,
@@ -66,10 +68,11 @@ for (const fault of ["unavailable", "malformed-json"] as const) databaseTest(
         events.push("corrected");
         recovered = true;
       }
-      return new Response([
+      return [
         { type: "turn.started", turnId: input.runId }, { type: "prompt.delivered", turnId: input.runId },
         { type: "turn.completed", turnId: input.runId, status: "completed" },
-      ].map(event => JSON.stringify(event)).join("\n") + "\n", { headers: { "content-type": "application/x-ndjson" } });
+      ];
+      });
     } });
     const keys = ["DATABASE_URL", "OUTCOMEGO_COMPUTER_URL", "OUTCOMEGO_CONTROL_TOKEN", "OUTCOMEGO_WORKSPACE_ROOT", "OUTCOMEGO_AGENT_DATA_ROOT"] as const;
     const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));

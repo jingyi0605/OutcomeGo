@@ -77,7 +77,7 @@ jobs:
           bun --no-env-file scripts/check/outcome-regression-types.ts
           bun --no-env-file test ./scripts/backup.test.ts ./scripts/outcome-recovery/populated-backup.test.ts ./scripts/migration/validate-outcomego-backup.test.ts
       - name: Run all tests with database integration
-        run: bun run test --force --continue=always
+        run: bun run test --force --continue=always --concurrency=1
       - run: bun run build
 
   docker:

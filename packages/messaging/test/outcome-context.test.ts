@@ -3,13 +3,13 @@ import before from "./fixtures/outcome-prompt-before.json";
 import { promptFixture } from "./fixtures/outcome-prompt";
 
 test("ordinary platform prompt exactly matches the pre-runtime baseline", async () => {
-  expect(await promptFixture("home")).toEqual(before.home);
+  expect(await promptFixture("home")).toEqual({ ...before.home, outcomesEnabled: false });
 });
 test("Routine platform prompt exactly matches the pre-runtime baseline", async () => {
-  expect(await promptFixture("automation")).toEqual(before.automation);
+  expect(await promptFixture("automation")).toEqual({ ...before.automation, outcomesEnabled: false });
 });
 test("Outcome approved snapshot is hidden ambient context, isolated from the main prompt", async () => {
-  const prompt = await promptFixture("outcome");
+  const prompt = await promptFixture("outcome", true);
   expect(prompt.ambientContext).toContain("Approved goal");
   expect(prompt.ambientContext).toContain("Cite sources");
   expect(prompt.ambientContext).toContain("Production changes");

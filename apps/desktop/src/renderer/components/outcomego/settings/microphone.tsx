@@ -40,9 +40,7 @@ export function MicrophoneSettings({
   const [saveError, setSaveError] = useState("");
   const [accessError, setAccessError] = useState("");
   const [requesting, setRequesting] = useState(false);
-  const accessLabel = checking
-    ? t("Checking…")
-    : permission === "granted"
+  const accessLabel = permission === "granted"
       ? t("Allowed")
       : permission === "denied"
         ? t("Blocked")
@@ -146,7 +144,7 @@ export function MicrophoneSettings({
                 >
                   <span
                     aria-hidden="true"
-                    className={`size-1.5 rounded-full ${permission === "granted" && !checking ? "bg-emerald-500" : "bg-foreground-tertiary"}`}
+                    className={`size-1.5 rounded-full ${permission === "granted" ? "bg-emerald-500" : "bg-foreground-tertiary"}`}
                   />
                   {accessLabel}
                 </span>

@@ -1,9 +1,8 @@
 import { SettingsSelectContent } from "./select-content";
 import { PrivateSettingValue } from "./private-value";
 import { SmartNotificationSettings } from "./smart-notifications";
-import { TimeZoneSettings } from "./time-zone";
 import { Copy } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { signOut } from "../../../client/auth";
 import { API_BASE } from "../../../client/http";
 import { useAuthSession } from "../../../hooks/use-auth-session";
@@ -30,6 +29,10 @@ import {
 import { MicrophoneAccessSkeleton } from "./microphone-skeleton";
 const MicrophoneSettings = lazy(() =>
   import("./microphone").then((module) => ({ default: module.MicrophoneSettings }))
+);
+const BotDockSettings = lazy(() => import("./bot-dock-settings"));
+const TimeZoneSettings = lazy(() =>
+  import("./time-zone").then((module) => ({ default: module.TimeZoneSettings }))
 );
 
 function MicrophoneSkeleton() {
@@ -76,94 +79,6 @@ export const renderMicrophoneControl = (props: MicrophoneControlProps) => (
   <MicrophoneControl {...props} />
 );
 
-function BotDockAccessibility({
-  check,
-  openSettings,
-}: {
-  check: () => Promise<boolean>;
-  openSettings: () => Promise<void>;
-}) {
-  const { t } = useI18n();
-  const [permission, setPermission] = useState<"checking" | "enabled" | "disabled" | "error">(
-    "checking"
-  );
-  const [opening, setOpening] = useState(false);
-  const [openError, setOpenError] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    let checking = false;
-    const refresh = async () => {
-      if (checking) return;
-      checking = true;
-      try {
-        const enabled = await check();
-        if (active) setPermission(enabled ? "enabled" : "disabled");
-      } catch {
-        if (active) setPermission("error");
-      } finally {
-        checking = false;
-      }
-    };
-    void refresh();
-    window.addEventListener("focus", refresh);
-    return () => {
-      active = false;
-      window.removeEventListener("focus", refresh);
-    };
-  }, [check]);
-
-  const enable = async () => {
-    setOpening(true);
-    setOpenError(false);
-    try {
-      await openSettings();
-    } catch {
-      setOpenError(true);
-    } finally {
-      setOpening(false);
-    }
-  };
-
-  return (
-    <SettingsRow
-      stackControl
-      title={t("Accessibility permission")}
-      description={
-        openError && permission !== "enabled"
-          ? t("Could not open system settings. Open Accessibility settings and allow OutcomeGo.")
-          : permission === "error"
-            ? t("Could not check accessibility access. Open System Settings to review it.")
-            : t(
-                "Required for global file drag detection. Allows the floating window to detect when you start dragging files from anywhere."
-              )
-      }
-      control={
-        permission === "checking" || permission === "enabled" ? (
-          <span
-            className="inline-flex items-center gap-1.5 text-[12px] text-foreground-secondary"
-            role="status"
-          >
-            {permission === "enabled" && (
-              <span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" />
-            )}
-            {permission === "enabled" ? t("Enabled") : t("Checking…")}
-          </span>
-        ) : (
-          <button
-            className={settingsSecondaryButton}
-            disabled={opening}
-            onClick={() => void enable()}
-            type="button"
-          >
-            {t("Enable accessibility")}
-          </button>
-        )
-      }
-    />
-  );
-}
-
 /** Optional modules, each off until the owner switches it on. */
 export function FeatureSettings() {
   const { t } = useI18n();
@@ -171,51 +86,6 @@ export function FeatureSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const goalLabel = t("Enable goal management for bots");
-  const dock = window.outcomego?.botDock;
-  const accessibility =
-    window.outcomego?.platform === "darwin" ? window.outcomego.accessibility : undefined;
-  const [dockEnabled, setDockEnabled] = useState<boolean | null>(null);
-  const [dockSaving, setDockSaving] = useState(false);
-  const [dockError, setDockError] = useState<"load" | "save" | null>(null);
-
-  useEffect(() => {
-    if (!dock) return;
-    let current = true;
-    let receivedChange = false;
-    const unsubscribe = dock.onEnabledChange((enabled) => {
-      receivedChange = true;
-      setDockEnabled(enabled);
-      setDockError(null);
-    });
-    void dock.getEnabled().then(
-      (enabled) => {
-        if (current && !receivedChange) setDockEnabled(enabled);
-      },
-      () => {
-        if (current && !receivedChange) setDockError("load");
-      }
-    );
-    return () => {
-      current = false;
-      unsubscribe();
-    };
-  }, [dock]);
-
-  const toggleBotDock = async (enabled: boolean) => {
-    if (!dock) return;
-    setDockSaving(true);
-    setDockError(null);
-    try {
-      await dock.setEnabled(enabled);
-    } catch {
-      setDockError("save");
-    } finally {
-      setDockSaving(false);
-    }
-  };
-
-  const dockLabel = t("Enable bot floating window");
-
   return (
     <>
       <SectionLabel>{t("Features")}</SectionLabel>
@@ -241,35 +111,14 @@ export function FeatureSettings() {
             />
           }
         />
-        {dock && (
-          <SettingsRow
-            title={dockLabel}
-            description={t(
-              "Shows a small floating window that displays unread messages and pending goals. Allows quick file drops to bots."
-            )}
-            control={
-              <InteractiveSwitch
-                label={dockLabel}
-                checked={dockEnabled === true}
-                disabled={dockEnabled === null || dockSaving}
-                onChange={(value) => void toggleBotDock(value)}
-              />
-            }
-          />
-        )}
-        {dockError && (
-          <p role="alert" className="pb-3 text-xs text-destructive">
-            {dockError === "load"
-              ? t("Couldn’t load this setting.")
-              : t("Couldn't save this setting. Try again.")}
-          </p>
-        )}
-        {dockEnabled && accessibility && (
-          <BotDockAccessibility check={accessibility.check} openSettings={accessibility.openSettings} />
+        {window.outcomego?.botDock && (
+          <Suspense fallback={null}>
+            <BotDockSettings />
+          </Suspense>
         )}
         {(error || features.failed) && (
           <p role="alert" className="pb-3 text-xs text-destructive">
-            {error ?? t("Couldn't load this setting.")}{" "}
+            {error ?? t("Couldn’t load this setting.")}{" "}
             {features.failed && (
               <button className="underline" onClick={features.retry} type="button">
                 {t("Retry")}
@@ -349,7 +198,9 @@ export default function GeneralSettings() {
         </div>
       </SettingsGroup>
 
-      <TimeZoneSettings />
+      <Suspense fallback={null}>
+        <TimeZoneSettings />
+      </Suspense>
 
       <SmartNotificationSettings />
 

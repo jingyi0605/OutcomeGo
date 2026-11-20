@@ -1,4 +1,7 @@
 import { JSONSchema, Schema } from "effect";
+import { OUTCOME_LIMITS, OUTCOME_STATUSES, REVIEW_RESULTS, type OutcomeStatus, type ReviewResult } from "./outcome-view";
+
+export * from "./outcome-view";
 
 /**
  * Outcome planning, contract, execution and review contracts (specs/004.2).
@@ -12,46 +15,9 @@ import { JSONSchema, Schema } from "effect";
 export const OUTCOME_PLANNING_DIMENSIONS = ["goal", "acceptance", "boundaries"] as const;
 export type OutcomePlanningDimension = (typeof OUTCOME_PLANNING_DIMENSIONS)[number];
 
-export const OUTCOME_LIMITS = {
-  sourceTextChars: 8_000,
-  optionsPerDimension: 4,
-  optionTextChars: 500,
-  optionReasonChars: 500,
-  customEntryChars: 2_000,
-  customEntriesPerDimension: 4,
-  selectedPerDimension: 4,
-  confirmedTextChars: 12_000,
-  titleChars: 200,
-  commentChars: 4_000,
-  confirmationTextChars: 500,
-  changeSummaryChars: 2_000,
-  reviewResultsPerRequest: 100,
-  evidencePerReview: 100,
-  listPageSize: 20,
-  listPageSizeMax: 100,
-  /** Concurrent Outcome sub-threads per executing bot (D13). */
-  threadsPerBot: 2,
-} as const;
-
 // ---------------------------------------------------------------------------
 // States (specs/004 design §42)
 // ---------------------------------------------------------------------------
-
-export const OUTCOME_STATUSES = [
-  "draft",
-  "planning",
-  "pending_approval",
-  "approved",
-  "running",
-  "review_pending",
-  "accepted",
-  "decision_pending",
-  "human_action_pending",
-  "paused",
-  "failed",
-  "cancelled",
-] as const;
-export type OutcomeStatus = (typeof OUTCOME_STATUSES)[number];
 
 /** Highest first; the server derives Outcome status from facts in this order (design §42.3). */
 export const OUTCOME_STATUS_PRIORITY: readonly OutcomeStatus[] = [
@@ -124,9 +90,6 @@ export type PlanningDraftStatus = (typeof PLANNING_DRAFT_STATUSES)[number];
 export const VERIFICATION_METHODS = ["human_review", "deterministic_check"] as const;
 export type VerificationMethod = (typeof VERIFICATION_METHODS)[number];
 
-export const REVIEW_RESULTS = ["PASS", "FAIL", "UNVERIFIED", "WAIVED_BY_APPROVED_CHANGE"] as const;
-export type ReviewResult = (typeof REVIEW_RESULTS)[number];
-
 export const EVIDENCE_CREDIBILITY = [
   "deterministic_check",
   "human_confirmed",
@@ -135,9 +98,6 @@ export const EVIDENCE_CREDIBILITY = [
   "ai_prereview",
 ] as const;
 export type EvidenceCredibility = (typeof EVIDENCE_CREDIBILITY)[number];
-
-/** Evidence that cannot on its own support PASS on a required criterion (D07, 004.2 requirement 18). */
-export const ADVISORY_EVIDENCE_CREDIBILITY: readonly EvidenceCredibility[] = ["agent_report", "ai_prereview"];
 
 export const EVIDENCE_SOURCE_TYPES = ["output", "asset", "file", "message", "url", "receipt", "check", "prereview"] as const;
 export type EvidenceSourceType = (typeof EVIDENCE_SOURCE_TYPES)[number];
@@ -482,23 +442,6 @@ export interface OutcomeResultChart {
   points: { label: string; row?: string; value: number; citation: number }[];
 }
 
-/** Includes content, so a response for a prior revision or description cannot be reused. */
-export function outcomeBriefSource(outcome: OutcomeDetail): string {
-  return JSON.stringify({
-    id: outcome.id,
-    title: outcome.title,
-    description: outcome.description,
-    revisionId: outcome.currentRevisionView?.id ?? null,
-    goal: outcome.currentRevisionView?.goal ?? [],
-    acceptance: outcome.currentRevisionView?.criteria.map(item => ({
-      statement: item.statement, required: item.required,
-    })) ?? [],
-    boundaries: outcome.currentRevisionView?.boundaries ?? { included: [], excluded: [] },
-    budget: outcome.currentRevisionView?.budget ?? null,
-    conflicts: outcome.currentRevisionView?.conflicts ?? [],
-  });
-}
-
 const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
 
 const confirmedTextLength = (contract: ConfirmedContract) =>
@@ -616,19 +559,6 @@ export interface CriterionReviewState {
   waiverRevisionApproved?: boolean;
   /** The user explicitly confirmed PASS without attachments (allowed for human_review). */
   userConfirmed?: boolean;
-}
-
-/** Whether a PASS on a required criterion is backed by non-advisory evidence or explicit user confirmation. */
-export const passIsSupported = (state: CriterionReviewState) =>
-  state.userConfirmed === true ||
-  state.evidenceCredibility.some((credibility) => !ADVISORY_EVIDENCE_CREDIBILITY.includes(credibility));
-
-/** All required criteria are satisfied (004.2 design §25). */
-export function requiredCriteriaSatisfied(criteria: readonly CriterionReviewState[]): boolean {
-  const required = criteria.filter((criterion) => criterion.required);
-  return required.length > 0 && required.every((criterion) =>
-    (criterion.result === "PASS" && passIsSupported(criterion)) ||
-    (criterion.result === "WAIVED_BY_APPROVED_CHANGE" && criterion.waiverRevisionApproved === true));
 }
 
 // ---------------------------------------------------------------------------

@@ -2,12 +2,6 @@ import { expect, test } from "bun:test";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "../src/renderer/lib/i18n";
-import { DecisionCardView } from "../src/renderer/components/outcomego/outcomes/inbox/decision-card";
-import { OutcomeInbox } from "../src/renderer/components/outcomego/outcomes/inbox/outcome-inbox";
-import { HumanAction } from "../src/renderer/components/outcomego/outcomes/human-work/human-action";
-import { ExploreIdeaDetails } from "../src/renderer/components/outcomego/outcomes/explore/explore-panel";
-import { RecoveryDiagnostics } from "../src/renderer/components/outcomego/outcomes/inbox/recovery-diagnostics";
-import { ReviewPanel } from "../src/renderer/components/outcomego/outcomes/detail/review-panel";
 import { outcomeFixture } from "./outcome-fixture";
 import type { OutcomeClient } from "../src/renderer/client/outcome-api";
 import type { InboxClient } from "../src/renderer/components/outcomego/outcomes/inbox/inbox-api";
@@ -19,6 +13,34 @@ import {
   humanFixture,
   inboxFixture,
 } from "./outcome-client-fixtures";
+
+const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+const storageDescriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+const storage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+if (!storageDescriptor) {
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
+}
+if (!windowDescriptor) {
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { location: { href: "http://127.0.0.1/" }, localStorage: storage },
+  });
+}
+const [
+  { DecisionCardView }, { OutcomeInbox }, { HumanAction },
+  { ExploreIdeaDetails }, { RecoveryDiagnostics }, { ReviewPanel },
+] = await Promise.all([
+  import("../src/renderer/components/outcomego/outcomes/inbox/decision-card"),
+  import("../src/renderer/components/outcomego/outcomes/inbox/outcome-inbox"),
+  import("../src/renderer/components/outcomego/outcomes/human-work/human-action"),
+  import("../src/renderer/components/outcomego/outcomes/explore/explore-panel"),
+  import("../src/renderer/components/outcomego/outcomes/inbox/recovery-diagnostics"),
+  import("../src/renderer/components/outcomego/outcomes/detail/review-panel"),
+]).finally(() => {
+  if (!windowDescriptor) Reflect.deleteProperty(globalThis, "window");
+  if (!storageDescriptor) Reflect.deleteProperty(globalThis, "localStorage");
+});
+
 const render = (element: ReactNode) =>
   renderToStaticMarkup(createElement(I18nProvider, { children: element }));
 

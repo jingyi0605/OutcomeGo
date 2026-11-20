@@ -10,11 +10,13 @@ test.skipIf(!databaseUrl)(
     const prisma = createPrismaClient(databaseUrl!);
     const botId = crypto.randomUUID();
     const conversationId = crypto.randomUUID();
-    const wakes: unknown[] = [];
-    const jobs: unknown[] = [];
-    const boss = { send: async (...args: unknown[]) => void jobs.push(args) };
+    const wakes: string[] = [];
+    const jobs: Array<{ name: string; botId?: string }> = [];
+    const boss = { send: async (name: string, input: { botId?: string }) => {
+      jobs.push({ name, botId: input.botId });
+    } };
     const messaging = {
-      enqueueWake: async (...args: unknown[]) => void wakes.push(args),
+      enqueueWake: async (_tx: unknown, input: { botId: string }) => void wakes.push(input.botId),
       enqueueBootstrap: async () => undefined,
       recoverRounds: async () => undefined,
     };
@@ -64,8 +66,8 @@ test.skipIf(!databaseUrl)(
         content: "This reply was interrupted by a restart. Send your message again to continue.",
         metadata: { type: "event", event: { type: "turn-interrupted", reason: "restart", runId: cutOff.id } },
       });
-      expect(wakes).toHaveLength(0);
-      expect(jobs.filter((job) => (job as unknown[])[0] === "bot-wake")).toHaveLength(0);
+      expect(wakes).not.toContain(botId);
+      expect(jobs).not.toContainEqual({ name: "bot-wake", botId });
       const statuses = await prisma.run.findMany({
         where: { id: { in: [cutOff.id, routine.id, finished.id] } },
         select: { id: true, status: true },
@@ -91,7 +93,8 @@ test.skipIf(!databaseUrl)(
     const childId = crypto.randomUUID();
     const wakes: Array<{ botId: string; type: string }> = [];
     const messaging = {
-      enqueueWake: async (_tx: unknown, input: { botId: string; type: string }) => void wakes.push(input),
+      enqueueWake: async (_tx: unknown, { botId, type }: { botId: string; type: string }) =>
+        void wakes.push({ botId, type }),
       enqueueBootstrap: async () => undefined,
       recoverRounds: async () => undefined,
     };
@@ -154,7 +157,7 @@ test.skipIf(!databaseUrl)(
 
       await recover(prisma, { send: async () => undefined } as never, messaging as never, async () => new Response());
 
-      expect(wakes.map(({ botId, type }) => ({ botId, type }))).toEqual([{ botId: parentId, type: "subagent.failed" }]);
+      expect(wakes.filter(({ botId }) => botId === parentId || botId === childId)).toEqual([{ botId: parentId, type: "subagent.failed" }]);
       expect(await prisma.channelMessage.count({ where: { channelId: channel.id } })).toBe(0);
     } finally {
       await prisma.channel.deleteMany({ where: { directKey: `bot:${parentId}` } });

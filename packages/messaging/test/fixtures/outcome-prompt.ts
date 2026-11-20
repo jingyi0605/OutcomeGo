@@ -2,7 +2,7 @@ import { AgentMessaging } from "../../src";
 import { defaultTaskConfiguration } from "@outcomego/contracts/task-configuration";
 import { formatFriendlyDate } from "../../src/timestamps";
 
-export async function promptFixture(scope: "home" | "automation" | "outcome", Messaging = AgentMessaging) {
+export async function promptFixture(scope: "home" | "automation" | "outcome", outcomesEnabled = false) {
   const item = {
     id: "work-item", outcomeId: "outcome", botId: "bot",
     contractRevision: { revision: 1, approvedAt: new Date("2026-11-17T00:00:00Z"), status: "approved",
@@ -16,8 +16,7 @@ export async function promptFixture(scope: "home" | "automation" | "outcome", Me
     routine: { findMany: async () => [] }, routineExecution: { findUnique: async () => null },
     automationResult: { findMany: async () => [] }, run: { findMany: async () => [] },
     outcomeWorkItem: { findFirst: async () => item }, $queryRaw: async () => [],
-    // The pre-runtime baseline predates the opt-in; keep the module on so the prompt is compared as it was.
-    featureSettings: { findUnique: async () => ({ outcomesEnabled: true }) },
+    featureSettings: { findUnique: async () => ({ outcomesEnabled }) },
   };
   const store = {
     root: "/fixture/agent-data", workspaceRoot: "/workspace", assetRoot: "/fixture/assets",
@@ -26,7 +25,7 @@ export async function promptFixture(scope: "home" | "automation" | "outcome", Me
     loadTaskConfiguration: async () => defaultTaskConfiguration(),
     preparePlatformSections: async (_bot: string, _session: string, _epoch: number, sections: unknown) => ({ sections, receipts: [], memory: { facts: "Fixture shared facts" } }),
   };
-  const messaging = new Messaging(db as never, {} as never, store as never);
+  const messaging = new AgentMessaging(db as never, {} as never, store as never);
   messaging.userTimeZone = async () => "UTC";
   const prompt = await messaging.platformPrompt("bot", "session", "Fixture connector instructions", "channel", defaultTaskConfiguration(), scope === "home" ? "user" : scope === "automation" ? "routine" : "outcome", scope === "outcome" ? "work-item" : undefined);
   return JSON.parse(JSON.stringify(prompt).replaceAll(formatFriendlyDate(new Date(), "UTC"), "<current-date>"));
