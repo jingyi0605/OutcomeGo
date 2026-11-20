@@ -258,9 +258,8 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
     const waitFor = async (runId: string) => {
       const deadline = Date.now() + 10_000;
       while (Date.now() < deadline) {
-        const snapshot = await Effect.runPromise(app!.snapshot());
-        const run = snapshot.runs.find((candidate) => candidate.id === runId);
-        if (run?.status === "completed") return snapshot;
+        const run = await app!.prisma.run.findUnique({ where: { id: runId }, select: { status: true } });
+        if (run?.status === "completed") return Effect.runPromise(app!.snapshot());
         await Bun.sleep(50);
       }
       throw new Error(`run ${runId} did not complete`);

@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  OUTCOME_STATUSES,
-  type OutcomeListPage,
-  type OutcomeStatus,
-} from "@outcomego/contracts/outcomes";
+import { OUTCOME_STATUSES, type OutcomeStatus } from "@outcomego/contracts/outcome-view";
+import type { OutcomeListPage } from "@outcomego/contracts/outcomes";
 import type { OutcomeClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";
 import { ChevronRight, Plus, Target } from "lucide-react";

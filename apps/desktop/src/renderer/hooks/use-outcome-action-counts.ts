@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { OUTCOME_LIMITS, type OutcomeStatus } from "@outcomego/contracts/outcomes";
+import { OUTCOME_LIMITS, type OutcomeStatus } from "@outcomego/contracts/outcome-view";
 import { api } from "../client/outcomego-api";
 import { subscribeOutcomeListRefresh } from "../lib/outcome-events";
 import { countByBot, sameCounts } from "../lib/outcome-counts";

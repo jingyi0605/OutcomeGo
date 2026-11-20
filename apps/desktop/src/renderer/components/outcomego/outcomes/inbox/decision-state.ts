@@ -1,8 +1,5 @@
-import {
-  CREDENTIAL_ACCESS_REASON_CODE,
-  type DecisionResolution,
-  type DecisionView,
-} from "@outcomego/contracts/outcome-inbox";
+import { CREDENTIAL_ACCESS_REASON_CODE } from "@outcomego/contracts/outcome-inbox-categories";
+import type { DecisionResolution, DecisionView } from "@outcomego/contracts/outcome-inbox";
 import type { InboxClient } from "./inbox-api";
 import { OutcomeRequestIds } from "../planning/outcome-client";
 

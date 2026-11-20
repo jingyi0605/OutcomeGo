@@ -59,6 +59,7 @@ export default function UpdatesSettings() {
   } = update;
   const [actionError, setActionError] = useState<string | null>(null);
   const [channelSaving, setChannelSaving] = useState(false);
+  const clientUpdating = clientUpdate?.status === "downloading" || clientUpdate?.status === "installing";
 
   const clientNeedsUpdate =
     compatibility === "client-update-required" ||
@@ -86,7 +87,7 @@ export default function UpdatesSettings() {
         requestDesktopUpdateRestart(clientUpdate);
         return;
       }
-      if (["downloading", "installing"].includes(clientUpdate?.status ?? "")) return;
+      if (clientUpdating) return;
       let next = clientUpdate;
       if (next?.status !== "available") {
         next = (await window.outcomego?.updates.check()) ?? next;
@@ -169,12 +170,11 @@ export default function UpdatesSettings() {
                   type="button"
                   disabled={channelSaving || serverLoading}
                   onClick={() => void handleChannelChange(ch)}
-                  className={[
-                    "rounded-md px-3 py-1 text-[12px] font-medium transition-colors",
+                  className={`rounded-md px-3 py-1 text-[12px] font-medium transition-colors ${
                     effectiveChannel === ch
                       ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  ].join(" ")}
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                   aria-pressed={effectiveChannel === ch}
                 >
                   {ch === "stable" ? t("Stable") : t("Beta")}
@@ -195,11 +195,11 @@ export default function UpdatesSettings() {
             clientNeedsUpdate ? (
               <button
                 className={primaryButton}
-                disabled={["downloading", "installing"].includes(clientUpdate?.status ?? "")}
+                disabled={clientUpdating}
                 onClick={() => void updateClient()}
                 type="button"
               >
-                {["downloading", "installing"].includes(clientUpdate?.status ?? "") ? (
+                {clientUpdating ? (
                   <LoadingOrb aria-hidden size={14} />
                 ) : null}
                 {clientUpdate?.status === "downloaded"

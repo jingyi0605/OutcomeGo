@@ -32,7 +32,6 @@ import {
 } from "electron";
 import type { AppUpdater } from "electron-updater";
 import { withBotDockToggle, applicationMenuTemplate, type ApplicationMenuLocale } from "./application-menu";
-import { DesktopBotDock } from "./bot-dock";
 import { DesktopScreenBot } from "./screenbot";
 import { ScreenBotShortcutController, requestInputMonitoring } from "./screenbot-shortcut";
 import { desktopSignIn, desktopSignOut } from "./auth-client";
@@ -1308,6 +1307,7 @@ const screenBotHelperPath =
     : null;
 
 // The floating Bot capsule: unread messages (red) and goals waiting on the owner (yellow).
+const { DesktopBotDock } = await import("./bot-dock");
 const botDock = new DesktopBotDock({
   preloadPath: join(import.meta.dirname, "botdock-preload.cjs"),
   dragHelperPath: screenBotHelperPath,

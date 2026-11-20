@@ -11,12 +11,12 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import {
-  outcomeBriefSource,
-  type OutcomeBrief,
-  type OutcomeBriefItem,
-  type OutcomeDetail,
-  type ContractRevisionView,
+import { outcomeBriefSource } from "@outcomego/contracts/outcome-view";
+import type {
+  OutcomeBrief,
+  OutcomeBriefItem,
+  OutcomeDetail,
+  ContractRevisionView,
 } from "@outcomego/contracts/outcomes";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { OutcomeClient } from "../../../client/outcome-api";

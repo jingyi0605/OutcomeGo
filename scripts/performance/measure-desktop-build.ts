@@ -419,6 +419,18 @@ const readLazyClosures = async () => {
     };
     const boundarySources = {
       workspace: ["src/renderer/App.tsx"],
+      workspaceApi: ["src/renderer/client/outcomego-api.ts"],
+      botAvatar: ["src/renderer/components/outcomego/avatar.tsx"],
+      richMessage: ["src/renderer/components/outcomego/rich-message.tsx"],
+      threadTray: ["src/renderer/components/outcomego/thread-tray.tsx"],
+      outcomeWorkspace: ["src/renderer/components/outcomego/outcomes/inbox/outcome-workspace.tsx"],
+      outcomeDetail: ["src/renderer/components/outcomego/outcomes/inbox/outcome-detail-modal.tsx"],
+      outcomeAsset: ["src/renderer/components/outcomego/outcomes/outcome-asset-reader.tsx"],
+      quickIdea: ["src/renderer/components/outcomego/outcomes/explore/quick-idea-dialog.tsx"],
+      settingsKeyboard: ["src/renderer/components/outcomego/settings/keyboard.tsx"],
+      settingsBotDock: ["src/renderer/components/outcomego/settings/bot-dock-settings.tsx"],
+      settingsTimeZone: ["src/renderer/components/outcomego/settings/time-zone.tsx"],
+      vncViewer: ["src/renderer/components/outcomego/vnc-computer.tsx"],
       externalDraft: ["src/renderer/components/outcomego/external-draft-card.tsx"],
       imessageDraft: ["src/renderer/components/outcomego/imessage-send-card.tsx"],
       largeCode: ["src/renderer/components/ai-elements/message-response/large-code.tsx"],

@@ -11,7 +11,7 @@ import {
   Target,
   X,
 } from "lucide-react";
-import { outcomeCardStage, type OutcomeChatCard } from "@outcomego/contracts/outcome-chat";
+import { outcomeCardStage, type OutcomeChatCard } from "@outcomego/contracts/outcome-chat-card";
 import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { outcomeStageLabels, outcomeNextSteps } from "./outcome-presentation";
 import type { OutcomeClient } from "../../../client/outcome-api";

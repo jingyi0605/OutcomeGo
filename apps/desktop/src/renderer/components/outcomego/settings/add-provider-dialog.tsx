@@ -1,5 +1,5 @@
+import type { AddInferenceProviderInput } from "@outcomego/contracts";
 import {
-  type AddInferenceProviderInput,
   CUSTOM_PROVIDER_API_LABELS,
   CUSTOM_PROVIDER_APIS,
   GENERIC_PROTOCOL_ICONS,
@@ -7,7 +7,7 @@ import {
   type InferenceProviderPreset,
   type InferenceProviderPresetGroup,
   presetDefaultApi,
-} from "@outcomego/contracts";
+} from "@outcomego/contracts/inference-presets";
 import { ExternalLink } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../../client/outcomego-api";
