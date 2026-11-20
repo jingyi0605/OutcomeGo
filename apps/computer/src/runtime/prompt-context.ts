@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { STREAM_REPLY_TOOL } from "@outcomego/contracts";
+import { RICH_REPLY_TOOL } from "./reply-preview";
 import { existsSync } from "node:fs";
 import { platform, release } from "node:os";
 import { join } from "node:path";
@@ -178,8 +180,10 @@ const toolCalls = (message: BotMessage) =>
       })
     : [];
 
+const sendToolNames = ["SendToUser", RICH_REPLY_TOOL, STREAM_REPLY_TOOL];
+
 const isTextSend = (call: ReturnType<typeof toolCalls>[number]) =>
-  call.name === "SendToUser" && (call.args.type ?? "text") === "text";
+  typeof call.name === "string" && sendToolNames.includes(call.name) && (call.args.type ?? "text") === "text";
 
 function callsSinceLastSend(messages: readonly BotMessage[]): number {
   let count = 0;
@@ -189,7 +193,7 @@ function callsSinceLastSend(messages: readonly BotMessage[]): number {
     if (isUserRole(message)) break;
     if (message.role === "toolResult" && message.isError === true) failed.add(message.toolCallId);
     const calls = toolCalls(message);
-    if (calls.some((call) => call.name === "SendToUser" && !failed.has(call.id))) break;
+    if (calls.some((call) => typeof call.name === "string" && sendToolNames.includes(call.name) && !failed.has(call.id))) break;
     count += calls.length;
   }
   return count;
@@ -217,7 +221,7 @@ const owesOpeningAcknowledgement = (active: Pick<ActiveTurn, "requestSource"> & 
   ["user", "turn"].includes(active.requestSource) || active.groupTurn === true;
 
 /** Tools that may come first without an acknowledgement: they are the acknowledgement, or only bookkeeping. */
-const OPENING_EXEMPT_TOOLS = new Set(["SendToUser", "ReactToMessage", "TodoWrite"]);
+const OPENING_EXEMPT_TOOLS = new Set([...sendToolNames, "ReactToMessage", "TodoWrite"]);
 
 const OPENING_GATE_PRIVATE =
   "The user has not heard from you yet, so this call was not run. First call the SendToUser tool with a one-line text acknowledgement of what you are about to do (end_turn false), then repeat this call.";

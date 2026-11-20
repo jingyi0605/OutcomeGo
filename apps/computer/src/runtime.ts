@@ -66,6 +66,7 @@ import { endTurnHoldExtension } from "./runtime/end-turn-hold";
 import { backgroundWorkPending } from "./runtime/background-shells";
 import { VoiceNarrator, voiceNarrationExtension } from "./runtime/voice-narration";
 import { SendToUserSpeech, sendToUserSpeechExtension } from "./runtime/voice-stream";
+import { ReplyPreviewPublisher, RICH_REPLY_TOOL } from "./runtime/reply-preview";
 import { prepareDynamicToolCatalog } from "./runtime/catalog-snapshot";
 import { pinUserInfo } from "./runtime/user-info-snapshot";
 import { DiskPressureMonitor, reminderStepPersisted } from "./runtime/disk-pressure";
@@ -300,6 +301,7 @@ export class ComputerRuntime {
   }
 
   async run(request: ComputerTurnRequest, signal?: AbortSignal): Promise<AsyncIterable<ComputerEvent>> {
+    const startedAt = performance.now();
     signal?.throwIfAborted();
     await this.start();
     // Startup can outlive the caller's dispatch deadline. Never admit an expired request after
@@ -368,6 +370,26 @@ export class ComputerRuntime {
       readOnly: request.readOnly ?? false,
       attachmentTempDirectories: [],
     };
+    if (request.replyPreviewAttempt !== undefined && active.runtimeProfile === "agent" && !active.readOnly) {
+      const attempt = request.replyPreviewAttempt;
+      active.instructions += `\n\nUse SendToUser for text and Markdown in this chat. If you can answer immediately, put the answer in your first call and set end_turn true. Otherwise, put a brief, specific acknowledgement in your first call before extended reasoning. With end_turn false, you can include independent read-only work calls after that acknowledgement in the same response. Start each SendToUser call with the content argument so the reader sees it as you write. Use ${RICH_REPLY_TOOL} for cards, images, attachments, quoted replies, and other destinations. When an instruction says to send any of those with SendToUser, use ${RICH_REPLY_TOOL} for that send.`;
+      let firstPreviewPublished = false;
+      active.replyPreview = new ReplyPreviewPublisher(
+        async (callId, content) => {
+          const publishingAt = performance.now();
+          const published = await this.tools.publishReplyPreview(active, attempt, callId, content);
+          if (!published || !content || firstPreviewPublished) return;
+          firstPreviewPublished = true;
+          console.info(JSON.stringify({
+            event: "reply_preview.first_published",
+            runId: active.runId,
+            elapsedMs: Math.round(performance.now() - startedAt),
+            contentReadyMs: Math.round(publishingAt - startedAt),
+            publishMs: Math.round(performance.now() - publishingAt),
+          }));
+        }
+      );
+    }
     // Only the user-facing parent of a realtime voice call narrates.
     if (request.voiceNarration && !active.subagentType && active.requestSource !== "automation") {
       active.narrator = new VoiceNarrator(
@@ -593,6 +615,7 @@ export class ComputerRuntime {
     if (reason === "stop") active.stopped = true;
     if (reason) active.interruptedByUserAt ??= Date.now();
     active.endTurnRequested = true;
+    active.replyPreview?.stop(true);
     active.pluginAbortController?.abort();
     await active.session?.abort();
     if (options.recovery) await active.contextReleased;
@@ -795,7 +818,7 @@ export class ComputerRuntime {
     }
     return this.createStandaloneSession(
       request.cwd,
-      request.instructions,
+      active.instructions,
       manager,
       active,
       active.modelRef
@@ -1057,6 +1080,7 @@ export class ComputerRuntime {
     await active.closePluginSession?.().catch(()=>console.warn("Plugin session cleanup failed"));
     active.pluginAbortController?.abort();
     active.narrator?.stop();
+    active.replyPreview?.stop();
     this.tools.clearBitwardenSecrets?.(active);
     this.activeByRun.delete(active.runId);
     this.activeByContext.delete(active.contextSessionId);

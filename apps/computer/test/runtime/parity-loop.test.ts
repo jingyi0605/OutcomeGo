@@ -7,6 +7,7 @@ import { InMemoryCredentialStore, type Model } from "@earendil-works/pi-ai";
 import { streamSimple } from "@earendil-works/pi-ai/api/openai-completions";
 import { ModelRuntime, SessionManager, type AgentSession } from "@earendil-works/pi-coding-agent";
 import { ComputerRuntime } from "../../src/runtime";
+import { ReplyPreviewPublisher, RICH_REPLY_TOOL } from "../../src/runtime/reply-preview";
 import { RuntimeTools } from "../../src/runtime/tools";
 import type { ActiveTurn } from "../../src/runtime/types";
 const model: Model<"openai-completions"> = {
@@ -23,12 +24,16 @@ const model: Model<"openai-completions"> = {
 };
 
 // Typed messages supersede a main turn instead of steering it.
-for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true }, { handoff: false, batch: true }])
-  test(`real Pi loop persists before acknowledgement, stops on ${handoff ? "WakeParent" : "end_turn"}, and recovers tape${batch ? " with three ordered replies" : ""}`, async () => {
+for (const { handoff, batch = false, streaming = false } of [
+  { handoff: false }, { handoff: true }, { handoff: false, batch: true }, { handoff: false, streaming: true },
+])
+  test(`real Pi loop persists before acknowledgement, stops on ${handoff ? "WakeParent" : "end_turn"}, and recovers tape${batch ? " with three ordered replies" : streaming ? " with streaming enabled" : ""}`, async () => {
     const root = await mkdtemp(join(tmpdir(), "pi-parity-"));
     const requests: any[] = [];
     const sent: any[] = [];
     const acknowledged: any[] = [];
+    const previewUpdates: Array<{ content: string | null; deliveries: number }> = [];
+    const firstPreview = Promise.withResolvers<void>();
     const server = Bun.serve({
       hostname: "127.0.0.1",
       port: 0,
@@ -73,7 +78,7 @@ for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true },
                           type: "function",
                           function: {
                             name: handoff ? "WakeParent" : "SendToUser",
-                            arguments: JSON.stringify(handoff ? {
+                            arguments: streaming ? '{"content":"Fixture' : JSON.stringify(handoff ? {
                               message: "Fixture result: notify the user.",
                             } : {
                               type: "text",
@@ -93,6 +98,20 @@ for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true },
                 usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
               },
             ];
+            if (streaming) {
+              chunks.splice(1, 0, {
+                choices: [{
+                  index: 0,
+                  delta: { role: "assistant", tool_calls: [{
+                    index: 0,
+                    id: toolId,
+                    type: "function",
+                    function: { name: "SendToUser", arguments: ' result","end_turn":true}' },
+                  }] },
+                  finish_reason: null,
+                }],
+              });
+            }
             if (batch) {
               const delta = chunks[0]!.choices[0]!.delta!;
               if (!("tool_calls" in delta)) throw new Error("Missing fixture tool calls");
@@ -107,13 +126,22 @@ for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true },
                 },
               }));
             }
+            const frames = chunks.map(chunk =>
+              `data: ${JSON.stringify({ id: "chatcmpl-fixture", object: "chat.completion.chunk", created: 1, model: model.id, ...chunk })}\n\n`
+            );
+            frames.push("data: [DONE]\n\n");
             return new Response(
-              chunks
-                .map(
-                  (chunk) =>
-                    `data: ${JSON.stringify({ id: "chatcmpl-fixture", object: "chat.completion.chunk", created: 1, model: model.id, ...chunk })}\n\n`
-                )
-                .join("") + "data: [DONE]\n\n",
+              streaming ? new ReadableStream({
+                async start(controller) {
+                  const encoder = new TextEncoder();
+                  controller.enqueue(encoder.encode(frames[0]!));
+                  const timeout = setTimeout(firstPreview.resolve, 1_000);
+                  await firstPreview.promise;
+                  clearTimeout(timeout);
+                  controller.enqueue(encoder.encode(frames.slice(1).join("")));
+                  controller.close();
+                },
+              }) : frames.join(""),
               { headers: { "content-type": "text/event-stream" } }
             );
           }) as typeof fetch,
@@ -153,6 +181,15 @@ for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true },
         endTurnRequested: false,
         initialUserStarted: false,
         initialUserClientId: "fixture-user",
+        startedItems: new Set(),
+        toolArgs: new Map(),
+        assistantOrdinal: 0,
+        ...(streaming ? {
+          replyPreview: new ReplyPreviewPublisher(async (_callId, content) => {
+            previewUpdates.push({ content, deliveries: sent.length });
+            firstPreview.resolve();
+          }),
+        } : {}),
         queue: { push: (event: any) => acknowledged.push(event) },
       } as unknown as ActiveTurn;
       const sessions = join(root, "sessions");
@@ -167,11 +204,17 @@ for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true },
       );
       active.session = session!;
       internals.activeByRun.set(active.runId, active);
+      if (streaming) {
+        const richReply = toolHost.customTools(active).find(tool => tool.name === RICH_REPLY_TOOL)!;
+        await expect(richReply.execute("plain-rich", { type: "text", content: "Plain reply" },
+          undefined, undefined, {} as never)).rejects.toThrow("Use SendToUser");
+      }
       session!.subscribe((event) => {
         if (event.type === "message_end" && event.message.role === "user") {
           expect(readFileSync(manager.getSessionFile()!, "utf8")).toContain("Read the result");
-          internals.routeEvent(active, event);
         }
+        if (streaming || event.type === "message_end" && event.message.role === "user")
+          internals.routeEvent(active, event);
       });
       internals.bindTurnStop(active, session!);
       await session!.sendCustomMessage(
@@ -197,6 +240,14 @@ for (const { handoff, batch = false } of [{ handoff: false }, { handoff: true },
         await expect(shell.execute("too-late", { command: "false" }, undefined, undefined, {} as never)).rejects.toThrow("turn has ended");
       }
       const payload = requests[0];
+      if (streaming) {
+        const tool = payload.tools.find((entry: any) => entry.function.name === "SendToUser");
+        expect(Object.keys(tool.function.parameters.properties)).toEqual(["content", "end_turn", "type"]);
+        expect(payload.tools.find((entry: any) => entry.function.name === RICH_REPLY_TOOL).function.parameters.properties)
+          .toHaveProperty("channel");
+        expect(previewUpdates[0]).toEqual({ content: "Fixture", deliveries: 0 });
+        expect(sent[0]).toMatchObject({ tool: "SendToUser", arguments: { content: "Fixture result" } });
+      }
       expect(payload.messages[0].content).toContain("System fixture: verified instructions");
       const messages = payload.messages.filter((message: any) => message.role === "user");
       expect(JSON.stringify(messages)).toContain("A background job completed.");

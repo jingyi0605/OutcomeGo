@@ -3,6 +3,7 @@ import {
   isManagedDraftWake,
   isTreatmentDraftWake,
   publishMessageNotification,
+  readFeatureSettings,
   turnOwesReplyReminder,
   turnSystemReminder,
   withTurnSystemReminder,
@@ -1875,6 +1876,17 @@ export class WakeWorker {
         ? triggeringMessage.metadata as Record<string, unknown>
         : null;
       const voiceTurn = Boolean(triggeringMetadata?.voice && typeof triggeringMetadata.voice === "object" && !Array.isArray(triggeringMetadata.voice));
+      const streamReply = !voiceTurn && claimed.origin === "user" && claimed.runtimeProfile === "agent" &&
+        triggeringMessage && !triggeringMetadata?.branched &&
+        (await readFeatureSettings(this.prisma)).streamBotReplies &&
+        !!(await this.prisma.channel.findFirst({
+          where: { id: claimed.channelId, kind: "bot_dm", directKey: `bot:${claimed.botId}`, archivedAt: null },
+          select: { id: true },
+        })) &&
+        !(await this.prisma.externalMessageReceipt.findFirst({
+          where: { runId: claimed.runId, status: "accepted", mappingId: { not: null } },
+          select: { id: true },
+        }));
       const voicePrompt = voiceTurn ? [{ id: `${claimed.clientId}:voice`, content: claimed.deliveryId ? voiceTurnPrompt + voiceRoomPrompt : voiceTurnPrompt }] : [];
       // Spoken progress uses the configured narration model, or the bot's own model, with reasoning off: at the lowest
       // level some models still spend the whole token budget thinking and return no text.
@@ -1951,6 +1963,7 @@ export class WakeWorker {
           : {}),
         // A turn in a voice-call room: no narrator, but each sentence of the reply is spoken as it is written.
         ...(voiceTurn && claimed.deliveryId && !claimed.subagentType ? { voiceSpeech: true as const } : {}),
+        ...(streamReply ? { replyPreviewAttempt: claimed.attempt } : {}),
         fileAttachments: claimed.fileAttachments,
         attachmentOwnerBotId: claimed.attachmentOwnerBotId,
         dynamicNamespaces: pluginContext.dynamicNamespaces,

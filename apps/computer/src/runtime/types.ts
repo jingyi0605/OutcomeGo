@@ -130,6 +130,7 @@ export interface ActiveTurn {
   narrator?: import("./voice-narration").VoiceNarrator;
   /** Realtime voice turns only: speaks SendToUser sentences while the model is still writing them. */
   speech?: import("./voice-stream").SendToUserSpeech;
+  replyPreview?: import("./reply-preview").ReplyPreviewPublisher;
   /** Stopped through the cancel-run API (the user's stop or StopSubagent): the turn settles as cancelled. */
   stopped?: boolean;
 }

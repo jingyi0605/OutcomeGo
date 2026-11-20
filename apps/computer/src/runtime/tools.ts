@@ -12,6 +12,8 @@ import { applyArgumentAliases, normalizeMainToolArguments } from "@outcomego/con
 import { onlyPendingBackgroundWork } from "./background-status";
 import { observeShellAwait, recordBackgroundShell } from "./background-shells";
 import { markDelivered } from "./events";
+import { REPLY_PREVIEW_CONTROL } from "@outcomego/contracts";
+import { RICH_REPLY_TOOL } from "./reply-preview";
 import { spoolFile } from "@outcomego/plugin-sdk/file-spool";
 import { agentReadStream, agentWriteStream } from "../agent-file-stream";
 import { stageAttachment } from "../attachment-staging";
@@ -316,7 +318,7 @@ export const workerTopLevelTools = (
 
 /** The reference's order for directly callable tools (its tool builders' order); others keep their place after these. */
 const DIRECT_TOOL_ORDER = [
-  WAKE_PARENT_TOOL.name, SEND_TO_USER_TOOL.name, REACT_TO_MESSAGE_TOOL.name, "ListSections", "RecallMemory",
+  WAKE_PARENT_TOOL.name, SEND_TO_USER_TOOL.name, RICH_REPLY_TOOL, REACT_TO_MESSAGE_TOOL.name, "ListSections", "RecallMemory",
   UPDATE_MEMORY_TOOL.name, UPDATE_ROUTINE_TOOL.name, "WebSearch", "WebFetch", SHELL_TOOL.name, READ_TOOL.name,
   "AwaitShell", SCREENSHOT_TOOL.name, GET_DYNAMIC_TOOLS_TOOL.name, CALL_DYNAMIC_TOOL_TOOL.name,
 ];
@@ -735,7 +737,8 @@ export class RuntimeTools {
     if (active.subagentType === "videoReview" || active.subagentType === "watchVideo") return [];
     const native = (
       tool: (typeof NATIVE_TOOLS)[number],
-      description: string = tool.description
+      description: string = tool.description,
+      name: string = tool.name
     ) => {
       if (tool.name === "Task") {
         tool = { ...tool, ...taskToolContract(active.taskConfiguration) };
@@ -749,8 +752,8 @@ export class RuntimeTools {
         );
       const visibleDescription = description;
       return defineTool({
-        name: tool.name,
-        label: tool.name,
+        name,
+        label: name,
         description: visibleDescription,
         parameters: Type.Unsafe<Record<string, unknown>>(
           tool.name === "Task" && active.pluginRuntimePackages?.some((pkg) => pkg.agents.length)
@@ -768,8 +771,15 @@ export class RuntimeTools {
         ),
         // Every call starts as soon as the response ends, as in the reference; sends keep call order (below).
         executionMode: "parallel",
-        execute: (callId: string, args: unknown, signal?: AbortSignal) =>
-          this.executeOutcomeGoTool(active, callId, tool.name, args, signal),
+        execute: async (callId: string, args: unknown, signal?: AbortSignal) => {
+          if (name === RICH_REPLY_TOOL) {
+            const input = args as { type?: unknown; images?: unknown[]; reply_to?: unknown; channel?: unknown; to?: unknown } | null;
+            if ((input?.type ?? "text") === "text" && !input?.images?.length &&
+                !input?.reply_to && !input?.channel && !input?.to)
+              throw new Error("Use SendToUser for ordinary text and Markdown in this chat.");
+          }
+          return this.executeOutcomeGoTool(active, callId, tool.name, args, signal);
+        },
       });
     };
     const workerNativeTools = NATIVE_TOOLS.filter(
@@ -846,8 +856,39 @@ export class RuntimeTools {
         (active.requestSource !== "automation" || !AUTOMATION_PARENT_ONLY_TOOLS.has(tool.name)) &&
         (!active.subagentType || !SUBAGENT_PRIVATE_NATIVE_TOOLS.has(tool.name))
     );
+    const streamingReply = () => defineTool({
+      name: SEND_TO_USER_TOOL.name,
+      label: SEND_TO_USER_TOOL.name,
+      description: `Stream a text or Markdown reply in this chat. Use this for acknowledgements and final text replies. Set end_turn to true when the reply is complete. Use ${RICH_REPLY_TOOL} for images, attachments, cards, quoted replies, or other destinations.`,
+      parameters: Type.Object({
+        content: Type.String({ minLength: 1 }),
+        end_turn: Type.Optional(Type.Boolean()),
+        type: Type.Optional(Type.Literal("text")),
+      }, { additionalProperties: false }),
+      executionMode: "parallel",
+      execute: async (callId, args, signal) => {
+        let sent = false;
+        active.replyPreview?.finish(callId, false);
+        try {
+          const result = await this.executeOutcomeGoTool(active, callId, SEND_TO_USER_TOOL.name, {
+            type: "text", content: args.content, end_turn: args.end_turn,
+          }, signal);
+          sent = result.details?.isError !== true;
+          return result;
+        } finally {
+          if (!sent) active.replyPreview?.finish(callId, true);
+        }
+      },
+    });
     return [
-      ...availableNativeTools.map((tool) => native(tool)),
+      ...availableNativeTools.flatMap(tool =>
+        active.replyPreview && tool.name === SEND_TO_USER_TOOL.name
+          ? [
+              streamingReply(),
+              native(tool, `Use this for cards, media, quoted replies, or a different destination. Use SendToUser for ordinary text and Markdown in this chat. ${tool.description}`, RICH_REPLY_TOOL),
+            ]
+          : [native(tool)]
+      ),
       ...topLevelTools(),
     ].sort((a, b) => directToolRank(a.name) - directToolRank(b.name));
   }
@@ -1446,6 +1487,15 @@ export class RuntimeTools {
   /** Persists one spoken progress line; the server queues it behind any answer already speaking. */
   async narrate(active: ActiveTurn, text: string): Promise<void> {
     await this.privateControl(active, `narration:${crypto.randomUUID()}`, "VoiceNarration", { text }, AbortSignal.timeout(10_000));
+  }
+
+  async publishReplyPreview(active: ActiveTurn, attempt: number, callId: string, content: string | null): Promise<boolean> {
+    const timeout = AbortSignal.timeout(2_000);
+    const signal = content !== null && active.pluginAbortController
+      ? AbortSignal.any([timeout, active.pluginAbortController.signal])
+      : timeout;
+    const result = await this.privateControl(active, `preview:${callId}`, REPLY_PREVIEW_CONTROL, { attempt, callId, content }, signal);
+    return result.published === true;
   }
 
   private async privateControl(

@@ -1,4 +1,5 @@
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import { SEND_TO_USER_TOOL } from "@outcomego/contracts";
 import { existsSync } from "node:fs";
 import type { BotAgentStore } from "../bot-agent-store";
 import { safeToolResult, textFromContent, thinkingFromContent, toolItem } from "./content";
@@ -79,6 +80,12 @@ export function routeEvent(
 
   if (event.type === "message_update") {
     const update = event.assistantMessageEvent;
+    if (active.replyPreview && !active.endTurnRequested && update.type === "toolcall_delta") {
+      const block = update.partial.content[update.contentIndex];
+      const firstCall = update.partial.content.findIndex(part => part.type === "toolCall");
+      if (firstCall === update.contentIndex && block?.type === "toolCall" && block.name === SEND_TO_USER_TOOL.name)
+        active.replyPreview.observe(block.id, block.arguments?.content);
+    }
     if (update.type === "text_delta" && active.currentAssistantId) {
       startAgentMessage(active, active.currentAssistantId);
       active.queue.push({
@@ -107,6 +114,7 @@ export function routeEvent(
       return;
     }
     if (message.role !== "assistant") return;
+    if (message.stopReason === "error" || message.stopReason === "aborted") active.replyPreview?.stop(true);
     // Capture the response's calls before any executes. A send that ends the
     // turn still runs the calls emitted with it, once each; later responses get none.
     active.pendingResponseCalls = new Map();
