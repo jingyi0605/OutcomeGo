@@ -1,4 +1,5 @@
 import { useDayClock } from "../../hooks/use-day-clock";
+import { useReplyPreview } from "../../hooks/use-reply-preview";
 import { isOutcomeUpdateCardMetadata } from "@outcomego/contracts/outcome-chat-card";
 import { ResourceActivityProvider } from "../../hooks/resource-activity";
 import { ThinkingCaption } from "./thinking-caption";
@@ -38,7 +39,6 @@ import {
   messageDisplayProjection,
   messageMetadata,
   messageReactionPills,
-  messageRenderKey,
   messageSenderLabel,
   ownReactionEmojiSet,
   projectOutgoingMessages,
@@ -310,16 +310,24 @@ const appendThinkingIndicatorToGroup = (
   return position;
 };
 
-const useThinkingPresence = (active: boolean, exitMs = THINKING_EXIT_MS): ThinkingPhase => {
+const useThinkingPresence = (
+  active: boolean,
+  exitMs: number,
+  suppressed = false
+): ThinkingPhase => {
   const [phase, setPhase] = useState<ThinkingPhase>(active ? "visible" : "hidden");
 
   useEffect(() => {
+    if (suppressed) {
+      setPhase("hidden");
+      return;
+    }
     if (active) {
       setPhase("visible");
       return;
     }
     setPhase((current) => (current === "visible" ? "exiting" : current));
-  }, [active]);
+  }, [active, suppressed]);
 
   useEffect(() => {
     if (phase !== "exiting") return;
@@ -329,7 +337,7 @@ const useThinkingPresence = (active: boolean, exitMs = THINKING_EXIT_MS): Thinki
     return () => window.clearTimeout(timer);
   }, [exitMs, phase]);
 
-  return active ? "visible" : phase;
+  return suppressed ? "hidden" : active ? "visible" : phase;
 };
 
 interface MessageTimelineEntry {
@@ -340,7 +348,10 @@ interface MessageTimelineEntry {
   animateEntrance: boolean;
   pending: boolean;
   delivery: DurableSendRecord | null;
+  streaming?: boolean;
 }
+
+const streamedReplyKey = (runId: string, clientId: string) => `reply:${runId}:${clientId}`;
 
 const messageImages = (message: ChannelMessageView) =>
   messageAssets(message)
@@ -383,6 +394,7 @@ const MessageRow = memo(function MessageRow({
   entranceKey,
   onConsumeEntrance,
   pending,
+  streaming,
   delivery,
   sendingSinceMs,
   onCancelSend,
@@ -410,6 +422,7 @@ const MessageRow = memo(function MessageRow({
   entranceKey: string;
   onConsumeEntrance: (key: string) => void;
   pending: boolean;
+  streaming?: boolean;
   delivery: DurableSendRecord | null;
   sendingSinceMs: number | null;
   onCancelSend: (nonce: string) => Promise<void>;
@@ -587,13 +600,14 @@ const MessageRow = memo(function MessageRow({
   );
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
+      <ContextMenuTrigger asChild disabled={streaming}>
         <Message
           className={`group/message${separatedFromPrevious && !hasAgentGutter ? " mt-3" : ""}`}
           data-group-author={hasAgentGutter || undefined}
           data-enter={entranceActive ? "new" : undefined}
           data-message-address={channelMessageAddress(message)}
           data-message-id={message.id}
+          data-reply-preview={streaming ? "" : undefined}
           data-failed={delivery?.phase === "failed" || undefined}
           data-pending={pending || undefined}
           aria-busy={pending || undefined}
@@ -739,10 +753,12 @@ const MessageRow = memo(function MessageRow({
                     data-message-bubble-id={message.id}
                     from={from}
                   >
-                    <MessageResponse>{message.content}</MessageResponse>
+                    <ResourceActivityProvider active={!streaming}>
+                      <MessageResponse streaming={streaming}>{message.content}</MessageResponse>
+                    </ResourceActivityProvider>
                   </MessageContent>
                 )}
-                {!actionsBesideCaption && actions}
+                {!streaming && !actionsBesideCaption && actions}
               </div>
             </div>
           </div>
@@ -1117,6 +1133,14 @@ export const ChatPane = memo(function ChatPane({
   // Rows measured then (a bootstrap preview) would keep stale heights and jump
   // the transcript once the real page renders around them.
   const messages = initialHistoryPending ? EMPTY_PANE_MESSAGES : loadedMessages;
+  const preview = useReplyPreview(
+    active && channel.kind === "bot_dm" && historyMode === "latest" && !hasNewerGap ? channel.id : null
+  );
+  const visiblePreview = preview && !initialHistoryPending && !messages.some(message =>
+    message.sourceRunId === preview.runId && message.clientId === preview.clientId
+  ) ? preview : null;
+  const lastPreviewKey = useRef<string | null>(null);
+  if (visiblePreview) lastPreviewKey.current = streamedReplyKey(visiblePreview.runId, visiblePreview.clientId);
   // Keep the arrival boundary for this visit even after the read receipt is
   // acknowledged. Warm, inactive panes capture a fresh boundary on re-entry.
   const unreadVisit = useRef<{ channelId: string; active: boolean; through: string | null }>({
@@ -1357,7 +1381,10 @@ export const ChatPane = memo(function ChatPane({
     const ordered: MessageTimelineEntry[] = mainMessageRecords.map(
       ({ animateEntrance, delivery, message, pending, renderKey }): MessageTimelineEntry => ({
         type: "message" as const,
-        id: renderKey,
+        id: channel.kind === "bot_dm" && message.sender === "agent" &&
+          message.sourceRunId && message.clientId?.startsWith("tool:")
+          ? streamedReplyKey(message.sourceRunId, message.clientId)
+          : renderKey,
         createdAt: message.createdAt,
         message,
         animateEntrance,
@@ -1591,6 +1618,14 @@ export const ChatPane = memo(function ChatPane({
       ),
     [channel.id, channel.kind, selectedBot?.id, subagents]
   );
+  const latestMessage = mainMessages.at(-1);
+  const latestMessageWasStreamed = Boolean(
+    latestMessage?.sourceRunId && latestMessage.clientId &&
+    lastPreviewKey.current === streamedReplyKey(latestMessage.sourceRunId, latestMessage.clientId)
+  );
+  const finishingStream = latestMessageWasStreamed && activeRun &&
+    latestMessage?.sourceRunId === activeRun.id && messageMetadata(latestMessage).end_turn === true;
+  const suppressThinking = Boolean(visiblePreview) || finishingStream;
   const wantsThinkingIndicator = groupActivity
     ? groupActivity.workers.length + groupActivity.readers.length > 0
     : Boolean(
@@ -1601,10 +1636,11 @@ export const ChatPane = memo(function ChatPane({
   // Only its appearance waits; an indicator already showing stays put.
   const thinkingShownRef = useRef(false);
   const showThinkingIndicator =
-    wantsThinkingIndicator && (!transcriptBehind || thinkingShownRef.current);
+    !suppressThinking && wantsThinkingIndicator && (!transcriptBehind || thinkingShownRef.current);
   const thinkingPhase = useThinkingPresence(
     showThinkingIndicator,
-    channel.kind === "group" ? 160 : THINKING_EXIT_MS
+    channel.kind === "group" ? 160 : THINKING_EXIT_MS,
+    suppressThinking
   );
   useEffect(() => {
     thinkingShownRef.current = thinkingPhase !== "hidden";
@@ -1635,7 +1671,33 @@ export const ChatPane = memo(function ChatPane({
       : 0;
   const renderedTimeline = useMemo(() => {
     const transcriptTimeline = timeline;
-    if (thinkingPhase === "hidden") return transcriptTimeline;
+    if (visiblePreview) {
+      const id = streamedReplyKey(visiblePreview.runId, visiblePreview.clientId);
+      const createdAt = activeRun?.createdAt ?? transcriptTimeline.at(-1)?.createdAt ?? channel.createdAt;
+      const entry: MessageTimelineEntry = {
+        type: "message",
+        id,
+        createdAt,
+        message: {
+          id,
+          clientId: visiblePreview.clientId,
+          sequence: "",
+          channelId: channel.id,
+          sender: "agent",
+          senderBotId: selectedBot?.id ?? null,
+          sourceRunId: visiblePreview.runId,
+          content: visiblePreview.content,
+          metadata: {},
+          createdAt,
+        },
+        animateEntrance: false,
+        pending: false,
+        delivery: null,
+        streaming: true,
+      };
+      return [...transcriptTimeline, entry];
+    }
+    if (!thinkingMounted) return transcriptTimeline;
     return [
       ...transcriptTimeline,
       {
@@ -1647,9 +1709,13 @@ export const ChatPane = memo(function ChatPane({
         bot: activeRun ? botById.get(activeRun.botId) : selectedBot,
       },
     ];
-  }, [activeRun, botById, channel.createdAt, selectedBot, thinkingPhase, timeline]);
+  }, [activeRun, botById, channel.createdAt, channel.id, selectedBot, thinkingMounted, thinkingPhase, timeline, visiblePreview]);
+  const latestEntry = renderedTimeline.at(-1);
+  const messageGroups = latestEntry?.type === "message" && latestEntry.streaming
+    ? [...mainMessages, latestEntry.message]
+    : mainMessages;
   const timelineMessageIds = useCallback((entry: (typeof renderedTimeline)[number]) => {
-    if (entry.type === "message") return [entry.message.id];
+    if (entry.type === "message") return entry.streaming ? [] : [entry.message.id];
     if (entry.type === "a2a" || entry.type === "voice")
       return entry.entries.map((candidate) => candidate.message.id);
     return [];
@@ -1761,7 +1827,7 @@ export const ChatPane = memo(function ChatPane({
                           {t("NEW")}
                         </div>
                       )}
-                      {entry.type !== "thinking" &&
+                      {entry.type !== "thinking" && !(entry.type === "message" && entry.streaming) &&
                         shouldShowIdleGapTimestamp(
                           renderedTimeline[index - 1]?.createdAt,
                           entry.createdAt
@@ -1778,7 +1844,9 @@ export const ChatPane = memo(function ChatPane({
                           </div>
                         )}
                       <TimestampedEntry
-                        createdAt={entry.type === "thinking" ? undefined : entry.createdAt}
+                        createdAt={entry.type === "thinking" || (entry.type === "message" && entry.streaming)
+                          ? undefined
+                          : entry.createdAt}
                         from={
                           entry.type === "message" && entry.message.sender === "user"
                             ? "user"
@@ -1827,18 +1895,21 @@ export const ChatPane = memo(function ChatPane({
                         ) : (
                           <MessageRow
                             animateEntrance={
-                              entry.animateEntrance && !consumedEntrances.current.has(entry.id)
+                              entry.animateEntrance && !consumedEntrances.current.has(entry.id) &&
+                              entry.id !== lastPreviewKey.current
                             }
                             entranceKey={entry.id}
                             onConsumeEntrance={consumeEntrance}
                             canInteract={
                               canSend &&
+                              !entry.streaming &&
                               !entry.pending &&
                               entry.delivery?.phase !== "failed" &&
                               entry.message.sender !== "system"
                             }
                             canReply={
                               canSend &&
+                              !entry.streaming &&
                               !entry.pending &&
                               entry.delivery?.phase !== "failed" &&
                               (entry.message.sender !== "system" ||
@@ -1847,8 +1918,8 @@ export const ChatPane = memo(function ChatPane({
                             channel={channel}
                             groupPosition={appendThinkingIndicatorToGroup(
                               getMessageGroupPosition(
-                                mainMessages,
-                                mainMessageIndexById.get(entry.message.id) ?? -1,
+                                messageGroups,
+                                entry.streaming ? mainMessages.length : (mainMessageIndexById.get(entry.message.id) ?? -1),
                                 unreadMessageId
                               ),
                               (() => {
@@ -1872,6 +1943,7 @@ export const ChatPane = memo(function ChatPane({
                                 : null
                             }
                             pending={entry.pending}
+                            streaming={entry.streaming}
                             onCancelSend={cancelDurableSend}
                             onDeleteSend={deleteDurableSend}
                             onReact={reactToMessage}
@@ -1937,6 +2009,8 @@ export const ChatPane = memo(function ChatPane({
             messageCount={renderedTimeline.length}
             onAtBottomChange={onViewportAtBottomChange}
             onScrollToNewest={onScrollToNewest}
+            streamingReply={Boolean(visiblePreview)}
+            latestMessageWasStreamed={latestMessageWasStreamed}
             trackNewMessages={historyMode === "latest"}
           />
         </Conversation>

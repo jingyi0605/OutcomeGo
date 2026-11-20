@@ -355,6 +355,7 @@ export const sourceTranslations: Record<string, string> = {
   "Capture an idea": "记录想法",
   Features: "功能",
   "Enable goal management for bots": "为机器人启用目标管理功能",
+  "Stream bot replies": "流式显示机器人回复",
   "Shows the Outcomes entry and the idea capture button, and lets your bots register and manage goals in conversation.":
     "开启后显示目标入口和记录想法按钮，并允许机器人在对话中登记和管理目标。",
   "Enable bot floating window": "启用机器人浮窗",

@@ -887,6 +887,17 @@ textarea,
   white-space: normal;
 }
 
+@keyframes sd-fadeIn {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .streaming-reply [data-sd-animate] {
+    animation: var(--sd-animation, sd-fadeIn) var(--sd-duration, 140ms) var(--sd-easing, ease-out) var(--sd-delay, 0ms) both;
+  }
+}
+
 .settings-anchor-target {
   animation: settings-anchor-pulse 1.8s ease-out;
 }

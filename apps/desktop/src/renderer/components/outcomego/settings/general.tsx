@@ -86,6 +86,7 @@ export function FeatureSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const goalLabel = t("Enable goal management for bots");
+  const streamLabel = t("Stream bot replies");
   return (
     <>
       <SectionLabel>{t("Features")}</SectionLabel>
@@ -105,6 +106,24 @@ export function FeatureSettings() {
                 setError(null);
                 features
                   .update({ outcomesEnabled: value })
+                  .catch(() => setError(t("Couldn't save this setting. Try again.")))
+                  .finally(() => setSaving(false));
+              }}
+            />
+          }
+        />
+        <SettingsRow
+          title={streamLabel}
+          control={
+            <InteractiveSwitch
+              label={streamLabel}
+              checked={features.streamBotReplies}
+              disabled={!features.loaded || saving}
+              onChange={(value) => {
+                setSaving(true);
+                setError(null);
+                features
+                  .update({ streamBotReplies: value })
                   .catch(() => setError(t("Couldn't save this setting. Try again.")))
                   .finally(() => setSaving(false));
               }}

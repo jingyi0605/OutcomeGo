@@ -9,15 +9,17 @@ interface FeatureState extends FeatureSettingsView {
   /** The last read failed (for example the server could not be reached), so "off" is only a default. */
   failed: boolean;
 }
-const OFF: FeatureState = { outcomesEnabled: false, loaded: false, failed: false };
+const OFF: FeatureState = { outcomesEnabled: false, streamBotReplies: false, loaded: false, failed: false };
 
 let current: FeatureState = OFF;
 let loading: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
 const publish = (next: FeatureSettingsView) => {
-  if (current.loaded && next.outcomesEnabled === current.outcomesEnabled) return;
-  current = { outcomesEnabled: next.outcomesEnabled, loaded: true, failed: false };
+  const streamBotReplies = next.streamBotReplies === true;
+  if (current.loaded && !current.failed && next.outcomesEnabled === current.outcomesEnabled &&
+      streamBotReplies === current.streamBotReplies) return;
+  current = { outcomesEnabled: next.outcomesEnabled, streamBotReplies, loaded: true, failed: false };
   for (const listener of listeners) listener();
 };
 

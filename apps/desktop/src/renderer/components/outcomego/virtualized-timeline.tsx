@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 import {
   isConversationGliding,
+  isConversationReplyFollowPaused,
   registerConversationViewportSync,
 } from "../ai-elements/conversation";
 import { type InitialVirtualScroll, useVirtualWindow } from "../../hooks/use-virtual-window";
@@ -130,8 +131,9 @@ export function VirtualizedTimeline<T extends { id: string; type: string }>({
   }, [initialScroll, stopScroll]);
   // A glide animates toward the end itself; snapping there would skip it.
   const followEnd = useCallback(
-    () => state.isAtBottom && !pendingScrollAnchor.current && !isConversationGliding(state),
-    [state]
+    () => state.isAtBottom && !pendingScrollAnchor.current &&
+      !isConversationGliding(state) && !isConversationReplyFollowPaused(scrollRef.current),
+    [scrollRef, state]
   );
   const getMeasurementVersion = useCallback(
     (index: number) => {
