@@ -1814,9 +1814,8 @@ export class WakeWorker {
     }, 30_000);
     let completion: Extract<ComputerEvent, { type: "turn.completed" }> | null = null;
     try {
-      await this.reconcileContextState(claimed);
       const skillAgent = pluginSkillAgent(claimed.runtimeProfile, claimed.subagentType);
-      const [pluginContext, inference, configuredTasks] = await Promise.all([
+      const [pluginContext, inference, configuredTasks, capabilities] = await Promise.all([
         subagentLoadsPluginContext(claimed.subagentType)
           ? pluginRuntimeContext(this.prisma, claimed.pluginBotId, skillAgent)
           : pluginSkillInstructions(this.prisma, claimed.pluginBotId, skillAgent).then((skillInstructions) => ({
@@ -1824,11 +1823,9 @@ export class WakeWorker {
             })),
         this.agentData.loadInferenceSettings(),
         this.agentData.loadTaskConfiguration(),
+        this.loadTaskCapabilities(),
+        this.reconcileContextState(claimed),
       ]);
-      const capabilityResponse = await this.computerFetch("/v1/task-capabilities", { method: "GET" });
-      if (!capabilityResponse.ok) throw new Error("Could not determine Task computer capabilities");
-      const capabilities = await capabilityResponse.json() as TaskCapabilities;
-      if (typeof capabilities.desktopAvailable !== "boolean" || typeof capabilities.boxAvailable !== "boolean") throw new Error("Invalid Task computer capabilities");
       const taskConfiguration = selectTaskConfiguration(claimed.taskConfiguration ?? configuredTasks, capabilities);
       // Plugin skills are global/read-only inputs. User workflows are rendered
       // later by platformInstructions and therefore win on conflict.
@@ -2095,6 +2092,16 @@ export class WakeWorker {
     if (!(await this.projection.apply(claimed.runId, claimed.conversationId, claimed.botId, event, claimed))) {
       throw new Error("Wake attempt was superseded during context reconciliation");
     }
+  }
+
+  private async loadTaskCapabilities(): Promise<TaskCapabilities> {
+    const response = await this.computerFetch("/v1/task-capabilities", { method: "GET" });
+    if (!response.ok) throw new Error("Could not determine Task computer capabilities");
+    const capabilities = await response.json() as TaskCapabilities;
+    if (typeof capabilities.desktopAvailable !== "boolean" || typeof capabilities.boxAvailable !== "boolean") {
+      throw new Error("Invalid Task computer capabilities");
+    }
+    return capabilities;
   }
 
   private async heartbeat(claimed: Claimed): Promise<void> {
