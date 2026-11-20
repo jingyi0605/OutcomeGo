@@ -927,6 +927,8 @@ model Run {
   startedAt DateTime?
   memoryReviewPending Boolean @default(false)
   memoryReviewRevision Int?
+  // Background commands this turn started still owe a result to a later turn.
+  backgroundWorkPending Boolean @default(false)
   completedAt DateTime?
   messages       Message[]    @relation("RunMessages")
   visibleMessages ChannelMessage[] @relation("VisibleRunMessage")

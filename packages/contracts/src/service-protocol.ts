@@ -146,6 +146,8 @@ export const parseComputerEvent = (value: unknown): ComputerEvent => {
     case "turn.completed":
       requiredString(value.turnId, "turnId");
       requiredString(value.status, "status");
+      if (value.backgroundWorkPending !== undefined && typeof value.backgroundWorkPending !== "boolean")
+        throw new Error("backgroundWorkPending must be a boolean");
       break;
     default:
       throw new Error(`Unsupported computer event: ${type}`);

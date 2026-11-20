@@ -1690,7 +1690,14 @@ export type ComputerEvent =
       message: string;
       retrying: boolean;
     }
-  | { type: "turn.completed"; turnId: string; status: string; error?: unknown };
+  | {
+      type: "turn.completed";
+      turnId: string;
+      status: string;
+      error?: unknown;
+      /** Background commands started by this turn are still owed; their completion wakes a later turn. */
+      backgroundWorkPending?: boolean;
+    };
 
 export interface BotView {
   id: string;
