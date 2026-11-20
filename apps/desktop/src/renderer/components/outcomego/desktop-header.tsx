@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   ChevronLeft,
   ChevronsRight,
+  ClipboardList,
   Info,
   MessageCircle,
   Monitor,
@@ -30,6 +31,7 @@ export function DesktopHeader({
   selectedBot,
   liveVoice,
   onDetailsOpenChange,
+  onOpenGroupTasks,
   onShowSettings,
   onShowSummary,
 }: {
@@ -48,6 +50,7 @@ export function DesktopHeader({
   selectedBot?: BotView;
   liveVoice?: ReactNode;
   onDetailsOpenChange: (open: boolean) => void;
+  onOpenGroupTasks?: () => void;
   onShowSettings: () => void;
   onShowSummary: () => void;
 }) {
@@ -179,6 +182,25 @@ export function DesktopHeader({
           {liveVoice ? (
             <div className="pointer-events-auto mr-[2.5px] flex h-full shrink-0 items-center">
               {liveVoice}
+            </div>
+          ) : null}
+
+          {selected.kind === "group" && onOpenGroupTasks ? (
+            <div className="pointer-events-auto mr-[2.5px] flex h-full shrink-0 items-center px-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={t("Tasks")}
+                    className="rounded-full text-foreground-tertiary"
+                    onClick={onOpenGroupTasks}
+                    size="icon-sm"
+                    variant="ghost"
+                  >
+                    <ClipboardList className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("Tasks")}</TooltipContent>
+              </Tooltip>
             </div>
           ) : null}
 

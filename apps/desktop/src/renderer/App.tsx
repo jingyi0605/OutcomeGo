@@ -147,6 +147,11 @@ const LiveVoiceLayer = lazy(() =>
     default: module.LiveVoiceLayer,
   }))
 );
+const GroupTasksBottomSheet = lazy(() =>
+  import("./components/outcomego/group-tasks-bottom-sheet").then((module) => ({
+    default: module.GroupTasksBottomSheet,
+  }))
+);
 const SettingsPanel = lazy(async () => {
   const [module] = await Promise.all([
     import("./components/outcomego/settings/panel"),
@@ -312,6 +317,7 @@ export default function App() {
   const a2aExchangeTrigger = useRef<HTMLElement | null>(null);
   const restoreA2AFocusAfterClose = useRef(false);
   const lastWritableChannelId = useRef<string | null>(null);
+  const [groupTasksOpen, setGroupTasksOpen] = useState(false);
   const a2aPerspectiveBotId = useRef<string | null>(null);
   const [pendingBot, setPendingBot] = useState<{
     name: string;
@@ -1583,6 +1589,9 @@ export default function App() {
                     if (open) setInspectorMode("summary");
                     setDetailsOpen(open);
                   }}
+                  onOpenGroupTasks={
+                    selected?.kind === "group" ? () => setGroupTasksOpen(true) : undefined
+                  }
                   onShowSettings={() => setInspectorMode("settings")}
                   onShowSummary={() =>
                     setInspectorMode(inspectorMode === "routine" ? routineReturnMode : "summary")
@@ -2052,6 +2061,15 @@ export default function App() {
                 bot={asyncTasksBot}
                 onClose={() => setAsyncTasksBotId(null)}
                 tasks={asyncTasks}
+              />
+            </Suspense>
+          )}
+          {selected?.kind === "group" && (
+            <Suspense fallback={null}>
+              <GroupTasksBottomSheet
+                channelId={selected.id}
+                open={groupTasksOpen}
+                onOpenChange={setGroupTasksOpen}
               />
             </Suspense>
           )}
