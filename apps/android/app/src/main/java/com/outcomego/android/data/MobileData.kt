@@ -160,6 +160,10 @@ data class SidebarPreferences(
         )
 }
 
+data class ReplyPreview(val runId: String, val clientId: String, val content: String)
+
+data class ReplyPreviewSnapshot(val revision: String, val preview: ReplyPreview?)
+
 data class ChatMessage(
     val id: String,
     val author: String,

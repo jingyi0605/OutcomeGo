@@ -74,12 +74,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.outcomego.android.R
 import com.outcomego.android.data.ChannelActivity
 import com.outcomego.android.data.ChatHistoryPage
 import com.outcomego.android.data.ChatMessage
 import com.outcomego.android.data.ChatRow
 import com.outcomego.android.data.Conversation
+import com.outcomego.android.data.ReplyPreview
+import com.outcomego.android.data.ReplyPreviewSnapshot
 import com.outcomego.android.data.toChatRows
 import com.outcomego.android.ui.ChatContextSummary
 import com.outcomego.android.ui.designsystem.GlassTier
@@ -102,6 +107,11 @@ import com.outcomego.features.localizedText
 import com.outcomego.platform.AndroidLiveVoiceSnapshot
 import com.outcomego.platform.AndroidLiveVoiceState
 import com.outcomego.platform.VoiceRecordingState
+import com.outcomego.mobile.core.OutcomeGoRequestException
+import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 
@@ -109,6 +119,7 @@ import kotlinx.coroutines.flow.drop
 @Composable
 internal fun ChatScreen(
     conversationId: String,
+    pollReplyPreview: suspend (String, String) -> ReplyPreviewSnapshot,
     accountName: String,
     title: String,
     messages: List<ChatMessage>,
@@ -168,21 +179,96 @@ internal fun ChatScreen(
         messages.toChatRows(collapseAgentExchanges = bot?.isBot == true)
     }
     var openedAgentExchange by remember(conversationId) { mutableStateOf<ChatRow.AgentExchange?>(null) }
+    var replyPreview by remember(conversationId) { mutableStateOf<ReplyPreview?>(null) }
+    var lastPreviewKey by remember(conversationId) { mutableStateOf<String?>(null) }
+    val currentPreviewPoll by rememberUpdatedState(pollReplyPreview)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val previewsVisible = bot?.isBot == true && targetMessageId == null && openedAgentExchange == null
+    LaunchedEffect(conversationId, previewsVisible, lifecycle) {
+        if (!previewsVisible) return@LaunchedEffect
+        lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            var revision = ""
+            try {
+                while (true) {
+                    try {
+                        val next = currentPreviewPoll(conversationId, revision)
+                        ensureActive()
+                        if (revision != next.revision) {
+                            replyPreview = next.preview
+                            next.preview?.let { lastPreviewKey = streamedReplyKey(it.runId, it.clientId) }
+                        }
+                        revision = next.revision
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Exception) {
+                        if ((error as? OutcomeGoRequestException)?.error?.status == 404) break
+                        replyPreview = null
+                        revision = ""
+                        delay(2_000)
+                    }
+                }
+            } finally {
+                replyPreview = null
+            }
+        }
+    }
+    val visiblePreview = replyPreview?.takeIf { preview ->
+        previewsVisible && messages.none { it.sourceRunId == preview.runId && it.clientId == preview.clientId }
+    }
+    val streamingMessage = visiblePreview?.let { preview ->
+        ChatMessage(
+            id = preview.clientId,
+            author = bot?.title ?: "Assistant",
+            body = preview.content,
+            channelId = conversationId,
+            sender = "agent",
+            senderBotId = bot?.botId,
+            sourceRunId = preview.runId,
+            clientId = preview.clientId,
+        )
+    }
+    val displayedRows = if (streamingMessage == null) chatRows else chatRows + ChatRow.Single(streamingMessage)
+    val newest = messages.lastOrNull()
+    val committedPreview = newest != null && chatMessageListKey(newest) == lastPreviewKey
+    val finishingStream = previewsVisible && committedPreview && replyPreview != null &&
+        (newest?.metadata?.get("end_turn") as? JsonPrimitive)?.booleanOrNull == true
+    val visibleActivity = activity.takeUnless {
+        streamingMessage != null || (finishingStream && it != ChannelActivity.Background)
+    }
     var focusedAgentMessageId by remember(conversationId) { mutableStateOf<String?>(null) }
     var hasPositionedInitialMessages by remember(conversationId) { mutableStateOf(false) }
-    val lastItemIndex = (if (hasMoreHistory) 1 else 0) + (if (contextRows.isNotEmpty()) 1 else 0) + chatRows.size + 1
+    val lastItemIndex = (if (hasMoreHistory) 1 else 0) + (if (contextRows.isNotEmpty()) 1 else 0) +
+        displayedRows.size + 1
     val currentLastItemIndex by rememberUpdatedState(lastItemIndex)
     val currentTargetMessageId by rememberUpdatedState(targetMessageId)
     val bottomThresholdPx = with(LocalDensity.current) { 48.dp.toPx() }
     var followBottom by remember(conversationId) { mutableStateOf(true) }
+    val currentStreaming by rememberUpdatedState(streamingMessage != null)
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
-            if (!scrolling) followBottom = listState.isNearBottom(bottomThresholdPx)
+            if (!scrolling) {
+                followBottom = if (currentStreaming) {
+                    !listState.canScrollForward
+                } else {
+                    listState.isNearBottom(bottomThresholdPx)
+                }
+            }
         }
     }
     var lastScrolledId by remember(conversationId) { mutableStateOf<String?>(null) }
-    val newest = messages.lastOrNull()
-    LaunchedEffect(conversationId, historyLoading, targetMessageId, messages.size, newest, activity) {
+    val streamingKey = streamingMessage?.let(::chatMessageListKey)
+    val followedReplyKey = streamingKey ?: lastPreviewKey?.takeIf { previewsVisible && committedPreview }
+    LaunchedEffect(followedReplyKey) {
+        if (followedReplyKey == null) return@LaunchedEffect
+        if (streamingKey != null && followBottom && hasPositionedInitialMessages && !listState.isScrollInProgress)
+            listState.scrollToItem(currentLastItemIndex)
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == followedReplyKey }?.size }
+            .collect { size ->
+                if (size != null && followBottom && hasPositionedInitialMessages && !listState.isScrollInProgress)
+                    listState.requestScrollToItem(currentLastItemIndex)
+            }
+    }
+    LaunchedEffect(conversationId, historyLoading, targetMessageId, messages.size, newest, visibleActivity) {
         if (historyLoading || messages.isEmpty()) return@LaunchedEffect
         val targetIndex = targetMessageId?.let { id -> chatRows.indexOfFirst { it.contains(id) } }?.takeIf { it >= 0 }
         if (targetIndex != null) {
@@ -203,8 +289,8 @@ internal fun ChatScreen(
                 hasPositionedInitialMessages = true
                 followBottom = true
             }
-            followBottom || (isNewMessage && newest?.isMine == true) -> {
-                if (isNewMessage || activity != null) listState.animateScrollToItem(lastItemIndex)
+            (followBottom && !listState.isScrollInProgress) || (isNewMessage && newest?.isMine == true) -> {
+                if (!committedPreview && (isNewMessage || visibleActivity != null)) listState.animateScrollToItem(lastItemIndex)
                 else listState.scrollToItem(lastItemIndex)
                 followBottom = true
             }
@@ -215,7 +301,8 @@ internal fun ChatScreen(
         snapshotFlow { listState.layoutInfo.viewportSize.height }.drop(1).collect { height ->
             val shrunk = height < previousHeight
             previousHeight = height
-            if (shrunk && followBottom && hasPositionedInitialMessages && currentTargetMessageId == null) {
+            if (shrunk && followBottom && !listState.isScrollInProgress &&
+                hasPositionedInitialMessages && currentTargetMessageId == null) {
                 listState.requestScrollToItem(currentLastItemIndex)
             }
         }
@@ -303,7 +390,8 @@ internal fun ChatScreen(
                     settledImePx = targetPx
                 }
                 livePx == targetPx && targetPx > settledImePx -> {
-                    if (currentFollowBottom && hasPositionedInitialMessages && currentTargetMessageId == null) {
+                    if (currentFollowBottom && !listState.isScrollInProgress &&
+                        hasPositionedInitialMessages && currentTargetMessageId == null) {
                         listState.requestScrollToItem(currentLastItemIndex)
                     }
                     settledImePx = targetPx
@@ -465,12 +553,13 @@ internal fun ChatScreen(
                 contextRows = contextRows,
                 threadContextTruncated = threadContextTruncated,
                 threadContextCount = threadContext.size,
-                chatRows = chatRows,
+                chatRows = displayedRows,
                 messages = messages,
                 targetMessageId = targetMessageId,
                 highlightedMessageId = highlightedMessageId,
                 operation = operation,
-                activity = activity,
+                activity = visibleActivity,
+                streamingKey = streamingKey,
                 bot = bot,
                 accountName = accountName,
                 groupMembers = groupMembers,
@@ -614,6 +703,7 @@ private fun ChatMessageList(
     highlightedMessageId: String?,
     operation: FeatureOperationState,
     activity: ChannelActivity?,
+    streamingKey: String?,
     bot: Conversation?,
     accountName: String,
     groupMembers: List<Conversation>,
@@ -688,7 +778,7 @@ private fun ChatMessageList(
                 ChatContextSummary(contextRows, threadContextTruncated || threadContextCount > contextRows.size)
             }
         }
-        items(chatRows, key = ChatRow::key) { row ->
+        items(chatRows, key = { row -> if (row is ChatRow.Single) chatMessageListKey(row.message) else row.key }) { row ->
             when (row) {
                 is ChatRow.Voice -> VoiceConversationCard(row.messages, bot?.title ?: "Assistant")
                 is ChatRow.AgentExchange -> {
@@ -723,6 +813,7 @@ private fun ChatMessageList(
                         loadOutcomeStatus = loadOutcomeStatus,
                         replyOriginal = message.replyToMessageId?.let(messagesById::get),
                         onOpenOriginal = onOpenOriginal,
+                        streaming = streamingKey != null && chatMessageListKey(message) == streamingKey,
                     )
                 }
             }
@@ -736,6 +827,18 @@ private fun ChatMessageList(
             )
         }
         item { Spacer(Modifier.height(6.dp)) }
+    }
+}
+
+private fun streamedReplyKey(runId: String, clientId: String) = "reply:$runId:$clientId"
+
+private fun chatMessageListKey(message: ChatMessage): String {
+    val clientId = message.clientId
+    val runId = message.sourceRunId
+    return if (message.sender == "agent" && runId != null && clientId?.startsWith("tool:") == true) {
+        streamedReplyKey(runId, clientId)
+    } else {
+        message.id
     }
 }
 

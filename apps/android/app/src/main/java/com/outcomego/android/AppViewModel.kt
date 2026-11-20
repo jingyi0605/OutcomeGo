@@ -12,6 +12,9 @@ import com.outcomego.android.data.Delivery
 import com.outcomego.android.data.DraftStore
 import com.outcomego.android.data.HttpMobileGateway
 import com.outcomego.android.data.LiveMessagingApi
+import com.outcomego.android.data.ReplyPreview
+import com.outcomego.android.data.ReplyPreviewSnapshot
+import com.outcomego.mobile.core.OutcomeGoRequestException
 import com.outcomego.android.data.MobileGateway
 import com.outcomego.android.data.MobileFeatureApi
 import com.outcomego.android.data.MessageAttachment
@@ -88,6 +91,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -1356,6 +1360,32 @@ class AppViewModel @JvmOverloads constructor(
                 buildJsonObject { put("clientRequestId", newClientId()) },
             )
         }
+    }
+
+    suspend fun streamBotReplies(enabled: Boolean?): Boolean? {
+        return try {
+            val path = "/api/v0/feature-settings"
+            val result = if (enabled == null) request(HttpMethod.GET, path)
+                else request(HttpMethod.PATCH, path, buildJsonObject { put("streamBotReplies", enabled) })
+            result["streamBotReplies"]?.jsonPrimitive?.booleanOrNull
+        } catch (error: OutcomeGoRequestException) {
+            if (error.error.status == 404) null else throw error
+        }
+    }
+
+    suspend fun pollReplyPreview(channelId: String, revision: String): ReplyPreviewSnapshot {
+        val result = request(
+            HttpMethod.GET,
+            "/api/v0/channels/${Uri.encode(channelId)}/reply-preview?after=${Uri.encode(revision)}",
+        )
+        val preview = (result["preview"] as? JsonObject)?.let {
+            ReplyPreview(
+                runId = it.getValue("runId").jsonPrimitive.content,
+                clientId = it.getValue("clientId").jsonPrimitive.content,
+                content = it.getValue("content").jsonPrimitive.content,
+            )
+        }
+        return ReplyPreviewSnapshot(result.getValue("revision").jsonPrimitive.content, preview)
     }
 
     private suspend fun request(method: HttpMethod, path: String, body: JsonObject? = null): JsonObject {
