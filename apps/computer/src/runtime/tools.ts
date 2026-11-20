@@ -10,6 +10,7 @@ import {
 import { REQUEST_HUMAN_ACTION_TOOL, humanActionInputSchema } from "@outcomego/contracts/human-work";
 import { applyArgumentAliases, normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { onlyPendingBackgroundWork } from "./background-status";
+import { observeShellAwait, recordBackgroundShell } from "./background-shells";
 import { markDelivered } from "./events";
 import { spoolFile } from "@outcomego/plugin-sdk/file-spool";
 import { agentReadStream, agentWriteStream } from "../agent-file-stream";
@@ -385,6 +386,7 @@ export class RuntimeTools {
       ["completed", "failed"].includes(String(result.details.status))
     )
       await this.hostShellCompletions.observe(turn.botId, input.machineId, input.shell_id);
+    observeShellAwait(turn, input.machineId, input.shell_id, result.details);
     return result;
   }
   private readonly turnSecrets = new WeakMap<ActiveTurn, Record<string, string>>();
@@ -957,6 +959,7 @@ export class RuntimeTools {
       if (shellInput.machineId) {
         return (async () => {
           const result = await this.nativeToolExecutor.externalShell(shellInput, signal);
+          recordBackgroundShell(active, shellInput.machineId, result.details);
           if (
             result.details.status === "running" &&
             typeof result.details.shell_id === "string" &&
@@ -981,7 +984,7 @@ export class RuntimeTools {
             ? await this.screens.commandEnvironment(active.screenBotId, active.cwd)
             : undefined;
         const secretEnvironment = await this.processSecrets(active, signal);
-        return this.nativeToolExecutor.shell(
+        const result = await this.nativeToolExecutor.shell(
           shellInput,
           active.cwd,
           signal,
@@ -994,6 +997,8 @@ export class RuntimeTools {
             ...(active.requestSource === "automation" ? { automationRunId: active.runId } : {}),
           }
         );
+        recordBackgroundShell(active, undefined, result.details);
+        return result;
       })();
     }
     if (tool === READ_TOOL.name) {

@@ -63,6 +63,7 @@ import { retryFirstOutputStalls, streamDeadlines, type StreamTimers } from "./ru
 import { directDynamicToolsExtension } from "./runtime/direct-dynamic-tools";
 import { enrichUserInfo, OUTPUT_LIMIT_REMINDER, owesOutputLimitReminder } from "./runtime/prompt-context";
 import { endTurnHoldExtension } from "./runtime/end-turn-hold";
+import { backgroundWorkPending } from "./runtime/background-shells";
 import { VoiceNarrator, voiceNarrationExtension } from "./runtime/voice-narration";
 import { SendToUserSpeech, sendToUserSpeechExtension } from "./runtime/voice-stream";
 import { prepareDynamicToolCatalog } from "./runtime/catalog-snapshot";
@@ -1022,6 +1023,7 @@ export class ComputerRuntime {
         turnId: active.turnId,
         status,
         error,
+        ...(backgroundWorkPending(active) ? { backgroundWorkPending: true } : {}),
       });
       await Promise.allSettled(
         active.attachmentTempDirectories.map((directory) =>

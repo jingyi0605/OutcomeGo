@@ -89,6 +89,8 @@ export interface ActiveTurn {
   lastPromptFingerprint?: string;
   connectorInstructions?: string;
   endTurnRequested?: boolean;
+  /** Commands this turn moved to the background whose result no turn has read yet. */
+  backgroundShells?: Map<string, { machineId?: string; shellId: string }>;
   /** Recovery waits for ownership and provider resources to be released. */
   contextReleased?: Promise<void>;
   resolveContextReleased?: () => void;
