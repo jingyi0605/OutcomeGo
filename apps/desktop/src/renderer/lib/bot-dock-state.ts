@@ -29,6 +29,7 @@ export interface BotDockLabelsView {
   messages: string;
   goals: string;
   open: string;
+  running?: string;
   placeholder: string;
   send: string;
   to: string;
@@ -43,7 +44,14 @@ export interface BotDockStateView {
   roster: BotDockRosterView[];
   labels: BotDockLabelsView;
   theme?: "light" | "dark" | "system";
+  running?: boolean;
 }
+
+export const hasRunningBot = (snapshot: ClientSnapshot | null | undefined): boolean =>
+  Boolean(
+    snapshot?.runs.some((run) => run.status === "running") ||
+    snapshot?.subagents?.some((task) => task.status === "running")
+  );
 
 /** A Bot the dock tracks, with what is needed to fetch its avatar. */
 export type BotDockEntry = BotDockBotView & Pick<BotView, "hasAvatar" | "updatedAt">;

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ClientSnapshot } from "@outcomego/contracts";
 import { countByBot } from "../src/renderer/lib/outcome-counts";
-import { deriveBotDockEntries } from "../src/renderer/lib/bot-dock-state";
+import { deriveBotDockEntries, hasRunningBot } from "../src/renderer/lib/bot-dock-state";
 
 const state = (channelId: string) => ({
   channelId,
@@ -39,6 +39,20 @@ const channel = (
 });
 const snapshot = (bots: unknown[], channels: unknown[]) =>
   ({ cursor: "1", bots, channels, channelMessages: [], runs: [] }) as unknown as ClientSnapshot;
+
+test("the dock indicates executing runs and subagents even without unread messages", () => {
+  const activity = (runStatus: string, taskStatus: string) => ({
+    ...snapshot([], []),
+    runs: [{ status: runStatus }],
+    subagents: [{ status: taskStatus }],
+  }) as ClientSnapshot;
+
+  expect(hasRunningBot(null)).toBe(false);
+  expect(hasRunningBot(activity("queued", "waiting"))).toBe(false);
+  expect(hasRunningBot(activity("running", "waiting"))).toBe(true);
+  expect(hasRunningBot(activity("completed", "running"))).toBe(true);
+  expect(hasRunningBot(activity("completed", "completed"))).toBe(false);
+});
 
 describe("Bot dock entries", () => {
   test("lists only Bots with unread messages or goals waiting, with both counts", () => {

@@ -30,6 +30,7 @@ export interface BotDockLabels {
   messages: string;
   goals: string;
   open: string;
+  running?: string;
   /** Composer copy. */
   placeholder: string;
   send: string;
@@ -47,6 +48,7 @@ export interface BotDockState {
   roster: BotDockRosterBot[];
   labels: BotDockLabels;
   theme?: "light" | "dark" | "system";
+  running?: boolean;
 }
 
 export interface DockRect {
@@ -162,6 +164,7 @@ export const parseBotDockState = (value: unknown): BotDockState | null | undefin
       messages: text(labels.messages, 80) ?? "Unread messages",
       goals: text(labels.goals, 80) ?? "Pending action",
       open: text(labels.open, 80) ?? "Open OutcomeGo",
+      running: text(labels.running, 80) ?? "Bot activity in progress",
       placeholder: text(labels.placeholder, 160) ?? "Message the main Bot. Type @ to choose a Bot.",
       send: text(labels.send, 40) ?? "Send",
       to: text(labels.to, 40) ?? "To",
@@ -171,6 +174,7 @@ export const parseBotDockState = (value: unknown): BotDockState | null | undefin
       removeAttachment: text(labels.removeAttachment, 80) ?? "Remove attachment",
     },
     ...(theme ? { theme } : {}),
+    ...(value.running === true ? { running: true } : {}),
   };
 };
 
