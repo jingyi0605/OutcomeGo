@@ -60,8 +60,8 @@ struct LaunchContentView: View {
       .allowsHitTesting(!showingLaunch)
       .accessibilityHidden(showingLaunch)
       if showingLaunch {
-        // The launch robot dissolves toward the viewer as the app comes up behind it.
-        LaunchRobotView()
+        // The launch splash dissolves toward the viewer as the app comes up behind it.
+        LaunchSplashView()
           .scaleEffect(reduceMotion ? 1 : 1 + (1 - launchOpacity) * 0.25)
           .blur(radius: reduceMotion ? 0 : (1 - launchOpacity) * 12)
           .opacity(launchOpacity).zIndex(1)
@@ -149,24 +149,35 @@ struct LaunchContentView: View {
   }
 }
 
-/// The launch surface contains only our robot and its soft ground shadow.
-struct LaunchRobotView: View {
-  @Environment(\.colorScheme) private var colorScheme
-  private let robotColor = Color(hex: "FD6A3A")
+/// The launch surface: the planet glyph on the app's canvas, with the wordmark below.
+/// The static launch image (`LaunchGlyph`) draws the same glyph at the same spot, so
+/// only the wordmark appears to fade in when the app takes over.
+struct LaunchSplashView: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var wordmarkShown = false
+  /// Matches the glyph size in the static launch image.
+  static let glyphSize: CGFloat = 130
+  /// Centre of the wordmark below the glyph's centre.
+  private let wordmarkOffset: CGFloat = 99
 
   var body: some View {
     ZStack {
-      (colorScheme == .dark ? Color.black : Color.white)
-      ZStack {
-        Ellipse()
-          .fill(colorScheme == .dark ? robotColor.opacity(0.16) : Color.black.opacity(0.16))
-          .frame(width: 76, height: 12).blur(radius: 8).offset(y: 65)
-        BotGlyph(color: robotColor, kind: "chip", size: 120, mode: .thinking)
-      }.frame(width: 160, height: 170)
+      NativePalette.background
+      PlanetMark(ink: NativePalette.text, canvas: NativePalette.background)
+        .frame(width: Self.glyphSize, height: Self.glyphSize)
+      Text(verbatim: "OutcomeGo")
+        .font(.system(size: 20, weight: .semibold))
+        .tracking(1.2)
+        .foregroundStyle(NativePalette.text)
+        .offset(y: wordmarkOffset + (wordmarkShown || reduceMotion ? 0 : 6))
+        .opacity(wordmarkShown ? 1 : 0)
     }
     .ignoresSafeArea()
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Loading messages")
     .accessibilityIdentifier("launch-robot")
+    .onAppear {
+      withAnimation(.easeOut(duration: 0.45).delay(0.12)) { wordmarkShown = true }
+    }
   }
 }
