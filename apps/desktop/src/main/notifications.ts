@@ -72,6 +72,16 @@ export const parseNotificationChannels = (
       channel.notifications.length > 100
     )
       return null;
+    const dock = channel.botDock;
+    if (
+      dock !== undefined &&
+      (!dock || typeof dock !== "object" ||
+        !Number.isSafeInteger(dock.unreadCount) || dock.unreadCount < 0 ||
+        (dock.latest !== null &&
+          (!dock.latest || !numeric(dock.latest.notificationSequence) ||
+            !numeric(dock.latest.messageSequence) || typeof dock.latest.createdAt !== "string")))
+    )
+      return null;
     for (const notification of channel.notifications) {
       if (
         !notification ||
@@ -271,6 +281,7 @@ export class DesktopNotificationManager {
     this.totalUnread = 0;
     // Newest unread message per conversation; older ones in this sync are superseded.
     const pending = new Map<string, { sequence: bigint; notification: ChannelNotificationView }>();
+    let dockMessageArrived = false;
     for (const channel of channels) {
       const unread = this.unreadCount(channel);
       this.unreadByChannel.set(channel.channelId, unread);
@@ -280,6 +291,16 @@ export class DesktopNotificationManager {
       if (previousCursor !== undefined && channelCursor < previousCursor) continue;
       this.activityCursors.set(channel.channelId, channelCursor);
       if (previousCursor === undefined) continue;
+      const dockMessage = channel.botDock?.latest;
+      if (
+        dockMessage &&
+        BigInt(dockMessage.notificationSequence) > previousCursor &&
+        BigInt(dockMessage.messageSequence) > BigInt(
+          this.localReads.get(channel.channelId)?.lastReadSequence ?? channel.lastReadSequence
+        )
+      ) {
+        dockMessageArrived = true;
+      }
       for (const notification of channel.notifications) {
         const sequence = BigInt(notification.notificationSequence);
         if (
@@ -291,6 +312,8 @@ export class DesktopNotificationManager {
           continue;
         if ((pending.get(channel.channelId)?.sequence ?? -1n) > sequence) continue;
         pending.set(channel.channelId, { sequence, notification });
+        // Older servers only send the general notification projection.
+        if (!channel.botDock) dockMessageArrived = true;
       }
     }
     for (const channelId of this.activityCursors.keys()) {
@@ -303,7 +326,7 @@ export class DesktopNotificationManager {
     for (const [channelId, at] of this.lastAlertAt) {
       if (now - at >= NOTIFICATION_THROTTLE_MS) this.lastAlertAt.delete(channelId);
     }
-    if (pending.size > 0) this.adapter.onMessagesArrived?.();
+    if (dockMessageArrived) this.adapter.onMessagesArrived?.();
     // While the window has focus, replies show in the app instead of as banners.
     if (this.adapter.isFocused()) {
       // Native focus can overtake the renderer's separate visible-channel IPC.

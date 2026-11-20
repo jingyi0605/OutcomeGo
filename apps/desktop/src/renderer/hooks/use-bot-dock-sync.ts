@@ -6,6 +6,7 @@ import { botAvatarDataUrl } from "../lib/bot-avatar-data-url";
 import {
   deriveBotDockEntries,
   deriveBotDockRoster,
+  hasRunningBot,
   type BotDockStateView,
 } from "../lib/bot-dock-state";
 import { desktopDurableSendController, discardDesktopDeliveryStages } from "../lib/durable-sends";
@@ -17,7 +18,7 @@ const MAX_ROSTER = 100;
 
 /**
  * Keeps the Bot floating window (a separate window owned by the main process) current: which
- * Bots have unread messages or goals waiting on the owner. Only changes cross to main.
+ * Bots have unread messages or goals waiting on the owner, and whether work is running.
  */
 export function useBotDockSync(
   snapshot: ClientSnapshot | null | undefined,
@@ -67,6 +68,7 @@ export function useBotDockSync(
       messages: t("Unread messages"),
       goals: t("Pending action"),
       open: t("Open OutcomeGo"),
+      running: t("Bot activity in progress"),
       placeholder: t("Message the main Bot. Type @ to choose a Bot."),
       send: t("Send"),
       to: t("To"),
@@ -85,6 +87,7 @@ export function useBotDockSync(
     const state: BotDockStateView = {
       labels,
       theme,
+      running: hasRunningBot(snapshot),
       roster: roster.map(({ hasAvatar, updatedAt, ...bot }) => {
         const avatar = hasAvatar ? avatars.get(`${bot.id}:${updatedAt}`) : undefined;
         return avatar ? { ...bot, avatarDataUrl: avatar } : bot;

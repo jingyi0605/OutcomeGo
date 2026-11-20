@@ -105,6 +105,7 @@ body {
   padding: 0 6px;
   box-sizing: border-box;
   border-radius: 999px;
+  position: relative;
   background: var(--dock-bg);
   box-shadow: var(--dock-surface-shadow);
   -webkit-backdrop-filter: blur(20px) saturate(1.6);
@@ -118,6 +119,26 @@ body {
   --dock-surface-shadow: var(--dock-shadow);
   width: var(--dock-capsule-size);
   padding: 1.5px;
+}
+
+.dock-capsule[data-running]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1.5px light-dark(#168849, #4ade80);
+  pointer-events: none;
+  animation: dock-breathe 4s ease-in-out infinite;
+}
+
+@keyframes dock-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* :where keeps the reset weaker than the button classes below. */
@@ -155,7 +176,9 @@ body {
   content: "";
   width: 100%;
   height: 100%;
-  background: center / cover no-repeat url("./dock-mascot.webp?inline");
+  /* The 64px file serves 1x screens; Retina and scaled Windows displays get the 128px one. */
+  background: center / cover no-repeat
+    image-set(url("./dock-mascot-1x.webp?inline") 1x, url("./dock-mascot-2x.webp?inline") 2x);
   transition: filter 120ms ease;
 }
 
@@ -571,6 +594,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dock-capsule[data-running]::after {
+    animation: none;
+  }
   .dock-composer-frame[data-visible] .dock-composer {
     animation: none;
   }

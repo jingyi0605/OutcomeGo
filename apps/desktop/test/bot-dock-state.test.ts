@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { ClientSnapshot } from "@outcomego/contracts";
 import { countByBot } from "../src/renderer/lib/outcome-counts";
-import { deriveBotDockEntries } from "../src/renderer/lib/bot-dock-state";
+import { deriveBotDockEntries, hasRunningBot } from "../src/renderer/lib/bot-dock-state";
 
 const state = (channelId: string) => ({
   channelId,
@@ -40,6 +40,20 @@ const channel = (
 const snapshot = (bots: unknown[], channels: unknown[]) =>
   ({ cursor: "1", bots, channels, channelMessages: [], runs: [] }) as unknown as ClientSnapshot;
 
+test("the dock indicates executing runs and subagents even without unread messages", () => {
+  const activity = (runStatus: string, taskStatus: string) => ({
+    ...snapshot([], []),
+    runs: [{ status: runStatus }],
+    subagents: [{ status: taskStatus }],
+  }) as ClientSnapshot;
+
+  expect(hasRunningBot(null)).toBe(false);
+  expect(hasRunningBot(activity("queued", "waiting"))).toBe(false);
+  expect(hasRunningBot(activity("running", "waiting"))).toBe(true);
+  expect(hasRunningBot(activity("completed", "running"))).toBe(true);
+  expect(hasRunningBot(activity("completed", "completed"))).toBe(false);
+});
+
 describe("Bot dock entries", () => {
   test("lists only Bots with unread messages or goals waiting, with both counts", () => {
     const entries = deriveBotDockEntries(
@@ -60,6 +74,25 @@ describe("Bot dock entries", () => {
       )
     );
     expect(entries.map((entry) => entry.id)).toEqual(["new", "old"]);
+  });
+
+  test("uses attention counts and orders by the qualifying reply instead of later progress", () => {
+    const focusedChannel = (id: string, unreadCount: number, createdAt?: string) =>
+      channel(id, 100, "2026-03-01T00:00:00Z", {
+        notificationState: {
+          ...state(`dm-${id}`),
+          botDock: {
+            unreadCount,
+            latest: createdAt ? { notificationSequence: "1", messageSequence: "1", createdAt } : null,
+          },
+        },
+      });
+    const entries = deriveBotDockEntries(snapshot(
+      [bot("a"), bot("b"), bot("progress")],
+      [focusedChannel("a", 2, "2026-01-01T00:00:00Z"),
+        focusedChannel("b", 1, "2026-02-01T00:00:00Z"), focusedChannel("progress", 0)]
+    ));
+    expect(entries.map(({ id, messages }) => [id, messages])).toEqual([["b", 1], ["a", 2]]);
   });
 
   test("leaves muted and unavailable Bots' messages out, as the Dock badge does", () => {

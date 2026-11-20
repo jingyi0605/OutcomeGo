@@ -337,6 +337,7 @@ export const sourceTranslations: Record<string, string> = {
   "Shows the Outcomes entry and the idea capture button, and lets your bots register and manage goals in conversation.":
     "开启后显示目标入口和记录想法按钮，并允许机器人在对话中登记和管理目标。",
   "Enable bot floating window": "启用机器人浮窗",
+  "Bot activity in progress": "机器人正在运行",
   "Shows a small floating window that displays unread messages and pending goals. Allows quick file drops to bots.":
     "显示一个小型浮动窗口，展示未读消息和待处理目标。支持快速拖拽文件到机器人。",
   "Accessibility permission": "辅助功能权限",

@@ -163,4 +163,15 @@ class PlatformAdaptersTest {
         assertTrue(updates.last().active.not())
         assertTrue(updates.zipWithNext().all { it.first.sequence < it.second.sequence })
     }
+
+    @Test fun localAlertsStayQuietWhileDesktopIsActiveAndPhoneIsNot() {
+        val now = 1_000L
+        // Desktop active, phone idle: suppressed.
+        assertTrue(NotificationRouting(true, now, 0, now + 1, 0, 0).suppressesAndroid())
+        assertTrue(NotificationRouting(true, now, 0, 0, 0, now + 1).suppressesAndroid())
+        // Phone active, desktop idle, or the preference off: not suppressed.
+        assertFalse(NotificationRouting(true, now, 0, now + 1, now + 1, 0).suppressesAndroid())
+        assertFalse(NotificationRouting(true, now, 0, now, 0, 0).suppressesAndroid())
+        assertFalse(NotificationRouting(false, now, 0, now + 1, 0, 0).suppressesAndroid())
+    }
 }

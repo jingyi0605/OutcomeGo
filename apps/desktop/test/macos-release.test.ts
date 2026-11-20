@@ -41,14 +41,26 @@ describe("macOS distribution release", () => {
     }
   });
 
-  test("keeps the prism mark large within the app icon canvas", async () => {
-    const manifest = (await Bun.file(
-      new URL("../../../packages/design-tokens/assets/outcomego.icon/icon.json", import.meta.url)
-    ).json()) as { groups: { layers: { position?: { scale?: number } }[] }[] };
+  test("fills the app icon canvas with the full-bleed planet layer", async () => {
+    const iconDirectory = new URL(
+      "../../../packages/design-tokens/assets/outcomego.icon/",
+      import.meta.url
+    );
+    const manifest = (await Bun.file(new URL("icon.json", iconDirectory)).json()) as {
+      groups: { layers: { position?: { scale?: number } }[] }[];
+    };
     const scale = manifest.groups
       .flatMap((group) => group.layers)
       .find((layer) => layer.position?.scale !== undefined)?.position?.scale;
-    expect(scale).toBeGreaterThanOrEqual(1.2);
+    // The layer is a 1024px full-bleed square: scale 1 fills the artboard 1:1 and the
+    // system supplies the mask. A larger scale would crop the planet's ring.
+    expect(scale).toBe(1);
+
+    // PNG IHDR: width and height are big-endian uint32 at byte offsets 16 and 20.
+    const header = new DataView(
+      (await Bun.file(new URL("Assets/logo.png", iconDirectory)).arrayBuffer()).slice(0, 24)
+    );
+    expect([header.getUint32(16), header.getUint32(20)]).toEqual([1024, 1024]);
   });
 
   test("keeps normal packaging local, ad-hoc, and performance-gated", async () => {

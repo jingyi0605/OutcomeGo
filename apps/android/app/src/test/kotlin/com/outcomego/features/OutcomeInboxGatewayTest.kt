@@ -34,6 +34,43 @@ class OutcomeInboxGatewayTest {
         assertEquals(bodies[1], bodies[2])
         assertEquals(setOf("optionId", "expectedContractRevision", "clientRequestId"), bodies[1]?.keys)
     }
+
+    @Test
+    fun pendingBadgeUsesActionRequiredEvenWhenTheItemWasRead() = runBlocking {
+        var items = emptyList<OutcomeInboxItem>()
+        val api = object : MobileFeatureApi {
+            override suspend fun request(method: HttpMethod, path: String, body: JsonObject?): JsonObject {
+                assertEquals(HttpMethod.GET, method)
+                assertEquals("/api/v0/outcome-inbox?status=pending&limit=1", path)
+                return mobileJson.encodeToJsonElement(OutcomeInboxPage.serializer(), OutcomeInboxPage(items)).jsonObject
+            }
+
+            override suspend fun upload(path: String, uri: String): JsonObject = error("Unexpected upload")
+        }
+        val gateway = LiveFeatureGateway(api)
+        val pending = OutcomeInboxItem(
+            id = "decision_pending:d",
+            outcomeId = "o",
+            contractRevision = 1,
+            category = "decision_pending",
+            priority = 3,
+            title = "Review the plan",
+            completed = "Plan drafted",
+            problem = "Plan needs approval",
+            next = "Choose an option",
+            requiresAction = true,
+            availableAt = "2026-11-20T00:00:00Z",
+            createdAt = "2026-11-20T00:00:00Z",
+            read = true,
+        )
+
+        assertFalse(gateway.hasPendingOutcomes().getOrThrow())
+        items = listOf(pending)
+        assertTrue(gateway.hasPendingOutcomes().getOrThrow())
+        items = listOf(pending.copy(category = "completed", requiresAction = false, read = false))
+        assertFalse(gateway.hasPendingOutcomes().getOrThrow())
+    }
+
     @Test
     fun notificationsPreserveLegacyAndIgnoreUnknownOutcomeVersions() {
         assertTrue(FcmNotification.fromData(mapOf("kind" to "message", "channelId" to "chat")).isAlert)

@@ -18,6 +18,19 @@ final class OutcomeInboxTests: XCTestCase {
     XCTAssertEqual(detail.receipts?.first?.reviewComment, "Add a photo")
     XCTAssertEqual(detail.receipts?.first?.missingRequirements.first?.label, "Missing photo")
   }
+  func testPendingActionBadgeUsesActionStateAfterAnItemWasRead() throws {
+    var page = try JSONDecoder().decode(JSON.self, from: fixture("inbox"))
+    let items = page["items"].array
+    var pending = try XCTUnwrap(items.first { $0["requiresAction"].bool })
+    pending["read"] = .bool(true)
+    page["items"] = .array([pending])
+    XCTAssertTrue(try page.decode(OutcomeInboxPage.self).hasPendingActions)
+
+    page["items"] = .array(items.filter { !$0["requiresAction"].bool })
+    XCTAssertFalse(try page.decode(OutcomeInboxPage.self).hasPendingActions)
+    page["items"] = .array([])
+    XCTAssertFalse(try page.decode(OutcomeInboxPage.self).hasPendingActions)
+  }
   func testUncertainRetryKeepsBodyAndRequestIdUntilChoiceEdited() throws {
     let value = try decision()
     var draft = OutcomeDecisionDraft()

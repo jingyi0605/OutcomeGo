@@ -20,6 +20,7 @@ struct HomeView: View {
   @State private var outcomeInitialTarget: OutcomeLinkTarget?
   @State private var outcomePresentation = UUID()
   @State private var outcomesSupported = false
+  @State private var hasPendingOutcomes = false
   /// True only once the server said goal management is off; until then a pending link may still open.
   @State private var outcomesTurnedOff = false
   @State private var marketplace = false
@@ -77,6 +78,9 @@ struct HomeView: View {
   private var visible: [Channel] { store.channels.filter { $0.kind != "agent_dm" } }
   private var sections: [JSON] { store.sidebar["sections"].array }
   var body: some View {
+    let outcomeBadgeRefresh = OutcomeProbeKey(generation: store.api?.resourceGeneration,
+      active: scenePhase == .active && outcomesSupported && !outcomes
+        && (store.navigation.isEmpty || splitAvailable))
     GeometryReader { geometry in
       // System background snapshots can temporarily report another size class.
       // Keep the active navigation tree, including its presented media, intact.
@@ -144,7 +148,14 @@ struct HomeView: View {
         if store.navigation.isEmpty, store.landing == nil { zoomChannel = nil }
       }
     }
-    .onChange(of: store.api?.resourceGeneration) { _, _ in outcomesSupported = false; outcomesTurnedOff = false }
+    .onChange(of: store.api?.resourceGeneration) { _, _ in
+      outcomesSupported = false
+      outcomesTurnedOff = false
+      hasPendingOutcomes = false
+    }
+    .onChange(of: outcomesSupported) { _, supported in
+      if !supported { hasPendingOutcomes = false }
+    }
     .task(id: OutcomeProbeKey(generation: store.api?.resourceGeneration, active: scenePhase == .active)) {
       // The switch lives in Desktop settings, so look again whenever the app returns to the foreground.
       guard scenePhase == .active || store.api == nil else { return }
@@ -164,6 +175,16 @@ struct HomeView: View {
         if !UserFacingError.isCancelled(error) && (error as? APIError)?.status != 401 {
           outcomesSupported = true
         }
+      }
+    }
+    .task(id: outcomeBadgeRefresh) {
+      guard outcomeBadgeRefresh.active, outcomeBadgeRefresh.generation != nil else { return }
+      while !Task.isCancelled {
+        if let pending = try? await store.hasPendingOutcomes(), !Task.isCancelled {
+          hasPendingOutcomes = pending
+        }
+        do { try await Task.sleep(for: .seconds(30)) }
+        catch { return }
       }
     }
     .onChange(of: store.outcomeNavigation, initial: true) { _, target in
@@ -619,6 +640,34 @@ struct HomeView: View {
     InboxChromeButton(title: "Search", symbol: "magnifyingglass") { search = true }
       .accessibilityIdentifier("search-button")
   }
+  private func outcomesButton(useGlass: Bool = false) -> some View {
+    let button = Button { outcomes = true } label: {
+      if useGlass {
+        outcomesIcon.foregroundStyle(NativePalette.text)
+          .frame(width: 44, height: 44).nativeInboxGlass().contentShape(Rectangle())
+      } else {
+        outcomesIcon
+      }
+    }
+    return Group {
+      if useGlass { button.buttonStyle(.plain) }
+      else { button }
+    }
+    .accessibilityLabel("Outcomes")
+    .accessibilityValue(hasPendingOutcomes ? Text("Actions pending") : Text(verbatim: ""))
+    .accessibilityIdentifier("outcomes-button")
+  }
+  private var outcomesIcon: some View {
+    Image(systemName: "target")
+      .font(.system(size: 21))
+      .frame(width: 24, height: 24)
+      .overlay(alignment: .topTrailing) {
+        if hasPendingOutcomes {
+          Circle().fill(NativePalette.destructive).frame(width: 7, height: 7)
+            .offset(x: 3, y: -3).accessibilityHidden(true)
+        }
+      }
+  }
   private func inboxHeader(isSidebar: Bool) -> some View {
     HStack(spacing: isSidebar ? 8 : 4) {
       if splitAvailable { sidebarToggle }
@@ -632,10 +681,7 @@ struct HomeView: View {
       }
       Spacer()
       MobileUpdateBadge()
-      if outcomesSupported {
-        InboxChromeButton(title: "Outcomes", symbol: "checkmark.circle") { outcomes = true }
-          .accessibilityIdentifier("outcomes-button")
-      }
+      if outcomesSupported { outcomesButton(useGlass: true) }
       InboxChromeButton(title: "Search", symbol: "magnifyingglass",
         pointSize: isSidebar ? SidebarMetrics.searchGlyph : 21) { search = true }
         .accessibilityIdentifier("search-button")
@@ -653,10 +699,7 @@ struct HomeView: View {
         if splitAvailable { sidebarToggle }
         Spacer(minLength: 12)
         creationMenu().frame(width: 44, height: 44).nativeInboxGlass()
-        if outcomesSupported {
-          InboxChromeButton(title: "Outcomes", symbol: "checkmark.circle") { outcomes = true }
-            .accessibilityIdentifier("outcomes-button")
-        }
+        if outcomesSupported { outcomesButton(useGlass: true) }
         searchControl
         if !expandedReferenceSidebar, store.navigation.isEmpty {
           MarketplaceShortcut { marketplace = true }
@@ -678,8 +721,7 @@ struct HomeView: View {
   @ToolbarContentBuilder private var inboxToolbar: some ToolbarContent {
     if outcomesSupported {
       ToolbarItem(id: "inbox.outcomes", placement: .topBarTrailing) {
-        Button("Outcomes", systemImage: "checkmark.circle") { outcomes = true }
-          .accessibilityIdentifier("outcomes-button")
+        outcomesButton()
       }
     }
     if toolbarOnSide {

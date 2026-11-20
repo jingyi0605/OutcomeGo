@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { computerEventStream } from "../src/computer-event-stream";
+import { computerEventResponse, computerEventStream } from "../src/computer-event-stream";
 
 test("an aborted HTTP consumer releases the runtime waiting on an approval", async () => {
   let release!: () => void;
@@ -43,23 +43,21 @@ test("an aborted HTTP consumer releases the runtime waiting on an approval", asy
   }
 });
 
-test("quiet foreground tasks keep their HTTP event stream alive", async () => {
+test("quiet foreground tasks send heartbeats and outlive the HTTP idle timeout", async () => {
   const server = Bun.serve({
     hostname: "127.0.0.1",
     port: 0,
     idleTimeout: 1,
-    fetch() {
-      return new Response(
-        computerEventStream(
-          (async function* () {
-            yield { type: "turn.started", turnId: "quiet-routine" } as any;
-            await Bun.sleep(2200);
-            yield { type: "turn.completed", turnId: "quiet-routine", status: "completed" } as any;
-          })(),
-          undefined,
-          { heartbeatMs: 100 }
-        ),
-        { headers: { "content-type": "application/x-ndjson" } }
+    fetch(request, server) {
+      return computerEventResponse(
+        request,
+        server,
+        (async function* () {
+          yield { type: "turn.started", turnId: "quiet-routine" } as any;
+          await Bun.sleep(2200);
+          yield { type: "turn.completed", turnId: "quiet-routine", status: "completed" } as any;
+        })(),
+        { heartbeatMs: 100 }
       );
     },
   });

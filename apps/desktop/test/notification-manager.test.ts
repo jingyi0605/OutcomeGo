@@ -168,6 +168,38 @@ describe("DesktopNotificationManager", () => {
     expect(arrivals).toBe(1);
   });
 
+  test("animates for unread attention even when later progress fills the alert history", () => {
+    let arrivals = 0;
+    const { manager, flush, ids } = harness({
+      onMessagesArrived: () => { arrivals++; },
+    });
+    const quiet = { unreadCount: 0, latest: null };
+    const attention = (sequence: number) => ({
+      unreadCount: 1,
+      latest: {
+        notificationSequence: String(sequence),
+        messageSequence: String(sequence * 10),
+        createdAt: "2026-11-20T00:00:00Z",
+      },
+    });
+    manager.sync({ channels: [channel([], { botDock: quiet })] });
+    manager.sync({ channels: [channel([alert(1)], { botDock: quiet })] });
+    expect(arrivals).toBe(0);
+    flush();
+    expect(ids()).toEqual(["chat:1"]);
+
+    const burst = channel(Array.from({ length: 100 }, (_, index) => alert(index + 3)), {
+      botDock: attention(2),
+    });
+    manager.sync({ channels: [burst] });
+    manager.sync({ channels: [burst] });
+    expect(arrivals).toBe(1);
+
+    manager.markRead({ channelId: "chat", lastReadSequence: "1030", lastReadNotificationSequence: "103" });
+    manager.sync({ channels: [channel([alert(103)], { botDock: attention(103) })] });
+    expect(arrivals).toBe(1);
+  });
+
   test("a full local read keeps the badge cleared through blur and a lagging server snapshot", () => {
     const { manager, badges } = harness();
     const snapshot = { channels: [channel([alert(1)])] };

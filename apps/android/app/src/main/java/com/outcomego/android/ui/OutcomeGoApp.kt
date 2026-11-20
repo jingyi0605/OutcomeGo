@@ -51,6 +51,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NamedNavArgument
 import androidx.navigation.NavBackStackEntry
@@ -117,6 +118,8 @@ import com.outcomego.platform.AndroidNetworkProvider
 import com.outcomego.platform.AndroidUpdateState
 import com.outcomego.platform.NativeAttachmentPreview
 import com.outcomego.platform.SharePayload
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 private const val LOGIN = "login"
 private const val DIRECTORY = "directory"
@@ -141,6 +144,7 @@ private const val SHARE = "share"
 private const val ACCOUNT = "account"
 private const val SIDEBAR = "sidebar"
 private const val MESSAGE_SEARCH = "message-search"
+private const val OUTCOME_BADGE_REFRESH_MILLIS = 30_000L
 
 private fun liveVoicePermissionRequest(): Array<String> =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -321,6 +325,7 @@ fun OutcomeGoApp(
     var outcomeOpeningGeneration by remember(state.session) { mutableStateOf(0) }
     val outcomeGateway = appViewModel.outcomeReadGateway
     var outcomesSupported by remember(state.session, outcomeGateway) { mutableStateOf(false) }
+    var hasPendingOutcomes by remember(state.session, outcomeGateway, outcomesSupported) { mutableStateOf(false) }
     // True only once the server said goal management is off; until then a pending link may still open.
     var outcomesTurnedOff by remember(state.session, outcomeGateway) { mutableStateOf(false) }
     var resumeCount by remember { mutableStateOf(0) }
@@ -391,7 +396,16 @@ fun OutcomeGoApp(
                         onPreview = appViewModel::signInPreview,
                     )
                 }
-                spatialComposable(DIRECTORY) {
+                spatialComposable(DIRECTORY) { entry ->
+                    LaunchedEffect(entry, state.session, outcomeGateway, outcomesSupported) {
+                        if (!outcomesSupported || state.session == null) return@LaunchedEffect
+                        entry.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                            while (isActive) {
+                                outcomeGateway.hasPendingOutcomes().onSuccess { hasPendingOutcomes = it }
+                                delay(OUTCOME_BADGE_REFRESH_MILLIS)
+                            }
+                        }
+                    }
                     DirectoryScreen(
                         accountName = state.session?.accountName.orEmpty(),
                         rows = state.conversations,
@@ -406,6 +420,7 @@ fun OutcomeGoApp(
                         onRoutines = { navController.navigate(CREATE) },
                         onOutbox = { navController.navigate(OUTBOX) },
                         onOutcomes = if (outcomesSupported) ({ outcomeOpening = null; navController.navigate(OUTCOMES) { launchSingleTop = true } }) else null,
+                        hasPendingOutcomes = hasPendingOutcomes,
                         onSettings = { navController.navigate(SETTINGS) { launchSingleTop = true } },
                         onSearch = appViewModel::search,
                         onClearSearch = appViewModel::clearSearch,

@@ -2932,7 +2932,15 @@ export class AgentMessaging {
       }
       if (channel.kind === "group" && context.deliveryId) {
         const buffered = await stageGroupMessage(tx, { ...context, channelId: channel.id, deliveryId: context.deliveryId }, {
-          content, metadata: { kind: "send-message", type: "text", content, ...(replyTarget ? { replyTo: replyTarget.id } : {}), timeZone: resolveTimeZone(context.timeZone ?? (await this.userTimeZone(tx))) },
+          content,
+          metadata: {
+            kind: "send-message",
+            type: "text",
+            content,
+            ...(input.end_turn === true ? { end_turn: true } : {}),
+            ...(replyTarget ? { replyTo: replyTarget.id } : {}),
+            timeZone: resolveTimeZone(context.timeZone ?? (await this.userTimeZone(tx))),
+          },
         }, GROUP_MEMBER_TURN_MESSAGE_LIMIT_NOTICE);
         return { acknowledgement: { sent: true, queued: true, channel_id: channel.id, channel_type: "group", message_id: buffered.id, message_address: buffered.id }, interruptRunId: null };
       }
