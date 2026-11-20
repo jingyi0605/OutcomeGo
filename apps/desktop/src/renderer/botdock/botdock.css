@@ -155,7 +155,9 @@ body {
   content: "";
   width: 100%;
   height: 100%;
-  background: center / cover no-repeat url("./dock-mascot.png?inline");
+  /* The 64px file serves 1x screens; Retina and scaled Windows displays get the 128px one. */
+  background: center / cover no-repeat
+    image-set(url("./dock-mascot-1x.webp?inline") 1x, url("./dock-mascot-2x.webp?inline") 2x);
   transition: filter 120ms ease;
 }
 
