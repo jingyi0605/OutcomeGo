@@ -168,6 +168,12 @@ public struct Message: Codable, Identifiable, Sendable, Hashable {
   public var date: Date? {
     MessageTimestampParser.shared.date(createdAt)
   }
+
+  public static func replyPreview(_ preview: ReplyPreview, in channel: Channel) -> Message {
+    Message(id: preview.clientId, clientId: preview.clientId, sequence: "",
+      channelId: channel.id, sender: "agent", senderBotId: channel.members.first?.botId,
+      sourceRunId: preview.runId, content: preview.content, metadata: .object([:]), createdAt: "")
+  }
 }
 
 /// History is projected again when a message arrives. Reuse both the parsers and

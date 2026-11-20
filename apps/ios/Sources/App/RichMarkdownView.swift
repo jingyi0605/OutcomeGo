@@ -7,6 +7,7 @@ struct RichMarkdownView: View {
   let source: String
   var forceDark = false
   var messageTextColor: String? = nil
+  var streaming = false
   @Environment(\.colorScheme) private var scheme
   @ScaledMetric(relativeTo: .body) private var fontSize = 17.0
   @State private var height: CGFloat = 40
@@ -19,14 +20,15 @@ struct RichMarkdownView: View {
       // Read the measured height and cache revision in body, so a measurement,
       // including one made offscreen before WebKit renders here, resizes the row.
       let measured = height
-      let _ = DocumentHeightCache.shared.revision
+      let _ = streaming ? 0 : DocumentHeightCache.shared.revision
       DocumentFrame { width in
-        width.flatMap { DocumentHeightCache.shared.height(source: source, width: $0, dark: dark, font: fontSize) }
+        guard !streaming else { return measured }
+        return width.flatMap { DocumentHeightCache.shared.height(source: source, width: $0, dark: dark, font: fontSize) }
           ?? measured
       } content: {
         MarkdownDocument(
           source: source, forceDark: forceDark, dark: dark, messageTextColor: messageTextColor,
-          fontSize: fontSize, height: $height
+          fontSize: fontSize, streaming: streaming, height: $height
         )
         .id(Self.usesDiagrams(source))
       }.clipped().accessibilityIdentifier("rich-markdown")
@@ -125,6 +127,7 @@ private struct MarkdownDocument: UIViewRepresentable {
   let dark: Bool
   let messageTextColor: String?
   let fontSize: CGFloat
+  let streaming: Bool
   @Binding var height: CGFloat
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   private func knownHeight() -> (CGFloat) -> CGFloat? {
@@ -137,7 +140,7 @@ private struct MarkdownDocument: UIViewRepresentable {
     let view = DocumentPool.shared.take(diagrams: diagrams)
     view.alpha = 0
     view.measuredSize = nil
-    view.knownHeight = knownHeight()
+    view.knownHeight = streaming ? nil : knownHeight()
     view.participatesInHistoryLayout = true
     view.lease = context.coordinator.lease
     view.onLayoutReady = { [weak coordinator = context.coordinator] in coordinator?.settled() }
@@ -158,7 +161,7 @@ private struct MarkdownDocument: UIViewRepresentable {
   }
   func updateUIView(_ view: ReusableDocumentView, context: Context) {
     context.coordinator.parent = self
-    view.knownHeight = knownHeight()
+    view.knownHeight = streaming ? nil : knownHeight()
     context.coordinator.render(view)
   }
   static func dismantleUIView(_ view: ReusableDocumentView, coordinator: Coordinator) {
@@ -182,6 +185,7 @@ private struct MarkdownDocument: UIViewRepresentable {
     var parent: MarkdownDocument
     let lease = UUID().uuidString
     var ready = false
+    var hasStreamed: Bool
     var key = ""
     var renderToken = ""
     var timeout: DispatchWorkItem?
@@ -192,6 +196,7 @@ private struct MarkdownDocument: UIViewRepresentable {
     var reloads = 0
     init(_ parent: MarkdownDocument) {
       self.parent = parent
+      hasStreamed = parent.streaming
       super.init()
       #if DEBUG
       SuspendedDocumentFixture.observe()
@@ -278,12 +283,13 @@ private struct MarkdownDocument: UIViewRepresentable {
       render(webView)
     }
     func render(_ view: WKWebView) {
+      hasStreamed = hasStreamed || parent.streaming
       let next = "\(parent.dark)-\(parent.fontSize)-\(parent.messageTextColor ?? "")-" + parent.source
       guard ready, next != key else { return }
       key = next
       renderToken = UUID().uuidString
       let token = renderToken
-      if let document = view as? ReusableDocumentView {
+      if !hasStreamed, let document = view as? ReusableDocumentView {
         document.measuredSize = nil
         document.alpha = 0
       }
@@ -330,10 +336,12 @@ private struct MarkdownDocument: UIViewRepresentable {
         DocumentMeasurer.shared.endVisibleRender(lease)
         if abs(parent.height - measuredHeight) > 0.5 { parent.height = measuredHeight }
         if let view = message.webView as? ReusableDocumentView {
-          DocumentHeightCache.shared.save(measuredHeight, source: parent.source, width: CGFloat(width),
-            dark: parent.dark, font: parent.fontSize)
-          DocumentMeasurer.shared.noteLayout(forceDark: parent.forceDark, width: CGFloat(width),
-            dark: parent.dark, font: parent.fontSize)
+          if !parent.streaming {
+            DocumentHeightCache.shared.save(measuredHeight, source: parent.source, width: CGFloat(width),
+              dark: parent.dark, font: parent.fontSize)
+            DocumentMeasurer.shared.noteLayout(forceDark: parent.forceDark, width: CGFloat(width),
+              dark: parent.dark, font: parent.fontSize)
+          }
           view.measuredSize = CGSize(width: width, height: measuredHeight)
           view.setNeedsLayout()
         }

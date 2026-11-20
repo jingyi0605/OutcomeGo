@@ -22,6 +22,7 @@ struct NativeHistoryItem {
   var anchorToBottom = false
   var animatesResize = false
   var outgoingArrival = false
+  var streaming = false
   /// Prepares asynchronously sized content (WebKit documents) before the row
   /// scrolls into view, so it is displayed at its final height.
   var prefetch: (() -> Void)?
@@ -311,6 +312,7 @@ struct NativeMessageList: UIViewControllerRepresentable {
       !scrollingToTarget, items["later"] == nil,
       windowStart + displayedIDs.count == previousIDs.count,
       let latest = Self.latestMessageID(ids), !previousIDs.contains(latest),
+      items[latest]?.streaming != true,
       bottomOffset.y - table.contentOffset.y <= Self.arrivalFollowDistance
     {
       following = true
