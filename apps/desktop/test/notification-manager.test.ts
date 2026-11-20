@@ -200,6 +200,26 @@ describe("DesktopNotificationManager", () => {
     expect(arrivals).toBe(1);
   });
 
+  test("animates when an earlier progress message settles into the final reply", () => {
+    let arrivals = 0;
+    const { manager } = harness({ onMessagesArrived: () => { arrivals++; } });
+    const quiet = { unreadCount: 0, latest: null };
+    manager.sync({ channels: [channel([], { botDock: quiet })] });
+    // A progress message (notification 5) arrives while the run is still working.
+    manager.sync({ channels: [channel([alert(5)], { botDock: quiet })] });
+    expect(arrivals).toBe(0);
+    // The run settles: the same message now counts, though its sequence is below the cursor.
+    const settled = channel([alert(5)], {
+      botDock: {
+        unreadCount: 1,
+        latest: { notificationSequence: "5", messageSequence: "50", createdAt: "2026-11-20T00:00:00Z" },
+      },
+    });
+    manager.sync({ channels: [settled] });
+    manager.sync({ channels: [settled] });
+    expect(arrivals).toBe(1);
+  });
+
   test("a full local read keeps the badge cleared through blur and a lagging server snapshot", () => {
     const { manager, badges } = harness();
     const snapshot = { channels: [channel([alert(1)])] };
