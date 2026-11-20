@@ -18,6 +18,7 @@ import { requestProgressSnapshot } from "./request-progress";
 export { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
 import { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
 import { renderTaskProgressContext } from "@outcomego/contracts/task-progress";
+import { GroupTaskService } from "./group-tasks";
 export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTaskContinuations, taskProgress, taskProgressContext, notifyTaskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "./task-progress";
 import { taskProgressContext, taskScopeContext } from "./task-progress";
 export { taskScopeContext, taskScopeUpdates } from "./task-progress";
@@ -90,6 +91,7 @@ import { groupRoutineState } from "./group-routine-state";
 import { lockGroupExecution, lockGroupRound, lockGroupDelivery } from "./group-supersession";
 export { lockGroupExecution, supersedeGroupUserTurns } from "./group-supersession";
 export { groupRoutineState } from "./group-routine-state";
+export { GroupTaskService, releaseGroupTasksForBots, type CreateGroupTaskInput, type UpdateGroupTaskInput, type ListGroupTasksInput } from "./group-tasks";
 import {
   AUTOMATION_DELEGATING_SECTION,
   DELEGATING_SECTION,
@@ -186,6 +188,8 @@ export interface PlatformPrompt {
   ambientContext?: string | null;
   /** Whether the owner has goal management on; the worker forwards it so the computer offers the goal tools only then. */
   outcomesEnabled?: boolean;
+  /** The turn is a member's turn in a group chat: the worker forwards it so the computer offers the group task tools (specs/010). */
+  groupTasksEnabled?: boolean;
   acknowledgement?: {
     sections: PromptSectionReceipt[];
     memory?: MemoryContextReceipt;
@@ -2192,6 +2196,8 @@ export class AgentMessaging {
       : goalThread ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId) : null;
     const automation = context?.scope === "automation" || outcome || goalThread;
     const outcomesEnabled = await readOutcomesEnabled(this.prisma);
+    // Null outside a group the bot belongs to; an automation or goal run never sees the shared board.
+    const groupBoard = !automation && channelId ? await new GroupTaskService(this.prisma).snapshotFor(botId, channelId) : null;
     const [agentPrompt, taskConfiguration] = await Promise.all([
       this.agentData.promptContext(botId, contextSessionId, channelId),
       taskConfigurationSnapshot ?? this.agentData.loadTaskConfiguration(),
@@ -2381,9 +2387,12 @@ export class AgentMessaging {
       instructions,
       instructionsUpdate: [frozen.update, frozen.memory?.update].filter(Boolean).join("\n\n") || null,
       outcomesEnabled,
+      // Present only for a group turn, so every other platform prompt is exactly what it was.
+      ...(groupBoard !== null ? { groupTasksEnabled: true } : {}),
       automationStatus: frozen.automationStatus?.note ?? null,
       ambientContext: outcomeContext ?? (automation ? null : [
         dismissedWidgetPrompts.length > 0 ? buildDismissedQuestionsNote(dismissedWidgetPrompts) : "",
+        groupBoard ?? "",
         ...richMessagePrompts,
         ...automationResults.map((result) => {
           const routine = resultRoutines.get(result.runId);
