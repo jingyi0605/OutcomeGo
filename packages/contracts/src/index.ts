@@ -1579,6 +1579,8 @@ export const ComputerTurnRequest = Schema.Struct({
   timeZone: Schema.optional(Schema.String),
   /** Goal management is an opt-in module; without it the turn gets no Outcome or Explore tools. */
   outcomesEnabled: Schema.optional(Schema.Boolean),
+  /** A member's turn in a group chat: the turn gets the group task board tools (specs/010-群任务看板). */
+  groupTasksEnabled: Schema.optional(Schema.Boolean),
   model: Schema.String,
   reasoning: Schema.Literal(...PI_REASONING_LEVELS),
   fileAttachments: Schema.optional(Schema.Array(Schema.String)),
@@ -2096,6 +2098,7 @@ export class ApiError extends Error {
 export * from "./external-draft";
 export * from "./messages-send";
 export * from "./outcomes";
+export * from "./group-tasks";
 export * from "./bot-recipe";
 
 export * from "./web-search";
