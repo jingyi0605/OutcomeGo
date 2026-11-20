@@ -76,7 +76,7 @@ worker 每轮开始
 
 1. 轮次开始，worker 取平台提示词，`ambientContext` 带看板快照
 2. bot 看快照：已有匹配任务且被他人认领 → 不重做，转做别的或回复进展
-3. 没有匹配任务 → `CreateGroupTask`（`assignTo: "me"`）登记并认领；若返回 `group_task_duplicate`，改为认领或跳过已有任务
+3. 没有匹配任务且工作符合登记条件（一次对话内无法结束、用户明确让其负责/跟进/分工、或当下无法完成需持续跟进）→ `CreateGroupTask`（`assignTo: "me"`）登记并认领；回答问题、澄清、闲聊、本回合内单步完成且无人依赖的操作不登记；若返回 `group_task_duplicate`，改为认领或跳过已有任务
 4. 大任务拆分 → 对父任务逐个 `CreateGroupTask`（`parent`），可指派给合适的成员
 5. 开始工作前，对未认领的任务调用 `ClaimGroupTask`
 6. 完成 → `UpdateGroupTask`（`status: done`，`note` 写结果）；受阻 → `blocked` 并写原因；不再做 → `assignTo: "none"` 释放
