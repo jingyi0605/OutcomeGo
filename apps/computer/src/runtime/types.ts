@@ -56,6 +56,10 @@ export interface ActiveTurn {
   outcomesEnabled: boolean;
   /** A member's turn in a group chat: the group task board tools are offered (specs/010). */
   groupTasksEnabled: boolean;
+  /** A group room woke this bot: it owes the room the same opening acknowledgement as a private turn. */
+  groupTurn?: boolean;
+  /** The assistant message whose work calls the opening gate refused; its sibling calls are refused too, later responses are not. */
+  openingGateMessage?: unknown;
   draftStatusAcknowledged?: boolean;
   draftStateRevision?: string;
   pendingDraftStateRevision?: string;

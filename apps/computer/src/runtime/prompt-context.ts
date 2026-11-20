@@ -212,13 +212,51 @@ function acknowledgedSinceTurnStart(messages: readonly BotMessage[]): boolean {
   return false;
 }
 
+/** A person opened the turn: a private message, or a group room that woke this bot. Agent, routine and event wakes owe nothing. */
+const owesOpeningAcknowledgement = (active: Pick<ActiveTurn, "requestSource"> & Partial<Pick<ActiveTurn, "groupTurn">>) =>
+  ["user", "turn"].includes(active.requestSource) || active.groupTurn === true;
+
+/** Tools that may come first without an acknowledgement: they are the acknowledgement, or only bookkeeping. */
+const OPENING_EXEMPT_TOOLS = new Set(["SendToUser", "ReactToMessage", "TodoWrite"]);
+
+const OPENING_GATE_PRIVATE =
+  "The user has not heard from you yet, so this call was not run. First call the SendToUser tool with a one-line text acknowledgement of what you are about to do (end_turn false), then repeat this call.";
+const OPENING_GATE_GROUP =
+  "Nobody in the room has heard from you yet, so this call was not run. If the room's messages address you or ask you to do something, first call the SendToUser tool with a one-line text acknowledgement of what you are about to do (end_turn false), then repeat this call. If they do not need you, end your turn without doing any work.";
+
+/**
+ * Refuses the first work call of a person-opened turn that has not acknowledged them yet, once per turn.
+ * Returns the refusal to hand back to the model, or null to let the call run. Calls that share the
+ * refused response are refused together; the next response always runs, so the gate cannot loop.
+ */
+export function openingAcknowledgementGate(
+  messages: readonly BotMessage[],
+  active: Pick<ActiveTurn, "requestSource" | "subagentType"> &
+    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged" | "groupTurn" | "openingGateMessage">>,
+  toolName: string
+): string | null {
+  if (active.subagentType || active.narrator || !owesOpeningAcknowledgement(active)) return null;
+  if (OPENING_EXEMPT_TOOLS.has(toolName)) return null;
+  const acknowledged = active.userAcknowledged === undefined
+    ? acknowledgedSinceTurnStart(messages)
+    : active.userAcknowledged;
+  if (acknowledged) return null;
+  const latest = messages.findLast((message) => message.role === "assistant");
+  // A text send or tapback in this very response comes first in call order and reaches the user before the work.
+  if (latest && toolCalls(latest).some((call) => isTextSend(call) || call.name === "ReactToMessage")) return null;
+  const marker = latest ?? null;
+  if (active.openingGateMessage !== undefined && active.openingGateMessage !== marker) return null;
+  active.openingGateMessage = marker;
+  return active.groupTurn === true ? OPENING_GATE_GROUP : OPENING_GATE_PRIVATE;
+}
+
 /** The ack repeats every 2 silent calls until a text send or reaction; the progress note every 7 after that. */
 export function communicationReminder(
   messages: readonly BotMessage[],
   active: Pick<ActiveTurn, "requestSource" | "subagentType"> &
-    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged">>
+    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged" | "groupTurn">>
 ) {
-  if (active.subagentType || !["user", "turn"].includes(active.requestSource)) return null;
+  if (active.subagentType || !owesOpeningAcknowledgement(active)) return null;
   // On a voice call the narrator keeps the user informed while the agent works.
   if (active.narrator) return null;
   const last = messages.at(-1);

@@ -47,4 +47,6 @@ test("the turn contract carries the optional group marker", () => {
   const decode = Schema.decodeUnknownSync(ComputerTurnRequest);
   expect(decode(request)).not.toHaveProperty("groupTasksEnabled");
   expect(decode({ ...request, groupTasksEnabled: true }).groupTasksEnabled).toBe(true);
+  expect(decode(request)).not.toHaveProperty("groupTurn");
+  expect(decode({ ...request, groupTurn: true }).groupTurn).toBe(true);
 });

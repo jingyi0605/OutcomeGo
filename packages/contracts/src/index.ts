@@ -1581,6 +1581,8 @@ export const ComputerTurnRequest = Schema.Struct({
   outcomesEnabled: Schema.optional(Schema.Boolean),
   /** A member's turn in a group chat: the turn gets the group task board tools (specs/010-群任务看板). */
   groupTasksEnabled: Schema.optional(Schema.Boolean),
+  /** Set by the worker only when a group room woke this bot; its messages are not a private chat turn, but the opening acknowledgement still applies. */
+  groupTurn: Schema.optional(Schema.Boolean),
   model: Schema.String,
   reasoning: Schema.Literal(...PI_REASONING_LEVELS),
   fileAttachments: Schema.optional(Schema.Array(Schema.String)),

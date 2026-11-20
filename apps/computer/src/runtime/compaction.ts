@@ -27,7 +27,7 @@ import { textFromContent } from "./content";
 import { inferenceReasoningOptions } from "./reasoning";
 import type { RuntimeTools } from "./tools";
 import type { ActiveTurn } from "./types";
-import { communicationReminder, OUTPUT_LIMIT_REMINDER, owesOutputLimitReminder, promptFingerprint } from "./prompt-context";
+import { communicationReminder, openingAcknowledgementGate, OUTPUT_LIMIT_REMINDER, owesOutputLimitReminder, promptFingerprint } from "./prompt-context";
 import { compactRepeatedDiscovery } from "./discovery-context";
 import { DISK_PRESSURE_REMINDER } from "./disk-pressure";
 import { INSTALL_NOTICE_TYPE } from "./install-notice";
@@ -128,6 +128,11 @@ export function compactionExtension(
     hidden: true,
     factory: (pi) => {
       pi.on("before_agent_start", async () => ({ systemPrompt: taskProgressBaseInstructions(active.instructions) }));
+      // A turn a person opened must acknowledge them before its first work call; the refusal costs one retry.
+      pi.on("tool_call", async (event) => {
+        const reason = openingAcknowledgementGate(readPiMessages(), active, event.toolName);
+        return reason ? { block: true, reason } : undefined;
+      });
       pi.on("context", async (event, ctx) => {
         if (!restoredMeasurement) {
           restoredMeasurement = true;

@@ -396,6 +396,8 @@ for (const timing of ["terminal-ready", "terminal-pending"] as const) {
           runtimeProfile: "agent",
           subagentType: null,
           requestSource: "turn",
+          // This test is about compaction, so the user has already been acknowledged and the opening gate stays out of the way.
+          userAcknowledged: true,
           resetSelfSummaryCount: true,
           sentMessageCount: 1,
           assistantOrdinal: 0,
