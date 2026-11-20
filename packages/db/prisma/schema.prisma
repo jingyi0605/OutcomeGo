@@ -360,6 +360,8 @@ model Bot {
   externalMessagingBindings ExternalMessagingBinding[]
   externalChannelMappings ExternalChannelMapping[]
   externalOutboundDeliveries ExternalOutboundDelivery[]
+  createdGroupTasks GroupTask[] @relation("GroupTaskCreator")
+  ownedGroupTasks GroupTask[] @relation("GroupTaskAssignee")
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -658,6 +660,7 @@ model Channel {
   externalMapping ExternalChannelMapping?
   readState   ChannelReadState?
   notifications ChannelNotification[]
+  groupTasks GroupTask[]
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
   voiceSessions VoiceSession[]
@@ -2388,4 +2391,50 @@ model OutcomeHumanReceipt {
   @@unique([workItemId, sequence], map: "outcomego_human_receipt_item_sequence_key")
   @@index([outcomeId, submittedAt], map: "outcomego_human_receipt_outcome_submitted_idx")
   @@map("outcomego_outcome_human_receipt")
+}
+
+enum GroupTaskStatus {
+  open
+  in_progress
+  blocked
+  done
+  cancelled
+  @@map("outcomego_group_task_status")
+}
+
+/// A task on a group's shared board (specs/010-群任务看板). Rows are never deleted: a cancelled
+/// task is its tombstone, and the group-local number is never reused.
+model GroupTask {
+  id String @id @default(uuid()) @db.Uuid
+  channelId String @db.Uuid
+  channel Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  /// Group-local number starting at 1; tools and people refer to a task by it.
+  number Int
+  parentId String? @db.Uuid
+  parent GroupTask? @relation("GroupTaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks GroupTask[] @relation("GroupTaskSubtasks")
+  title String
+  /// Lower-cased, whitespace-collapsed title; a group refuses a second unfinished task with the same key under one parent.
+  titleKey String
+  description String @default("")
+  status GroupTaskStatus @default(open)
+  creatorBotId String? @db.Uuid
+  creator Bot? @relation("GroupTaskCreator", fields: [creatorBotId], references: [id], onDelete: SetNull)
+  assigneeBotId String? @db.Uuid
+  assignee Bot? @relation("GroupTaskAssignee", fields: [assigneeBotId], references: [id], onDelete: SetNull)
+  /// Completion summary, blocked reason or cancel reason.
+  note String?
+  /// Monotonic; every successful change adds one.
+  revision Int @default(1)
+  clientRequestId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  completedAt DateTime?
+
+  @@unique([channelId, number], map: "outcomego_group_task_channel_id_number_key")
+  @@unique([channelId, clientRequestId], map: "outcomego_group_task_channel_id_client_request_id_key")
+  @@index([channelId, status], map: "outcomego_group_task_channel_id_status_idx")
+  @@index([channelId, parentId], map: "outcomego_group_task_channel_id_parent_id_idx")
+  @@index([assigneeBotId], map: "outcomego_group_task_assignee_bot_id_idx")
+  @@map("outcomego_group_task")
 }
