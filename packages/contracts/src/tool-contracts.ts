@@ -591,7 +591,7 @@ const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
   CancelOutcome: "Cancel the native goal the user asked to stop, preserving history.",
   ListOutcomeInbox: "Read native decisions, reviews and human actions requiring attention.",
   ListGroupTasks: "Read this group's shared task board before starting any work in a group.",
-  CreateGroupTask: "Register group work on the shared board before starting it, so no other member repeats it.",
+  CreateGroupTask: "Register group work that needs follow-up or that the user asked you to own, before starting it; not quick answers or single-step actions.",
   ClaimGroupTask: "Take an unowned group task; only one member can own it.",
   UpdateGroupTask: "Update, finish, block, hand over or release a group task you own or created.",
   CreateExploreIdea: "Record an idea in native Explore without starting execution.",

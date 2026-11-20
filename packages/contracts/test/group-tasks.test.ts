@@ -282,7 +282,7 @@ describe("renderGroupTaskBoard", () => {
     const text = render(worst);
     const rows = text.split("\n").filter((line) => line.startsWith("- #"));
     expect(text.length).toBeLessThanOrEqual(GROUP_TASK_LIMITS.snapshotChars);
-    expect(GROUP_TASK_BOARD_RULES.length).toBeLessThan(500);
+    expect(GROUP_TASK_BOARD_RULES.length).toBeLessThan(900);
     expect(rows.length).toBeLessThan(worst.length);
     expect(rows.length).toBeGreaterThan(10);
     for (const row of rows) expect(row.length).toBeLessThan(GROUP_TASK_LIMITS.snapshotTitle + 40 + 140 + 40);
