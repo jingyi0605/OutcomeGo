@@ -3,7 +3,7 @@ import { ApiError } from "@outcomego/contracts";
 import type { Prisma } from "@outcomego/db";
 import { GROUP_MAX_MEMBER_TURNS, GROUP_MAX_MESSAGES_PER_TURN } from "./group-routing";
 import { nextMessageAddress } from "./message-address";
-import { publishMessageNotification } from "./notifications";
+import { publishMessageNotification, runHasOpenWork } from "./notifications";
 
 const scopeFor = (deliveryId: string, runId: string) => `group-outbox:${deliveryId}:${runId}`;
 const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -153,6 +153,12 @@ export async function settleGroupOutbox(
   });
   const remaining = publish && channel ? Math.max(0, GROUP_MAX_MEMBER_TURNS - count) : 0;
   const createdAt = new Date();
+  // The turn's last delivered message is its settlement once the run completed and no worker still
+  // owes a result. A turn that sent nothing with end_turn (or fell back to its final text) is
+  // still a finished reply.
+  const settles =
+    delivery.run.status === "completed" && remaining > 0 && !(await runHasOpenWork(tx, delivery.run.id));
+  const lastPublished = Math.min(entries.length, remaining) - 1;
   for (const [index, entry] of entries.entries()) {
     const buffered = entry.response as unknown as BufferedMessage;
     if (index < remaining) {
@@ -169,6 +175,7 @@ export async function settleGroupOutbox(
           createdAt,
           metadata: json({
             ...buffered.metadata,
+            ...(settles && index === lastPublished ? { settled: true } : {}),
             address,
             groupRootMessageId: delivery.round.rootMessageId,
           }),

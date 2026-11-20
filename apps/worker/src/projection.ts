@@ -5,6 +5,8 @@ import {
   saveSilentAutomationResult,
   publishChannelNotification,
   publishMessageNotification,
+  markSettlementMessage,
+  runHasOpenWork,
 } from "@outcomego/messaging";
 import { postgresJson } from "./postgres-json";
 import { lockWakeAttempt, ownsWakeAttempt, type WakeAttempt } from "./wake-attempt";
@@ -426,6 +428,8 @@ export class Projection {
             data: {
               status: finalStatus,
               completedAt: new Date(),
+              // Settlement of this turn's last message waits for the command results it still owes.
+              backgroundWorkPending: finalStatus === "completed" && event.backgroundWorkPending === true,
               error: current.status === "cancelled" ? undefined : event.error ? json(event.error) : undefined,
             },
           });
@@ -450,6 +454,7 @@ export class Projection {
             runId,
             status: finalStatus,
           });
+          if (finalStatus === "completed") await this.markSettlement(tx, runId);
           const target = await this.notificationTarget(tx, runId);
           if (target) {
             const lastMessage = await tx.channelMessage.findFirst({
@@ -469,6 +474,25 @@ export class Projection {
         break;
       }
     }
+  }
+
+  /**
+   * A completed turn's last visible message in the Bot's own chat is its settlement, unless a worker
+   * still owes the result. Narration is spoken aloud and never counts as the reply.
+   */
+  private async markSettlement(tx: Prisma.TransactionClient, runId: string) {
+    // Filter in code: a JSON-path NOT drops rows that have no `type` at all.
+    const recent = await tx.channelMessage.findMany({
+      where: { sourceRunId: runId, sender: "agent", channel: { kind: "bot_dm" } },
+      orderBy: { sequence: "desc" },
+      take: 5,
+      select: { id: true, metadata: true },
+    });
+    const last = recent.find(
+      (message) => (message.metadata as { type?: unknown } | null)?.type !== "voice-narration"
+    );
+    if (!last || (await runHasOpenWork(tx, runId))) return;
+    await markSettlementMessage(tx, last.id);
   }
 
   private async notificationTarget(tx: Prisma.TransactionClient, runId: string) {
