@@ -21,6 +21,8 @@ public struct OutcomeInboxItem: Decodable, Sendable, Identifiable {
 public struct OutcomeInboxPage: Decodable, Sendable {
   public let items: [OutcomeInboxItem]
   public let nextCursor: String?
+
+  public var hasPendingActions: Bool { items.contains { $0.requiresAction } }
 }
 public struct OutcomeDecisionOption: Decodable, Sendable, Identifiable {
   public let id: String
