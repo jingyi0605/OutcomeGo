@@ -65,9 +65,8 @@ export const deriveBotDockRoster = (
     }));
 
 /**
- * The Bots that have something waiting: unread messages in their direct chat (the same count
- * the Dock badge uses, so muted Bots stay out) or goals waiting on the owner. Most recently
- * active chat first, so the Bot that just wrote sits on top of the stack.
+ * Bots with unread replies that need attention or goals waiting on the owner.
+ * A newer progress update does not move a reply to the top of the stack.
  */
 export const deriveBotDockEntries = (
   snapshot: ClientSnapshot | null | undefined,
@@ -76,10 +75,13 @@ export const deriveBotDockEntries = (
   if (!snapshot) return [];
   const unreadByChannel = new Map<string, number>();
   for (const channel of desktopNotificationSnapshot(snapshot).channels) {
-    unreadByChannel.set(channel.channelId, channel.unreadCount);
+    unreadByChannel.set(channel.channelId, channel.botDock?.unreadCount ?? channel.unreadCount);
   }
   const updatedAtByChannel = new Map(
-    snapshot.channels.map((channel) => [channel.id, channel.updatedAt] as const)
+    snapshot.channels.map((channel) => [
+      channel.id,
+      channel.notificationState?.botDock?.latest?.createdAt ?? channel.updatedAt,
+    ] as const)
   );
   const entries: BotDockEntry[] = [];
   for (const bot of snapshot.bots) {

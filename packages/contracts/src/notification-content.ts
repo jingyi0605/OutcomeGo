@@ -120,6 +120,15 @@ export interface ChannelNotificationState extends NotificationReadState {
   notificationCursor: string;
   notifications: ChannelNotificationView[];
   activityUnreadCount: number;
+  /** Floating-window attention, independent of the bounded native alert history. */
+  botDock?: {
+    unreadCount: number;
+    latest: {
+      notificationSequence: string;
+      messageSequence: string;
+      createdAt: string;
+    } | null;
+  };
 }
 
 export const notificationIsRead = (

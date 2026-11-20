@@ -62,6 +62,25 @@ describe("Bot dock entries", () => {
     expect(entries.map((entry) => entry.id)).toEqual(["new", "old"]);
   });
 
+  test("uses attention counts and orders by the qualifying reply instead of later progress", () => {
+    const focusedChannel = (id: string, unreadCount: number, createdAt?: string) =>
+      channel(id, 100, "2026-03-01T00:00:00Z", {
+        notificationState: {
+          ...state(`dm-${id}`),
+          botDock: {
+            unreadCount,
+            latest: createdAt ? { notificationSequence: "1", messageSequence: "1", createdAt } : null,
+          },
+        },
+      });
+    const entries = deriveBotDockEntries(snapshot(
+      [bot("a"), bot("b"), bot("progress")],
+      [focusedChannel("a", 2, "2026-01-01T00:00:00Z"),
+        focusedChannel("b", 1, "2026-02-01T00:00:00Z"), focusedChannel("progress", 0)]
+    ));
+    expect(entries.map(({ id, messages }) => [id, messages])).toEqual([["b", 1], ["a", 2]]);
+  });
+
   test("leaves muted and unavailable Bots' messages out, as the Dock badge does", () => {
     const entries = deriveBotDockEntries(
       snapshot(
