@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirror SpatialColors.canvasBase / textPrimary so the splash hands off to the app without a colour jump. -->
+    <color name="outcomego_canvas">#FFFCFCFD</color>
+    <color name="outcomego_ink">#FF0D1117</color>
+</resources>

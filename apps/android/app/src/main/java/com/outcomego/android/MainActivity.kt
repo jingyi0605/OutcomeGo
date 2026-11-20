@@ -6,8 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.outcomego.android.ui.LaunchSplash
 import com.outcomego.android.ui.OutcomeGoApp
 import com.outcomego.android.ui.OutcomeGoTheme
 import com.outcomego.android.data.AndroidSecureSessionStore
@@ -31,6 +33,9 @@ class MainActivity : ComponentActivity() {
     private val sessionStore by lazy { AndroidSecureSessionStore(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // The system splash only shows the glyph; LaunchSplash draws the same glyph at the same spot,
+        // so drop the system exit animation and let the Compose layer take over.
+        installSplashScreen().setOnExitAnimationListener { it.remove() }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         platform = AndroidPlatformRuntime(
@@ -112,15 +117,17 @@ class MainActivity : ComponentActivity() {
             val state by viewModel.state.collectAsStateWithLifecycle()
             val updateState by viewModel.androidUpdateState.collectAsStateWithLifecycle()
             OutcomeGoTheme(state.features.settings.appearance, state.features.settings.accent) {
-                OutcomeGoApp(
-                    appViewModel = viewModel,
-                    androidUpdateState = updateState,
-                    onCheckForAndroidUpdate = viewModel::checkForAndroidUpdate,
-                    onDownloadAndroidUpdate = viewModel::downloadAndroidUpdate,
-                    onInstallAndroidUpdate = viewModel::installAndroidUpdate,
-                    androidUpdateChannel = viewModel.androidUpdateChannel,
-                    onSetAndroidUpdateChannel = viewModel::setAndroidUpdateChannel,
-                )
+                LaunchSplash(restoring = state.restoringSession) {
+                    OutcomeGoApp(
+                        appViewModel = viewModel,
+                        androidUpdateState = updateState,
+                        onCheckForAndroidUpdate = viewModel::checkForAndroidUpdate,
+                        onDownloadAndroidUpdate = viewModel::downloadAndroidUpdate,
+                        onInstallAndroidUpdate = viewModel::installAndroidUpdate,
+                        androidUpdateChannel = viewModel.androidUpdateChannel,
+                        onSetAndroidUpdateChannel = viewModel::setAndroidUpdateChannel,
+                    )
+                }
             }
         }
     }
