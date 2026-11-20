@@ -45,6 +45,8 @@ import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
 import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
 import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
+import { isGroupTaskTool } from "@outcomego/contracts/group-tasks";
+import type { GroupTaskTools } from "./group-task-tools";
 import type { OutcomeChatTools } from "./outcome-chat-tools";
 import { isOutcomeThreadTool, type OutcomeThreadTools } from "./outcome-thread-tools";
 import { findOutcomeCredentialGrant } from "./outcome-credential-approval";
@@ -123,7 +125,8 @@ export class InternalToolService {
     private readonly outcomeThreadTools: OutcomeThreadToolHandlers = {},
     private readonly outcomeChatTools?: OutcomeChatTools,
     private readonly userLocations?: UserLocationService,
-    private readonly goalThreadTools?: OutcomeThreadTools
+    private readonly goalThreadTools?: OutcomeThreadTools,
+    private readonly groupTaskTools?: GroupTaskTools
   ) {}
 
   /**
@@ -217,6 +220,14 @@ export class InternalToolService {
         if (!this.outcomeChatTools)
           throw new ApiError(503, "outcome_chat_unavailable", "Native Outcome conversation tools are not available");
         return this.outcomeChatTools.execute(request, context, signal);
+      }
+      if (isGroupTaskTool(request.tool)) {
+        // A shared group board is for the group's own members, not their workers or background runs.
+        if (childIdentity || backgroundRun)
+          throw new ApiError(403, "group_task_unavailable", "Group tasks are managed from the member's own group conversation");
+        if (!this.groupTaskTools)
+          throw new ApiError(503, "group_task_unavailable", "Group task tools are not available");
+        return this.groupTaskTools.execute(request, context);
       }
       if (request.tool === GET_USER_LOCATION_TOOL.name) {
         if (childIdentity)

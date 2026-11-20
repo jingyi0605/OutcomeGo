@@ -11,6 +11,7 @@ import { createOutcomeDecisionTool } from "./services/outcome-decision-tool";
 import { createOutcomeProgressTool } from "./services/outcome-progress-tool";
 import { createOutcomeCredentialApprovalTool } from "./services/outcome-credential-approval";
 import { OutcomeChatTools } from "./services/outcome-chat-tools";
+import { GroupTaskTools } from "./services/group-task-tools";
 import { OutcomeChatCards } from "./services/outcome-chat-cards";
 import { OutcomeInboxService } from "./services/outcome-inbox-service";
 import { createHumanWorkServices } from "./services/human-work-factory";
@@ -34,12 +35,14 @@ import {
   type UpdateUserTimeZoneInput,
   type UploadAssetInput,
 } from "@outcomego/contracts";
+import type { GroupTaskUserAction } from "@outcomego/contracts/group-tasks";
 import { createPrismaClient, Prisma, type PrismaClient } from "@outcomego/db";
 import {
   AgentDataStore,
   AgentMessaging,
   appendAgentTimelineEvent,
   AssetStore,
+  GroupTaskService,
   readFeatureSettings,
   type RoutineMutationInput,
   RoutineService,
@@ -137,6 +140,7 @@ export class AppService {
   readonly screens: ScreenService;
   readonly searchIndex: SearchService;
   readonly library: ChannelLibraryService;
+  readonly groupTasks: GroupTaskService;
   readonly snapshots: SnapshotService;
   readonly assets: AssetStore;
   readonly notifications: NotificationService;
@@ -200,6 +204,7 @@ export class AppService {
     );
     this.searchIndex = new SearchService(this.prisma);
     this.library = new ChannelLibraryService(this.prisma);
+    this.groupTasks = new GroupTaskService(this.prisma);
     this.assets = new AssetStore({
       root: this.agentData.assetRoot,
       agentDataRoot: this.agentData.root,
@@ -390,7 +395,8 @@ export class AppService {
       },
       outcomeChatTools,
       this.userLocations,
-      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools)
+      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools),
+      new GroupTaskTools(this.groupTasks)
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
@@ -898,6 +904,10 @@ export class AppService {
 
   search = forwardServiceMethod(() => this.searchIndex.search);
   channelLibrary = forwardServiceMethod(() => this.library.list);
+  groupTaskBoard = (channelId: string, includeClosed: boolean) =>
+    serviceEffect(() => this.groupTasks.list(channelId, { kind: "user" }, { includeClosed }));
+  actOnGroupTask = (channelId: string, number: number, input: GroupTaskUserAction) =>
+    serviceEffect(async () => ({ task: await this.groupTasks.userAct(channelId, number, input) }));
 
   health = forwardServiceMethod(() => this.snapshots.health);
 

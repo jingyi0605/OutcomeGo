@@ -14,6 +14,7 @@ import {
   cleanupRetiredAgent,
   GROUP_MAX_MEMBERS,
   lockGroupExecution,
+  releaseGroupTasksForBots,
 } from "@outcomego/messaging";
 import { lstat, mkdir, readdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { extname, join, relative, sep } from "node:path";
@@ -494,6 +495,12 @@ export class GroupAdministration {
         await tx.channelMember.createMany({
           data: botIds.map((botId, ordinal) => ({ channelId, botId, ordinal })),
         });
+        // A member that leaves cannot finish what it owns on the group's task board.
+        await releaseGroupTasksForBots(
+          tx,
+          previous.filter((botId) => !botIds.includes(botId)),
+          channelId
+        );
         const updated = await tx.channel.update({
           where: { id: channelId },
           data: { updatedAt: new Date() },

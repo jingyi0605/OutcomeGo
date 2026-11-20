@@ -14,6 +14,7 @@ import {
   type AgentMessaging,
   appendAgentTimelineEvent,
   stopRequestProgress,
+  releaseGroupTasksForBots,
   lockAgentLifecycle,
   cleanupRetiredAgent,
   type BotFileTarget,
@@ -445,6 +446,8 @@ export class BotService {
           where: { id: botId },
           data: { status: "archived", avatarPath: null },
         });
+        // An archived Bot cannot finish its group tasks; make them claimable again.
+        await releaseGroupTasksForBots(tx, [botId]);
         await tx.routine.updateMany({
           where: { botId, deletedAt: null },
           data: {

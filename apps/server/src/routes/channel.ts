@@ -13,6 +13,7 @@ import {
   WidgetDismissInput,
   WidgetResponseInput,
 } from "@outcomego/contracts";
+import { GroupTaskUserAction } from "@outcomego/contracts/group-tasks";
 import { corsHeaders, json, parseBody } from "../http";
 import { messageContextExtents } from "../message-context-query";
 import { type RouteContext, run } from "./context";
@@ -194,6 +195,15 @@ const routes = [
     /^\/api\/channels\/([^/]+)\/hidden$/,
     SetChannelHiddenInput,
     ({ app }, id, input) => app.setChannelHidden(id, input)
+  ),
+  effectRoute("GET", /^\/api\/channels\/([^/]+)\/tasks$/, ({ app, url }, id) =>
+    app.groupTaskBoard(decodeURIComponent(id), url.searchParams.get("includeClosed") === "true")
+  ),
+  bodyRoute(
+    "PATCH",
+    /^\/api\/channels\/([^/]+)\/tasks\/(\d{1,9})$/,
+    GroupTaskUserAction,
+    ({ app }, id, input, number) => app.actOnGroupTask(decodeURIComponent(id), Number(number), input)
   ),
   bodyRoute(
     "POST",
