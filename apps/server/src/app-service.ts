@@ -1,4 +1,5 @@
 import { OutcomeService } from "./services/outcome-service";
+import { ReplyPreviews } from "./services/reply-previews";
 import { lockAssetReferences, referencedAssetIdsSql } from "./services/asset-retention";
 import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
 import { OutcomePlanningService } from "./services/outcome-planning-service";
@@ -154,12 +155,14 @@ export class AppService {
   private readonly externalDelivery: ExternalDeliveryService;
   private readonly externalReminders: ExternalReminderService;
   private assetCleanupTimer: ReturnType<typeof setInterval> | null = null;
+  readonly replyPreviews: ReplyPreviews;
 
   constructor(
     authMode: import("./services/notification-service").PushAuthenticationMode = "required"
   ) {
     const databaseUrl = process.env.DATABASE_URL;
     this.prisma = createPrismaClient(databaseUrl);
+    this.replyPreviews = new ReplyPreviews(this.prisma);
     this.userLocations = new UserLocationService(this.prisma, authMode);
     this.apnsSettings = new ApnsSettingsStore(this.prisma);
     this.webProviders = new WebProviderSettingsService(this.prisma, async (request) => {
@@ -396,7 +399,8 @@ export class AppService {
       outcomeChatTools,
       this.userLocations,
       new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools),
-      new GroupTaskTools(this.groupTasks)
+      new GroupTaskTools(this.groupTasks),
+      this.replyPreviews
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
@@ -593,8 +597,11 @@ export class AppService {
 
   featureSettings = () => readFeatureSettings(this.prisma);
 
-  updateFeatureSettings = (input: UpdateFeatureSettingsInput) =>
-    updateFeatureSettings(this.prisma, input);
+  updateFeatureSettings = async (input: UpdateFeatureSettingsInput) => {
+    const settings = await updateFeatureSettings(this.prisma, input);
+    if (input.streamBotReplies === false) this.replyPreviews.clear();
+    return settings;
+  };
 
   listRoutines = (botId: string) => serviceEffect(() => this.routines.list(botId));
 

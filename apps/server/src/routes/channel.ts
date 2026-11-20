@@ -23,6 +23,13 @@ import { historyCursor } from "./input";
 export async function channelRoutes(context: RouteContext): Promise<Response | undefined> {
   const { app, request, url, path } = context;
 
+  const replyPreviewMatch = path.match(/^\/api\/channels\/([\da-f-]{36})\/reply-preview$/i);
+  if (request.method === "GET" && replyPreviewMatch?.[1]) {
+    return json(await app.replyPreviews.poll(
+      replyPreviewMatch[1], url.searchParams.get("after") ?? "", request.signal
+    ), 200, { "cache-control": "no-store" });
+  }
+
   const channelMatch = path.match(/^\/api\/channels\/([^/]+)$/);
   if (request.method === "GET" && channelMatch?.[1]) {
     const snapshot = await run(app.clientSnapshot());

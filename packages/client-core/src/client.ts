@@ -1,4 +1,5 @@
 import type { ServerUpdateView } from "@outcomego/contracts";
+import type { ReplyPreviewSnapshot } from "@outcomego/contracts";
 import type { DingTalkActionInput, DingTalkStatus } from "@outcomego/contracts";
 import type { NotificationPresenceInput, NotificationRouting } from "@outcomego/contracts/notification-presence";
 import type { BrowserNetworkView, NetworkSettingsUpdate, NetworkEgress, NetworkQuality } from "@outcomego/contracts/browser-network";
@@ -810,6 +811,11 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
     featureSettings: () => transport.request<FeatureSettingsView>("/api/v0/feature-settings"),
     updateFeatureSettings: (input: UpdateFeatureSettingsInput) =>
       transport.request<FeatureSettingsView>("/api/v0/feature-settings", { method: "PATCH", body: JSON.stringify(input) }),
+    pollReplyPreview: (channelId: string, after: string, signal: AbortSignal) =>
+      transport.request<ReplyPreviewSnapshot>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/reply-preview?${new URLSearchParams({ after })}`,
+        { signal }
+      ),
     userTimeZone: () => transport.request<UserTimeZoneView>("/api/v0/time-zone"),
     /** Reports the zone this device detects, or sets/clears (null) the Settings override. */
     updateUserTimeZone: (input: UpdateUserTimeZoneInput) =>
