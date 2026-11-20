@@ -1601,6 +1601,7 @@ export const ComputerTurnRequest = Schema.Struct({
    * Set for a room turn that belongs to a realtime voice call, where the message goes to the room.
    */
   voiceSpeech: Schema.optional(Schema.Literal(true)),
+  replyPreviewAttempt: Schema.optional(Schema.Number),
 });
 export type ComputerTurnRequest = typeof ComputerTurnRequest.Type;
 
@@ -2129,11 +2130,14 @@ export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: 
 export interface FeatureSettingsView {
   /** Goal management: the Outcomes entry, quick ideas, and the bots' goal tools and prompt. */
   outcomesEnabled: boolean;
+  streamBotReplies: boolean;
 }
 export const UpdateFeatureSettingsInput = Schema.Struct({
   outcomesEnabled: Schema.optional(Schema.Boolean),
+  streamBotReplies: Schema.optional(Schema.Boolean),
 });
 export type UpdateFeatureSettingsInput = typeof UpdateFeatureSettingsInput.Type;
+export * from "./reply-preview";
 
 export * from "./outcome-inbox";
 export * from "./knowledge";

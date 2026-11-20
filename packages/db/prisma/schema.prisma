@@ -1840,6 +1840,7 @@ model FeatureSettings {
   id String @id @default("global")
   /// Goal management (Outcomes, Explore ideas, the goal board) for the bots.
   outcomesEnabled Boolean @default(false)
+  streamBotReplies Boolean @default(false)
   updatedAt DateTime @updatedAt
   @@map("outcomego_feature_settings")
 }
