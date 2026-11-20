@@ -155,14 +155,23 @@ class AndroidPlatformRuntime(
     }
 
     fun showLocalNotification(channelId: String, title: String, body: String) {
-        if (session == null || token != null) return
-        NotificationChannels(context).create()
-        AndroidNotificationPresenter(context).showLocal(
-            channelId = channelId,
-            title = title,
-            body = body,
-            tapIntent = AndroidNotificationTapIntent.createForChannel(context, activityClass, channelId),
-        )
+        val current = session ?: return
+        if (token != null) return
+        scope.launch {
+            // Local alerts bypass the server's push routing, so honor "pause phone alerts while
+            // the desktop is in use" here. If routing cannot be read, alert rather than miss it.
+            val suppressed = runCatching {
+                HttpNotificationPresenceTransport(current.server, current.bearerToken).routing().suppressesAndroid()
+            }.getOrDefault(false)
+            if (suppressed || session !== current) return@launch
+            NotificationChannels(context).create()
+            AndroidNotificationPresenter(context).showLocal(
+                channelId = channelId,
+                title = title,
+                body = body,
+                tapIntent = AndroidNotificationTapIntent.createForChannel(context, activityClass, channelId),
+            )
+        }
     }
 
     /**
