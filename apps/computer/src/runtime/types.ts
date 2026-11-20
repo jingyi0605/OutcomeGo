@@ -54,6 +54,8 @@ export interface ActiveTurn {
   goalThread?: ComputerTurnRequest["goalThread"];
   /** Goal management is an opt-in module; the Outcome and Explore tools are offered only while it is on. */
   outcomesEnabled: boolean;
+  /** A member's turn in a group chat: the group task board tools are offered (specs/010). */
+  groupTasksEnabled: boolean;
   draftStatusAcknowledged?: boolean;
   draftStateRevision?: string;
   pendingDraftStateRevision?: string;

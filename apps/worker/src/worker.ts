@@ -1945,6 +1945,7 @@ export class WakeWorker {
         readOnly: claimed.readOnly,
         timeZone: await this.messaging.userTimeZone(),
         outcomesEnabled: platformPrompt.outcomesEnabled === true,
+        groupTasksEnabled: platformPrompt.groupTasksEnabled === true,
         model: formatPiModelRef(selectedInference),
         reasoning: selectedInference.reasoning,
         ...(narrationSetting !== null

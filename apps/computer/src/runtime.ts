@@ -343,6 +343,7 @@ export class ComputerRuntime {
       outcomeThread: request.outcomeThread,
       goalThread: request.goalThread,
       outcomesEnabled: request.outcomesEnabled === true,
+      groupTasksEnabled: request.groupTasksEnabled === true,
       turnId: request.runId,
       session: null,
       sessionPath: null,
