@@ -63,8 +63,17 @@ export const modelVisibleSummaryTools = (
   }));
 
 /** Use one context shape for every summary entry point. */
+const STREAMING_CHAT_CONTEXT_TARGET = 256_000;
+
+function compactionThreshold(active: ActiveTurn, maxTokens: number): number | undefined {
+  return active.replyPreview && maxTokens > STREAMING_CHAT_CONTEXT_TARGET
+    ? Math.min(active.compactionEarlyThreshold ?? Infinity, STREAMING_CHAT_CONTEXT_TARGET)
+    : active.compactionEarlyThreshold;
+}
+
 export function compactionObservation(active: ActiveTurn): Omit<BotObservation, "infer"> {
   const usage = active.session?.getContextUsage();
+  const maxTokens = usage?.contextWindow ?? active.session?.model?.contextWindow ?? 0;
   const piMessages =
     active.compactionReadPiMessages?.() ?? ((active.session?.messages ?? []) as BotMessage[]);
   const tools = modelVisibleSummaryTools(
@@ -81,9 +90,9 @@ export function compactionObservation(active: ActiveTurn): Omit<BotObservation, 
     systemPrompt: taskProgressBaseInstructions(active.instructions),
     userInfoMessage: active.userInfoMessage,
     usedTokens: active.compactionUsageInvalidated?.() ? null : estimateBotMeasuredContextTokens(piMessages),
-    maxTokens: usage?.contextWindow ?? active.session?.model?.contextWindow ?? 0,
+    maxTokens,
     modelKey: sha256(canonicalJson({ model: active.modelRef, reasoning: active.reasoning, tools })),
-    earlyThreshold: active.compactionEarlyThreshold,
+    earlyThreshold: compactionThreshold(active, maxTokens),
     tools,
     projectRoot: active.cwd,
     isRootProject: active.isRootProject,
@@ -293,7 +302,8 @@ export function compactionExtension(
         if (isValidBotEarlyThreshold(early, observation.maxTokens) && inputTokens >= early) {
           active.compactionEarlyThreshold = early;
         }
-        const signature = `${inputTokens}:${active.compactionEarlyThreshold}`;
+        const earlyThreshold = compactionThreshold(active, observation.maxTokens);
+        const signature = `${inputTokens}:${earlyThreshold}`;
         if (signature === active.compactionUsageSignature) return;
         active.compactionUsageSignature = signature;
         await compaction.observe({
@@ -302,7 +312,7 @@ export function compactionExtension(
           piMessages: active.compactionRequestMessages,
           usedTokens: inputTokens,
           freshUsage: true,
-          earlyThreshold: active.compactionEarlyThreshold,
+          earlyThreshold,
         });
       });
       pi.on("message_end", async (event) => {
@@ -346,7 +356,7 @@ export function compactionExtension(
           piMessages: [...observation.piMessages, message],
           usedTokens: usedTokens > 0 ? usedTokens : observation.usedTokens,
           freshUsage: usedTokens > 0,
-          earlyThreshold: active.compactionEarlyThreshold,
+          earlyThreshold: compactionThreshold(active, observation.maxTokens),
         });
       });
       pi.on("session_before_compact", async (event) => {

@@ -18,7 +18,52 @@ import {
   withPendingSummaryResults,
 } from "../../src/runtime/compaction";
 import type { ActiveTurn } from "../../src/runtime/types";
+import { ReplyPreviewPublisher } from "../../src/runtime/reply-preview";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
+
+test("streaming chat starts shortening oversized history without waiting on the reply path", async () => {
+  const root = await mkdtemp(join(tmpdir(), "streaming-chat-compaction-"));
+  const coordinator = new BotCompactionCoordinator(new BotCompactionArchiveStore(root), 0);
+  const active = {
+    contextSessionId: crypto.randomUUID(), instructions: "System fixture", cwd: root,
+    session: {
+      messages: [
+        { role: "user", content: "Previous question" },
+        { role: "assistant", content: "Previous answer", usage: { input: 489_000, output: 1 } },
+        { role: "user", content: "Next question" },
+      ],
+      getContextUsage: () => ({ contextWindow: 1_000_000 }),
+      getAllTools: () => [], getActiveToolNames: () => [],
+    },
+  } as unknown as ActiveTurn;
+  let summaryRequested = false;
+  const summary = Promise.withResolvers<{ text: string }>();
+  const observe = () => ({
+    ...compactionObservation(active),
+    infer: async () => {
+      summaryRequested = true;
+      return summary.promise;
+    },
+  });
+  try {
+    await coordinator.observe(observe());
+    expect(summaryRequested).toBe(false);
+    active.replyPreview = new ReplyPreviewPublisher(async () => {});
+    const streaming = observe();
+    expect(streaming.maxTokens).toBe(1_000_000);
+    expect(streaming.earlyThreshold).toBe(256_000);
+    await coordinator.observe(streaming);
+    await coordinator.waitForModelCapacity(streaming, AbortSignal.timeout(100));
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(summaryRequested).toBe(true);
+    expect(await coordinator.modelContextMessages(streaming)).toEqual([...streaming.piMessages]);
+    active.compactionEarlyThreshold = 80_000;
+    expect(observe().earlyThreshold).toBe(80_000);
+  } finally {
+    summary.resolve({ text: "Retained context" });
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test.each(["ReportTaskProgress", "ReportRequestProgress"].flatMap(tool =>
   [false, true].flatMap(ready => [false, true].map(parked => ({ tool, ready, parked })))
