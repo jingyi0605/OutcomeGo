@@ -1,4 +1,5 @@
 import { expect, spyOn, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { inferenceMetricsExtension } from "../../src/runtime/inference-metrics";
 
 test("in-flight inference timestamps expose no request or response content", async () => {
@@ -9,18 +10,24 @@ test("in-flight inference timestamps expose no request or response content", asy
     await inferenceMetricsExtension("fixture-run").factory({ on: (name: string, fn: Function) => handlers.set(name, fn) } as any);
     const start = () => handlers.get("before_provider_request")!({ payload: {
       model: "fixture-model", reasoning: { effort: "low" },
-      input: [{ content: "PRIVATE_PROMPT" }], tools: [{ description: "PRIVATE_SCHEMA" }],
+      instructions: "PRIVATE_PROMPT", input: [{ content: "PRIVATE_INPUT" }], tools: [{ description: "PRIVATE_SCHEMA" }],
     } }, { sessionManager: { getSessionId: () => "fixture-session" } });
     start();
-    expect(JSON.parse(logs[0]!)).toMatchObject({ event: "inference.started", ordinal: 1, runId: "fixture-run" });
+    const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 8);
+    expect(JSON.parse(logs[0]!)).toMatchObject({
+      event: "inference.started", ordinal: 1, runId: "fixture-run",
+      systemPromptHash: fingerprint("PRIVATE_PROMPT"),
+      toolsHash: fingerprint([{ description: "PRIVATE_SCHEMA" }]),
+    });
     handlers.get("message_update")!({ assistantMessageEvent: {type: "text_delta", delta: "PRIVATE_OUTPUT"} });
     handlers.get("message_update")!({ assistantMessageEvent: {type: "text_delta", delta: "PRIVATE_OUTPUT"} });
-    expect(logs).toHaveLength(2);
-    expect(JSON.parse(logs[1]!)).toMatchObject({ event: "inference.first_delta", ordinal: 1 });
-    expect(JSON.parse(logs[1]!).firstDeltaMs).toBeGreaterThanOrEqual(0);
+    expect(logs).toHaveLength(3);
+    expect(JSON.parse(logs[1]!)).toMatchObject({ event: "inference.first_text_delta", ordinal: 1 });
+    expect(JSON.parse(logs[1]!).firstTextDeltaMs).toBeGreaterThanOrEqual(0);
+    expect(JSON.parse(logs[2]!)).toMatchObject({ event: "inference.first_delta", ordinal: 1 });
     start();
     handlers.get("message_update")!({ assistantMessageEvent: {type: "text_delta", delta: "PRIVATE_OUTPUT"} });
-    expect(JSON.parse(logs[3]!)).toMatchObject({ event: "inference.first_delta", ordinal: 2 });
+    expect(JSON.parse(logs[4]!)).toMatchObject({ event: "inference.first_text_delta", ordinal: 2 });
     expect(logs.join("\n")).not.toContain("PRIVATE_");
   } finally { handlers.get("session_shutdown")?.(); spy.mockRestore(); }
 });
