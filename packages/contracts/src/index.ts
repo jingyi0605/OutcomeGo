@@ -1601,6 +1601,7 @@ export const ComputerTurnRequest = Schema.Struct({
    * Set for a room turn that belongs to a realtime voice call, where the message goes to the room.
    */
   voiceSpeech: Schema.optional(Schema.Literal(true)),
+  directTextReply: Schema.optional(Schema.Literal(true)),
   replyPreviewAttempt: Schema.optional(Schema.Number),
 });
 export type ComputerTurnRequest = typeof ComputerTurnRequest.Type;

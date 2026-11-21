@@ -99,10 +99,11 @@ import {
   ROUTINES_SECTION,
   renderAgentProfileFiles,
   renderPlatformBaseSystemPrompt,
+  DIRECT_TEXT_DELEGATING_SECTION,
   renderSkillsSection,
 } from "./platform-system-prompt";
 import { formatFriendlyDate, resolveTimeZone, retimestampUserTurn, timestampUserTurn } from "./timestamps";
-import { readOutcomesEnabled } from "./feature-settings";
+import { readFeatureSettings } from "./feature-settings";
 import { canonicalTimeZone, readUserTimeZone, userTimeZoneView } from "./user-time-zone";
 import { renderAgentSkillsSection } from "./skill-catalog";
 import type { AutomationStatusReceipt, MemoryContextReceipt, PromptSectionReceipt } from "./prompt-sections";
@@ -177,6 +178,7 @@ export const MAIN_AGENT_GRAPHICAL_DELEGATION_INSTRUCTIONS = graphicalDelegationI
 
 export interface PlatformPrompt {
   instructions: string;
+  directTextReply?: true;
   agentProfileUpdate: string | null;
   userInfo: string | null;
   userInfoEpoch: number | null;
@@ -2136,7 +2138,7 @@ export class AgentMessaging {
   }
 
   /** channelId is the run's channel (null for a home run); undefined renders no pending automation results. */
-  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string, outcomeWorkItemId?: string, outcomeThreadId?: string): Promise<PlatformPrompt> {
+  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string, outcomeWorkItemId?: string, outcomeThreadId?: string, allowDirectTextReply = false): Promise<PlatformPrompt> {
     const timeZone = await this.userTimeZone();
     const bot = await this.prisma.bot.findUniqueOrThrow({
       where: { id: botId },
@@ -2195,7 +2197,12 @@ export class AgentMessaging {
       ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId)
       : goalThread ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId) : null;
     const automation = context?.scope === "automation" || outcome || goalThread;
-    const outcomesEnabled = await readOutcomesEnabled(this.prisma);
+    const { outcomesEnabled, streamBotReplies } = await readFeatureSettings(this.prisma);
+    const directTextReply = allowDirectTextReply && streamBotReplies && context?.scope === "channel" &&
+      Boolean(channelId && channelId === context.scopeId && await this.prisma.channel.findFirst({
+        where: { id: channelId, kind: "bot_dm", directKey: `bot:${botId}`, archivedAt: null },
+        select: { id: true },
+      }));
     // Null outside a group the bot belongs to; an automation or goal run never sees the shared board.
     const groupBoard = !automation && channelId ? await new GroupTaskService(this.prisma).snapshotFor(botId, channelId) : null;
     const [agentPrompt, taskConfiguration] = await Promise.all([
@@ -2338,11 +2345,11 @@ export class AgentMessaging {
     // memory, other conversations, Routines, Skills, channels, Teammates, connector instructions,
     // Your box, The box desktop, so per-turn changes sit late in the cached prefix.
     const instructions = [
-      renderPlatformBaseSystemPrompt({ outcomes: outcomesEnabled, ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}) }),
+      renderPlatformBaseSystemPrompt({ outcomes: outcomesEnabled, directTextReply, ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}) }),
       [agentPrompt.profileSection, renderAgentProfileFiles({ agentDataRoot: this.agentData.root, botId })].join("\n"),
       USER_IDENTITY_LINE,
       frozen.sections.agent_instructions,
-      automation ? AUTOMATION_DELEGATING_SECTION : DELEGATING_SECTION,
+      automation ? AUTOMATION_DELEGATING_SECTION : directTextReply ? DIRECT_TEXT_DELEGATING_SECTION : DELEGATING_SECTION,
       renderWorkerTimeSection(timeZone),
       agentPrompt.memory.policy,
       renderOtherActiveConversations(siblings),
@@ -2385,6 +2392,7 @@ export class AgentMessaging {
     })).flatMap((execution) => execution.runId ? [[execution.runId, execution.routine] as const] : []) : []);
     return {
       instructions,
+      ...(directTextReply ? { directTextReply: true } : {}),
       instructionsUpdate: [frozen.update, frozen.memory?.update].filter(Boolean).join("\n\n") || null,
       outcomesEnabled,
       // Present only for a group turn, so every other platform prompt is exactly what it was.

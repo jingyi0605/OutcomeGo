@@ -10,6 +10,7 @@ import { ComputerRuntime } from "../../src/runtime";
 import { ReplyPreviewPublisher, RICH_REPLY_TOOL } from "../../src/runtime/reply-preview";
 import { RuntimeTools } from "../../src/runtime/tools";
 import type { ActiveTurn } from "../../src/runtime/types";
+import { SendToUserSpeech } from "../../src/runtime/voice-stream";
 const model: Model<"openai-completions"> = {
   id: "parity-fixture",
   name: "Parity fixture",
@@ -23,16 +24,18 @@ const model: Model<"openai-completions"> = {
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 };
 
-// Typed messages supersede a main turn instead of steering it.
-for (const { handoff, batch = false, streaming = false } of [
-  { handoff: false }, { handoff: true }, { handoff: false, batch: true }, { handoff: false, streaming: true },
-])
-  test(`real Pi loop persists before acknowledgement, stops on ${handoff ? "WakeParent" : "end_turn"}, and recovers tape${batch ? " with three ordered replies" : streaming ? " with streaming enabled" : ""}`, async () => {
+async function runParity({
+  handoff = false, batch = false, textMode, mixed = false, fixtureCwd,
+}: { handoff?: boolean; batch?: boolean; textMode?: "normal" | "voice" | "branch" | "external"; mixed?: boolean; fixtureCwd?: string }) {
+    const streaming = textMode !== undefined;
+    const preview = textMode === "normal";
     const root = await mkdtemp(join(tmpdir(), "pi-parity-"));
+    const cwd = fixtureCwd ?? root;
     const requests: any[] = [];
     const sent: any[] = [];
     const acknowledged: any[] = [];
     const previewUpdates: Array<{ content: string | null; deliveries: number }> = [];
+    const spoken: Array<{ callId: string; text: string }> = [];
     const firstPreview = Promise.withResolvers<void>();
     const server = Bun.serve({
       hostname: "127.0.0.1",
@@ -40,6 +43,9 @@ for (const { handoff, batch = false, streaming = false } of [
       async fetch(request) {
         const input = (await request.json()) as any;
         sent.push(input);
+        if (textMode === "external") {
+          return Response.json({ sent: true, external: { status: "sent", platform: "fixture" } });
+        }
         return Response.json(handoff ? { woken: true, run_id: "parent-wake" } : { sent: true, message_id: `delivery-${sent.length}` });
       },
     });
@@ -64,7 +70,16 @@ for (const { handoff, batch = false, streaming = false } of [
             );
             requests.push(JSON.parse(await new Response(init.body).text()));
             const toolId = `send-${requests.length}`;
-            const chunks = [
+            const chunks: Array<{
+              choices: Array<{
+                index: number;
+                delta: { role?: string; content?: string; tool_calls?: Array<{
+                  index: number; id: string; type: string; function: { name: string; arguments: string };
+                }> };
+                finish_reason: string | null;
+              }>;
+              usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
+            }> = [
               {
                 choices: [
                   {
@@ -78,7 +93,7 @@ for (const { handoff, batch = false, streaming = false } of [
                           type: "function",
                           function: {
                             name: handoff ? "WakeParent" : "SendToUser",
-                            arguments: streaming ? '{"content":"Fixture' : JSON.stringify(handoff ? {
+                            arguments: JSON.stringify(handoff ? {
                               message: "Fixture result: notify the user.",
                             } : {
                               type: "text",
@@ -99,18 +114,22 @@ for (const { handoff, batch = false, streaming = false } of [
               },
             ];
             if (streaming) {
-              chunks.splice(1, 0, {
-                choices: [{
-                  index: 0,
-                  delta: { role: "assistant", tool_calls: [{
-                    index: 0,
-                    id: toolId,
-                    type: "function",
-                    function: { name: "SendToUser", arguments: ' result","end_turn":true}' },
-                  }] },
-                  finish_reason: null,
-                }],
-              });
+              const first = chunks[0]!.choices[0]!;
+              first.delta = { role: "assistant", content: "Fixture" };
+              chunks[1]!.choices[0]!.finish_reason = mixed ? "tool_calls" : "stop";
+              chunks.splice(1, 0, { choices: [{
+                index: 0, delta: { content: " result. " }, finish_reason: null,
+              }] });
+              if (mixed) chunks.splice(2, 0, { choices: [{
+                index: 0, finish_reason: null, delta: { tool_calls: [{
+                  index: 0, id: toolId, type: "function", function: {
+                    name: RICH_REPLY_TOOL,
+                    arguments: JSON.stringify({ type: "widget", widget: {
+                      prompt: "Continue?", options: [{ label: "Continue", value: "Continue" }],
+                    } }),
+                  },
+                }] },
+              }] });
             }
             if (batch) {
               const delta = chunks[0]!.choices[0]!.delta!;
@@ -131,7 +150,7 @@ for (const { handoff, batch = false, streaming = false } of [
             );
             frames.push("data: [DONE]\n\n");
             return new Response(
-              streaming ? new ReadableStream({
+              preview ? new ReadableStream({
                 async start(controller) {
                   const encoder = new TextEncoder();
                   controller.enqueue(encoder.encode(frames[0]!));
@@ -162,7 +181,9 @@ for (const { handoff, batch = false, streaming = false } of [
       internals.compactionExtension = () => ({
         name: "fixture-compaction",
         hidden: true,
-        factory() {},
+        factory(pi: { on: (event: string, handler: () => Promise<void>) => void }) {
+          pi.on("tool_call", async () => { await active.directTextDelivery; });
+        },
       });
       const active = {
         runId: crypto.randomUUID(),
@@ -177,14 +198,18 @@ for (const { handoff, batch = false, streaming = false } of [
         pluginNamespaces: [],
         sentMessageCount: 0,
         reasoning: "off",
-        cwd: root,
+        cwd,
         endTurnRequested: false,
         initialUserStarted: false,
         initialUserClientId: "fixture-user",
         startedItems: new Set(),
         toolArgs: new Map(),
         assistantOrdinal: 0,
-        ...(streaming ? {
+        directTextReply: streaming,
+        ...(textMode === "voice" ? {
+          speech: new SendToUserSpeech(async (callId, text) => { spoken.push({ callId, text }); }),
+        } : {}),
+        ...(preview ? {
           replyPreview: new ReplyPreviewPublisher(async (_callId, content) => {
             previewUpdates.push({ content, deliveries: sent.length });
             firstPreview.resolve();
@@ -196,7 +221,7 @@ for (const { handoff, batch = false, streaming = false } of [
       await mkdir(sessions);
       const manager = SessionManager.create(root, sessions, { id: active.contextSessionId });
       session = await internals.createStandaloneSession(
-        root,
+        cwd,
         "System fixture: verified instructions",
         manager,
         active,
@@ -207,7 +232,7 @@ for (const { handoff, batch = false, streaming = false } of [
       if (streaming) {
         const richReply = toolHost.customTools(active).find(tool => tool.name === RICH_REPLY_TOOL)!;
         await expect(richReply.execute("plain-rich", { type: "text", content: "Plain reply" },
-          undefined, undefined, {} as never)).rejects.toThrow("Use SendToUser");
+          undefined, undefined, {} as never)).rejects.toThrow("Write ordinary text");
       }
       session!.subscribe((event) => {
         if (event.type === "message_end" && event.message.role === "user") {
@@ -228,9 +253,10 @@ for (const { handoff, batch = false, streaming = false } of [
       );
       const running = session!.prompt("<user_query>Read the result</user_query>");
       await running;
+      await active.directTextDelivery;
       expect(acknowledged.filter((event) => event.type === "prompt.delivered")).toHaveLength(1);
       expect(requests).toHaveLength(1);
-      expect(sent).toHaveLength(batch ? 3 : 1);
+      expect(sent).toHaveLength(batch ? 3 : mixed ? 2 : 1);
       if (batch) expect(sent.map(call => call.arguments.content)).toEqual(["Batch 1", "Batch 2", "Batch 3"]);
       expect(active.endTurnRequested).toBe(true);
       if (handoff) {
@@ -241,12 +267,23 @@ for (const { handoff, batch = false, streaming = false } of [
       }
       const payload = requests[0];
       if (streaming) {
-        const tool = payload.tools.find((entry: any) => entry.function.name === "SendToUser");
-        expect(Object.keys(tool.function.parameters.properties)).toEqual(["content", "end_turn", "type"]);
+        expect(payload.tools.find((entry: any) => entry.function.name === "SendToUser")).toBeUndefined();
         expect(payload.tools.find((entry: any) => entry.function.name === RICH_REPLY_TOOL).function.parameters.properties)
           .toHaveProperty("channel");
-        expect(previewUpdates[0]).toEqual({ content: "Fixture", deliveries: 0 });
-        expect(sent[0]).toMatchObject({ tool: "SendToUser", arguments: { content: "Fixture result" } });
+        if (preview) expect(previewUpdates[0]).toEqual({ content: "Fixture", deliveries: 0 });
+        else expect(previewUpdates).toEqual([]);
+        const callId = `text:assistant:${active.runId}:1`;
+        expect(sent[0]).toMatchObject({ callId, tool: "SendToUser", arguments: { content: "Fixture result.", end_turn: !mixed } });
+        if (textMode === "external") {
+          expect(sent[0].arguments).toEqual({ type: "text", content: "Fixture result.", end_turn: true });
+          expect(active.sentMessageCount).toBe(1);
+        }
+        if (textMode === "voice") expect(spoken).toEqual([{ callId, text: "Fixture result." }]);
+        if (mixed) {
+          expect(active.awaitingUser).toBe(true);
+          expect(active.userAcknowledged).toBe(true);
+          expect(sent[1]).toMatchObject({ tool: "SendToUser", arguments: { type: "widget" } });
+        }
       }
       expect(payload.messages[0].content).toContain("System fixture: verified instructions");
       const messages = payload.messages.filter((message: any) => message.role === "user");
@@ -256,21 +293,17 @@ for (const { handoff, batch = false, streaming = false } of [
         true
       );
       const tape = session!.messages;
-      expect(
-        tape.some(
+      const hasReply = (messages: typeof tape) => messages.some(
           (message: any) => message.role === "toolResult" && message.toolCallId === "send-1"
-        )
-      ).toBe(true);
+            || streaming && message.role === "assistant" && message.content.some((part: any) => part.text?.trim() === "Fixture result.")
+        );
+      expect(hasReply(tape)).toBe(true);
       const path = manager.getSessionFile()!;
       session!.dispose();
       session = undefined;
       const reopened = SessionManager.open(path);
       const restored = reopened.buildSessionContext().messages;
-      expect(
-        restored.some(
-          (message: any) => message.role === "toolResult" && message.toolCallId === "send-1"
-        )
-      ).toBe(true);
+      expect(hasReply(restored)).toBe(true);
       expect(
         restored.filter(
           (message: any) =>
@@ -297,12 +330,30 @@ for (const { handoff, batch = false, streaming = false } of [
           await readFile(path, "utf8")
         );
       }
+      return { system: payload.messages[0], tools: payload.tools };
     } finally {
       session?.dispose();
       server.stop(true);
       await rm(root, { recursive: true, force: true });
     }
-  }, 15000);
+}
+
+test("real Pi loop persists tool replies and stops on end_turn with the feature disabled", () => runParity({}), 15000);
+test("real Pi loop persists before handing off to the parent", () => runParity({ handoff: true }), 15000);
+test("real Pi loop persists three legacy replies in call order", () => runParity({ batch: true }), 15000);
+test("real Pi loop sends plain text before a sibling question widget", () => runParity({ textMode: "normal", mixed: true }), 15000);
+
+test("actual provider system and tool payloads match across ordinary, voice, branch, and external delivery options", async () => {
+  const fixtureCwd = await mkdtemp(join(tmpdir(), "pi-parity-cache-"));
+  try {
+    const ordinary = await runParity({ textMode: "normal", fixtureCwd });
+    for (const textMode of ["voice", "branch", "external"] as const) {
+      expect(JSON.stringify(await runParity({ textMode, fixtureCwd }))).toBe(JSON.stringify(ordinary));
+    }
+  } finally {
+    await rm(fixtureCwd, { recursive: true, force: true });
+  }
+}, 15000);
 
 const CLOSINGS = {
   reply: { name: "SendToUser", arguments: { type: "text", content: "I'll check back at 1:10 PM.", end_turn: true } },

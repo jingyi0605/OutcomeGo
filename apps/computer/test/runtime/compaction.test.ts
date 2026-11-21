@@ -18,7 +18,6 @@ import {
   withPendingSummaryResults,
 } from "../../src/runtime/compaction";
 import type { ActiveTurn } from "../../src/runtime/types";
-import { ReplyPreviewPublisher } from "../../src/runtime/reply-preview";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 
 test("streaming chat starts shortening oversized history without waiting on the reply path", async () => {
@@ -48,7 +47,7 @@ test("streaming chat starts shortening oversized history without waiting on the 
   try {
     await coordinator.observe(observe());
     expect(summaryRequested).toBe(false);
-    active.replyPreview = new ReplyPreviewPublisher(async () => {});
+    active.directTextReply = true;
     const streaming = observe();
     expect(streaming.maxTokens).toBe(1_000_000);
     expect(streaming.earlyThreshold).toBe(256_000);

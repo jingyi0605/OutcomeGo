@@ -3,7 +3,6 @@ import {
   isManagedDraftWake,
   isTreatmentDraftWake,
   publishMessageNotification,
-  readFeatureSettings,
   turnOwesReplyReminder,
   turnSystemReminder,
   withTurnSystemReminder,
@@ -156,6 +155,9 @@ export const isVoiceNarration = (metadata: unknown): boolean =>
 
 export const voiceTurnPrompt =
   "[SAND_HIDDEN_PROMPT]This is a realtime voice conversation. The user hears your SendToUser messages spoken aloud. Keep each one short, warm and natural, as if talking, with no tables, code blocks or long lists. A separate voice narrator tells the user what you are doing while you work, so do not announce routine tool use yourself. Call SendToUser when you have a result, a question, or something genuinely new to say, and never repeat what the user has already heard. Begin a message with a brief first-person sentence such as \"I'm checking that now\" only when the work will take a while and the narrator has not already said so. This instruction is internal and must not be shown as a chat message.";
+
+const directTextVoicePrompt =
+  "[SAND_HIDDEN_PROMPT]The user hears your assistant text spoken aloud. Write short, natural sentences with no tables, code blocks or long lists. A separate narrator covers routine work. Write only a result, a question, or a meaningful update, and never repeat what the user has already heard.";
 
 /** Added in a spoken room, where the speaker turns after a reply are decided by the @ it contains. */
 export const voiceRoomPrompt =
@@ -421,6 +423,7 @@ export const turnContentWithNotes = (
     origin: RunOrigin;
     inboxType?: string;
     appendReplyReminder?: boolean;
+    directTextReply?: boolean;
     runtimeProfile: "agent" | "subagent";
     notes: ReadonlyArray<string | null | undefined>;
     unfinishedTasks?: boolean;
@@ -432,10 +435,13 @@ export const turnContentWithNotes = (
       unfinishedTasks: input.unfinishedTasks,
       reply:
         input.appendReplyReminder === true &&
+        !input.directTextReply &&
         input.runtimeProfile === "agent" &&
         turnOwesReplyReminder(input.origin, content, input.inboxType),
     }),
-    content
+    input.directTextReply && input.inboxType === "ack.redrive" && content === SEND_TO_USER_REPLY_NUDGE_PROMPT
+      ? "The user still needs the result of the previous turn. Deliver it directly as assistant text. If the result requires a card or attachment, use SendRichMessageToUser."
+      : content
   );
 
 const assetRefs = (value: unknown): AssetRef[] => {
@@ -1831,7 +1837,8 @@ export class WakeWorker {
       // Plugin skills are global/read-only inputs. User workflows are rendered
       // later by platformInstructions and therefore win on conflict.
       const platformPrompt = await this.messaging.platformPrompt(claimed.botId, claimed.contextSessionId,
-        pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin, claimed.outcomeWorkItemId ?? undefined, claimed.outcomeThreadId ?? undefined);
+        pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin, claimed.outcomeWorkItemId ?? undefined, claimed.outcomeThreadId ?? undefined,
+        claimed.runtimeProfile === "agent" && !claimed.subagentType && !claimed.readOnly);
       // Replay failed user inputs whose durable-session delivery was never
       // acknowledged, including a turn a typed message superseded before its input
       // reached the model. Runtime message IDs prevent duplication after a lost ack.
@@ -1876,18 +1883,14 @@ export class WakeWorker {
         ? triggeringMessage.metadata as Record<string, unknown>
         : null;
       const voiceTurn = Boolean(triggeringMetadata?.voice && typeof triggeringMetadata.voice === "object" && !Array.isArray(triggeringMetadata.voice));
-      const streamReply = !voiceTurn && claimed.origin === "user" && claimed.runtimeProfile === "agent" &&
+      const streamReply = platformPrompt.directTextReply && !voiceTurn && claimed.origin === "user" &&
         triggeringMessage && !triggeringMetadata?.branched &&
-        (await readFeatureSettings(this.prisma)).streamBotReplies &&
-        !!(await this.prisma.channel.findFirst({
-          where: { id: claimed.channelId, kind: "bot_dm", directKey: `bot:${claimed.botId}`, archivedAt: null },
-          select: { id: true },
-        })) &&
         !(await this.prisma.externalMessageReceipt.findFirst({
           where: { runId: claimed.runId, status: "accepted", mappingId: { not: null } },
           select: { id: true },
         }));
-      const voicePrompt = voiceTurn ? [{ id: `${claimed.clientId}:voice`, content: claimed.deliveryId ? voiceTurnPrompt + voiceRoomPrompt : voiceTurnPrompt }] : [];
+      const voicePrompt = voiceTurn ? [{ id: `${claimed.clientId}:voice`, content:
+        platformPrompt.directTextReply ? directTextVoicePrompt : claimed.deliveryId ? voiceTurnPrompt + voiceRoomPrompt : voiceTurnPrompt }] : [];
       // Spoken progress uses the configured narration model, or the bot's own model, with reasoning off: at the lowest
       // level some models still spend the whole token budget thinking and return no text.
       const narrationSetting = voiceTurn && !claimed.subagentType && claimed.origin === "user"
@@ -1925,6 +1928,7 @@ export class WakeWorker {
           origin: claimed.origin,
           inboxType: claimed.inboxType,
           appendReplyReminder: true,
+          directTextReply: platformPrompt.directTextReply,
           runtimeProfile: claimed.runtimeProfile,
           notes: [platformPrompt.automationStatus, platformPrompt.agentProfileUpdate, platformPrompt.instructionsUpdate],
           unfinishedTasks: await this.supersededUnfinishedRun(claimed),
@@ -1963,6 +1967,7 @@ export class WakeWorker {
           : {}),
         // A turn in a voice-call room: no narrator, but each sentence of the reply is spoken as it is written.
         ...(voiceTurn && claimed.deliveryId && !claimed.subagentType ? { voiceSpeech: true as const } : {}),
+        ...(platformPrompt.directTextReply ? { directTextReply: true as const } : {}),
         ...(streamReply ? { replyPreviewAttempt: claimed.attempt } : {}),
         fileAttachments: claimed.fileAttachments,
         attachmentOwnerBotId: claimed.attachmentOwnerBotId,

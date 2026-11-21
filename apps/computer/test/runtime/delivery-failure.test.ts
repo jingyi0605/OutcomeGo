@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { ComputerRuntime, MAX_REPLY_NUDGES, REPLY_NUDGE_PROMPT } from "../../src/runtime";
 import { routeEvent } from "../../src/runtime/events";
+import { RuntimeTools } from "../../src/runtime/tools";
 
 const user = (text: string) => ({ role: "user", content: [{ type: "text", text }] });
 const call = (id: string, name: string, args: unknown = {}) => ({ role: "assistant", content: [{ type: "toolCall", id, name, arguments: args }] });
@@ -66,6 +67,36 @@ test("reply nudges stop once something is delivered", async () => {
   });
   await runtime.execute(active, "fixture", []);
   expect(prompts).toEqual(["turn", REPLY_NUDGE_PROMPT]);
+});
+
+test("an uncertain external receipt stops automatic text redelivery", async () => {
+  const requests: unknown[] = [];
+  const server = Bun.serve({
+    hostname: "127.0.0.1",
+    port: 0,
+    async fetch(request) {
+      requests.push(await request.json());
+      return Response.json({ sent: false, delivery_failed: true, external: { status: "uncertain" } });
+    },
+  });
+  try {
+    const tools = new RuntimeTools({} as never, server.url.origin, "fixture-token", "/tmp", "/tmp");
+    const { runtime, active, prompts } = fixture({
+      messages: [],
+      onPrompt: (_prompt, active) => {
+        active.directTextDelivery = tools.deliverAssistantText(active, "text:assistant:fixture:1", "Reply", true);
+      },
+    });
+    active.directTextReply = true;
+    active.failedResponseSends = new Set<string>();
+    await runtime.execute(active, "fixture", []);
+    expect(prompts).toEqual(["turn"]);
+    expect(requests).toHaveLength(1);
+    expect(active.sentMessageCount).toBe(0);
+    expect(active.directTextDeliveryNotice).toContain("Do not send that reply again.");
+  } finally {
+    server.stop(true);
+  }
 });
 
 // As in the reference, an acknowledged turn that ends on silent tool calls gets no closing nudge.

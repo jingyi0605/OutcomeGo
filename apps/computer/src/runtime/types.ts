@@ -82,6 +82,11 @@ export interface ActiveTurn {
   userAcknowledged?: boolean;
   /** SendToUser calls of a response go out one after another, in call order. */
   sendChain?: Promise<unknown>;
+  directTextReply?: boolean;
+  directTextDelivery?: Promise<void>;
+  firstReplyTextAt?: number;
+  directTextDeliveryUncertain?: boolean;
+  directTextDeliveryNotice?: string;
   initialUserStarted: boolean;
   initialUserClientId?: string;
   pluginNamespaces: readonly PluginDynamicNamespace[];

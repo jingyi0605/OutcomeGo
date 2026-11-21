@@ -135,6 +135,11 @@ export const END_TURN_HOLD_REMINDER =
 export const OUTPUT_LIMIT_REMINDER =
   "<system_reminder>Your response was cut off because it exceeded the output token limit. Please break your work into smaller pieces. Continue from where you left off.</system_reminder>";
 
+export const outputLimitReminder = (active: Pick<ActiveTurn, "directTextReply">): string =>
+  active.directTextReply
+    ? "<system_reminder>Your last response was cut off and its unfinished text was not saved. Keep your next reply smaller and complete. Include any essential text from the cut-off response, but do not repeat earlier completed replies.</system_reminder>"
+    : OUTPUT_LIMIT_REMINDER;
+
 /** The latest response hit the output limit, or the turn's first wall-clock cut, which the reference treats as one; this turn has not been told yet. */
 export const owesOutputLimitReminder = (messages: readonly BotMessage[], active: Pick<ActiveTurn, "outputLimitReminded">): boolean => {
   const last = messages.findLast((message) => message.role === "assistant");
@@ -185,7 +190,7 @@ const sendToolNames = ["SendToUser", RICH_REPLY_TOOL, STREAM_REPLY_TOOL];
 const isTextSend = (call: ReturnType<typeof toolCalls>[number]) =>
   typeof call.name === "string" && sendToolNames.includes(call.name) && (call.args.type ?? "text") === "text";
 
-function callsSinceLastSend(messages: readonly BotMessage[]): number {
+function callsSinceLastSend(messages: readonly BotMessage[], directTextReply?: boolean): number {
   let count = 0;
   const failed = new Set<unknown>();
   for (let index = messages.length - 1; index >= 0; index--) {
@@ -195,6 +200,8 @@ function callsSinceLastSend(messages: readonly BotMessage[]): number {
     const calls = toolCalls(message);
     if (calls.some((call) => typeof call.name === "string" && sendToolNames.includes(call.name) && !failed.has(call.id))) break;
     count += calls.length;
+    if (directTextReply && message.role === "assistant" && (message.stopReason === "stop" || message.stopReason === "toolUse") &&
+        messageText(message).trim()) break;
   }
   return count;
 }
@@ -236,7 +243,7 @@ const OPENING_GATE_GROUP =
 export function openingAcknowledgementGate(
   messages: readonly BotMessage[],
   active: Pick<ActiveTurn, "requestSource" | "subagentType"> &
-    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged" | "groupTurn" | "openingGateMessage">>,
+    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged" | "groupTurn" | "openingGateMessage" | "directTextReply">>,
   toolName: string
 ): string | null {
   if (active.subagentType || active.narrator || !owesOpeningAcknowledgement(active)) return null;
@@ -251,6 +258,8 @@ export function openingAcknowledgementGate(
   const marker = latest ?? null;
   if (active.openingGateMessage !== undefined && active.openingGateMessage !== marker) return null;
   active.openingGateMessage = marker;
+  if (active.directTextReply)
+    return "The user has not heard from you yet, so this call was not run. Write a one-line acknowledgement as assistant text before repeating the call.";
   return active.groupTurn === true ? OPENING_GATE_GROUP : OPENING_GATE_PRIVATE;
 }
 
@@ -258,20 +267,24 @@ export function openingAcknowledgementGate(
 export function communicationReminder(
   messages: readonly BotMessage[],
   active: Pick<ActiveTurn, "requestSource" | "subagentType"> &
-    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged" | "groupTurn">>
+    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged" | "groupTurn" | "directTextReply">>
 ) {
   if (active.subagentType || !owesOpeningAcknowledgement(active)) return null;
   // On a voice call the narrator keeps the user informed while the agent works.
   if (active.narrator) return null;
   const last = messages.at(-1);
   if (last && isCommunicationReminder(last)) return null;
-  const calls = callsSinceLastSend(messages);
+  const calls = callsSinceLastSend(messages, active.directTextReply);
   // The active turn tracks actual delivery. A soft-failed reaction returns a
   // normal tool result, so its mere presence in history is not an acknowledgement.
   const acknowledged = active.userAcknowledged === undefined
     ? acknowledgedSinceTurnStart(messages)
     : active.userAcknowledged;
-  if (calls > ACK_THRESHOLD && !acknowledged) return { kind: "ack", content: ACK_REMINDER };
-  if (calls > PROGRESS_THRESHOLD) return { kind: "progress", content: PROGRESS_REMINDER };
+  if (calls > ACK_THRESHOLD && !acknowledged) return { kind: "ack", content: active.directTextReply
+    ? "<system_reminder>Write one brief acknowledgement directly as assistant text before continuing the work.</system_reminder>"
+    : ACK_REMINDER };
+  if (calls > PROGRESS_THRESHOLD) return { kind: "progress", content: active.directTextReply
+    ? "<system_reminder>If you have a meaningful finding or blocker, write one brief update directly as assistant text. Omit routine progress narration.</system_reminder>"
+    : PROGRESS_REMINDER };
   return null;
 }

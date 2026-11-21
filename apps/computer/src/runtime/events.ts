@@ -1,5 +1,4 @@
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
-import { SEND_TO_USER_TOOL } from "@outcomego/contracts";
 import { existsSync } from "node:fs";
 import type { BotAgentStore } from "../bot-agent-store";
 import { safeToolResult, textFromContent, thinkingFromContent, toolItem } from "./content";
@@ -61,7 +60,8 @@ export function startReasoning(active: ActiveTurn, itemId: string): void {
 export function routeEvent(
   botStore: BotAgentStore | undefined,
   active: ActiveTurn,
-  event: AgentSessionEvent
+  event: AgentSessionEvent,
+  deliverAssistantText?: (callId: string, content: string, endTurn: boolean) => Promise<void>
 ): void {
   if (event.type === "message_start") {
     const message = event.message as { role?: string };
@@ -80,13 +80,14 @@ export function routeEvent(
 
   if (event.type === "message_update") {
     const update = event.assistantMessageEvent;
-    if (active.replyPreview && !active.endTurnRequested && update.type === "toolcall_delta") {
-      const block = update.partial.content[update.contentIndex];
-      const firstCall = update.partial.content.findIndex(part => part.type === "toolCall");
-      if (firstCall === update.contentIndex && block?.type === "toolCall" && block.name === SEND_TO_USER_TOOL.name)
-        active.replyPreview.observe(block.id, block.arguments?.content);
-    }
     if (update.type === "text_delta" && active.currentAssistantId) {
+      if (active.directTextReply && !active.endTurnRequested && !active.pluginAbortController?.signal.aborted) {
+        const callId = `text:${active.currentAssistantId}`;
+        const content = textFromContent(update.partial.content).trimStart();
+        if (content) active.firstReplyTextAt ??= performance.now();
+        active.replyPreview?.observe(callId, content);
+        active.speech?.observe(callId, { content });
+      }
       startAgentMessage(active, active.currentAssistantId);
       active.queue.push({
         type: "agent.delta",
@@ -114,7 +115,6 @@ export function routeEvent(
       return;
     }
     if (message.role !== "assistant") return;
-    if (message.stopReason === "error" || message.stopReason === "aborted") active.replyPreview?.stop(true);
     // Capture the response's calls before any executes. A send that ends the
     // turn still runs the calls emitted with it, once each; later responses get none.
     active.pendingResponseCalls = new Map();
@@ -131,6 +131,17 @@ export function routeEvent(
     active.lastStopReason = message.stopReason ?? null;
     active.lastErrorMessage = message.errorMessage ?? null;
     const text = textFromContent(message.content);
+    if (active.directTextReply && active.currentAssistantId) {
+      const callId = `text:${active.currentAssistantId}`;
+      const finished = message.stopReason === "stop" || message.stopReason === "toolUse";
+      if (text.trim() && finished && !active.endTurnRequested && !active.pluginAbortController?.signal.aborted) {
+        const endTurn = message.stopReason === "stop" && active.pendingResponseCalls.size === 0;
+        active.directTextDelivery = deliverAssistantText?.(callId, text.trim(), endTurn);
+      } else {
+        active.replyPreview?.finish(callId, true);
+        active.speech?.discard(callId);
+      }
+    }
     void botStore?.appendConversationEnvelope(active.botId, {
       role: "assistant",
       content: message.content,

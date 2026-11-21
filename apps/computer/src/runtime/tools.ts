@@ -750,7 +750,9 @@ export class RuntimeTools {
           AUTHENTICATE_GUIDANCE,
           `You cannot do that from here, so report the status ${active.requestSource === "automation" ? "with WakeParent" : "in your result"} instead of retrying.`
         );
-      const visibleDescription = description;
+      const visibleDescription = active.directTextReply && tool.name === "Screenshot"
+        ? description.replaceAll(SEND_TO_USER_TOOL.name, RICH_REPLY_TOOL)
+        : description;
       return defineTool({
         name,
         label: name,
@@ -776,7 +778,7 @@ export class RuntimeTools {
             const input = args as { type?: unknown; images?: unknown[]; reply_to?: unknown; channel?: unknown; to?: unknown } | null;
             if ((input?.type ?? "text") === "text" && !input?.images?.length &&
                 !input?.reply_to && !input?.channel && !input?.to)
-              throw new Error("Use SendToUser for ordinary text and Markdown in this chat.");
+              throw new Error("Write ordinary text and Markdown directly in your assistant reply.");
           }
           return this.executeOutcomeGoTool(active, callId, tool.name, args, signal);
         },
@@ -856,41 +858,40 @@ export class RuntimeTools {
         (active.requestSource !== "automation" || !AUTOMATION_PARENT_ONLY_TOOLS.has(tool.name)) &&
         (!active.subagentType || !SUBAGENT_PRIVATE_NATIVE_TOOLS.has(tool.name))
     );
-    const streamingReply = () => defineTool({
-      name: SEND_TO_USER_TOOL.name,
-      label: SEND_TO_USER_TOOL.name,
-      description: `Stream a text or Markdown reply in this chat. Use this for acknowledgements and final text replies. Set end_turn to true when the reply is complete. Use ${RICH_REPLY_TOOL} for images, attachments, cards, quoted replies, or other destinations.`,
-      parameters: Type.Object({
-        content: Type.String({ minLength: 1 }),
-        end_turn: Type.Optional(Type.Boolean()),
-        type: Type.Optional(Type.Literal("text")),
-      }, { additionalProperties: false }),
-      executionMode: "parallel",
-      execute: async (callId, args, signal) => {
-        let sent = false;
-        active.replyPreview?.finish(callId, false);
-        try {
-          const result = await this.executeOutcomeGoTool(active, callId, SEND_TO_USER_TOOL.name, {
-            type: "text", content: args.content, end_turn: args.end_turn,
-          }, signal);
-          sent = result.details?.isError !== true;
-          return result;
-        } finally {
-          if (!sent) active.replyPreview?.finish(callId, true);
-        }
-      },
-    });
     return [
-      ...availableNativeTools.flatMap(tool =>
-        active.replyPreview && tool.name === SEND_TO_USER_TOOL.name
-          ? [
-              streamingReply(),
-              native(tool, `Use this for cards, media, quoted replies, or a different destination. Use SendToUser for ordinary text and Markdown in this chat. ${tool.description}`, RICH_REPLY_TOOL),
-            ]
-          : [native(tool)]
+      ...availableNativeTools.map(tool =>
+        active.directTextReply && tool.name === SEND_TO_USER_TOOL.name
+          ? native(tool, [
+              "Deliver a widget, secret request, card, image, attachment, quoted reply, or message to an explicit destination.",
+              "Write ordinary replies and acknowledgements as assistant text. If accompanying this call with prose, write that text before the call and do not repeat it in the card.",
+              "A widget or secret request ends the turn and waits for the user. Set end_turn only if no further work or delivery is needed.",
+              "For a local file use its absolute file URL. Prefer a local copy of a web image. Use reply_to for the quoted message and channel for an explicit connected destination.",
+            ].join(" "), RICH_REPLY_TOOL)
+          : native(tool)
       ),
       ...topLevelTools(),
     ].sort((a, b) => directToolRank(a.name) - directToolRank(b.name));
+  }
+
+  async deliverAssistantText(active: ActiveTurn, callId: string, content: string, endTurn: boolean): Promise<void> {
+    active.replyPreview?.finish(callId, false);
+    try {
+      const result = await this.executeOutcomeGoTool(active, callId, SEND_TO_USER_TOOL.name, {
+        type: "text", content, end_turn: endTurn,
+      }, active.pluginAbortController?.signal);
+      if (result.details?.sent === true) return;
+      if (result.details?.deliveryUncertain === true) {
+        active.directTextDeliveryUncertain = true;
+        active.directTextDeliveryNotice = "<system_reminder>The external service could not confirm the previous reply's delivery. The recipient may already have it. Do not send that reply again.</system_reminder>";
+      }
+    } catch {
+      if (!active.pluginAbortController?.signal.aborted) {
+        console.warn(JSON.stringify({ event: "reply_text.delivery_failed", runId: active.runId, callId }));
+      }
+    }
+    active.failedResponseSends?.add(callId);
+    active.replyPreview?.finish(callId, true);
+    active.speech?.discard(callId);
   }
 
   private async executeOutcomeGoTool(
@@ -1084,7 +1085,7 @@ export class RuntimeTools {
         content: [
           {
             type: "text" as const,
-            text: `Screenshot captured from the box desktop.\nScreenshot saved to ${path}, and to show the user the box, attach this file:// path with SendToUser.`,
+            text: `Screenshot captured from the box desktop.\nScreenshot saved to ${path}, and to show the user the box, attach this file:// path with ${active.directTextReply ? RICH_REPLY_TOOL : SEND_TO_USER_TOOL.name}.`,
           },
           {
             type: "image" as const,
@@ -1481,7 +1482,9 @@ export class RuntimeTools {
 
   /** Speaks one finished sentence of a SendToUser message that is still being written. */
   async speakChunk(active: ActiveTurn, callId: string, text: string): Promise<void> {
-    await this.privateControl(active, `speak:${callId}:${crypto.randomUUID()}`, "VoiceSpeak", { callId, text }, AbortSignal.timeout(10_000));
+    const timeout = AbortSignal.timeout(10_000);
+    const signal = active.pluginAbortController ? AbortSignal.any([timeout, active.pluginAbortController.signal]) : timeout;
+    await this.privateControl(active, `speak:${callId}:${crypto.randomUUID()}`, "VoiceSpeak", { callId, text }, signal);
   }
 
   /** Persists one spoken progress line; the server queues it behind any answer already speaking. */
@@ -1980,6 +1983,11 @@ export class RuntimeTools {
       ],
       details: {
         tool,
+        ...(tool === SEND_TO_USER_TOOL.name && active.directTextReply && callId.startsWith("text:") ? {
+          sent: (body as { sent?: boolean } | null)?.sent === true,
+          deliveryUncertain: (body as { external?: { status?: string }; in_progress?: boolean } | null)?.external?.status === "uncertain" ||
+            (body as { in_progress?: boolean } | null)?.in_progress === true,
+        } : {}),
         ...(tool === SEND_TO_USER_TOOL.name && body && typeof body === "object" &&
           (body as Record<string, unknown>).delivery_failed === true ? { isError: true } : {}),
         ...(tool === "CheckSubagent" ? {pendingBackgroundWork: onlyPendingBackgroundWork(body)} : {}),
