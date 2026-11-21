@@ -73,6 +73,21 @@ describe("prompt-context frozen epoch fast path", () => {
     expect((await fixture.store.promptContext("bot-1", "context-1")).skillRender).toBe("");
   });
 
+  test("loads installed catalogs while reconciling authored files and preserves catalog order", async () => {
+    const fixture = promptStore(snapshot());
+    const reconciliation = Promise.withResolvers<{ warnings: string[] }>();
+    const started: string[] = [];
+    Object.assign(fixture.store, {
+      reconcileBot: () => reconciliation.promise,
+      renderManagedSkills: async () => { started.push("managed"); return "Managed catalog"; },
+      renderPluginSkills: async () => { started.push("plugin"); return "Plugin catalog"; },
+    });
+    const prompt = fixture.store.promptContext("bot-1", "context-1");
+    expect(started).toEqual(["managed", "plugin"]);
+    reconciliation.resolve({ warnings: [] });
+    expect((await prompt).skillRender).toBe("Managed catalog\n\nPlugin catalog\n\nFrozen skills");
+  });
+
   test("limits skill rows in SQL while preserving the exact omitted count", async () => {
     let findArgs: unknown;
     const store = new AgentDataStore(

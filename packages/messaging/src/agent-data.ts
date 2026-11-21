@@ -2826,7 +2826,11 @@ export class AgentDataStore {
   }
 
   async promptContext(botId: string, contextSessionId: string, channelId?: string | null): Promise<AgentPromptContext> {
-    const reconciliation = await this.reconcileBot(botId);
+    const [reconciliation, managedSkills, pluginSkills] = await Promise.all([
+      this.reconcileBot(botId),
+      this.renderManagedSkills(),
+      this.renderPluginSkills(),
+    ]);
     const bot = await this.prisma.bot.findUniqueOrThrow({ where: { id: botId } });
     const contextSession = await this.prisma.contextSession.findFirstOrThrow({
       where: { id: contextSessionId, botId },
@@ -2898,7 +2902,7 @@ export class AgentDataStore {
     // Installed capabilities can change between turns without compaction.
     // Keep user workflows frozen, but never freeze a missing managed or plugin catalog.
     // The reference lists managed skills first, then plugin, then the user's own.
-    skillRender = [await this.renderManagedSkills(), await this.renderPluginSkills(), skillRender]
+    skillRender = [managedSkills, pluginSkills, skillRender]
       .filter(Boolean)
       .join("\n\n");
     return {
