@@ -15,10 +15,15 @@ const targets = {
   ipv4: [
     ["1.1.1.1", "cloudflare-dns.com"],
     ["8.8.8.8", "dns.google"],
+    ["9.9.9.9", "dns.quad9.net"],
+    ["223.5.5.5", "dns.alidns.com"],
+    ["1.12.12.12", "doh.pub"],
   ],
   ipv6: [
     ["2606:4700:4700::1111", "cloudflare-dns.com"],
     ["2001:4860:4860::8888", "dns.google"],
+    ["2620:fe::fe", "dns.quad9.net"],
+    ["2400:3200::1", "dns.alidns.com"],
   ],
 } as const;
 
@@ -27,7 +32,8 @@ export async function probeNetworkFamily(
   family: Family,
   signal: AbortSignal
 ): Promise<NetworkFamilyHealth> {
-  const life = AbortSignal.any([signal, AbortSignal.timeout(4000)]);
+  const attemptController = new AbortController();
+  const life = AbortSignal.any([signal, attemptController.signal, AbortSignal.timeout(4000)]);
   let reachedTls = false;
   const attempts = targets[family].map(async ([host, servername]) => {
     const raw = await open(host, 443, life);
@@ -45,6 +51,7 @@ export async function probeNetworkFamily(
       const done = (error?: Error) => {
         life.removeEventListener("abort", abort);
         socket.destroy();
+        if (!error) attemptController.abort();
         error ? reject(error) : resolve();
       };
       socket.once("secureConnect", () => done());
@@ -53,7 +60,7 @@ export async function probeNetworkFamily(
       if (life.aborted) abort();
     });
   });
-  // Settle both attempts so no probe socket outlives its measurement.
+  // Settle all attempts so no probe socket outlives its measurement.
   const results = await Promise.allSettled(attempts);
   signal.throwIfAborted();
   return results.some((result) => result.status === "fulfilled")
