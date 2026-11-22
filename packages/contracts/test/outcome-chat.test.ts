@@ -3,10 +3,13 @@ import { decodeOutcomeChatInput, OUTCOME_CHAT_TOOLS, OUTCOME_CHAT_TOOL_NAMES } f
 import { parseListOutcomesQuery } from "../src/outcomes";
 
 test("native chat has goal/records/Explore tools, no fixed planning step, and no owner approval or acceptance tool", () => {
-  expect(OUTCOME_CHAT_TOOL_NAMES).toHaveLength(13);
+  expect(OUTCOME_CHAT_TOOL_NAMES).toHaveLength(14);
   for (const gone of ["PlanOutcome", "GetOutcomePlan", "ProposeExploreIdea"]) expect(OUTCOME_CHAT_TOOL_NAMES as string[]).not.toContain(gone);
   expect(OUTCOME_CHAT_TOOLS.map(tool => tool.name)).toEqual(OUTCOME_CHAT_TOOL_NAMES);
   expect(OUTCOME_CHAT_TOOL_NAMES.some(name => /approve|review|receipt/i.test(name))).toBe(false);
+  expect(OUTCOME_CHAT_TOOL_NAMES).toContain("SubmitOutcome");
+  expect(decodeOutcomeChatInput("SubmitOutcome", { text: "Clean up logs", clientRequestId: "submit:unique" }))
+    .toEqual({ text: "Clean up logs", clientRequestId: "submit:unique" });
   // The bot writes the contract itself; there is no planning draft or option ID to pick from.
   const create = OUTCOME_CHAT_TOOLS.find(tool => tool.name === "CreateOutcome")!;
   expect(create.inputSchema).toMatchObject({ type: "object", required: ["title", "goal", "acceptance", "boundaries", "clientRequestId"] });

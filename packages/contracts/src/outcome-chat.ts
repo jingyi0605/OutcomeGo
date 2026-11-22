@@ -25,6 +25,11 @@ const { botId: _botId, ...exploreFields } = CreateExploreIdeaInput.fields;
 
 /** Ordinary conversation tools reuse the UI's inputs; actors and planning Bot come from the Run. */
 export const OUTCOME_CHAT_INPUTS = {
+  SubmitOutcome: Schema.Struct({
+    text: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(8_000)),
+    exploreIdeaId: Schema.optional(Id),
+    clientRequestId: CancelOutcomeInput.fields.clientRequestId,
+  }),
   CreateOutcome: CreateOutcomeFromContractInput,
   ListOutcomes: Schema.Struct({
     query: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
@@ -65,6 +70,8 @@ export type OutcomeChatToolName = keyof typeof OUTCOME_CHAT_INPUTS;
 export const OUTCOME_CHAT_TOOL_NAMES = Object.keys(OUTCOME_CHAT_INPUTS) as OutcomeChatToolName[];
 
 const descriptions: Record<OutcomeChatToolName, string> = {
+  SubmitOutcome:
+    "Submit the user's goal request verbatim when a planning role is configured. Pass the user's exact words in text without rewriting or adding your own contract; the planning role writes the contract and plan. Reuse clientRequestId for identical retries.",
   CreateOutcome:
     "Save a native goal with a contract you wrote yourself (title, goal statements, acceptance criteria, scope boundaries, optional budget). It is saved unapproved: the owner reviews and approves it in the app, you never approve it. Write for the owner to read: concrete, no filler. Return the actual goal link and one short next step. Use native goals rather than Notion or TodoWrite unless the user asked for those. Reuse clientRequestId for identical retries.",
   ListOutcomes:

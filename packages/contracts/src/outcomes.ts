@@ -812,6 +812,8 @@ export interface OutcomeSummary {
   botId: string;
   currentRevision: number | null;
   updatedAt: string;
+  /** The Bot's holistic prereview is running. The owner has no action yet. */
+  prereviewStatus?: "pending" | "stale" | "unreviewed";
 }
 
 export interface OutcomeDetail extends OutcomeSummary {

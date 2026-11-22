@@ -331,6 +331,7 @@ model Bot {
   runtimeEngine String       @default("pi")
   inferenceProvider String?
   inferenceModel String?
+  inferenceReasoning String?
   runtimeSessionId String?      @unique
   runtimeSessionPath String?     @unique
   conversation     Conversation?
@@ -909,6 +910,7 @@ model Run {
   inferenceProvider String?
   inferenceModel String?
   inferenceReasoning String?
+  inferenceFallback Json?
   taskConfiguration Json?
   origin RunOrigin    @default(user)
   // A parent request can outlive this model turn and several scoped workers.
@@ -1841,6 +1843,11 @@ model FeatureSettings {
   /// Goal management (Outcomes, Explore ideas, the goal board) for the bots.
   outcomesEnabled Boolean @default(false)
   streamBotReplies Boolean @default(false)
+  plannerBotId String? @db.Uuid
+  reviewerBotId String? @db.Uuid
+  plannerModel Json?
+  reviewerModel Json?
+  environmentNote String?
   updatedAt DateTime @updatedAt
   @@map("outcomego_feature_settings")
 }
@@ -2005,7 +2012,7 @@ model Outcome {
   reviews           OutcomeReview[]
   humanReceipts     OutcomeHumanReceipt[]
   briefs            OutcomeBrief[]
-  thread            OutcomeThread?
+  threads           OutcomeThread[]
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   acceptedAt DateTime?
@@ -2035,9 +2042,18 @@ model OutcomeBrief {
   @@map("outcomego_outcome_brief")
 }
 
+enum OutcomeThreadRole {
+  planner
+  reviewer
+  @@map("outcomego_outcome_thread_role")
+}
+
 enum OutcomeThreadTurnPurpose {
   plan
   owner_message
+  replan
+  review
+  review_task
   @@map("outcomego_outcome_thread_turn_purpose")
 }
 
@@ -2049,17 +2065,18 @@ enum OutcomeThreadTurnStatus {
   @@map("outcomego_outcome_thread_turn_status")
 }
 
-/// A goal's own Agent thread (specs/004.8): the owner's words and the bot's planning happen here, beside the
-/// work-item execution threads. Facts (contracts, status, cancellation) are still written through tools.
+/// A goal's own Agent thread (specs/004.8, 004.9): planner and reviewer roles each have at most one thread per goal.
 model OutcomeThread {
   id String @id @default(uuid()) @db.Uuid
-  outcomeId String @unique @db.Uuid
+  outcomeId String @db.Uuid
   outcome Outcome @relation(fields: [outcomeId], references: [id], onDelete: Cascade)
+  role OutcomeThreadRole @default(planner)
   botId String @db.Uuid
   turns OutcomeThreadTurn[]
   runs Run[] @relation("OutcomeThreadRuns")
   createdAt DateTime @default(now())
 
+  @@unique([outcomeId, role], map: "outcomego_outcome_thread_outcome_id_role_key")
   @@map("outcomego_outcome_thread")
 }
 
@@ -2068,12 +2085,18 @@ model OutcomeThreadTurn {
   threadId String @db.Uuid
   thread OutcomeThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   purpose OutcomeThreadTurnPurpose
-  /// The owner's words, exactly as sent.
+  /// The owner's words, or system trigger description.
   trigger String
   triggerBy String
   status OutcomeThreadTurnStatus @default(queued)
   runId String? @unique @db.Uuid
   run Run? @relation("OutcomeThreadTurnRun", fields: [runId], references: [id], onDelete: SetNull)
+  /// Model reference recorded at turn creation ({ providerId, modelId, reasoning, ... }).
+  model Json?
+  /// Structured result (e.g. prereview summary/attention or task review verdict/findings/note).
+  result Json?
+  workItemId String? @db.Uuid
+  workItem OutcomeWorkItem? @relation("OutcomeWorkItemReviewTurns", fields: [workItemId], references: [id], onDelete: SetNull)
   /// The bot's final message for the turn, shown with the goal.
   reply String?
   error Json?
@@ -2083,6 +2106,7 @@ model OutcomeThreadTurn {
 
   @@unique([threadId, clientRequestId], map: "outcomego_outcome_thread_turn_thread_id_client_request_id_key")
   @@index([threadId, createdAt], map: "outcomego_outcome_thread_turn_thread_id_created_at_idx")
+  @@index([workItemId], map: "outcomego_outcome_thread_turn_work_item_id_idx")
   @@map("outcomego_outcome_thread_turn")
 }
 
@@ -2146,6 +2170,8 @@ model OutcomeContractRevision {
   approvedBy String?
   approvedAt DateTime?
   approvalProof Json?
+  /// Task plan saved on this revision ({ notes?: string, tasks: PlanTask[] }); excluded from contentHash.
+  plan Json?
   criteria         OutcomeAcceptanceCriterion[]
   workItems        OutcomeWorkItem[]
   evidence         OutcomeEvidence[]
@@ -2196,6 +2222,8 @@ model OutcomeWorkItem {
   retryCount Int @default(0)
   recoveryCount Int @default(0)
   ordinal Int
+  /// Stable key linking this work item to its PlanTask in the revision's plan.
+  planKey String?
   /// Work item IDs this one waits for.
   dependsOn Json                        @default("[]")
   rootRunId String?                     @unique @db.Uuid
@@ -2204,6 +2232,7 @@ model OutcomeWorkItem {
   reworkOfWorkItemId String?                     @db.Uuid
   reworkOf           OutcomeWorkItem?            @relation("OutcomeWorkItemRework", fields: [reworkOfWorkItemId], references: [id], onDelete: SetNull)
   reworks            OutcomeWorkItem[]           @relation("OutcomeWorkItemRework")
+  reviewTurns        OutcomeThreadTurn[]         @relation("OutcomeWorkItemReviewTurns")
   sourceDecisionId String?                     @db.Uuid
   humanActionCard    OutcomeHumanActionCard? @relation("HumanActionWorkItem")
   requestedHumanActions OutcomeHumanActionCard[] @relation("HumanActionRequester")
@@ -2216,6 +2245,7 @@ model OutcomeWorkItem {
   updatedAt DateTime                    @updatedAt
 
   @@unique([outcomeId, ordinal], map: "outcomego_outcome_work_item_outcome_id_ordinal_key")
+  @@unique([contractRevisionId, planKey], map: "outcomego_outcome_work_item_revision_id_plan_key_key")
   @@index([outcomeId, status, createdAt], map: "outcomego_outcome_work_item_outcome_id_status_created_at_idx")
   @@index([botId, executorType, status], map: "outcomego_outcome_work_item_bot_id_executor_type_status_idx")
   @@map("outcomego_outcome_work_item")
