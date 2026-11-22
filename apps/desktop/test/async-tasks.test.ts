@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { SubagentActivityView } from "@outcomego/contracts";
-import { activeAsyncTaskChannelIds, activeAsyncTasksForBot, asyncTaskElapsed } from "../src/renderer/lib/async-tasks";
+import type { RunView, SubagentActivityView } from "@outcomego/contracts";
+import {
+  activeAsyncTaskChannelIds,
+  activeAsyncTasksForBot,
+  activeThreadChannelIds,
+  asyncTaskElapsed,
+} from "../src/renderer/lib/async-tasks";
 
 const attempt = (overrides: Partial<SubagentActivityView> = {}): SubagentActivityView => ({
   id: "attempt-1",
@@ -73,5 +78,50 @@ describe("OutcomeGo-compatible async-task overlay", () => {
     expect(asyncTaskElapsed(task, Date.parse("2026-08-27T10:00:42.000Z"))).toBe("42s");
     expect(asyncTaskElapsed(task, Date.parse("2026-08-27T10:12:00.000Z"))).toBe("12m");
     expect(asyncTaskElapsed(task, Date.parse("2026-08-27T13:00:00.000Z"))).toBe("3h");
+  });
+
+  test("identifies channels with running outcome or forked chat threads", () => {
+    const baseRun = (overrides: Partial<RunView> = {}): RunView => ({
+      id: "run-1",
+      botId: "parent-1",
+      conversationId: "conv-1",
+      status: "running",
+      runtimeTurnId: null,
+      origin: "user",
+      channelId: "channel-1",
+      deliveryId: null,
+      error: null,
+      createdAt: "2026-08-27T10:00:00.000Z",
+      updatedAt: "2026-08-27T10:00:00.000Z",
+      ...overrides,
+    });
+
+    expect([
+      ...activeThreadChannelIds([
+        baseRun({ id: "main", origin: "user", channelId: "channel-main" }),
+        baseRun({ id: "goal-thread", origin: "outcome_thread", channelId: "channel-goal-thread" }),
+        baseRun({ id: "done-outcome", origin: "outcome", status: "completed", channelId: "channel-done" }),
+        baseRun({ id: "done-fork", origin: "user", isFork: true, status: "completed", channelId: "channel-done-fork" }),
+      ]),
+    ]).toEqual([]);
+
+    expect([
+      ...activeThreadChannelIds([
+        baseRun({ id: "outcome-active", origin: "outcome", status: "queued", channelId: "channel-outcome" }),
+        baseRun({ id: "fork-active", origin: "user", isFork: true, status: "running", channelId: "channel-fork" }),
+      ]),
+    ]).toEqual(["channel-outcome", "channel-fork"]);
+
+    expect([
+      ...activeThreadChannelIds(
+        [baseRun({ id: "parent-run-1", origin: "outcome", status: "completed", channelId: "channel-1" })],
+        [
+          attempt({ status: "running", parentRunId: "parent-run-1", parentChannelId: "channel-1" }),
+          attempt({ id: "a2", status: "running", parentRunId: "missing", parentIsThread: true, parentChannelId: "channel-2" }),
+          attempt({ id: "a3", status: "running", parentRunId: "other", parentChannelId: "channel-3" }),
+          attempt({ id: "a4", status: "waiting", parentIsThread: true, parentChannelId: "channel-4" }),
+        ]
+      ),
+    ]).toEqual(["channel-1", "channel-2"]);
   });
 });

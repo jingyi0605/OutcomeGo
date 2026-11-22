@@ -53,7 +53,11 @@ import {
   parseOutcomeGoDeepLink,
   type SettingsAnchor,
 } from "./lib/app-deep-links";
-import { activeAsyncTaskChannelIds, activeAsyncTasksForBot } from "./lib/async-tasks";
+import {
+  activeAsyncTaskChannelIds,
+  activeAsyncTasksForBot,
+  activeThreadChannelIds as activeThreadChannelIdsForSnapshot,
+} from "./lib/async-tasks";
 import { cn } from "./lib/cn";
 import { requestDesktopUpdateRestart } from "./lib/desktop-update";
 import {
@@ -947,6 +951,10 @@ export default function App() {
     () => activeAsyncTaskChannelIds(snapshot?.subagents ?? []),
     [snapshot?.subagents]
   );
+  const activeThreadChannelIds = useMemo(
+    () => activeThreadChannelIdsForSnapshot(snapshot?.runs ?? [], snapshot?.subagents ?? []),
+    [snapshot?.runs, snapshot?.subagents]
+  );
 
   const openNewBot = useCallback(() => {
     setOutcomeTarget(null);
@@ -1494,6 +1502,7 @@ export default function App() {
             itemsByRun={index.itemsByRun}
             activeRunByChannel={index.activeRunByChannel}
             activeTaskChannelIds={activeTaskChannelIds}
+            activeThreadChannelIds={activeThreadChannelIds}
             botById={index.botById}
             channels={visibleChannels}
             creating={newBotPicker}

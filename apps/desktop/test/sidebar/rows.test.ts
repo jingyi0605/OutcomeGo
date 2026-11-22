@@ -114,6 +114,34 @@ describe("sidebar row reconciliation", () => {
     expect(settled.rows[0]?.hasActiveTask).toBe(false);
     expect(settled.rows[0]).not.toBe(active.rows[0]);
   });
+
+  test("tracks active thread presence per channel without disturbing idle rows", () => {
+    const first = channel("first", "2026-08-27T10:00:00.000Z");
+    const second = channel("second", "2026-08-27T09:00:00.000Z");
+    const active = reconcileSidebarRows(
+      new Map(),
+      [first, second],
+      new Map(),
+      new Map(),
+      new Set(),
+      new Set([first.id])
+    );
+
+    expect(active.rows[0]?.hasActiveThread).toBe(true);
+    expect(active.rows[1]?.hasActiveThread).toBe(false);
+
+    const settled = reconcileSidebarRows(
+      active.rowByChannelId,
+      [first, second],
+      new Map(),
+      new Map(),
+      new Set(),
+      new Set()
+    );
+    expect(settled.rows[0]?.hasActiveThread).toBe(false);
+    expect(settled.rows[0]).not.toBe(active.rows[0]);
+    expect(settled.rows[1]).toBe(active.rows[1]);
+  });
 });
 
 describe("sidebar grouping", () => {

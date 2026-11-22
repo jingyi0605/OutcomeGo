@@ -116,6 +116,7 @@ import {
 import { Input } from "../ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { BotAvatar, ChannelAvatar } from "./avatar";
+import { WorkThreadAvatarTrigger } from "./work-thread-navigation";
 import { BotName, BotRenameContext } from "./bot-name";
 import { DesktopUpdateCard } from "./desktop-update-card";
 import { SidebarCollapseMotion, SidebarMotion } from "./sidebar-motion";
@@ -1018,12 +1019,18 @@ const DraggableChannelRow = memo(function DraggableChannelRow({
   });
   return (
     <div
-      className={cn("touch-none", isDragging && "relative z-10 opacity-0")}
+      className={cn("relative touch-none", isDragging && "z-10 opacity-0")}
       data-channel-id={row.channel.id}
       data-selected={props.selected || undefined}
       ref={ref}
     >
       <ChannelRow {...props} dragHandleRef={handleRef} row={row} />
+      <WorkThreadAvatarTrigger
+        active={Boolean(row.hasActiveThread)}
+        channel={row.channel}
+        className="left-2 top-[9px] size-9"
+        ringColor={props.selected ? "var(--selected)" : "var(--sidebar)"}
+      />
     </div>
   );
 });
@@ -1220,7 +1227,7 @@ function DraggablePinnedTile({
 
   return (
     <div
-      className={cn("min-w-0", isDragging && "relative z-20 opacity-0")}
+      className={cn("relative min-w-0", isDragging && "z-20 opacity-0")}
       data-pinned-channel-id={channel.id}
       ref={ref}
     >
@@ -1258,6 +1265,13 @@ function DraggablePinnedTile({
       ) : (
         tile
       )}
+      <WorkThreadAvatarTrigger
+        active={Boolean(row.hasActiveThread)}
+        channel={channel}
+        className="left-1/2 top-2 size-16 -translate-x-1/2"
+        ringColor={selected ? "var(--selected)" : "var(--sidebar)"}
+        size="pin"
+      />
     </div>
   );
 }
@@ -1901,6 +1915,7 @@ function CompactChannelTile({
   const working = sidebarRowIsWorking(row);
 
   return (
+    <div className="relative size-[54px] shrink-0">
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -1946,6 +1961,14 @@ function CompactChannelTile({
       </TooltipTrigger>
       <ChannelPreviewTooltipContent botById={botById} row={row} />
     </Tooltip>
+    <WorkThreadAvatarTrigger
+      active={Boolean(row.hasActiveThread)}
+      channel={channel}
+      className="left-[9px] top-[9px] size-9"
+      onOpenMain={() => onSelect(channel.id)}
+      ringColor={selected ? "var(--selected)" : "var(--sidebar)"}
+    />
+    </div>
   );
 }
 
@@ -2353,6 +2376,7 @@ export const Sidebar = memo(function Sidebar({
   latestMessageByChannel,
   activeRunByChannel,
   activeTaskChannelIds,
+  activeThreadChannelIds = EMPTY_PINNED_IDS,
   itemsByRun,
   selectedId,
   creating,
@@ -2382,6 +2406,7 @@ export const Sidebar = memo(function Sidebar({
   latestMessageByChannel: ReadonlyMap<string, ChannelMessageView>;
   activeRunByChannel: ReadonlyMap<string, RunView>;
   activeTaskChannelIds: ReadonlySet<string>;
+  activeThreadChannelIds?: ReadonlySet<string>;
   itemsByRun?: ReadonlyMap<string, RunItemView[]>;
   selectedId: string | null;
   creating?: boolean;
@@ -2456,11 +2481,18 @@ export const Sidebar = memo(function Sidebar({
       channels,
       latestMessageByChannel,
       activeRunByChannel,
-      activeTaskChannelIds
+      activeTaskChannelIds,
+      activeThreadChannelIds
     );
     rowCacheRef.current = reconciled.rowByChannelId;
     return reconciled;
-  }, [activeRunByChannel, activeTaskChannelIds, channels, latestMessageByChannel]);
+  }, [
+    activeRunByChannel,
+    activeTaskChannelIds,
+    activeThreadChannelIds,
+    channels,
+    latestMessageByChannel,
+  ]);
 
   const groups = useMemo(
     () =>
