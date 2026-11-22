@@ -118,28 +118,13 @@ export class OutcomeThreadTools {
         };
       }
       case "SubmitPrereview": {
-        const runItems = (this.prisma as PrismaClient & { runItem?: { findMany: (input: unknown) => Promise<Array<{ status: string; content: unknown }>> } }).runItem;
-        if (runItems) {
-          const inspected = await runItems.findMany({
-            where: { runId: context.runId, kind: "tool", status: "completed" },
-            select: { status: true, content: true },
-          });
-          const readCurrentOutcome = inspected.some((item) => {
-            if (!item.content || typeof item.content !== "object" || Array.isArray(item.content)) return false;
-            const record = item.content as { tool?: unknown; result?: { isError?: unknown } };
-            return record.tool === "GetOutcome" && record.result?.isError !== true;
-          });
-          if (!readCurrentOutcome) {
-            throw new ApiError(409, "prereview_inspection_required", "Read the current Outcome with GetOutcome before submitting preliminary review");
-          }
-        }
         if (!this.taskReviews) {
           throw new ApiError(503, "outcome_review_unavailable", "Preliminary review recording is not available");
         }
         const outcome = await this.taskReviews.submitPrereview(outcomeId, turn.id, decode("SubmitPrereview"), actor);
         return {
           outcome,
-          nextStep: "Preliminary review saved. The app uses your submitted summary in the report. Acknowledge briefly; do not write a second report, approve or accept.",
+          nextStep: "Preliminary review saved. The app uses your submitted conclusion in the report. Acknowledge briefly; do not write a second report, approve or accept.",
         };
       }
       case "ReviewTaskResult": {

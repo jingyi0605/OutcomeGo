@@ -1,4 +1,7 @@
 import { expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { outcomeReviewBatchKey } from "@outcomego/messaging";
 import { Effect } from "effect";
 import { OutcomeService } from "../src/services/outcome-service";
@@ -26,6 +29,7 @@ function makeReviewHarness(options: {
   revStatus?: string;
 } = {}) {
   const idempotency = new Map<string, Row>();
+  const workspaceRoot = mkdtempSync(join(tmpdir(), "prereview-"));
   const evidence: Array<Row & { id: string; credibility: string; sourceType: string }> = [];
   const outputs = [{ id: "out-1", workItemId: WORK_ITEM_ID, createdAt: new Date() }];
   const decisions: Array<{ id: string; contractRevisionId: string; status: "open" | "presented" | "resolved" }> = [];
@@ -223,13 +227,14 @@ function makeReviewHarness(options: {
       return { run: { id: `run-${wakes.length}` } };
     },
     assets: { metadata: async () => ({}) },
+    agentData: { workspaceRoot },
   };
   const outcomes = {
     getInTransaction: async () => ({ id: outcome.id, status: outcome.status }),
   };
   const taskReviews = new OutcomeTaskReviewService(prisma as never, outcomes as never, messaging as never);
   const reviewService = new OutcomeReviewService(prisma as never, messaging as never, async () => ({ text: "{}" }));
-  return { taskReviews, reviewService, prisma, evidence, outputs, decisions, reviews, events, wakes, workItems, outcome, turns };
+  return { workspaceRoot, taskReviews, reviewService, prisma, evidence, outputs, decisions, reviews, events, wakes, workItems, outcome, turns };
 }
 
 test("SubmitPrereview saves ai_prereview evidence without OutcomeReview, and rejects invalid/incomplete inputs", async () => {
@@ -241,7 +246,7 @@ test("SubmitPrereview saves ai_prereview evidence without OutcomeReview, and rej
       {
         expectedRevision: 1,
         results: [{ criterionId: CRIT_REQ, suggestion: "likely_pass", reason: "Present" }],
-        summary: "Missing second criterion",
+        conclusion: ["Missing second criterion"],
         attention: [],
         clientRequestId: "pre-inc-1",
       },
@@ -259,7 +264,7 @@ test("SubmitPrereview saves ai_prereview evidence without OutcomeReview, and rej
           { criterionId: CRIT_REQ, suggestion: "likely_pass", reason: "Looks good" },
           { criterionId: CRIT_OPT, suggestion: "likely_fail", reason: "Optional missing" },
         ],
-        summary: "Cannot fail optional criterion",
+        conclusion: ["Cannot fail optional criterion"],
         attention: [],
         clientRequestId: "pre-opt-fail",
       },
@@ -277,49 +282,13 @@ test("SubmitPrereview saves ai_prereview evidence without OutcomeReview, and rej
           { criterionId: CRIT_REQ, suggestion: "likely_pass", reason: "Looks good" },
           { criterionId: CRIT_OPT, suggestion: "likely_pass", reason: "Optional ok" },
         ],
-        summary: "Summary",
+        conclusion: ["Summary"],
         attention: [{ criterionId: CRIT_REQ, question: "Could improve font?" }],
         clientRequestId: "pre-att-pass",
       },
       `bot:${BOT_REVIEWER}`
     )
   ).rejects.toMatchObject({ code: "invalid_request", details: { field: "attention" } });
-
-  await expect(
-    f.taskReviews.submitPrereview(
-      OUTCOME_ID,
-      TURN_ID,
-      {
-        expectedRevision: 1,
-        results: [
-          { criterionId: CRIT_REQ, suggestion: "likely_pass", reason: "Table verified against output" },
-          { criterionId: CRIT_OPT, suggestion: "unclear", reason: "Thumbnail omitted" },
-        ],
-        summary: "This is a deliberately overlong conclusion that exceeds the requested limit.",
-        attention: [],
-        clientRequestId: "pre-too-long",
-      },
-      `bot:${BOT_REVIEWER}`
-    )
-  ).rejects.toMatchObject({ code: "invalid_request", details: { field: "summary" } });
-
-  await expect(
-    f.taskReviews.submitPrereview(
-      OUTCOME_ID,
-      TURN_ID,
-      {
-        expectedRevision: 1,
-        results: [
-          { criterionId: CRIT_REQ, suggestion: "likely_pass", reason: "Table verified against output" },
-          { criterionId: CRIT_OPT, suggestion: "unclear", reason: "Thumbnail omitted" },
-        ],
-        summary: "1. 数据已记录\n2. 表格可核对\n3. 缩略图待核实\n4. 需人工确认\n5. 暂不通过\n1. 重复编号不应通过",
-        attention: [],
-        clientRequestId: "pre-six",
-      },
-      `bot:${BOT_REVIEWER}`
-    )
-  ).rejects.toMatchObject({ code: "invalid_request", details: { field: "summary" } });
 
   await f.taskReviews.submitPrereview(
     OUTCOME_ID,
@@ -330,7 +299,7 @@ test("SubmitPrereview saves ai_prereview evidence without OutcomeReview, and rej
         { criterionId: CRIT_REQ, suggestion: "likely_pass", reason: "Table verified against output" },
         { criterionId: CRIT_OPT, suggestion: "unclear", reason: "Thumbnail omitted" },
       ],
-      summary: "表格已满足；缩略图待核实",
+      conclusion: ["表格已满足，缩略图待核实。"],
       attention: [],
       clientRequestId: "pre-valid-1",
     },
@@ -354,7 +323,7 @@ test("adoptPrereview rejects bots and stale revisions, and submits likely_pass i
         { criterionId: CRIT_REQ, suggestion: "likely_pass", reason: "Verified table" },
         { criterionId: CRIT_OPT, suggestion: "unclear", reason: "Optional skipped" },
       ],
-      summary: "All required criteria passed.",
+      conclusion: ["All required criteria passed."],
       attention: [],
       clientRequestId: "pre-for-adopt",
     },
@@ -398,14 +367,23 @@ test("one review persists an evidence-grounded report and rejects adoption after
       { label: "Secondary cache", value: 57, evidenceId: "measurement", quote: "Secondary cache 57%" },
     ],
   };
+  const folder = join(f.workspaceRoot, "outcomes", OUTCOME_ID, WORK_ITEM_ID);
+  mkdirSync(folder, { recursive: true });
+  writeFileSync(join(folder, "report.md"), "Array 34%\nCache 63%\n");
+  const fileChart = {
+    type: "bar" as const, title: "Use by pool", unit: "%", points: [
+      { label: "Array", value: 34, file: `outcomes/${OUTCOME_ID}/${WORK_ITEM_ID}/report.md`, quote: "Array 34%" },
+      { label: "Cache", value: 63, file: `outcomes/${OUTCOME_ID}/${WORK_ITEM_ID}/report.md`, quote: "Cache 63%" },
+    ],
+  };
   const input = {
     expectedRevision: 1,
     results: [
       { criterionId: CRIT_REQ, suggestion: "likely_pass" as const, reason: "Verified table", evidenceIds: ["measurement"] },
       { criterionId: CRIT_OPT, suggestion: "unclear" as const, reason: "Optional skipped" },
     ],
-    summary: "Caches 63% and 57%; no action needed.", attention: [],
-    charts: [charts, { ...charts, points: charts.points.map((point) => ({ ...point, evidenceId: "claim" })) }],
+    conclusion: ["主缓存使用63%，第二缓存使用57%。", "两个缓存都低于70%预警线。"], attention: [],
+    charts: [charts, fileChart],
     clientRequestId: "batch-review-1",
   };
   await expect(f.taskReviews.submitPrereview(OUTCOME_ID, TURN_ID, input, `bot:${BOT_REVIEWER}`))
@@ -413,16 +391,23 @@ test("one review persists an evidence-grounded report and rejects adoption after
   expect(f.evidence).toHaveLength(2);
   expect(turn.result).toBeNull();
   turn.clientRequestId = outcomeReviewBatchKey(REV_ID, f.outputs, f.evidence, f.decisions);
+  const fabricated = { ...charts, points: [{ ...charts.points[0]!, quote: "Main cache 99%", value: 99 }, charts.points[1]!] };
+  await expect(f.taskReviews.submitPrereview(OUTCOME_ID, TURN_ID, { ...input, charts: [fabricated] }, `bot:${BOT_REVIEWER}`))
+    .rejects.toMatchObject({ code: "invalid_request", details: { field: "charts" } });
+  const outside = { ...fileChart, points: fileChart.points.map((point) => ({ ...point, file: "../../etc/hosts" })) };
+  await expect(f.taskReviews.submitPrereview(OUTCOME_ID, TURN_ID, { ...input, charts: [outside] }, `bot:${BOT_REVIEWER}`))
+    .rejects.toMatchObject({ code: "invalid_request", details: { field: "charts" } });
+  expect(turn.result).toBeNull();
   await f.taskReviews.submitPrereview(OUTCOME_ID, TURN_ID, input, `bot:${BOT_REVIEWER}`);
   const get = () => new OutcomeService(f.prisma as never).getInTransaction(f.prisma as never, OUTCOME_ID);
   expect((await get()).prereviewStatus).toBe("pending");
   turn.status = "completed";
   const current = await get();
   expect(current.prereview?.report).toMatchObject({
-    reviewTurnId: TURN_ID, summary: input.summary,
-    charts: [{ type: "bar", points: [{ value: 63 }, { value: 57 }] }],
+    reviewTurnId: TURN_ID, summary: "1. 主缓存使用63%，第二缓存使用57%。\n2. 两个缓存都低于70%预警线。",
+    charts: [{ type: "bar", points: [{ value: 63 }, { value: 57 }] }, { type: "bar", points: [{ value: 34 }, { value: 63 }] }],
   });
-  expect(current.prereview?.report?.sources.every((source) => source.credibility === "external_record")).toBe(true);
+  expect(current.prereview?.report?.sources.filter((source) => source.credibility === "agent_report")).toHaveLength(2);
   const record = { id: "decision-1", contractRevisionId: REV_ID, status: "open" as const };
   f.decisions.push(record);
   expect((await get()).prereviewStatus).toBe("stale");

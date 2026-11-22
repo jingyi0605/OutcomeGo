@@ -1,7 +1,8 @@
+import { readFile, stat } from "node:fs/promises";
+import { resolve } from "node:path";
 import { ApiError } from "@outcomego/contracts";
-import type { ReviewTaskResultInput, SubmitPrereviewInput } from "@outcomego/contracts/outcome-thread";
+import { composeConclusion, type ReviewTaskResultInput, type SubmitPrereviewInput } from "@outcomego/contracts/outcome-thread";
 import {
-  PLAN_LIMITS,
   parseOutcomePlan,
   type OutcomeDetail,
   type TaskReviewFinding,
@@ -37,34 +38,7 @@ const asBoundaries = (value: unknown) => {
   };
 };
 
-const CONCLUSION_MAX_CHARS = 50;
-const CONCLUSION_ITEM_MAX_CHARS = 30;
-const CONCLUSION_ITEM_PATTERN = /^([1-5])[.、)]\s*(.+)$/u;
-const FACT_NUMBER_PATTERN = /\d+(?:[.,]\d+)?(?:\s*(?:[%％]|[A-Za-z]+))?/gu;
-
-function validatePrereviewSummary(summary: string, facts: readonly string[]): void {
-  const lines = summary.split(/\r?\n/u).map((line) => line.trim()).filter(Boolean);
-  const numbered = lines.length > 1 || CONCLUSION_ITEM_PATTERN.test(lines[0] ?? "");
-  if (!numbered) {
-    if (summary.length > CONCLUSION_MAX_CHARS) {
-      throw new ApiError(400, "invalid_request", `Review summary must be <= ${CONCLUSION_MAX_CHARS} characters, or use 2-5 numbered items of <= ${CONCLUSION_ITEM_MAX_CHARS} characters each`, { field: "summary" });
-    }
-  } else {
-    if (lines.length < 2 || lines.length > 5) {
-      throw new ApiError(400, "invalid_request", "Review summary must be one sentence or 2-5 numbered conclusion items", { field: "summary" });
-    }
-    for (const [index, line] of lines.entries()) {
-      const match = line.match(CONCLUSION_ITEM_PATTERN);
-      if (!match || match[1] !== String(index + 1) || match[2]!.length > CONCLUSION_ITEM_MAX_CHARS) {
-        throw new ApiError(400, "invalid_request", `Numbered conclusion items must run from 1. through ${lines.length}. and each be <= ${CONCLUSION_ITEM_MAX_CHARS} characters`, { field: "summary" });
-      }
-    }
-  }
-  const recordedNumbers = new Set(facts.flatMap((fact) => fact.match(FACT_NUMBER_PATTERN) ?? []));
-  if (recordedNumbers.size && ![...recordedNumbers].some((number) => summary.includes(number.replaceAll(" ", "")))) {
-    throw new ApiError(400, "invalid_request", "Review summary must include at least one recorded number or date from the reviewed facts", { field: "summary" });
-  }
-}
+const MAX_CITED_FILE_BYTES = 2_000_000;
 
 /**
  * Reviewer role thread actions (specs/004.9): holistic preliminary review (SubmitPrereview)
@@ -76,6 +50,34 @@ export class OutcomeTaskReviewService {
     private readonly outcomes: Pick<OutcomeService, "getInTransaction">,
     private readonly messaging?: AgentMessaging
   ) {}
+
+  /** Saved output files a chart cites, read from this goal's own workspace folder only. */
+  private async readChartFiles(
+    outcomeId: string,
+    charts: NonNullable<SubmitPrereviewInput["charts"]>,
+  ): Promise<Map<string, string>> {
+    const files = new Map<string, string>();
+    const paths = new Set(charts.flatMap((chart) => chart.points.flatMap((point) => point.file ? [point.file] : [])));
+    if (!paths.size) return files;
+    const root = this.messaging?.agentData.workspaceRoot;
+    if (!root) throw new ApiError(400, "invalid_request", "Chart points cannot cite files here; cite an evidenceId", { field: "charts" });
+    const folder = resolve(root, "outcomes", outcomeId);
+    for (const path of paths) {
+      const relative = path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path.replace(/^\/workspace\//u, "");
+      const absolute = resolve(root, relative);
+      if (!absolute.startsWith(`${folder}/`)) {
+        throw new ApiError(400, "invalid_request", `Chart file ${path} must be inside outcomes/${outcomeId}/`, { field: "charts" });
+      }
+      try {
+        const info = await stat(absolute);
+        if (!info.isFile() || info.size > MAX_CITED_FILE_BYTES) throw new Error("unreadable");
+        files.set(path, await readFile(absolute, "utf8"));
+      } catch {
+        throw new ApiError(400, "invalid_request", `Chart file ${path} could not be read`, { field: "charts" });
+      }
+    }
+    return files;
+  }
 
   async submitPrereview(
     outcomeId: string,
@@ -114,23 +116,9 @@ export class OutcomeTaskReviewService {
             turn.status !== "running" || turn.result !== null || turn.clientRequestId !== batch.key) {
           throw outcomeApiError("prereview_stale", "The results changed or this review has already ended");
         }
-        const summary = input.summary.trim();
-        if (!summary || summary.length > PLAN_LIMITS.prereviewSummaryChars) {
-          throw new ApiError(
-            400,
-            "invalid_request",
-            `Summary must be between 1 and ${PLAN_LIMITS.prereviewSummaryChars} characters`,
-            { field: "summary" }
-          );
-        }
+        const summary = composeConclusion(input.conclusion);
 
         const criteriaById = new Map(revision.criteria.map((c) => [c.id, c]));
-        const previousReviews = await tx.outcomeThreadTurn.findMany({
-          where: { threadId: turn.threadId, purpose: "review", status: "completed", id: { not: turnId } },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          take: 5,
-          select: { result: true },
-        });
         const seen = new Set<string>();
         const normalizedResults: Array<{
           criterionId: string;
@@ -188,28 +176,14 @@ export class OutcomeTaskReviewService {
         }
 
         const citedIds = [...new Set([...evidenceToCheck, ...(input.charts ?? []).flatMap(
-          (chart) => chart.points.map((point) => point.evidenceId),
+          (chart) => chart.points.flatMap((point) => point.evidenceId ? [point.evidenceId] : []),
         )])];
         const evidence = citedIds.length ? await tx.outcomeEvidence.findMany({
           where: { id: { in: citedIds }, outcomeId, contractRevisionId: revision.id, credibility: { not: "ai_prereview" } },
           select: { id: true, criterionId: true, credibility: true, contentSummary: true, sourceType: true },
         }) : [];
         const evidenceById = new Map(evidence.map((entry) => [entry.id, entry]));
-        const normalizedSignature = JSON.stringify({
-          summary,
-          results: normalizedResults.map(({ criterionId, suggestion, reason, evidenceIds }) => ({ criterionId, suggestion, reason, evidenceIds })),
-        });
-        if (previousReviews.some((previous) => {
-          if (!previous.result || typeof previous.result !== "object" || Array.isArray(previous.result)) return false;
-          const value = previous.result as { summary?: unknown; results?: unknown };
-          return JSON.stringify({ summary: value.summary, results: value.results }) === normalizedSignature;
-        })) {
-          throw new ApiError(409, "prereview_repeated", "Re-read the current report and submit a new conclusion based on its contents", { field: "summary" });
-        }
-        validatePrereviewSummary(
-          summary,
-          [...normalizedResults.map((entry) => entry.reason), ...evidence.map((entry) => entry.contentSummary)],
-        );
+        const files = await this.readChartFiles(outcomeId, input.charts ?? []);
         for (const entry of normalizedResults) {
           const cited = entry.evidenceIds.map((id) => evidenceById.get(id));
           if (cited.some((source) => !source || (source.criterionId && source.criterionId !== entry.criterionId))) {
@@ -278,7 +252,7 @@ export class OutcomeTaskReviewService {
               attention: normalizedAttention,
               results: normalizedResults,
               report: {
-                ...assemblePrereviewReport(outcomeId, revision.id, turnId, summary, normalizedResults, evidence, input.charts ?? []),
+                ...assemblePrereviewReport(outcomeId, revision.id, turnId, summary, normalizedResults, evidence, input.charts ?? [], files),
                 attention: normalizedAttention.map(({ question }) => question),
               },
             }),

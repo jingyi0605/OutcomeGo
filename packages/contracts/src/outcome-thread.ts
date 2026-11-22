@@ -95,6 +95,22 @@ export const TaskReviewFindingInputSchema = Schema.Struct({
   reason: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(PLAN_LIMITS.reasonChars)),
 });
 
+export const CONCLUSION_SENTENCE_CHARS = 50;
+export const CONCLUSION_ITEM_CHARS = 30;
+export const CONCLUSION_MAX_ITEMS = 5;
+
+/** One complete sentence (<=50 characters), or 2-5 complete items (<=30 characters each). Numbering is added by the server. */
+const Conclusion = Schema.Array(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(CONCLUSION_SENTENCE_CHARS))).pipe(
+  Schema.minItems(1),
+  Schema.maxItems(CONCLUSION_MAX_ITEMS),
+  Schema.filter((items) => items.length === 1 || items.every((item) => item.length <= CONCLUSION_ITEM_CHARS) ||
+    `With more than one conclusion item, each item must be at most ${CONCLUSION_ITEM_CHARS} characters`),
+);
+
+/** The owner-facing report summary: one sentence as is, several items numbered for reading. */
+export const composeConclusion = (items: readonly string[]): string =>
+  items.length === 1 ? items[0]!.trim() : items.map((item, index) => `${index + 1}. ${item.trim()}`).join("\n");
+
 const GoalThreadInputs = {
   SaveOutcomeContract: Schema.Struct({
     /** Required for a goal's first contract; ignored afterwards. */
@@ -122,7 +138,7 @@ const GoalThreadInputs = {
         evidenceIds: Schema.optional(Schema.Array(Uuid).pipe(Schema.maxItems(20))),
       })
     ).pipe(Schema.minItems(1), Schema.maxItems(20)),
-    summary: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(PLAN_LIMITS.prereviewSummaryChars)),
+    conclusion: Conclusion,
     charts: Schema.optional(Schema.Array(
       Schema.Struct({
         type: Schema.Literal("metric", "bar", "line", "pie", "heatmap"),
@@ -133,9 +149,12 @@ const GoalThreadInputs = {
             label: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(72)),
             row: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(72))),
             value: Schema.Number,
-            evidenceId: Uuid,
+            /** Cite a saved evidence record, or a saved output file under the goal's workspace folder. */
+            evidenceId: Schema.optional(Uuid),
+            file: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(400))),
             quote: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(600)),
-          })
+          }).pipe(Schema.filter((point) => (point.evidenceId === undefined) !== (point.file === undefined) ||
+            "A chart point must cite exactly one of evidenceId or file"))
         ).pipe(Schema.minItems(1), Schema.maxItems(24)),
       })
     ).pipe(Schema.maxItems(2))),
@@ -183,7 +202,7 @@ const descriptions: Record<OutcomeThreadToolName, string> = {
   SavePlan:
     "Save the executable task plan for the current contract revision. Each task requires a unique key, title, self-contained instructions, assigned botId, covered acceptance criterion ids, and nature (deliverable or action; never omit nature). Before approval, replaces the plan on the pending revision; after approval, may only add tasks or modify/remove unstarted queued tasks without touching started or finished tasks. Reuse clientRequestId for identical retries.",
   SubmitPrereview:
-    "Record your holistic preliminary review for every acceptance criterion of the current revision. Read every referenced output file with Read or a read-only Shell command before judging it. The owner-facing summary must be one complete sentence of <=50 characters containing a clear subject, predicate, concrete recorded fact and decision meaning. If that cannot fit, use 2-5 numbered items labeled 1. through 5., each <=30 characters. Do not put process details, evidence explanations or notes in the summary. Put detailed reasons, evidence and charts in the expandable report details. Include owner attention questions and optional grounded charts. Only likely_fail required criteria; optional improvements belong in criterion reasons or expandable evidence, never in attention. Each optional chart point must cite an independent evidenceId and quote an exact excerpt containing its label, value and unit. Advisory only: never approves or accepts the goal. Reuse clientRequestId for identical retries.",
+    "Record your holistic preliminary review for every acceptance criterion of the current revision. Inspect the saved outputs however you need (GetOutcome, Read, read-only Shell). `conclusion` is what the owner reads first: either one complete sentence of at most 50 characters, or 2-5 complete items of at most 30 characters each (the app numbers them). Every sentence or item states a subject, a concrete recorded fact with its figure, and what it means for the decision; no fragments, no process detail. Put reasons per criterion in `results`, owner questions in `attention` (only for likely_fail or unclear required criteria), and optional charts in `charts`. A chart point cites either an `evidenceId` or a saved output `file` path, plus the exact excerpt that contains its label, value and unit; the app checks the excerpt exists and shows where it came from. Advisory only: never approves or accepts the goal. Reuse clientRequestId for identical retries.",
   ReviewTaskResult:
     "Record your task-level review verdict (pass or reject) for one completed deliverable work item. Default to pass. Reject only for serious errors or omissions backed by a required criterion covered by the task or an explicit contract boundary, with a clear reason. Each task can be rejected at most once. Notes are for holistic review only and are never sent to the executing bot. Reuse clientRequestId for identical retries.",
   GetOutcome:

@@ -20,7 +20,7 @@ export function outcomeReviewBatchKey(
   const ids = (rows: readonly RecordId[]) => rows.map(({ id }) => id).sort();
   const decisionStates = decisions.map(({ id, status }) => `${id}:${status === "presented" ? "open" : status}`).sort();
   const hash = createHash("sha256").update(JSON.stringify([ids(outputs), ids(evidence), decisionStates])).digest("hex");
-  return `review-batch:v9:${revisionId}:${hash}`;
+  return `review-batch:v11:${revisionId}:${hash}`;
 }
 
 export async function readOutcomeReviewBatch(db: Db, outcomeId: string, revisionId: string) {

@@ -225,11 +225,13 @@ export const contextScopeForRun = (
   conversationId: string,
   automationRunId?: string,
   outcomeWorkItemId?: string | null,
-  outcomeThreadId?: string | null
+  outcomeThreadId?: string | null,
+  isolatedRunId?: string | null
 ): { scope: "home" | "channel" | "automation" | "outcome" | "outcome-thread"; scopeId: string } => {
   if (origin === "outcome_thread") {
     if (!outcomeThreadId) throw new Error("A goal thread turn requires its thread ID");
-    return { scope: "outcome-thread", scopeId: outcomeThreadId };
+    // A review judges the saved facts anew, so it must not see (and copy) its own earlier conclusions.
+    return { scope: "outcome-thread", scopeId: isolatedRunId ?? outcomeThreadId };
   }
   if (origin === "outcome") {
     if (!outcomeWorkItemId) throw new Error("An Outcome requires its work item ID");
@@ -1767,13 +1769,17 @@ export class WakeWorker {
           },
         });
         const runtimeOwners = subagentRuntimeOwners(botId, inbox.bot.subagentIdentity);
+        const threadTurn = inbox.run.origin === "outcome_thread"
+          ? await tx.outcomeThreadTurn.findUnique({ where: { runId: inbox.runId }, select: { purpose: true } })
+          : null;
         const contextAddress = contextScopeForRun(
           inbox.run.origin,
           inbox.run.channelId,
           inbox.conversationId,
           payload.automationContextRunId ?? inbox.runId,
           inbox.run.outcomeWorkItemId,
-          inbox.run.outcomeThreadId
+          inbox.run.outcomeThreadId,
+          threadTurn?.purpose === "review" || threadTurn?.purpose === "review_task" ? inbox.runId : null
         );
         const contextSession = await tx.contextSession.upsert({
           where: {

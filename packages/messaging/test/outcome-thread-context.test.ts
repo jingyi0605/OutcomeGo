@@ -101,6 +101,12 @@ test("planner turns include environmentNote, assignableBots, and submitterBot hi
   expect(ctx).toContain("gpt-5.4");
 });
 
+test("planner turns prefer one task over a chain of same-bot steps", async () => {
+  const ctx = await outcomeThreadContext(makeContextDb("plan") as never, "bot-role", "thread-1");
+  expect(ctx).toContain("Prefer one task over several");
+  expect(ctx).toContain("different Bot, different permissions, or can run in parallel");
+});
+
 test("reviewer turns include environmentNote and planNotes without assignableBots", async () => {
   const reviewCtx = await outcomeThreadContext(
     makeContextDb("review", { withPlanNotes: true }) as never,

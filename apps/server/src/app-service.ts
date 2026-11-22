@@ -312,7 +312,7 @@ export class AppService {
     });
     this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome, undefined, this.humanReceipts);
     this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
-    this.outcomeResultSummaries = new OutcomeResultSummaryWorker(this.prisma, this.outcomes, this.outcomeBriefs,
+    this.outcomeResultSummaries = new OutcomeResultSummaryWorker(this.prisma, this.outcomes,
       (outcomeId, revision) => this.prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`}))`;
         return enqueueOutcomePrereviewIfNeeded(tx, this.messaging, outcomeId, revision.id, revision.revision);

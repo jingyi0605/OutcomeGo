@@ -24,6 +24,14 @@ describe("OutcomeGo-style runtime context routing", () => {
     }
   });
 
+  test("goal planner turns share the thread context while review turns start fresh", () => {
+    const conversation = crypto.randomUUID();
+    const thread = crypto.randomUUID();
+    const run = crypto.randomUUID();
+    expect(contextScopeForRun("outcome_thread", null, conversation, run, null, thread)).toEqual({ scope: "outcome-thread", scopeId: thread });
+    expect(contextScopeForRun("outcome_thread", null, conversation, run, null, thread, run)).toEqual({ scope: "outcome-thread", scopeId: run });
+  });
+
   test("isolates automation runs while continuations reuse the automation context", () => {
     const conversation = crypto.randomUUID(), first = crypto.randomUUID(), second = crypto.randomUUID();
     expect(contextScopeForRun("routine", null, conversation, first)).toEqual({ scope: "automation", scopeId: first });

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import {
+  composeConclusion,
   decodeOutcomeThreadInput,
   goalThreadToolsForPurpose,
   OUTCOME_GOAL_THREAD_TOOLS,
@@ -70,7 +71,7 @@ test("SubmitPrereview and ReviewTaskResult schemas validate findings and length 
   const input = {
     expectedRevision: 1,
     results: [{ criterionId, suggestion: "likely_pass", reason: "Evidence exists" }],
-    summary: "All required criteria look satisfied.",
+    conclusion: ["All required criteria look satisfied."],
     attention: [], charts: [chart],
     clientRequestId: "prereview:1",
   };
@@ -80,6 +81,28 @@ test("SubmitPrereview and ReviewTaskResult schemas validate findings and length 
   expect(() => decodeOutcomeThreadInput("SubmitPrereview", {
     ...input, charts: [{ ...chart, points: [{ ...point, evidenceId: "missing" }] }],
   })).toThrow();
+
+  // A chart point cites a record or a saved file, never both and never neither.
+  const { evidenceId: _evidenceId, ...unsourced } = point;
+  expect(decodeOutcomeThreadInput("SubmitPrereview", {
+    ...input, charts: [{ ...chart, points: [{ ...unsourced, file: "outcomes/o/w/report.md" }] }],
+  }).charts).toHaveLength(1);
+  expect(() => decodeOutcomeThreadInput("SubmitPrereview", { ...input, charts: [{ ...chart, points: [unsourced] }] })).toThrow();
+  expect(() => decodeOutcomeThreadInput("SubmitPrereview", {
+    ...input, charts: [{ ...chart, points: [{ ...point, file: "outcomes/o/w/report.md" }] }],
+  })).toThrow();
+
+  // The conclusion is one sentence of <=50 characters, or 2-5 items of <=30 characters.
+  const conclusionOf = (conclusion: string[]) => () => decodeOutcomeThreadInput("SubmitPrereview", { ...input, conclusion });
+  const sentence = "主缓存使用63%、第二缓存57%，均低于70%预警线，无需清理。";
+  expect(conclusionOf([sentence])).not.toThrow();
+  expect(conclusionOf(["字".repeat(51)])).toThrow();
+  expect(conclusionOf(["缓存使用63%，低于70%线。", "阵列使用34%，低于80%线。"])).not.toThrow();
+  expect(conclusionOf(["字".repeat(31), "阵列使用34%，低于80%线。"])).toThrow();
+  expect(conclusionOf(["1", "2", "3", "4", "5", "6"])).toThrow();
+  expect(conclusionOf([])).toThrow();
+  expect(composeConclusion(["一句话。"])).toBe("一句话。");
+  expect(composeConclusion(["甲。", "乙。"])).toBe("1. 甲。\n2. 乙。");
 
   const taskReview = decodeOutcomeThreadInput("ReviewTaskResult", {
     workItemId,
