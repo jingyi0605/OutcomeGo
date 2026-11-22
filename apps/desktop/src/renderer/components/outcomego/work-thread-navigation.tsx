@@ -1,6 +1,7 @@
 import type { ChannelView } from "@outcomego/contracts";
-import type { OutcomeWorkThreadView } from "@outcomego/contracts/outcomes";
-import { Archive, ChevronRight, MessagesSquare } from "lucide-react";
+import { workThreadIsFinished, type OutcomeWorkThreadView } from "@outcomego/contracts/outcomes";
+import { Archive, ChevronRight, MessagesSquare, Square } from "lucide-react";
+import { outcomeErrorMessage } from "./outcomes/planning/outcome-client";
 import { type CSSProperties, useContext, useEffect, useState } from "react";
 import { api } from "../../client/outcomego-api";
 import { cn } from "../../lib/cn";
@@ -9,7 +10,7 @@ import { ChatBranchNavigation, WorkThreadNavigation } from "../../lib/work-threa
 import { Button } from "../ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
-type BranchItem = { id: string; messageId: string; title: string; updatedAt: string };
+type BranchItem = { id: string; messageId: string; title: string; updatedAt: string; running?: boolean };
 type ThreadEntry = { kind: "chat"; branch: BranchItem } | { kind: "outcome"; thread: OutcomeWorkThreadView };
 const entryKey = (entry: ThreadEntry) => entry.kind === "chat" ? `chat:${entry.branch.id}` : `outcome:${entry.thread.id}`;
 
@@ -25,6 +26,21 @@ function ThreadList({ channelId, botId, archived, onSelect }: {
   const [requested, setRequested] = useState<typeof cursors>();
   const [retry, setRetry] = useState(0);
   const [error, setError] = useState(false);
+  const [stop, setStop] = useState<{ entry: ThreadEntry; busy: boolean; error?: string }>();
+  async function stopThread() {
+    if (!stop || stop.busy) return;
+    const { entry } = stop;
+    setStop({ entry, busy: true });
+    try {
+      if (entry.kind === "chat") await api.stopChatBranch(channelId, entry.branch.id);
+      else await api.outcomes.stopWorkThread!(entry.thread.outcomeId, entry.thread.id);
+      setStop(undefined);
+      setRequested(undefined);
+      setRetry(n => n + 1);
+    } catch (error) {
+      setStop({ entry, busy: false, error: outcomeErrorMessage(error) });
+    }
+  }
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
@@ -53,6 +69,16 @@ function ThreadList({ channelId, botId, archived, onSelect }: {
   }, [channelId, botId, archived, requested, retry]);
   return (
     <>
+      {stop && (
+        <section aria-label={t("Force end thread")} className="space-y-2 border-b border-border px-2 py-2">
+          <p className="text-xs">{t("Stop this thread? Other conversations will continue.")}</p>
+          {stop.error && <p role="alert" className="text-xs text-destructive">{t(stop.error)}</p>}
+          <div className="flex flex-wrap gap-1">
+            <Button type="button" variant="ghost" size="sm" disabled={stop.busy} onClick={() => setStop(undefined)}>{t("Cancel")}</Button>
+            <Button type="button" variant="destructive" size="sm" disabled={stop.busy} onClick={() => void stopThread()}>{t("Force end thread")}</Button>
+          </div>
+        </section>
+      )}
       {error && (
         <p role="alert" className="px-2 py-1.5 text-xs text-destructive">
           {t("Could not load all conversation threads.")} <button type="button" className="underline" onClick={() => setRetry((n) => n + 1)}>{t("Retry")}</button>
@@ -70,9 +96,10 @@ function ThreadList({ channelId, botId, archived, onSelect }: {
             const subtitle = entry.kind === "chat"
               ? `${t("Chat branch")} · ${new Date(entry.branch.updatedAt).toLocaleString(locale)}`
               : `${entry.thread.outcomeTitle} · ${t(entry.thread.status)}`;
+            const canStop = entry.kind === "chat" ? entry.branch.running : !workThreadIsFinished(entry.thread.status) && Boolean(api.outcomes.stopWorkThread);
             return (
-              <li key={entryKey(entry)}>
-                <Button type="button" variant="ghost" className="h-auto w-full justify-start gap-2 px-2 py-1.5 text-left" onClick={() => onSelect(entry)}>
+              <li key={entryKey(entry)} className="flex items-center gap-1">
+                <Button type="button" variant="ghost" className="h-auto min-w-0 flex-1 justify-start gap-2 px-2 py-1.5 text-left" onClick={() => onSelect(entry)}>
                   <MessagesSquare aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13px]" title={title}>{title}</span>
@@ -80,6 +107,11 @@ function ThreadList({ channelId, botId, archived, onSelect }: {
                   </span>
                   <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />
                 </Button>
+                {canStop && (
+                  <Button type="button" size="icon-sm" variant="ghost" className="text-destructive" title={t("Force end thread")} aria-label={`${t("Force end thread")}: ${title}`} disabled={stop?.busy} onClick={() => setStop({ entry, busy: false })}>
+                    <Square aria-hidden="true" className="size-3.5" />
+                  </Button>
+                )}
               </li>
             );
           })}

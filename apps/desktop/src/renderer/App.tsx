@@ -25,6 +25,8 @@ import { ChatPane } from "./components/outcomego/chat-pane";
 import { DesktopHeader } from "./components/outcomego/desktop-header";
 import type { SearchAction } from "./components/outcomego/search-dialog";
 import { Sidebar } from "./components/outcomego/sidebar";
+import { ChatBranchNavigation, WorkThreadNavigation } from "./lib/work-thread-navigation";
+import type { OutcomeWorkThreadView } from "@outcomego/contracts/outcomes";
 import { FirstRunShell } from "./components/outcomego/first-run-shell";
 import {
   clearLandingRow,
@@ -142,6 +144,9 @@ const SearchDialog = lazy(() =>
 const AboutPanel = lazy(() => import("./components/outcomego/settings/about"));
 const QuickIdeaDialog = lazy(
   () => import("./components/outcomego/outcomes/explore/quick-idea-dialog")
+);
+const OutcomeWorkThread = lazy(() =>
+  import("./components/outcomego/outcomes/outcome-execution-card").then((module) => ({ default: module.OutcomeExecutionDialog }))
 );
 const OutcomeWorkspace = lazy(
   () => import("./components/outcomego/outcomes/inbox/outcome-workspace")
@@ -278,6 +283,7 @@ export default function App() {
     messageId: string;
     nonce: number;
     readThroughSequence?: string;
+    branchOnly?: boolean;
   } | null>(null);
   const [routineOpenTarget, setRoutineOpenTarget] = useState<{
     channelId: string;
@@ -428,10 +434,20 @@ export default function App() {
   const [requestedOutcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
   // Goal management is opt-in: while it is off no goal view can be shown, however it was requested.
   const outcomeTarget = outcomesEnabled ? requestedOutcomeTarget : null;
+  const [requestedWorkThread, setWorkThread] = useState<OutcomeWorkThreadView | null>(null);
+  const workThread = !outcomeTarget ? requestedWorkThread : null;
+  const openWorkThread = useCallback((thread: OutcomeWorkThreadView) => {
+    setOutcomeTarget(null);
+    setNewBotPicker(false);
+    setA2AExchange(null);
+    a2aExchangeTrigger.current = null;
+    restoreA2AFocusAfterClose.current = false;
+    setWorkThread(thread);
+  }, []);
   const [quickIdeaOpen, setQuickIdeaOpen] = useState(false);
   const openQuickIdea = useCallback(() => setQuickIdeaOpen(true), []);
   const visibleChatId =
-    outcomeTarget || newBotPicker || pendingBot || landing || a2aExchange ? null : selectedId;
+    outcomeTarget || workThread || newBotPicker || pendingBot || landing || a2aExchange ? null : selectedId;
   const visibleChatIdRef = useRef(visibleChatId);
   visibleChatIdRef.current = visibleChatId;
   useEffect(() => {
@@ -593,6 +609,7 @@ export default function App() {
       restoreA2AFocusAfterClose.current = false;
       setNewBotPicker(false);
       setOutcomeTarget(null);
+      setWorkThread(null);
       setSelectedId(channelId);
       setInspectorMode("summary");
       setDetailsOpen(false);
@@ -990,6 +1007,7 @@ export default function App() {
   const selectSidebarChannel = useCallback(
     (id: string, focusComposer = false) => {
       setOutcomeTarget(null);
+      setWorkThread(null);
       setComposerFocus((previous) =>
         focusComposer ? { channelId: id, nonce: (previous?.nonce ?? 0) + 1 } : null
       );
@@ -1384,6 +1402,16 @@ export default function App() {
     ]
   );
 
+  const openChatBranch = useCallback((channelId: string, messageId: string) => {
+    selectSidebarChannel(channelId);
+    const nonce = ++searchLoadNonce.current;
+    void ensureMessageLoaded(channelId, messageId).then((found) => {
+      if (found && searchLoadNonce.current === nonce) {
+        setSearchMessageTarget({ channelId, messageId, nonce, branchOnly: true });
+      }
+    }).catch(() => undefined);
+  }, [ensureMessageLoaded, selectSidebarChannel]);
+
   const selectSearchResult = useCallback(
     (result: SearchResultView) => {
       if (result.kind === "link" && result.url) {
@@ -1469,6 +1497,8 @@ export default function App() {
   }
 
   return (
+    <ChatBranchNavigation.Provider value={openChatBranch}>
+    <WorkThreadNavigation.Provider value={openWorkThread}>
     <BotAvatarActivityProvider
       channel={newBotPicker || pendingBot ? null : (a2aExchangeChannel ?? selected)}
       run={index.activeRunByChannel.get((a2aExchangeChannel ?? selected)?.id ?? "")}
@@ -1524,6 +1554,7 @@ export default function App() {
             onOpenOutcomes={
               outcomesEnabled
                 ? () => {
+                    setWorkThread(null);
                     setOutcomeTarget({});
                     setNewBotPicker(false);
                   }
@@ -1535,7 +1566,7 @@ export default function App() {
             pendingBot={pendingBot}
             preferences={sidebarPreferences}
             selectedId={
-              outcomeTarget || newBotPicker || pendingBot || landing
+              outcomeTarget || workThread || newBotPicker || pendingBot || landing
                 ? null
                 : selected?.kind === "agent_dm"
                   ? lastWritableChannelId.current
@@ -1573,7 +1604,7 @@ export default function App() {
               inert={Boolean(outcomeTarget)}
               aria-hidden={outcomeTarget ? true : undefined}
             >
-              {!newBotPicker && !pendingBot && !landing && (
+              {!workThread && !newBotPicker && !pendingBot && !landing && (
                 <DesktopHeader
                   agentNameById={index.agentNameById}
                   botById={index.botById}
@@ -1699,6 +1730,17 @@ export default function App() {
                     {t("{name} joined your team", { name: landing.name })}
                   </p>
                 </div>
+              ) : workThread ? (
+                <Suspense fallback={<p className="p-4 text-sm text-muted-foreground" role="status">{t("Loading execution messages…")}</p>}>
+                  <OutcomeWorkThread
+                    key={workThread.id}
+                    thread={workThread}
+                    bot={index.botById.get(workThread.botId)}
+                    client={api.outcomes}
+                    open
+                    onOpenChange={() => setWorkThread(null)}
+                  />
+                </Suspense>
               ) : selected ? (
                 <div className="flex min-h-0 flex-1">
                   <div className="relative min-w-0 flex-1">
@@ -2085,5 +2127,7 @@ export default function App() {
         </main>
       </TooltipProvider>
     </BotAvatarActivityProvider>
+    </WorkThreadNavigation.Provider>
+    </ChatBranchNavigation.Provider>
   );
 }

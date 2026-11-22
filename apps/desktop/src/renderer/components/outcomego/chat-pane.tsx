@@ -180,7 +180,7 @@ interface ChatPaneProps {
   searchContextMessageIds?: ReadonlySet<string>;
   activityTruncated?: boolean;
   threadContextTruncated?: boolean;
-  focusMessage: { messageId: string; nonce: number } | null;
+  focusMessage: { messageId: string; nonce: number; branchOnly?: boolean } | null;
   historyGeneration?: number;
   initialHistoryPending?: boolean;
   /** The channel's newest message is known but not yet in this transcript. */
@@ -1346,11 +1346,12 @@ export const ChatPane = memo(function ChatPane({
     () =>
       visibleMessages.filter(({ message }) => {
         if (isBranchedMessage(message)) {
-          return message.id === focusMessage?.messageId && !focusedThreadRootId;
+          return !focusMessage?.branchOnly && message.id === focusMessage?.messageId && !focusedThreadRootId;
         }
         return !threadContextMessageIds?.has(message.id) || threads.has(message.id);
       }),
     [
+      focusMessage?.branchOnly,
       focusMessage?.messageId,
       focusedThreadRootId,
       threadContextMessageIds,
