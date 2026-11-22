@@ -35,7 +35,10 @@ export const subscribeOutcomeThreadEvents = (listener: (event: OutcomeThreadEven
 };
 
 const working = (view: OutcomeThreadView | null) =>
-  Boolean(view?.turns.some((turn) => turn.status === "queued" || turn.status === "running"));
+  Boolean(
+    view?.turns.some((turn) => turn.status === "queued" || turn.status === "running") ||
+      view?.reviewTurns?.some((turn) => turn.status === "queued" || turn.status === "running")
+  );
 
 /** The goal's thread, kept fresh from events and, while the bot is working, a slow poll. */
 export function useOutcomeThread(outcomeId: string, client: OutcomeClient) {

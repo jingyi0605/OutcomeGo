@@ -30,6 +30,27 @@ export interface ServerInferenceSettings extends PiModelRef {
   reasoning: PiReasoningLevel;
 }
 
+export interface InferenceModelSelection {
+  providerId: string;
+  modelId: string;
+  reasoning?: PiReasoningLevel;
+}
+
+export interface InferenceFallbackRecord {
+  fromLevel: "role" | "bot";
+  toLevel: "bot" | "global";
+  requestedProviderId: string;
+  requestedModelId: string;
+  reason: string;
+}
+
+export interface OutcomeThreadTurnModelView {
+  providerId: string;
+  modelId: string;
+  reasoning: PiReasoningLevel;
+  fallback?: InferenceFallbackRecord | null;
+}
+
 export interface InferenceProviderAuthMethodView {
   type: "api_key" | "oauth";
   label: string;

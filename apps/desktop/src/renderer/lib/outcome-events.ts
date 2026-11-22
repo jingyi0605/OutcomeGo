@@ -74,6 +74,9 @@ export const refreshOutcomeViews = (event?: ProductEvent) => {
     for (const id of [...listeners.keys()]) notify(id);
     return;
   }
+  if (event.topic === "goal.thread.updated" && event.entityId && listeners.has(event.entityId)) {
+    notifySoon(event.entityId);
+  }
   // Progress reports arrive with this dedicated, already-lightweight signal.
   if (event.topic === "goal.progress.updated") {
     if (event.entityId) notify(event.entityId);
