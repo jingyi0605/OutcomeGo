@@ -457,4 +457,12 @@ describe("platform prompt integration", () => {
     expect(renderWorkerTimeSection("Asia/Kolkata"))
       .toContain("The user lives in Asia/Kolkata (currently UTC+5:30), and the box clock is set to that zone");
   });
+
+  test("plannerRole adds verbatim SubmitOutcome guidance without changing default 004.8 prompt when unset", () => {
+    const withoutRole = renderPlatformBaseSystemPrompt({ outcomes: true });
+    const withRole = renderPlatformBaseSystemPrompt({ outcomes: true, plannerRole: true });
+    expect(withoutRole).not.toContain("SubmitOutcome");
+    expect(withRole).toContain("SubmitOutcome");
+    expect(withRole).toContain("user's exact words verbatim");
+  });
 });

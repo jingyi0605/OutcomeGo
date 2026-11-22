@@ -453,7 +453,7 @@ export async function wakeAutomationParent(
         clientId: `outcome:${run.id}:wake-parent`, priority: 260,
       });
       await tx.automationResult.create({ data: { runId: run.id, message: input.message, wakeRunId: wake.run.id } });
-      await transitionWorkItem(tx, { workItemId: item.id, to: "needs_review", reason: "platform_handoff", actor: `bot:${run.botId}` });
+      await transitionWorkItem(tx, { workItemId: item.id, to: "needs_review", reason: "platform_handoff", actor: `bot:${run.botId}`, messaging });
       return { woken: true, run_id: wake.run.id, automation_run_ids };
     }
     const rootId = automationContextRunId(run.id, run.inboxEvents[0]?.payload);

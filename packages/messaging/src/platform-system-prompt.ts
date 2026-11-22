@@ -84,9 +84,15 @@ const automationRunBase = (runSection: string, omitted: ReadonlySet<string>) =>
 /** The goal-management section; it is only part of the prompt while the owner has that module on. */
 export const OUTCOME_SECTION_ID = "native-outcome-records";
 
+/** Appended only when an Outcome planner role is configured (design §3.3.6). */
+export const SUBMIT_OUTCOME_ROLE_GUIDANCE =
+  "A dedicated Outcome planner role is active: when creating a new goal, call SubmitOutcome with the user's exact words verbatim—do not rewrite, add your own assumptions, or write a contract yourself via CreateOutcome.";
+
 export interface PlatformPromptFeatures {
   /** Goal management is opt-in: without it the prompt carries no goal, Outcome or Explore guidance. */
   outcomes?: boolean;
+  /** True when a dedicated planner bot or planner model override is configured. */
+  plannerRole?: boolean;
   /** An automation run's own section; the run drops the chat-turn sections it can't use. */
   automationRun?: string;
   directTextReply?: boolean;
@@ -102,7 +108,12 @@ export function renderPlatformBaseSystemPrompt(features: PlatformPromptFeatures 
   return [
     features.automationRun
       ? automationRunBase(features.automationRun, omitted)
-      : baseSections(omitted, features.directTextReply ? directTextSection : undefined).join("\n\n"),
+      : [
+          baseSections(omitted, features.directTextReply ? directTextSection : undefined).join("\n\n"),
+          features.outcomes && features.plannerRole ? SUBMIT_OUTCOME_ROLE_GUIDANCE : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
     // Skillified, the <agent_skills> catalog in user_info is the only pointer, as in the reference.
     skillified ? "" : INLINE_WORKFLOWS,
     !skillified && sharing

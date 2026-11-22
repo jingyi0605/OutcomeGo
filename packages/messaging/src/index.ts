@@ -24,9 +24,10 @@ import { taskProgressContext, taskScopeContext } from "./task-progress";
 export { taskScopeContext, taskScopeUpdates } from "./task-progress";
 export { readTranscript } from "./read-transcript";
 export { readOutcomeTranscript } from "./outcome-transcript";
+export { isReviewBatchEvidence, outcomeReviewBatchKey, readOutcomeReviewBatch, outcomeReviewDecisionFilter } from "./outcome-review-batch";
 export { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
 export { startOutcomeThreadTurn, settleOutcomeThreadTurn, settleFinishedOutcomeThreadTurns, outcomeThreadContext, OUTCOME_THREAD_EVENT_TOPIC } from "./outcome-threads";
-export { enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
+export { enqueueOutcomeTurn, settleOutcomeWorkItem, emitReviewRequiredIfNeeded, enqueueOutcomePrereviewIfNeeded, dispatchQueuedOutcomeWorkItems, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
 export { recoverOutcomeWorkItem, recoverOutcomeWorkItems, routeOutcomeNextStep, OUTCOME_RECOVERY_PROMPT, type OutcomeRecoveryRuntime, type OutcomeNextFact } from "./outcome-recovery";
 export { outcomeDispatchEnabled } from "./outcome-availability";
 export { unavailableHumanActionPort, type DecisionEffect, type HumanActionPort, type HumanActionInput, type HumanActionResult } from "./outcome-actions";
@@ -47,6 +48,7 @@ export { nextMessageAddress, resolveMessageAddress } from "./message-address";
 export { parseAutomationEvent, matchesAutomationEvent, type AutomationEvent } from "./automation-events";
 export { wakeAutomationParent, saveSilentAutomationResult, automationBackgroundWorkRunning, automationContinuationRoute, automationContextRunId, reconcileRoutineExecution } from "./automation-results";
 import { outcomeRunContext, outcomeThreadContext } from "./outcome-threads";
+import { hasActivePlannerRole } from "./outcome-roles";
 import { AUTOMATION_RUN_INSTRUCTIONS, automationContinuationRoute } from "./automation-results";
 import { join } from "node:path";
 import { publishChannelNotification, publishMessageNotification } from "./notifications";
@@ -2193,11 +2195,15 @@ export class AgentMessaging {
     const context = await this.prisma.contextSession.findFirst({ where: { id: contextSessionId, botId }, select: { scope: true, scopeId: true } });
     const outcome = context?.scope === "outcome";
     const goalThread = context?.scope === "outcome-thread";
+    const globalInference = goalThread ? await this.agentData.loadInferenceSettings().catch(() => null) : null;
     const outcomeContext = outcome
       ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId)
-      : goalThread ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId) : null;
+      : goalThread
+        ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId, { globalInference })
+        : null;
     const automation = context?.scope === "automation" || outcome || goalThread;
     const { outcomesEnabled, streamBotReplies } = await readFeatureSettings(this.prisma);
+    const plannerRole = outcomesEnabled && !automation ? await hasActivePlannerRole(this.prisma) : false;
     const directTextReply = allowDirectTextReply && streamBotReplies && context?.scope === "channel" &&
       Boolean(channelId && channelId === context.scopeId && await this.prisma.channel.findFirst({
         where: { id: channelId, kind: "bot_dm", directKey: `bot:${botId}`, archivedAt: null },
@@ -2345,7 +2351,12 @@ export class AgentMessaging {
     // memory, other conversations, Routines, Skills, channels, Teammates, connector instructions,
     // Your box, The box desktop, so per-turn changes sit late in the cached prefix.
     const instructions = [
-      renderPlatformBaseSystemPrompt({ outcomes: outcomesEnabled, directTextReply, ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}) }),
+      renderPlatformBaseSystemPrompt({
+        outcomes: outcomesEnabled,
+        plannerRole,
+        directTextReply,
+        ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}),
+      }),
       [agentPrompt.profileSection, renderAgentProfileFiles({ agentDataRoot: this.agentData.root, botId })].join("\n"),
       USER_IDENTITY_LINE,
       frozen.sections.agent_instructions,
@@ -3166,6 +3177,18 @@ export {
   readOutcomesEnabled,
   updateFeatureSettings,
 } from "./feature-settings";
+export {
+  OUTCOME_THREAD_PRIORITY,
+  OUTCOME_THREAD_SYSTEM_PRIORITY,
+  roleForThreadPurpose,
+  isBotRunnable,
+  resolveOutcomeRole,
+  hasActivePlannerRole,
+  enqueueOutcomeThreadTurn,
+  type RoleDb,
+  type ResolvedOutcomeRole,
+  type EnqueueOutcomeThreadTurnInput,
+} from "./outcome-roles";
 export {
   turnOwesReplyReminder,
   turnSystemReminder,
