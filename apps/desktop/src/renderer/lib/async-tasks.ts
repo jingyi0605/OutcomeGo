@@ -3,5 +3,6 @@ export {
   EXECUTING_ASYNC_TASK_STATUSES,
   activeAsyncTaskChannelIds,
   activeAsyncTasksForBot,
+  activeThreadChannelIds,
   asyncTaskElapsed,
 } from "@outcomego/product-core/activity";

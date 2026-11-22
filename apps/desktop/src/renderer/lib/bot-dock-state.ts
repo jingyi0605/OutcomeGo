@@ -28,9 +28,15 @@ export interface BotDockRosterView {
 export interface BotDockLabelsView {
   messages: string;
   goals: string;
+  outcomes: string;
+  review: string;
   open: string;
   running?: string;
   placeholder: string;
+  goalPlaceholder?: string;
+  chatMode?: string;
+  goalMode?: string;
+  switchMode?: string;
   send: string;
   to: string;
   failed: string;
@@ -45,6 +51,9 @@ export interface BotDockStateView {
   labels: BotDockLabelsView;
   theme?: "light" | "dark" | "system";
   running?: boolean;
+  outcomesEnabled?: boolean;
+  /** Goal records waiting on the owner, across all Bots: yellow to approve/decide/act, blue to review. */
+  outcomes?: { action: number; review: number };
 }
 
 export const hasRunningBot = (snapshot: ClientSnapshot | null | undefined): boolean =>

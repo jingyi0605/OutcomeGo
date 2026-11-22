@@ -1,5 +1,9 @@
 import type { ExtensionFactory } from "@earendil-works/pi-coding-agent";
 import { getOpenAICodexWebSocketDebugStats } from "@earendil-works/pi-ai/api/openai-codex-responses";
+import { createHash } from "node:crypto";
+
+const fingerprint = (value: unknown) =>
+  createHash("sha256").update(JSON.stringify(value ?? null)).digest("hex").slice(0, 8);
 
 /** Content-free timings: never log prompts, output, headers, or credentials. */
 export function inferenceMetricsExtension(runId: string): {
@@ -14,6 +18,7 @@ export function inferenceMetricsExtension(runId: string): {
       let request: Record<string, unknown> | null = null;
       let startedAt = 0;
       let firstDeltaMs: number | null = null;
+      let firstTextDeltaMs: number | null = null;
       let ordinal = 0;
       let updates = 0;
       let lastUpdateAt = 0;
@@ -38,11 +43,16 @@ export function inferenceMetricsExtension(runId: string): {
           input?: unknown[];
           messages?: unknown[];
           tools?: unknown[];
+          instructions?: unknown;
+          system?: unknown;
+          systemInstruction?: unknown;
+          config?: { systemInstruction?: unknown; tools?: unknown[] };
           parallel_tool_calls?: boolean;
         };
         stopProgress();
         startedAt = performance.now();
         firstDeltaMs = null;
+        firstTextDeltaMs = null;
         updates = textCharacters = thinkingCharacters = toolArgumentCharacters = 0;
         lastUpdateAt = startedAt;
         request = {
@@ -53,6 +63,14 @@ export function inferenceMetricsExtension(runId: string): {
           serviceTier: payload.service_tier ?? "provider_default",
           inputItems: payload.input?.length ?? payload.messages?.length,
           toolCount: payload.tools?.length,
+          systemPromptHash: fingerprint(payload.instructions ?? payload.system ?? payload.systemInstruction ??
+            payload.config?.systemInstruction ?? (payload.messages ?? payload.input)?.filter(
+              (item) => {
+                const role = (item as { role?: string } | null)?.role;
+                return role === "system" || role === "developer";
+              }
+            )),
+          toolsHash: fingerprint(payload.tools ?? payload.config?.tools),
           parallelToolCalls: payload.parallel_tool_calls,
           sessionId: ctx.sessionManager.getSessionId(),
         };
@@ -70,7 +88,13 @@ export function inferenceMetricsExtension(runId: string): {
         const delta = event.assistantMessageEvent;
         // Count only lengths; never retain or emit streamed content, including
         // reasoning and partial tool arguments which may contain private data.
-        if (delta?.type === "text_delta") textCharacters += delta.delta.length;
+        if (delta?.type === "text_delta") {
+          textCharacters += delta.delta.length;
+          if (delta.delta.length > 0 && firstTextDeltaMs === null) {
+            firstTextDeltaMs = Math.round(lastUpdateAt - startedAt);
+            console.info(JSON.stringify({ event: "inference.first_text_delta", ...request, firstTextDeltaMs }));
+          }
+        }
         if (delta?.type === "thinking_delta") thinkingCharacters += delta.delta.length;
         if (delta?.type === "toolcall_delta") toolArgumentCharacters += delta.delta.length;
         const hasOutput = (delta?.type === "text_delta" || delta?.type === "thinking_delta"
@@ -90,6 +114,7 @@ export function inferenceMetricsExtension(runId: string): {
             ...request,
             durationMs: Math.round(performance.now() - startedAt),
             firstDeltaMs,
+            firstTextDeltaMs,
             responseId: message.responseId,
             ...progress(),
             stopReason: message.stopReason,

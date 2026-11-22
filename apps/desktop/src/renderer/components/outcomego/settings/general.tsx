@@ -1,10 +1,13 @@
 import { SettingsSelectContent } from "./select-content";
 import { PrivateSettingValue } from "./private-value";
 import { SmartNotificationSettings } from "./smart-notifications";
-import { Copy } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import type { BotView } from "@outcomego/contracts";
+import { Copy, Settings } from "lucide-react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { signOut } from "../../../client/auth";
 import { API_BASE } from "../../../client/http";
+import { api } from "../../../client/outcomego-api";
+import { ModelOverrideSelect } from "./model-override-select";
 import { useAuthSession } from "../../../hooks/use-auth-session";
 import { useFeatureSettings } from "../../../hooks/use-feature-settings";
 import { accountPresentation } from "../../../lib/account";
@@ -15,6 +18,7 @@ import {
   setThemePreference,
   type ThemePreference,
 } from "../../../lib/theme";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "../../ui/dialog";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import type { MicrophoneControlProps } from "./microphone";
 import {
@@ -79,6 +83,203 @@ export const renderMicrophoneControl = (props: MicrophoneControlProps) => (
   <MicrophoneControl {...props} />
 );
 
+const UNSET_ROLE_BOT = "__unset__";
+
+function OutcomeRoleSettings({ features }: { features: ReturnType<typeof useFeatureSettings> }) {
+  const { locale, t } = useI18n();
+  const [bots, setBots] = useState<BotView[]>([]);
+  const [botsLoaded, setBotsLoaded] = useState(false);
+  const [envDraft, setEnvDraft] = useState(features.environmentNote ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setEnvDraft(features.environmentNote ?? "");
+  }, [features.environmentNote]);
+
+  useEffect(() => {
+    let active = true;
+    api
+      .bootstrap()
+      .then((res) => {
+        if (active) {
+          setBots(res.bots.filter((b) => b.status === "active"));
+          setBotsLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (active) setBotsLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const botUnavailable = (id: string | null | undefined) =>
+    Boolean(id && botsLoaded && !bots.some((b) => b.id === id));
+
+  const saveField = async (patch: Parameters<typeof features.update>[0]) => {
+    setSaving(true);
+    setError(null);
+    try {
+      await features.update(patch);
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : t("Couldn't save this setting. Try again."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <header className="space-y-1.5 pr-8">
+        <DialogTitle>{t("Goal management settings")}</DialogTitle>
+        <DialogDescription>{t("Outcome roles & environment")}</DialogDescription>
+      </header>
+      <SettingsGroup className="bot-scrollbar min-h-0 min-w-0 overflow-y-auto">
+        <SettingsRow
+          stackControl
+          title={t("Planner bot")}
+          description={t("Optional. Recommended: run as your primary bot identity with a stronger independent model.")}
+          control={
+            <div className="ml-auto grid w-[220px] grid-cols-1 gap-1.5">
+              <Select
+                disabled={saving}
+                value={features.plannerBotId ?? UNSET_ROLE_BOT}
+                onValueChange={(value) =>
+                  void saveField({ plannerBotId: value === UNSET_ROLE_BOT ? null : value })
+                }
+              >
+                <SelectTrigger aria-label={t("Planner bot")} className={`${settingsSelect} w-full [&>span:first-child]:truncate`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SettingsSelectContent>
+                  <SelectItem value={UNSET_ROLE_BOT}>{t("Unset (default workflow)")}</SelectItem>
+                  {bots.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SettingsSelectContent>
+              </Select>
+              {botUnavailable(features.plannerBotId) && (
+                <p role="alert" className="text-[11px] text-amber-600 dark:text-amber-400">
+                  {t("Configured planner bot is inactive or missing; falling back until updated.")}
+                </p>
+              )}
+            </div>
+          }
+        />
+        <SettingsRow
+          stackControl
+          title={t("Planner independent model")}
+          description={t("Used only for planning and replanning turns.")}
+          control={
+            <ModelOverrideSelect
+              ariaLabel={t("Planner independent model")}
+              className="ml-auto"
+              defaultLabel={t("Use bot or global model")}
+              value={features.plannerModel ?? null}
+              disabled={saving}
+              onChange={(model) => saveField({ plannerModel: model })}
+            />
+          }
+        />
+        <SettingsRow
+          stackControl
+          title={t("Reviewer bot")}
+          description={t("Optional. Recommended: use an independent strong model to verify deliverables and prepare preliminary review summaries.")}
+          control={
+            <div className="ml-auto grid w-[220px] grid-cols-1 gap-1.5">
+              <Select
+                disabled={saving}
+                value={features.reviewerBotId ?? UNSET_ROLE_BOT}
+                onValueChange={(value) =>
+                  void saveField({ reviewerBotId: value === UNSET_ROLE_BOT ? null : value })
+                }
+              >
+                <SelectTrigger aria-label={t("Reviewer bot")} className={`${settingsSelect} w-full [&>span:first-child]:truncate`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SettingsSelectContent>
+                  <SelectItem value={UNSET_ROLE_BOT}>{t("Unset (one-shot prereview)")}</SelectItem>
+                  {bots.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SettingsSelectContent>
+              </Select>
+              {botUnavailable(features.reviewerBotId) && (
+                <p role="alert" className="text-[11px] text-amber-600 dark:text-amber-400">
+                  {t("Configured reviewer bot is inactive or missing; falling back until updated.")}
+                </p>
+              )}
+            </div>
+          }
+        />
+        <SettingsRow
+          stackControl
+          title={t("Reviewer independent model")}
+          description={t("Used only for task-level reviews and preliminary review turns.")}
+          control={
+            <ModelOverrideSelect
+              ariaLabel={t("Reviewer independent model")}
+              className="ml-auto"
+              defaultLabel={t("Use bot or global model")}
+              value={features.reviewerModel ?? null}
+              disabled={saving}
+              onChange={(model) => saveField({ reviewerModel: model })}
+            />
+          }
+        />
+        <SettingsRow
+          stackControl
+          className="flex-col items-stretch gap-2"
+          title={t("Environment note")}
+          description={t(
+            "Shared only with planner and reviewer turns (up to 8,000 characters). List accounts, services, project paths, bot specialties, preferences, and restricted zones. Also describe each bot's strengths in its Description. Never store passwords, tokens, or secrets here."
+          )}
+          control={
+            <div className="grid w-full gap-2">
+              <textarea
+                aria-label={t("Environment note")}
+                className="min-h-24 w-full rounded-[7px] border border-[#d9d9d9] bg-transparent px-2.5 py-2 text-[13px] outline-none focus:border-ring dark:border-[#292929]"
+                maxLength={8_000}
+                disabled={saving}
+                value={envDraft}
+                onChange={(e) => setEnvDraft(e.target.value)}
+                placeholder={t("Paths, accounts/services (no secrets), bot strengths, preferences, and restricted zones…")}
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-foreground-secondary">
+                <span>
+                  {envDraft.length} / 8000
+                  {features.updatedAt
+                    ? ` · ${t("Updated")} ${new Date(features.updatedAt).toLocaleString(locale)}`
+                    : ""}
+                </span>
+                <button
+                  type="button"
+                  disabled={saving || envDraft.trim() === (features.environmentNote ?? "").trim()}
+                  className={settingsSecondaryButton}
+                  onClick={() => void saveField({ environmentNote: envDraft.trim() ? envDraft.trim() : null })}
+                >
+                  {saving ? t("Saving…") : t("Save note")}
+                </button>
+              </div>
+            </div>
+          }
+        />
+        {error && (
+          <p role="alert" className="px-3 pb-3 text-xs text-destructive">
+            {error}
+          </p>
+        )}
+      </SettingsGroup>
+    </>
+  );
+}
+
 /** Optional modules, each off until the owner switches it on. */
 export function FeatureSettings() {
   const { t } = useI18n();
@@ -86,6 +287,7 @@ export function FeatureSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const goalLabel = t("Enable goal management for bots");
+  const streamLabel = t("Stream bot replies");
   return (
     <>
       <SectionLabel>{t("Features")}</SectionLabel>
@@ -96,15 +298,52 @@ export function FeatureSettings() {
             "Shows the Outcomes entry and the idea capture button, and lets your bots register and manage goals in conversation."
           )}
           control={
+            <div className="flex items-center gap-2.5">
+              {features.loaded && features.outcomesEnabled && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={t("Goal management settings")}
+                      title={t("Goal management settings")}
+                      className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-black/[0.06] text-foreground outline-none transition-colors hover:bg-black/[0.1] focus-visible:ring-2 focus-visible:ring-ring/40 dark:bg-white/[0.09] dark:hover:bg-white/[0.13]"
+                    >
+                      <Settings aria-hidden="true" className="size-4" strokeWidth={1.75} />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-[660px] grid-rows-[auto_minmax(0,1fr)] gap-3">
+                    <OutcomeRoleSettings features={features} />
+                  </DialogContent>
+                </Dialog>
+              )}
+              <InteractiveSwitch
+                label={goalLabel}
+                checked={features.outcomesEnabled}
+                disabled={!features.loaded || saving}
+                onChange={(value) => {
+                  setSaving(true);
+                  setError(null);
+                  features
+                    .update({ outcomesEnabled: value })
+                    .catch(() => setError(t("Couldn't save this setting. Try again.")))
+                    .finally(() => setSaving(false));
+                }}
+              />
+            </div>
+          }
+        />
+        <SettingsRow
+          title={streamLabel}
+          control={
             <InteractiveSwitch
-              label={goalLabel}
-              checked={features.outcomesEnabled}
+              label={streamLabel}
+              checked={features.streamBotReplies}
               disabled={!features.loaded || saving}
               onChange={(value) => {
                 setSaving(true);
                 setError(null);
                 features
-                  .update({ outcomesEnabled: value })
+                  .update({ streamBotReplies: value })
                   .catch(() => setError(t("Couldn't save this setting. Try again.")))
                   .finally(() => setSaving(false));
               }}

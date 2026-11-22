@@ -585,6 +585,7 @@ fun OutcomeGoApp(
                     }
                     ChatScreen(
                         conversationId = id,
+                        pollReplyPreview = appViewModel::pollReplyPreview,
                         accountName = state.session?.accountName.orEmpty(),
                         title = conversation?.title ?: localizedText("Conversation", "对话"),
                         messages = state.messages,
@@ -725,6 +726,7 @@ fun OutcomeGoApp(
                 spatialComposable(SETTINGS) {
                     SettingsScreen(
                         settings = state.features.settings,
+                        streamBotReplies = appViewModel::streamBotReplies,
                         accountName = state.session?.accountName.orEmpty(),
                         server = state.session?.server.orEmpty(),
                         networkSharing = networkSharing,

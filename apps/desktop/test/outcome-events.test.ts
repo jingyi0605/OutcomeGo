@@ -28,10 +28,10 @@ test("progress reports refresh the matching goal immediately", () => {
   expect([a(), b()]).toEqual([1, 0]);
 });
 
-test("work item, status and decision events refresh the open goal once per burst", async () => {
+test("thread completion, work item, status and decision events refresh the open goal once per burst", async () => {
   const a = watch("a");
   const b = watch("b");
-  for (const topic of ["outcome.work_item.updated", "outcome.status_changed", "outcome.decision.resolved"])
+  for (const topic of ["goal.thread.updated", "outcome.work_item.updated", "outcome.status_changed", "outcome.decision.resolved"])
     refreshOutcomeViews(event(topic, "a"));
   expect(a()).toBe(0);
   await wait(OUTCOME_REFRESH_DEBOUNCE_MS + 80);

@@ -1,3 +1,4 @@
+import { Target } from "lucide-react";
 import { ButtonPrimitive } from "../ui/button-primitive";
 import type { ClipboardEvent, CSSProperties, KeyboardEvent, MutableRefObject } from "react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -80,6 +81,7 @@ export function MentionEditor({
   onChange,
   onHeightChange,
   onPaste,
+  onSelectMode,
   onSubmit,
   onEscape,
 }: {
@@ -93,6 +95,7 @@ export function MentionEditor({
   onChange: (plainText: string, richText: string | undefined) => void;
   onHeightChange?: (height: number) => void;
   onPaste?: (event: ClipboardEvent<HTMLDivElement>) => void;
+  onSelectMode?: (option: MentionOption) => void;
   onSubmit: () => void;
   onEscape?: () => void;
 }) {
@@ -202,6 +205,18 @@ export function MentionEditor({
       }
       range.setStart(range.startContainer, Math.max(0, range.startOffset - query.length - 1));
       range.deleteContents();
+      if (option.kind === "mode") {
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        setQuery(null);
+        queryRef.current = null;
+        mentionRange.current = null;
+        emit();
+        onSelectMode?.(option);
+        editor.focus();
+        return;
+      }
       const token = document.createElement("span");
       token.contentEditable = "false";
       token.dataset.mentionId = option.id;
@@ -235,7 +250,7 @@ export function MentionEditor({
       emit();
       editor.focus();
     },
-    [editorRef, emit, query]
+    [editorRef, emit, onSelectMode, query]
   );
 
   // Clear on commit: a delayed passive effect from an empty draft can otherwise
@@ -437,7 +452,11 @@ export function MentionEditor({
                             else optionAvatarById.current.delete(option.id);
                           }}
                         >
-                          {option.id === "__everyone__" ||
+                          {option.kind === "mode" ? (
+                            <span className="grid size-4 place-items-center rounded-full bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
+                              <Target className="size-2.5" strokeWidth={2.2} />
+                            </span>
+                          ) : option.id === "__everyone__" ||
                           option.kind === "connection" ||
                           option.kind === "skill" ? (
                             <span className="grid size-4 place-items-center rounded-full bg-[#e9e9e9] text-[11px] font-semibold leading-none text-[#737373] dark:bg-[#464646] dark:text-[#a8a8a8]">
@@ -458,11 +477,13 @@ export function MentionEditor({
                         </span>
                         <span className="min-w-0 flex-1 truncate">{option.label}</span>
                         <span className="shrink-0 text-[14px] text-[#737373] dark:text-[#a8a8a8]">
-                          {option.kind === "skill"
-                            ? t("Skill")
-                            : option.kind === "connection"
-                              ? (option.status ?? t("Connection"))
-                              : t("Bot")}
+                          {option.kind === "mode"
+                            ? t("Mode")
+                            : option.kind === "skill"
+                              ? t("Skill")
+                              : option.kind === "connection"
+                                ? (option.status ?? t("Connection"))
+                                : t("Bot")}
                         </span>
                       </ButtonPrimitive>
                     </li>

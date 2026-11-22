@@ -61,10 +61,12 @@ import { IdleProviderConnections, InferenceProviderConnections } from "./runtime
 import { untrustedResultsExtension } from "./runtime/untrusted-results";
 import { retryFirstOutputStalls, streamDeadlines, type StreamTimers } from "./runtime/stream-deadlines";
 import { directDynamicToolsExtension } from "./runtime/direct-dynamic-tools";
-import { enrichUserInfo, OUTPUT_LIMIT_REMINDER, owesOutputLimitReminder } from "./runtime/prompt-context";
+import { enrichUserInfo, outputLimitReminder, owesOutputLimitReminder } from "./runtime/prompt-context";
 import { endTurnHoldExtension } from "./runtime/end-turn-hold";
+import { backgroundWorkPending } from "./runtime/background-shells";
 import { VoiceNarrator, voiceNarrationExtension } from "./runtime/voice-narration";
 import { SendToUserSpeech, sendToUserSpeechExtension } from "./runtime/voice-stream";
+import { ReplyPreviewPublisher } from "./runtime/reply-preview";
 import { prepareDynamicToolCatalog } from "./runtime/catalog-snapshot";
 import { pinUserInfo } from "./runtime/user-info-snapshot";
 import { DiskPressureMonitor, reminderStepPersisted } from "./runtime/disk-pressure";
@@ -299,6 +301,7 @@ export class ComputerRuntime {
   }
 
   async run(request: ComputerTurnRequest, signal?: AbortSignal): Promise<AsyncIterable<ComputerEvent>> {
+    const startedAt = performance.now();
     signal?.throwIfAborted();
     await this.start();
     // Startup can outlive the caller's dispatch deadline. Never admit an expired request after
@@ -343,6 +346,10 @@ export class ComputerRuntime {
       outcomeThread: request.outcomeThread,
       goalThread: request.goalThread,
       outcomesEnabled: request.outcomesEnabled === true,
+      groupTasksEnabled: request.groupTasksEnabled === true,
+      groupTurn: request.groupTurn === true,
+      directTextReply: request.directTextReply === true && (request.runtimeProfile ?? "agent") === "agent" &&
+        !request.subagentType && !request.readOnly && !request.groupTurn && request.requestSource !== "automation",
       turnId: request.runId,
       session: null,
       sessionPath: null,
@@ -365,6 +372,29 @@ export class ComputerRuntime {
       readOnly: request.readOnly ?? false,
       attachmentTempDirectories: [],
     };
+    if (active.directTextReply && request.replyPreviewAttempt !== undefined) {
+      const attempt = request.replyPreviewAttempt;
+      let firstPreviewPublished = false;
+      active.replyPreview = new ReplyPreviewPublisher(
+        async (callId, content) => {
+          const publishingAt = performance.now();
+          const published = await this.tools.publishReplyPreview(active, attempt, callId, content);
+          if (!published || !content || firstPreviewPublished) return;
+          firstPreviewPublished = true;
+          const publishedAt = performance.now();
+          console.info(JSON.stringify({
+            event: "reply_preview.first_published",
+            runId: active.runId,
+            elapsedMs: Math.round(publishedAt - startedAt),
+            contentReadyMs: Math.round(publishingAt - startedAt),
+            publishMs: Math.round(publishedAt - publishingAt),
+            ...(active.firstReplyTextAt === undefined ? {} : {
+              firstTextToPublishMs: Math.round(publishedAt - active.firstReplyTextAt),
+            }),
+          }));
+        }
+      );
+    }
     // Only the user-facing parent of a realtime voice call narrates.
     if (request.voiceNarration && !active.subagentType && active.requestSource !== "automation") {
       active.narrator = new VoiceNarrator(
@@ -590,6 +620,7 @@ export class ComputerRuntime {
     if (reason === "stop") active.stopped = true;
     if (reason) active.interruptedByUserAt ??= Date.now();
     active.endTurnRequested = true;
+    active.replyPreview?.stop(true);
     active.pluginAbortController?.abort();
     await active.session?.abort();
     if (options.recovery) await active.contextReleased;
@@ -792,7 +823,7 @@ export class ComputerRuntime {
     }
     return this.createStandaloneSession(
       request.cwd,
-      request.instructions,
+      active.instructions,
       manager,
       active,
       active.modelRef
@@ -934,11 +965,13 @@ export class ComputerRuntime {
       if (!session) throw new Error("Pi session is not attached");
       await this.compaction.beginUserQuery(active.contextSessionId, active.resetSelfSummaryCount);
       await active.session?.prompt(content, { source: "rpc", images });
+      await active.directTextDelivery;
       // A reply cut off at the output limit (or the turn's first wall-clock cut) ends the loop; continue it once.
       if (owesOutputLimitReminder(session.messages as BotMessage[], active) && !active.endTurnRequested &&
           !active.pluginAbortController?.signal.aborted) {
         active.outputLimitReminded = true;
-        await session.prompt(OUTPUT_LIMIT_REMINDER, { source: "rpc", expandPromptTemplates: false });
+        await session.prompt(outputLimitReminder(active), { source: "rpc", expandPromptTemplates: false });
+        await active.directTextDelivery;
       }
       const graphicalReport = graphicalFinalReport(active, active.compactionReadPiMessages?.() ?? (session.messages as BotMessage[]));
       if (graphicalReport) {
@@ -955,11 +988,15 @@ export class ComputerRuntime {
       const settledNormally = () => !active.endTurnRequested && !active.pluginAbortController?.signal.aborted &&
         !["aborted", "error"].includes(active.lastStopReason ?? "");
       if (isDeliveryOwed(active.requestSource)) {
-        for (let attempt = 0; attempt < MAX_REPLY_NUDGES && active.sentMessageCount === 0 && settledNormally(); attempt++) {
-          await session.prompt(REPLY_NUDGE_PROMPT, {
+        for (let attempt = 0; attempt < MAX_REPLY_NUDGES && active.sentMessageCount === 0 &&
+          !active.directTextDeliveryUncertain && settledNormally(); attempt++) {
+          await session.prompt(active.directTextReply
+            ? "The user is still waiting for your reply. Write the answer or a necessary question directly as assistant text now. Use the rich message tool only when the reply requires it."
+            : REPLY_NUDGE_PROMPT, {
             source: "rpc",
             expandPromptTemplates: false,
           });
+          await active.directTextDelivery;
         }
       }
       if (!active.pluginAbortController?.signal.aborted && active.lastStopReason !== "aborted" && active.lastStopReason !== "error") {
@@ -1020,6 +1057,7 @@ export class ComputerRuntime {
         turnId: active.turnId,
         status,
         error,
+        ...(backgroundWorkPending(active) ? { backgroundWorkPending: true } : {}),
       });
       await Promise.allSettled(
         active.attachmentTempDirectories.map((directory) =>
@@ -1040,7 +1078,8 @@ export class ComputerRuntime {
     return routeEvent(
       this.botStore,
       active,
-      event
+      event,
+      (callId, content, endTurn) => this.tools.deliverAssistantText(active, callId, content, endTurn)
     );
   }
 
@@ -1053,6 +1092,7 @@ export class ComputerRuntime {
     await active.closePluginSession?.().catch(()=>console.warn("Plugin session cleanup failed"));
     active.pluginAbortController?.abort();
     active.narrator?.stop();
+    active.replyPreview?.stop(!preserveConnection);
     this.tools.clearBitwardenSecrets?.(active);
     this.activeByRun.delete(active.runId);
     this.activeByContext.delete(active.contextSessionId);

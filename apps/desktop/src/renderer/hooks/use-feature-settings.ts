@@ -1,5 +1,6 @@
-import type { FeatureSettingsView } from "@outcomego/contracts";
+import type { FeatureSettingsView, UpdateFeatureSettingsInput } from "@outcomego/contracts";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { AUTH_CREDENTIALS_CHANGED_EVENT } from "../client/auth";
 import { api } from "../client/outcomego-api";
 
 /** Optional modules are off until the owner enables them, so an unloaded setting reads as off. */
@@ -9,27 +10,72 @@ interface FeatureState extends FeatureSettingsView {
   /** The last read failed (for example the server could not be reached), so "off" is only a default. */
   failed: boolean;
 }
-const OFF: FeatureState = { outcomesEnabled: false, loaded: false, failed: false };
+const OFF: FeatureState = {
+  outcomesEnabled: false,
+  streamBotReplies: false,
+  plannerBotId: null,
+  reviewerBotId: null,
+  plannerModel: null,
+  reviewerModel: null,
+  environmentNote: null,
+  updatedAt: null,
+  loaded: false,
+  failed: false,
+};
 
 let current: FeatureState = OFF;
 let loading: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
 const publish = (next: FeatureSettingsView) => {
-  if (current.loaded && next.outcomesEnabled === current.outcomesEnabled) return;
-  current = { outcomesEnabled: next.outcomesEnabled, loaded: true, failed: false };
+  const normalized: FeatureState = {
+    outcomesEnabled: next.outcomesEnabled,
+    streamBotReplies: next.streamBotReplies === true,
+    plannerBotId: next.plannerBotId ?? null,
+    reviewerBotId: next.reviewerBotId ?? null,
+    plannerModel: next.plannerModel ?? null,
+    reviewerModel: next.reviewerModel ?? null,
+    environmentNote: next.environmentNote ?? null,
+    updatedAt: next.updatedAt ?? null,
+    loaded: true,
+    failed: false,
+  };
+  if (current.loaded && !current.failed && JSON.stringify(normalized) === JSON.stringify(current)) {
+    return;
+  }
+  current = normalized;
   for (const listener of listeners) listener();
+};
+
+const RETRY_BASE_MS = 1_000;
+const RETRY_MAX_MS = 30_000;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+let retryDelay = RETRY_BASE_MS;
+
+/** A failed read (server still starting, sign-in not ready) must not leave goals off for the whole session. */
+const scheduleRetry = () => {
+  if (retryTimer || listeners.size === 0) return;
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined;
+    if (listeners.size > 0 && !current.loaded) void load();
+  }, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
 };
 
 const load = () => {
   loading ??= api
     .featureSettings()
-    .then(publish)
+    .then((settings) => {
+      retryDelay = RETRY_BASE_MS;
+      publish(settings);
+    })
     .catch(() => {
-      // Stay off, but say so: the settings row offers a retry.
-      if (current.failed) return;
-      current = { ...current, failed: true };
-      for (const listener of listeners) listener();
+      // Keep the last known value (off until one is known), say so for the settings row, and try again.
+      if (!current.failed) {
+        current = { ...current, failed: true };
+        for (const listener of listeners) listener();
+      }
+      scheduleRetry();
     })
     .finally(() => {
       loading = null;
@@ -46,10 +92,22 @@ export function useFeatureSettings() {
   const settings = useSyncExternalStore(subscribe, () => current, () => OFF);
   useEffect(() => {
     if (!current.loaded) void load();
+    // Signing in as another account, or coming back to the window, reads the setting again, so
+    // an earlier failure or a change made elsewhere never needs the settings page to be opened.
+    const reload = () => void load();
+    const onFocus = () => {
+      if (document.visibilityState === "visible" && (!current.loaded || current.failed)) reload();
+    };
+    window.addEventListener(AUTH_CREDENTIALS_CHANGED_EVENT, reload);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener(AUTH_CREDENTIALS_CHANGED_EVENT, reload);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
   const retry = useCallback(() => void load(), []);
   const update = useCallback(
-    async (input: Partial<FeatureSettingsView>) => publish(await api.updateFeatureSettings(input)),
+    async (input: UpdateFeatureSettingsInput) => publish(await api.updateFeatureSettings(input)),
     []
   );
   return { ...settings, update, retry };

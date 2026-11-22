@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Inbox, Lightbulb, ListChecks, Plus, Target } from "lucide-react";
+import { Inbox, Lightbulb, LayoutDashboard, ListChecks, Plus, Target } from "lucide-react";
 import { api } from "../../../../client/outcomego-api";
 import type { DesktopOutcomeTarget } from "../../../../lib/outcome-target";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
@@ -8,12 +8,15 @@ import { OutcomeRouteView } from "./outcome-route-view";
 import { useI18n } from "../../../../lib/i18n";
 import { ExplorePanel } from "../explore/explore-panel";
 import { OutcomeList } from "../outcome-list";
+import { OutcomeDashboard } from "../dashboard/outcome-dashboard";
+import QuickIdeaDialog from "../explore/quick-idea-dialog";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { NewOutcomeForm } from "../thread/new-outcome-form";
 import { OutcomeButton } from "../outcome-ui";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../ui/dialog";
 
 type Route =
+  | { kind: "overview" }
   | { kind: "all" }
   | { kind: "new" }
   | { kind: "inbox" }
@@ -21,12 +24,14 @@ type Route =
   | { kind: "decision"; id: string }
   | { kind: "outcome"; id: string; reviewRevision?: number }
   | { kind: "human"; id: string };
+type Section = "overview" | "all" | "inbox" | "explore";
+const SECTIONS: readonly string[] = ["overview", "all", "inbox", "explore"];
 const routeFor = (target: DesktopOutcomeTarget): Route =>
   target.decisionId
     ? { kind: "decision", id: target.decisionId }
     : target.outcomeId
       ? { kind: "outcome", id: target.outcomeId }
-      : { kind: "all" };
+      : { kind: "overview" };
 export default function OutcomeWorkspace({
   target,
   onClose,
@@ -42,7 +47,7 @@ export default function OutcomeWorkspace({
   const opener = useRef<HTMLElement | null>(null);
   const openRoute = (next: Route) => {
     if (
-      ["all", "inbox", "explore"].includes(route.kind) &&
+      SECTIONS.includes(route.kind) &&
       document.activeElement instanceof HTMLElement
     )
       opener.current = document.activeElement;
@@ -50,10 +55,11 @@ export default function OutcomeWorkspace({
   };
   const [version, setVersion] = useState(0);
   const [botId, setBotId] = useState("");
-  const [origin, setOrigin] = useState<"all" | "inbox" | "explore">("all");
+  const [origin, setOrigin] = useState<Section>("overview");
+  const [ideaOpen, setIdeaOpen] = useState(false);
   useEffect(() => {
     setRoute(routeFor(target));
-    setOrigin(target.decisionId ? "inbox" : "all");
+    setOrigin(target.decisionId ? "inbox" : target.outcomeId ? "all" : "overview");
     // Reading the notification changes only its read marker, never the business state.
     if (target.channelId && target.notificationSequence)
       void api
@@ -78,11 +84,8 @@ export default function OutcomeWorkspace({
   const review = (id: string, reviewRevision?: number) =>
     openRoute({ kind: "outcome", id, reviewRevision });
   const selectedBotId = bots.some((bot) => bot.id === botId) ? botId : (bots[0]?.id ?? "");
-  const tab =
-    route.kind === "all" || route.kind === "inbox" || route.kind === "explore"
-      ? route.kind
-      : origin;
-  const modalOpen = route.kind !== "all" && route.kind !== "inbox" && route.kind !== "explore";
+  const tab: Section = SECTIONS.includes(route.kind) ? (route.kind as Section) : origin;
+  const modalOpen = !SECTIONS.includes(route.kind);
   const closeModal = () => {
     setVersion((value) => value + 1);
     setRoute({ kind: origin });
@@ -107,7 +110,7 @@ export default function OutcomeWorkspace({
             className="electron-no-drag"
             variant="default"
             onClick={() => {
-              setOrigin("all");
+              setOrigin(tab);
               openRoute({ kind: "new" });
             }}
           >
@@ -118,6 +121,7 @@ export default function OutcomeWorkspace({
         <nav aria-label={t("Outcome sections")} className="outcome-page-tabs">
           {(
             [
+              { kind: "overview", label: "Dashboard", icon: LayoutDashboard },
               { kind: "all", label: "All goals", icon: ListChecks },
               { kind: "inbox", label: "Needs attention", icon: Inbox },
               { kind: "explore", label: "Explore ideas", icon: Lightbulb },
@@ -139,6 +143,26 @@ export default function OutcomeWorkspace({
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="outcome-page-content space-y-5">
+          {tab === "overview" && (
+            <OutcomeDashboard
+              outcomes={api.outcomes}
+              inbox={api.outcomeInbox}
+              bots={bots}
+              onSelectOutcome={review}
+              onSelectStep={select}
+              onShowSteps={() => {
+                setOrigin("inbox");
+                setRoute({ kind: "inbox" });
+              }}
+              onShowGoals={() => {
+                setOrigin("all");
+                setRoute({ kind: "all" });
+              }}
+              onCreateGoal={() => openRoute({ kind: "new" })}
+              onCreateIdea={() => setIdeaOpen(true)}
+              refreshVersion={version}
+            />
+          )}
           {tab === "all" && (
             <OutcomeList
               client={api.outcomes}
@@ -161,6 +185,13 @@ export default function OutcomeWorkspace({
           )}
         </div>
       </div>
+      {ideaOpen && (
+        <QuickIdeaDialog
+          open
+          onOpenChange={setIdeaOpen}
+          bots={bots.filter((bot) => bot.status === undefined || bot.status === "active")}
+        />
+      )}
       <Dialog
         open={modalOpen}
         onOpenChange={(open) => {

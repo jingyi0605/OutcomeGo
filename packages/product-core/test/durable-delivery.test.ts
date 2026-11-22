@@ -6,6 +6,7 @@ import {
   DURABLE_SEND_SCHEMA_VERSION,
   type DurableSendJournal,
   type DurableSendRecord,
+  durableSendAuthoritativeEcho,
   durableSendIsInFlight,
   durableSendPromptDigest,
   durableSendVisualState,
@@ -1228,4 +1229,47 @@ test("a stalled acceptance lookup after a temporary failure cannot keep the retr
   expect(controller.getSnapshot()[0]?.phase).toBe("failed");
   expect(controller.getSnapshot()[0]?.failure?.uncertain).toBe(true);
   controller.dispose();
+});
+
+test("durableSendPromptDigest distinguishes goalMode sends and matches authoritative echoes", () => {
+  const target = { channelId: "c1", conversationId: "conv1" };
+  const normalDigest = durableSendPromptDigest({ content: "clean unraid" }, target);
+  const goalDigest = durableSendPromptDigest({ content: "clean unraid", goalMode: true }, target);
+  expect(goalDigest).not.toBe(normalDigest);
+
+  const echo = durableSendAuthoritativeEcho(
+    {
+      nonce: "nonce-1234",
+      lineageId: "lin-1",
+      priorNonces: [],
+      promptDigest: goalDigest,
+      target,
+      payload: { content: "clean unraid", attachments: [], goalMode: true },
+      phase: "accepted-awaiting-echo",
+      createdAtMs: 1,
+      updatedAtMs: 1,
+      attemptCount: 1,
+      dispatchStartedAtMs: 1,
+      queuedAtMs: 1,
+      acceptedAtMs: null,
+      acceptedMessage: null,
+      failedAtMs: null,
+      failure: null,
+    },
+    [
+      {
+        id: "msg-1",
+        clientId: "nonce-1234",
+        sequence: "1",
+        channelId: "c1",
+        sender: "user",
+        senderBotId: null,
+        sourceRunId: null,
+        content: "clean unraid",
+        metadata: { type: "text", goalMode: true },
+        createdAt: new Date().toISOString(),
+      },
+    ]
+  );
+  expect(echo?.id).toBe("msg-1");
 });

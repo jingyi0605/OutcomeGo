@@ -1,4 +1,5 @@
 import type { ServerUpdateView } from "@outcomego/contracts";
+import type { ReplyPreviewSnapshot } from "@outcomego/contracts";
 import type { DingTalkActionInput, DingTalkStatus } from "@outcomego/contracts";
 import type { NotificationPresenceInput, NotificationRouting } from "@outcomego/contracts/notification-presence";
 import type { BrowserNetworkView, NetworkSettingsUpdate, NetworkEgress, NetworkQuality } from "@outcomego/contracts/browser-network";
@@ -39,6 +40,9 @@ import type {
   ChannelClientState,
   ChannelHistoryPage,
   ChannelLibraryPage,
+  GroupTaskBoard,
+  GroupTaskUserAction,
+  GroupTaskView,
   ChannelMessageContextOptions,
   ChannelMessageContextView,
   ChannelMessageView,
@@ -111,6 +115,7 @@ export interface OutcomeGoClientOptions extends UserLocationClientOptions {
 export interface SendMessageOptions {
   richText?: string;
   isFork?: boolean;
+  goalMode?: boolean;
   /** Stable idempotency nonce supplied by the durable client send journal. */
   clientId?: string;
 }
@@ -585,6 +590,17 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         { signal }
       );
     },
+    /** The group's shared task board (specs/010-群任务看板). Only group chats have one. */
+    groupTasks: (channelId: string, includeClosed = false, signal?: AbortSignal) =>
+      transport.request<GroupTaskBoard>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/tasks${includeClosed ? "?includeClosed=true" : ""}`,
+        { signal }
+      ),
+    actOnGroupTask: (channelId: string, number: number, input: GroupTaskUserAction) =>
+      transport.request<{ task: GroupTaskView }>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/tasks/${number}`,
+        { method: "PATCH", body: JSON.stringify(input) }
+      ),
     search: (query: string, category: SearchCategory = "all", signal?: AbortSignal) => {
       const params = new URLSearchParams({ q: query, category });
       return transport.request<SearchResponse>(`/api/v0/search?${params}`, { signal });
@@ -682,6 +698,7 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         replyToMessageId,
         ...(messageOptions?.richText ? { richText: messageOptions.richText } : {}),
         ...(messageOptions?.isFork !== undefined ? { isFork: messageOptions.isFork } : {}),
+        ...(messageOptions?.goalMode !== undefined ? { goalMode: messageOptions.goalMode } : {}),
         clientId: messageOptions?.clientId ?? createId(),
         timeZone: timeZone(),
       };
@@ -796,6 +813,11 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
     featureSettings: () => transport.request<FeatureSettingsView>("/api/v0/feature-settings"),
     updateFeatureSettings: (input: UpdateFeatureSettingsInput) =>
       transport.request<FeatureSettingsView>("/api/v0/feature-settings", { method: "PATCH", body: JSON.stringify(input) }),
+    pollReplyPreview: (channelId: string, after: string, signal: AbortSignal) =>
+      transport.request<ReplyPreviewSnapshot>(
+        `/api/v0/channels/${encodeURIComponent(channelId)}/reply-preview?${new URLSearchParams({ after })}`,
+        { signal }
+      ),
     userTimeZone: () => transport.request<UserTimeZoneView>("/api/v0/time-zone"),
     /** Reports the zone this device detects, or sets/clears (null) the Settings override. */
     updateUserTimeZone: (input: UpdateUserTimeZoneInput) =>

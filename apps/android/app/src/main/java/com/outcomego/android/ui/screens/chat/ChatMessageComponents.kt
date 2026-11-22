@@ -1,5 +1,6 @@
 package com.outcomego.android.ui.screens.chat
 
+import android.icu.text.BreakIterator
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -72,6 +73,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -133,7 +135,42 @@ import com.outcomego.features.localizedText
 import com.outcomego.features.rememberDecodedBitmap
 import com.outcomego.platform.NativeAttachmentPreview
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+@Composable
+private fun streamedReplyBody(source: String, streaming: Boolean): String {
+    val wasStreamed = remember { streaming }
+    if (!wasStreamed) return source
+    val boundaries = remember(source) {
+        val iterator = BreakIterator.getCharacterInstance()
+        iterator.setText(source)
+        buildList {
+            var end = iterator.next()
+            while (end != BreakIterator.DONE) {
+                add(end)
+                end = iterator.next()
+            }
+        }
+    }
+    var shown by remember { mutableStateOf(source.take(boundaries.firstOrNull() ?: 0)) }
+    LaunchedEffect(source) {
+        if (source == shown) return@LaunchedEffect
+        if (coroutineContext[MotionDurationScale]?.scaleFactor == 0f || !source.startsWith(shown)) {
+            shown = source
+            return@LaunchedEffect
+        }
+        val pending = boundaries.dropWhile { it <= shown.length }
+        val batch = (pending.size + 4) / 5
+        var offset = 0
+        while (offset < pending.size) {
+            delay(24)
+            offset = (offset + batch).coerceAtMost(pending.size)
+            shown = source.take(pending[offset - 1])
+        }
+    }
+    return if (source.startsWith(shown)) shown else source
+}
 
 @Composable
 internal fun MessageBubble(
@@ -155,6 +192,7 @@ internal fun MessageBubble(
     onOpenOriginal: (String) -> Unit,
     onOpenOutcome: (String) -> Unit = {},
     loadOutcomeStatus: suspend (String) -> String? = { null },
+    streaming: Boolean = false,
 ) {
     message.routineEvent?.let { event ->
         RoutineEventRow(message.id, event, onOpenRoutine)
@@ -188,7 +226,8 @@ internal fun MessageBubble(
     val replyThresholdPx = with(density) { 56.dp.toPx() }
     val maxSwipePx = with(density) { 84.dp.toPx() }
     val swipe = remember(message.id) { Animatable(0f) }
-    val canSwipeReply = !message.isMine && message.delivery == Delivery.SENT
+    val canSwipeReply = !streaming && !message.isMine && message.delivery == Delivery.SENT
+    val animateReplySize = remember { streaming }
 
     Box(Modifier.fillMaxWidth()) {
         Icon(
@@ -312,7 +351,9 @@ internal fun MessageBubble(
                     )
 
                 Surface(
-                    modifier = containerModifier.testTag("message-row-${message.body.hashCode()}"),
+                    modifier = containerModifier
+                        .then(if (animateReplySize) Modifier.animateContentSize(SpatialMotion.ContentSizeSpring) else Modifier)
+                        .testTag("message-row-${message.body.hashCode()}"),
                     shape = bubbleShape,
                     color = Color.Transparent,
                     border = bubbleBorder,
@@ -344,7 +385,7 @@ internal fun MessageBubble(
                         val suppressesFallbackBody = message.richMessage?.let { it.isQuestion || it.isSecretRequest } == true
                         message.displayBody?.takeUnless { suppressesFallbackBody || repeatsFileName }?.let { body ->
                             MarkdownMessage(
-                                markdown = body,
+                                markdown = streamedReplyBody(body, streaming),
                                 modifier = Modifier.testTag("message-body-${message.id}"),
                                 contentColor = if (message.isMine) colors.onUserBubble else colors.textPrimary,
                                 containerColor = if (message.isMine) colors.userBubbleStart else assistantFill,

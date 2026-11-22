@@ -84,6 +84,31 @@ const mainAgent = (id: string) => {
 };
 
 describe("platform prompt integration", () => {
+  test("text replies share a stable DM prompt across user and background wakes", async () => {
+    const { messaging } = mainAgent("agent");
+    const database = (messaging as unknown as { prisma: Record<string, unknown> }).prisma;
+    let enabled = false;
+    database.featureSettings = { findUnique: async () => ({ streamBotReplies: enabled }) };
+    database.contextSession = { findFirst: async () => ({ scope: "channel", scopeId: "dm" }), findMany: async () => [] };
+    database.channel = {
+      findFirst: async ({ where }: { where: { kind: string; directKey?: string } }) =>
+        where.kind === "bot_dm" && where.directKey === "bot:agent" ? { id: "dm" } : null,
+      findMany: async () => [],
+    };
+    database.automationResult = { findMany: async () => [] };
+    const prompt = (origin: string, allow = true) =>
+      messaging.platformPrompt("agent", "context", "", "dm", undefined, origin, undefined, undefined, allow);
+    expect((await prompt("user")).instructions).toContain("Plain assistant text is private");
+    enabled = true;
+    const ordinary = await prompt("user");
+    expect(ordinary.directTextReply).toBe(true);
+    expect(ordinary.instructions).toContain("Your assistant text is delivered to the user");
+    expect(ordinary.instructions).toContain("SendRichMessageToUser");
+    expect(ordinary.instructions).not.toContain("Plain assistant text is private");
+    expect((await prompt("background_revival")).instructions).toBe(ordinary.instructions);
+    expect((await prompt("user", false)).directTextReply).toBeUndefined();
+  });
+
   test("goal guidance is part of the prompt only while goal management is on", () => {
     const heading = "## Native goals and Explore ideas";
     for (const automationRun of [undefined, AUTOMATION_RUN_INSTRUCTIONS]) {
@@ -431,5 +456,13 @@ describe("platform prompt integration", () => {
     expect(prompt).not.toContain("UTC-7");
     expect(renderWorkerTimeSection("Asia/Kolkata"))
       .toContain("The user lives in Asia/Kolkata (currently UTC+5:30), and the box clock is set to that zone");
+  });
+
+  test("plannerRole adds verbatim SubmitOutcome guidance without changing default 004.8 prompt when unset", () => {
+    const withoutRole = renderPlatformBaseSystemPrompt({ outcomes: true });
+    const withRole = renderPlatformBaseSystemPrompt({ outcomes: true, plannerRole: true });
+    expect(withoutRole).not.toContain("SubmitOutcome");
+    expect(withRole).toContain("SubmitOutcome");
+    expect(withRole).toContain("user's exact words verbatim");
   });
 });

@@ -42,7 +42,14 @@ struct ChatView: View {
   @State private var savedTranscriptAtOpen = false
   @State private var awaitingNewerPage = false
   @State private var requestedInitialHistory = false
+  @State private var replyPreview: ReplyPreview?
+  @State private var lastPreviewRowID: String?
   private var hasLater: Bool { store.historyWindows[channel.id]?.hasLater == true }
+  private var previewChannel: String? {
+    guard scenePhase == .active, store.activeChannel == channel.id, channel.kind == "bot_dm",
+      thread == nil, exchange == nil, !hasLater else { return nil }
+    return channel.id
+  }
   private var showsLoadError: Bool {
     store.historyLoadFailures.contains(channel.id) && !store.hasCachedHistory(channel.id)
       && pendingMessages.isEmpty
@@ -113,6 +120,33 @@ struct ChatView: View {
       }
     }
     .modifier(SystemConversationContext(channel: channel))
+    .task(id: previewChannel) {
+      replyPreview = nil
+      guard let id = previewChannel else { return }
+      var revision = ""
+      while !Task.isCancelled {
+        do {
+          let next = try await store.fetch(
+            "/api/v0/channels/\(API.segment(id))/reply-preview",
+            as: ReplyPreviewSnapshot.self, query: ["after": revision])
+          try Task.checkCancellation()
+          if next.revision != revision {
+            replyPreview = next.preview
+            if let preview = next.preview {
+              lastPreviewRowID = "client:\(channel.id):\(preview.clientId)"
+            }
+          }
+          revision = next.revision
+        } catch let error as APIError where error.status == 404 {
+          return
+        } catch {
+          if Task.isCancelled { return }
+          replyPreview = nil
+          revision = ""
+          do { try await Task.sleep(for: .seconds(2)) } catch { return }
+        }
+      }
+    }
     .task(id: readTarget) {
       guard let target = readTarget else { return }
       var retryDelay = 1
@@ -220,6 +254,18 @@ struct ChatView: View {
   }
   private func nativeRows(_ rows: [MessagePresentation.Row], timeline: MessageTimeline) -> [NativeHistoryItem] {
     var result: [NativeHistoryItem] = []
+    let preview = previewChannel == nil ? nil : replyPreview
+    let visiblePreview = preview.flatMap { preview -> ReplyPreview? in
+      let committed = store.messages(channel.id).contains {
+        $0.sourceRunId == preview.runId && $0.clientId == preview.clientId
+      }
+      return committed ? nil : preview
+    }
+    let previewRow = visiblePreview.map {
+      MessagePresentation.Row.replyPreview(Message.replyPreview($0, in: channel),
+        groupsWithPrevious: rows.last?.isUser == false)
+    }
+    let displayedRows = previewRow.map { rows + [$0] } ?? rows
     let busy = store.busy.contains("history-" + channel.id)
     if store.histories[channel.id]?.hasMore == true {
       result.append(NativeHistoryItem(id: "earlier", scrollID: "earlier", version: busy.hashValue) {
@@ -228,7 +274,9 @@ struct ChatView: View {
         }.font(.footnote).frame(maxWidth: .infinity).padding(14).disabled(busy))
       })
     }
-    for row in rows {
+    for row in displayedRows {
+      let streaming = row.id == previewRow?.id
+      let wasStreamed = row.id == lastPreviewRowID
       var hash = Hasher()
       var animatesResize = false
       hash.combine(row.timestamp)
@@ -253,17 +301,18 @@ struct ChatView: View {
       }
       // Delivery captions grow and collapse with the same native row animation
       // as answered cards; ordinary accepted messages retain no caption lane.
-      animatesResize = animatesResize || row.isUser
+      animatesResize = animatesResize || row.isUser || wasStreamed
       result.append(NativeHistoryItem(id: row.id, scrollID: row.scrollID, version: hash.finalize(),
         anchorToBottom: row.timestamp != nil, animatesResize: animatesResize,
         outgoingArrival: row.isUser && row.animatesArrival,
-        prefetch: RichMarkdownView.prefetcher(row)) {
-        let arrives = timelineCache.consumeArrival(row)
+        streaming: streaming, prefetch: wasStreamed ? nil : RichMarkdownView.prefetcher(row)) {
+        let arrives = !streaming && timelineCache.consumeArrival(row) && !wasStreamed
         return AnyView(MessageArrival(animate: arrives, isUser: row.isUser) {
-          MessageDeliveryRow(row: row) { timelineRow(row) }
+          MessageDeliveryRow(row: row) { timelineRow(row, streaming: streaming) }
         }.padding(.horizontal, 16)
-          .padding(.top, row.id == rows.first?.id ? 14 : row.groupsWithPrevious ? 8 : 12)
-          .environment(store).environment(modals).environment(\.messageTimestamps, timestamps))
+          .padding(.top, row.id == displayedRows.first?.id ? 14 : row.groupsWithPrevious ? 8 : 12)
+          .environment(store).environment(modals).environment(\.messageTimestamps, timestamps)
+          .allowsHitTesting(!streaming))
       })
     }
     if hasLater {
@@ -273,12 +322,17 @@ struct ChatView: View {
           .font(.footnote).frame(maxWidth: .infinity).padding(14).disabled(busy))
       })
     }
-    result.append(NativeHistoryItem(id: "bottom", scrollID: "bottom", version: hasLater.hashValue) {
-      AnyView(ChatActivityFooter(channel: channel, showsActivity: !hasLater).environment(store).environment(modals).environment(\.messageTimestamps, timestamps))
+    let newest = timeline.entries.last?.message
+    let finishingStream = rows.last?.id == lastPreviewRowID
+      && newest?.metadata["end_turn"].bool == true
+      && store.activeRuns(channel.id).first?.id == newest?.sourceRunId
+    let showsActivity = !hasLater && previewRow == nil && !finishingStream
+    result.append(NativeHistoryItem(id: "bottom", scrollID: "bottom", version: showsActivity.hashValue) {
+      AnyView(ChatActivityFooter(channel: channel, showsActivity: showsActivity).environment(store).environment(modals).environment(\.messageTimestamps, timestamps))
     })
     return result
   }
-  private func timelineRow(_ row: MessagePresentation.Row) -> some View {
+  private func timelineRow(_ row: MessagePresentation.Row, streaming: Bool) -> some View {
     VStack(alignment: .leading, spacing: 12) {
       if let date = row.timestamp {
         Text(timestamp(date)).font(.system(size: 13)).foregroundStyle(NativePalette.chatFaint)
@@ -310,6 +364,7 @@ struct ChatView: View {
           MessageRow(message: message, channel: channel, onReply: { reply(message) },
             onThread: { branchesReplies = true; thread = message },
             onExchange: { exchange = $0 }, onRoutine: { store.focusedRoutine = $0; details = true },
+            viewOnly: streaming, streaming: streaming,
             showsReplyContext: entry.showsReplyContext,
             onReplyContext: { openReplyContext($0, branches: message.metadata["branched"].bool) })
         }
@@ -633,6 +688,7 @@ struct MessageRow: View {
   var onExchange: (BotExchangePeer) -> Void = { _ in }
   var onRoutine: (String) -> Void = { _ in }
   var viewOnly = false
+  var streaming = false
   var speakerOverride: Bot?
   var showsReplyContext = true
   var onReplyContext: ((String) -> Void)?
@@ -643,7 +699,7 @@ struct MessageRow: View {
   @Environment(\.messageTimestamps) private var sharedTimestamps
   private var timestamps: MessageTimestampReveal { sharedTimestamps ?? localTimestamps }
   private var speaker: Bot? {
-    guard viewOnly || channel.isGroup, !message.isUser else { return nil }
+    guard !streaming, viewOnly || channel.isGroup, !message.isUser else { return nil }
     return speakerOverride ?? store.bots.first { $0.id == message.senderBotId }
   }
   var body: some View {
@@ -699,14 +755,15 @@ struct MessageRow: View {
           }
           // Draft and approval cards show their own title; their text is only the chat-list preview.
           if !message.displayContent.isEmpty, !["external-draft", "imessage-send"].contains(message.metadata["type"].string) {
-            Group {
+            PacedReplyText(source: message.displayContent, streaming: streaming) { text, revealing in
               if RichMarkdownView.required(message.displayContent) {
-                RichMarkdownView(source: message.displayContent, forceDark: message.isUser).frame(
-                  maxWidth: .infinity)
+                RichMarkdownView(source: text, forceDark: message.isUser,
+                  streaming: revealing).frame(maxWidth: .infinity)
               } else {
                 BubbleText {
-                  MarkdownText(source: message.displayContent,
-                    textColor: message.isUser ? .white : NativePalette.text, ownMessage: message.isUser)
+                  MarkdownText(source: text,
+                    textColor: message.isUser ? .white : NativePalette.text,
+                    ownMessage: message.isUser, streaming: revealing)
                     .font(.body).lineSpacing(1.5)
                 }
               }
@@ -966,14 +1023,50 @@ struct MessageActionsView: View {
     }.buttonStyle(.plain)
   }
 }
+private struct PacedReplyText<Content: View>: View {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @State private var shown: String?
+  let source: String
+  let streaming: Bool
+  let content: (String, Bool) -> Content
+
+  init(source: String, streaming: Bool, @ViewBuilder content: @escaping (String, Bool) -> Content) {
+    self.source = source
+    self.streaming = streaming
+    self.content = content
+    _shown = State(initialValue: streaming ? String(source.prefix(1)) : nil)
+  }
+
+  var body: some View {
+    let text = shown.flatMap { source.hasPrefix($0) && !reduceMotion ? $0 : nil } ?? source
+    content(text, streaming || text != source)
+      .task(id: source) {
+        guard let previous = shown, previous != source else { return }
+        guard !reduceMotion, source.hasPrefix(previous) else {
+          shown = source
+          return
+        }
+        var cursor = source.index(source.startIndex, offsetBy: previous.count)
+        let batch = (source[cursor...].count + 4) / 5
+        while cursor < source.endIndex {
+          do { try await Task.sleep(for: .milliseconds(24)) } catch { return }
+          guard !Task.isCancelled else { return }
+          cursor = source.index(cursor, offsetBy: batch, limitedBy: source.endIndex) ?? source.endIndex
+          shown = String(source[..<cursor])
+        }
+      }
+  }
+}
+
 struct MarkdownText: View {
   let source: String
   var textColor: Color = NativePalette.text
   /// Received links stay blue even with the monochrome app accent. Your own
   /// links use the bubble's text color; underlines distinguish links in both.
   var ownMessage = false
+  var streaming = false
   func inline(_ block: String) -> AttributedString {
-    Self.underliningLinks(MessageTextCache.inline(block))
+    Self.underliningLinks(MessageTextCache.inline(block, cache: !streaming))
   }
   static func underliningLinks(_ text: AttributedString) -> AttributedString {
     var text = text
@@ -984,7 +1077,7 @@ struct MarkdownText: View {
   }
   var body: some View {
     if RichMarkdownView.required(source) {
-      RichMarkdownView(source: source)
+      RichMarkdownView(source: source, streaming: streaming)
     } else if IdentifierMessageText.requiresNativeWrapping(source) {
       IdentifierMessageText(source: source, color: textColor)
     } else {
@@ -1013,16 +1106,18 @@ struct MarkdownText: View {
   private static var values: [String: AttributedString] = [:]
   private static var order: [String] = []
   static func clear() { values = [:]; order = [] }
-  static func inline(_ source: String) -> AttributedString {
+  static func inline(_ source: String, cache: Bool = true) -> AttributedString {
     if let value = values[source] { return value }
     var value = (try? AttributedString(markdown: source,
       options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(source)
     for run in value.runs where run.inlinePresentationIntent?.contains(.code) == true {
       value[run.range].font = .system(size: 13, design: .monospaced)
     }
-    values[source] = value
-    order.append(source)
-    if order.count > 256 { values.removeValue(forKey: order.removeFirst()) }
+    if cache {
+      values[source] = value
+      order.append(source)
+      if order.count > 256 { values.removeValue(forKey: order.removeFirst()) }
+    }
     return value
   }
 }

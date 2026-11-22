@@ -54,6 +54,12 @@ export interface ActiveTurn {
   goalThread?: ComputerTurnRequest["goalThread"];
   /** Goal management is an opt-in module; the Outcome and Explore tools are offered only while it is on. */
   outcomesEnabled: boolean;
+  /** A member's turn in a group chat: the group task board tools are offered (specs/010). */
+  groupTasksEnabled: boolean;
+  /** A group room woke this bot: it owes the room the same opening acknowledgement as a private turn. */
+  groupTurn?: boolean;
+  /** The assistant message whose work calls the opening gate refused; its sibling calls are refused too, later responses are not. */
+  openingGateMessage?: unknown;
   draftStatusAcknowledged?: boolean;
   draftStateRevision?: string;
   pendingDraftStateRevision?: string;
@@ -76,6 +82,11 @@ export interface ActiveTurn {
   userAcknowledged?: boolean;
   /** SendToUser calls of a response go out one after another, in call order. */
   sendChain?: Promise<unknown>;
+  directTextReply?: boolean;
+  directTextDelivery?: Promise<void>;
+  firstReplyTextAt?: number;
+  directTextDeliveryUncertain?: boolean;
+  directTextDeliveryNotice?: string;
   initialUserStarted: boolean;
   initialUserClientId?: string;
   pluginNamespaces: readonly PluginDynamicNamespace[];
@@ -83,6 +94,8 @@ export interface ActiveTurn {
   lastPromptFingerprint?: string;
   connectorInstructions?: string;
   endTurnRequested?: boolean;
+  /** Commands this turn moved to the background whose result no turn has read yet. */
+  backgroundShells?: Map<string, { machineId?: string; shellId: string }>;
   /** Recovery waits for ownership and provider resources to be released. */
   contextReleased?: Promise<void>;
   resolveContextReleased?: () => void;
@@ -122,6 +135,7 @@ export interface ActiveTurn {
   narrator?: import("./voice-narration").VoiceNarrator;
   /** Realtime voice turns only: speaks SendToUser sentences while the model is still writing them. */
   speech?: import("./voice-stream").SendToUserSpeech;
+  replyPreview?: import("./reply-preview").ReplyPreviewPublisher;
   /** Stopped through the cancel-run API (the user's stop or StopSubagent): the turn settles as cancelled. */
   stopped?: boolean;
 }

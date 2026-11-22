@@ -47,14 +47,14 @@ test("reference retry reduction keeps valid Pi tool histories serializable", asy
               Array.from({ length: width }, (_, i) => ({
                 type: "toolCall",
                 id: `read-${i}`,
-                name: "ReadFixture",
-                arguments: { index: i },
+                name: i === 0 ? "SendToUser" : "ReadFixture",
+                arguments: i === 0 ? { type: "text", content: "Legacy reply" } : { index: i },
               }))
             ),
             ...Array.from({ length: width - (unfinished ? 1 : 0) }, (_, i) => ({
               role: "toolResult",
               toolCallId: `read-${i}`,
-              toolName: "ReadFixture",
+              toolName: i === 0 ? "SendToUser" : "ReadFixture",
               content: [{ type: "text", text: `result-${i}` }],
               isError: false,
               timestamp: 1,

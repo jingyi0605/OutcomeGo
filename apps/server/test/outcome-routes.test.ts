@@ -57,7 +57,10 @@ describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
         clientRequestId: requestId(),
       }, `bot:${fixture.bot.id}`));
       expect(revision.currentRevisionView).toMatchObject({ revision: 1, status: "pending_approval" });
-      const approve = { expectedRevision: 1, confirmationText: "I confirm", actorRef: "bot:forged", approvedBy: "forged", clientRequestId: requestId() };
+      // Approval waits for the planner turn to end, so settle it before the owner approves.
+      await fixture.db.outcomeThreadTurn.updateMany({ where: { thread: { outcomeId: outcome.id }, status: { in: ["queued", "running"] } }, data: { status: "completed" } });
+      await fixture.db.$transaction((tx) => f.outcomes.recomputeStatus(tx, outcome.id, "system:test"));
+      const approve ={ expectedRevision: 1, confirmationText: "I confirm", actorRef: "bot:forged", approvedBy: "forged", clientRequestId: requestId() };
       const approved = await call(`/outcomes/${outcome.id}/revisions/1/approve`, "POST", approve);
       expect(approved.status).toBe(200);
       expect(await approved.json()).toMatchObject({ currentRevisionView: { approvedBy: "owner:local" } });

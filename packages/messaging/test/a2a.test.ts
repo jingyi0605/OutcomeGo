@@ -103,7 +103,7 @@ If it needs a reply or an action, handle it: reply to Planner with SendToAgent (
 New messages in the room (oldest first):
 outcomego_user: Do you guys have access to my chats that i've sent to you? or are you guys just running off memories?
 
-It's your turn, Bot. Reply in character with SendToUser if you have something worth adding; if you don't, end your turn without sending anything.`);
+It's your turn, Bot. If these messages address you or ask you to do something, your first action must be a short SendToUser to the room saying what you are about to do (end_turn false), before any other tool call; then do the work and send the result when it is ready. If they do not need you, end your turn without sending anything.`);
   });
 
   test("formats group reply, participant, attachment, and wind-down variants", () => {

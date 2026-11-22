@@ -1,5 +1,5 @@
 import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "@outcomego/contracts/outcome-inbox";
-import { OUTCOME_GOAL_THREAD_TOOLS, decodeOutcomeThreadInput } from "@outcomego/contracts/outcome-thread";
+import { OUTCOME_GOAL_THREAD_TOOLS, decodeOutcomeThreadInput, goalThreadToolsForPurpose } from "@outcomego/contracts/outcome-thread";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 import {
   OUTCOME_THREAD_TOOL_NAMES,
@@ -10,7 +10,10 @@ import {
 import { REQUEST_HUMAN_ACTION_TOOL, humanActionInputSchema } from "@outcomego/contracts/human-work";
 import { applyArgumentAliases, normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { onlyPendingBackgroundWork } from "./background-status";
+import { observeShellAwait, recordBackgroundShell } from "./background-shells";
 import { markDelivered } from "./events";
+import { REPLY_PREVIEW_CONTROL } from "@outcomego/contracts";
+import { RICH_REPLY_TOOL } from "./reply-preview";
 import { spoolFile } from "@outcomego/plugin-sdk/file-spool";
 import { agentReadStream, agentWriteStream } from "../agent-file-stream";
 import { stageAttachment } from "../attachment-staging";
@@ -280,17 +283,18 @@ const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
   },
 };
 
-/** The small tool set of a goal's own thread; it appears only on that thread's turns. */
-export const goalThreadToolDefinitions = (active: Pick<ActiveTurn, "goalThread">): Array<Omit<RuntimeDynamicTool, "execute">> =>
-  active.goalThread
-    ? OUTCOME_GOAL_THREAD_TOOLS.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
-        source: "first-party" as const,
-        decodeArguments: (args: unknown) => decodeOutcomeThreadInput(tool.name, args),
-      }))
-    : [];
+/** The small tool set of a goal's own thread; it appears only on that thread's turns and is filtered by turn purpose. */
+export const goalThreadToolDefinitions = (active: Pick<ActiveTurn, "goalThread">): Array<Omit<RuntimeDynamicTool, "execute">> => {
+  if (!active.goalThread) return [];
+  const allowed = new Set<string>(goalThreadToolsForPurpose(active.goalThread.purpose));
+  return OUTCOME_GOAL_THREAD_TOOLS.filter((tool) => allowed.has(tool.name)).map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
+    source: "first-party" as const,
+    decodeArguments: (args: unknown) => decodeOutcomeThreadInput(tool.name, args),
+  }));
+};
 
 export const outcomeThreadToolDefinitions = (
   active: Pick<ActiveTurn, "outcomeThread">,
@@ -315,7 +319,7 @@ export const workerTopLevelTools = (
 
 /** The reference's order for directly callable tools (its tool builders' order); others keep their place after these. */
 const DIRECT_TOOL_ORDER = [
-  WAKE_PARENT_TOOL.name, SEND_TO_USER_TOOL.name, REACT_TO_MESSAGE_TOOL.name, "ListSections", "RecallMemory",
+  WAKE_PARENT_TOOL.name, SEND_TO_USER_TOOL.name, RICH_REPLY_TOOL, REACT_TO_MESSAGE_TOOL.name, "ListSections", "RecallMemory",
   UPDATE_MEMORY_TOOL.name, UPDATE_ROUTINE_TOOL.name, "WebSearch", "WebFetch", SHELL_TOOL.name, READ_TOOL.name,
   "AwaitShell", SCREENSHOT_TOOL.name, GET_DYNAMIC_TOOLS_TOOL.name, CALL_DYNAMIC_TOOL_TOOL.name,
 ];
@@ -385,6 +389,7 @@ export class RuntimeTools {
       ["completed", "failed"].includes(String(result.details.status))
     )
       await this.hostShellCompletions.observe(turn.botId, input.machineId, input.shell_id);
+    observeShellAwait(turn, input.machineId, input.shell_id, result.details);
     return result;
   }
   private readonly turnSecrets = new WeakMap<ActiveTurn, Record<string, string>>();
@@ -733,7 +738,8 @@ export class RuntimeTools {
     if (active.subagentType === "videoReview" || active.subagentType === "watchVideo") return [];
     const native = (
       tool: (typeof NATIVE_TOOLS)[number],
-      description: string = tool.description
+      description: string = tool.description,
+      name: string = tool.name
     ) => {
       if (tool.name === "Task") {
         tool = { ...tool, ...taskToolContract(active.taskConfiguration) };
@@ -745,10 +751,12 @@ export class RuntimeTools {
           AUTHENTICATE_GUIDANCE,
           `You cannot do that from here, so report the status ${active.requestSource === "automation" ? "with WakeParent" : "in your result"} instead of retrying.`
         );
-      const visibleDescription = description;
+      const visibleDescription = active.directTextReply && tool.name === "Screenshot"
+        ? description.replaceAll(SEND_TO_USER_TOOL.name, RICH_REPLY_TOOL)
+        : description;
       return defineTool({
-        name: tool.name,
-        label: tool.name,
+        name,
+        label: name,
         description: visibleDescription,
         parameters: Type.Unsafe<Record<string, unknown>>(
           tool.name === "Task" && active.pluginRuntimePackages?.some((pkg) => pkg.agents.length)
@@ -766,8 +774,15 @@ export class RuntimeTools {
         ),
         // Every call starts as soon as the response ends, as in the reference; sends keep call order (below).
         executionMode: "parallel",
-        execute: (callId: string, args: unknown, signal?: AbortSignal) =>
-          this.executeOutcomeGoTool(active, callId, tool.name, args, signal),
+        execute: async (callId: string, args: unknown, signal?: AbortSignal) => {
+          if (name === RICH_REPLY_TOOL) {
+            const input = args as { type?: unknown; images?: unknown[]; reply_to?: unknown; channel?: unknown; to?: unknown } | null;
+            if ((input?.type ?? "text") === "text" && !input?.images?.length &&
+                !input?.reply_to && !input?.channel && !input?.to)
+              throw new Error("Write ordinary text and Markdown directly in your assistant reply.");
+          }
+          return this.executeOutcomeGoTool(active, callId, tool.name, args, signal);
+        },
       });
     };
     const workerNativeTools = NATIVE_TOOLS.filter(
@@ -845,9 +860,39 @@ export class RuntimeTools {
         (!active.subagentType || !SUBAGENT_PRIVATE_NATIVE_TOOLS.has(tool.name))
     );
     return [
-      ...availableNativeTools.map((tool) => native(tool)),
+      ...availableNativeTools.map(tool =>
+        active.directTextReply && tool.name === SEND_TO_USER_TOOL.name
+          ? native(tool, [
+              "Deliver a widget, secret request, card, image, attachment, quoted reply, or message to an explicit destination.",
+              "Write ordinary replies and acknowledgements as assistant text. If accompanying this call with prose, write that text before the call and do not repeat it in the card.",
+              "A widget or secret request ends the turn and waits for the user. Set end_turn only if no further work or delivery is needed.",
+              "For a local file use its absolute file URL. Prefer a local copy of a web image. Use reply_to for the quoted message and channel for an explicit connected destination.",
+            ].join(" "), RICH_REPLY_TOOL)
+          : native(tool)
+      ),
       ...topLevelTools(),
     ].sort((a, b) => directToolRank(a.name) - directToolRank(b.name));
+  }
+
+  async deliverAssistantText(active: ActiveTurn, callId: string, content: string, endTurn: boolean): Promise<void> {
+    active.replyPreview?.finish(callId, false);
+    try {
+      const result = await this.executeOutcomeGoTool(active, callId, SEND_TO_USER_TOOL.name, {
+        type: "text", content, end_turn: endTurn,
+      }, active.pluginAbortController?.signal);
+      if (result.details?.sent === true) return;
+      if (result.details?.deliveryUncertain === true) {
+        active.directTextDeliveryUncertain = true;
+        active.directTextDeliveryNotice = "<system_reminder>The external service could not confirm the previous reply's delivery. The recipient may already have it. Do not send that reply again.</system_reminder>";
+      }
+    } catch {
+      if (!active.pluginAbortController?.signal.aborted) {
+        console.warn(JSON.stringify({ event: "reply_text.delivery_failed", runId: active.runId, callId }));
+      }
+    }
+    active.failedResponseSends?.add(callId);
+    active.replyPreview?.finish(callId, true);
+    active.speech?.discard(callId);
   }
 
   private async executeOutcomeGoTool(
@@ -957,6 +1002,7 @@ export class RuntimeTools {
       if (shellInput.machineId) {
         return (async () => {
           const result = await this.nativeToolExecutor.externalShell(shellInput, signal);
+          recordBackgroundShell(active, shellInput.machineId, result.details);
           if (
             result.details.status === "running" &&
             typeof result.details.shell_id === "string" &&
@@ -981,7 +1027,7 @@ export class RuntimeTools {
             ? await this.screens.commandEnvironment(active.screenBotId, active.cwd)
             : undefined;
         const secretEnvironment = await this.processSecrets(active, signal);
-        return this.nativeToolExecutor.shell(
+        const result = await this.nativeToolExecutor.shell(
           shellInput,
           active.cwd,
           signal,
@@ -994,6 +1040,8 @@ export class RuntimeTools {
             ...(active.requestSource === "automation" ? { automationRunId: active.runId } : {}),
           }
         );
+        recordBackgroundShell(active, undefined, result.details);
+        return result;
       })();
     }
     if (tool === READ_TOOL.name) {
@@ -1038,7 +1086,7 @@ export class RuntimeTools {
         content: [
           {
             type: "text" as const,
-            text: `Screenshot captured from the box desktop.\nScreenshot saved to ${path}, and to show the user the box, attach this file:// path with SendToUser.`,
+            text: `Screenshot captured from the box desktop.\nScreenshot saved to ${path}, and to show the user the box, attach this file:// path with ${active.directTextReply ? RICH_REPLY_TOOL : SEND_TO_USER_TOOL.name}.`,
           },
           {
             type: "image" as const,
@@ -1435,12 +1483,23 @@ export class RuntimeTools {
 
   /** Speaks one finished sentence of a SendToUser message that is still being written. */
   async speakChunk(active: ActiveTurn, callId: string, text: string): Promise<void> {
-    await this.privateControl(active, `speak:${callId}:${crypto.randomUUID()}`, "VoiceSpeak", { callId, text }, AbortSignal.timeout(10_000));
+    const timeout = AbortSignal.timeout(10_000);
+    const signal = active.pluginAbortController ? AbortSignal.any([timeout, active.pluginAbortController.signal]) : timeout;
+    await this.privateControl(active, `speak:${callId}:${crypto.randomUUID()}`, "VoiceSpeak", { callId, text }, signal);
   }
 
   /** Persists one spoken progress line; the server queues it behind any answer already speaking. */
   async narrate(active: ActiveTurn, text: string): Promise<void> {
     await this.privateControl(active, `narration:${crypto.randomUUID()}`, "VoiceNarration", { text }, AbortSignal.timeout(10_000));
+  }
+
+  async publishReplyPreview(active: ActiveTurn, attempt: number, callId: string, content: string | null): Promise<boolean> {
+    const timeout = AbortSignal.timeout(2_000);
+    const signal = content !== null && active.pluginAbortController
+      ? AbortSignal.any([timeout, active.pluginAbortController.signal])
+      : timeout;
+    const result = await this.privateControl(active, `preview:${callId}`, REPLY_PREVIEW_CONTROL, { attempt, callId, content }, signal);
+    return result.published === true;
   }
 
   private async privateControl(
@@ -1925,6 +1984,11 @@ export class RuntimeTools {
       ],
       details: {
         tool,
+        ...(tool === SEND_TO_USER_TOOL.name && active.directTextReply && callId.startsWith("text:") ? {
+          sent: (body as { sent?: boolean } | null)?.sent === true,
+          deliveryUncertain: (body as { external?: { status?: string }; in_progress?: boolean } | null)?.external?.status === "uncertain" ||
+            (body as { in_progress?: boolean } | null)?.in_progress === true,
+        } : {}),
         ...(tool === SEND_TO_USER_TOOL.name && body && typeof body === "object" &&
           (body as Record<string, unknown>).delivery_failed === true ? { isError: true } : {}),
         ...(tool === "CheckSubagent" ? {pendingBackgroundWork: onlyPendingBackgroundWork(body)} : {}),
@@ -2009,7 +2073,7 @@ export class RuntimeTools {
     active: ActiveTurn
   ): Array<DynamicNamespaceDefinition<RuntimeDynamicTool>> {
     const bitwardenTools: RuntimeDynamicTool[] =
-      (active.runtimeProfile === "agent" || active.subagentType === "computerUse") && !active.readOnly
+      (active.runtimeProfile === "agent" || active.subagentType === "computerUse") && !active.readOnly && !active.goalThread
         ? [
             {
               name: "RequestBitwardenReadApproval",

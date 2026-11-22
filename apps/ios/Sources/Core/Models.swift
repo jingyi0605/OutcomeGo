@@ -168,6 +168,12 @@ public struct Message: Codable, Identifiable, Sendable, Hashable {
   public var date: Date? {
     MessageTimestampParser.shared.date(createdAt)
   }
+
+  public static func replyPreview(_ preview: ReplyPreview, in channel: Channel) -> Message {
+    Message(id: preview.clientId, clientId: preview.clientId, sequence: "",
+      channelId: channel.id, sender: "agent", senderBotId: channel.members.first?.botId,
+      sourceRunId: preview.runId, content: preview.content, metadata: .object([:]), createdAt: "")
+  }
 }
 
 /// History is projected again when a message arrives. Reuse both the parsers and
@@ -406,6 +412,76 @@ public struct OutcomeListPage: Decodable, Sendable {
   public let nextCursor: String?
 }
 
+public struct OutcomePlanTask: Decodable, Sendable {
+  public let key: String
+  public let title: String
+  public let instructions: String
+  public let botId: String
+  public let dependsOn: [String]?
+  public let covers: [String]
+  public let nature: String
+}
+
+public struct OutcomePlan: Decodable, Sendable {
+  public let notes: String?
+  public let tasks: [OutcomePlanTask]
+}
+
+public struct OutcomeTaskReviewBoundary: Decodable, Sendable {
+  public let side: String
+  public let index: Int
+}
+
+public struct OutcomeTaskReviewBasis: Decodable, Sendable {
+  public let criterionId: String?
+  public let boundary: OutcomeTaskReviewBoundary?
+}
+
+public struct OutcomeTaskReviewFinding: Decodable, Sendable {
+  public let kind: String
+  public let basis: OutcomeTaskReviewBasis
+  public let reason: String
+}
+
+public struct OutcomeWorkItemReview: Decodable, Sendable {
+  public let state: String
+  public let findings: [OutcomeTaskReviewFinding]
+  public let reworkWorkItemId: String?
+}
+
+public struct OutcomePrereviewAttention: Decodable, Sendable {
+  public let criterionId: String?
+  public let question: String
+}
+
+public struct OutcomePrereviewResult: Decodable, Sendable {
+  public let criterionId: String
+  public let suggestion: String
+  public let reason: String
+  public let evidenceIds: [String]?
+}
+
+public struct OutcomePrereview: Decodable, Sendable {
+  public let turnId: String
+  public let revision: Int
+  public let summary: String
+  public let attention: [OutcomePrereviewAttention]
+  public let results: [OutcomePrereviewResult]
+  public let createdAt: String
+}
+
+public struct AdoptPrereviewRequest: Encodable, Sendable, Equatable {
+  public let expectedRevision: Int
+  public let turnId: String
+  public let clientRequestId: String
+
+  public init(expectedRevision: Int, turnId: String, clientRequestId: String) {
+    self.expectedRevision = expectedRevision
+    self.turnId = turnId
+    self.clientRequestId = clientRequestId
+  }
+}
+
 public struct OutcomeDetail: Decodable, Sendable, Identifiable {
   public let id: String
   public let title: String
@@ -419,6 +495,8 @@ public struct OutcomeDetail: Decodable, Sendable, Identifiable {
   public let outputs: [OutcomeOutput]
   public let evidence: [OutcomeEvidence]
   public let reviews: [OutcomeReview]
+  public let plan: OutcomePlan?
+  public let prereview: OutcomePrereview?
 }
 
 public struct OutcomeContractRevision: Decodable, Sendable, Identifiable {
@@ -441,12 +519,17 @@ public struct OutcomeCriterion: Decodable, Sendable, Identifiable {
 public struct OutcomeWorkItem: Decodable, Sendable, Identifiable {
   public let id: String
   public let contractRevision: Int
+  public let botId: String?
   public let executorType: String
   public let kind: String
   public let title: String
   public let status: String
   public let statusReason: String?
   public let ordinal: Int
+  public let planKey: String?
+  public let nature: String?
+  public let review: OutcomeWorkItemReview?
+  public let dependsOn: [String]?
 }
 
 public struct OutcomeOutput: Decodable, Sendable, Identifiable {

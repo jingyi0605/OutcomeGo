@@ -31,6 +31,7 @@ const fixture = (failure?: "context-network" | "screen-network" | "active-contex
     },
     inboxEvent: { updateMany: async () => ({ count: 1 }) },
     routine: { updateMany: async () => ({ count: 0 }) },
+    groupTask: { updateMany: async () => ({ count: 0 }) },
     channel: { updateMany: async () => ({ count: 0 }) },
     event: { create: async () => ({}) },
     retiredAgent: {

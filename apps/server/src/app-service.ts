@@ -1,8 +1,11 @@
 import { OutcomeService } from "./services/outcome-service";
+import { ReplyPreviews } from "./services/reply-previews";
 import { lockAssetReferences, referencedAssetIdsSql } from "./services/asset-retention";
 import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
 import { OutcomePlanningService } from "./services/outcome-planning-service";
 import { OutcomeThreadService } from "./services/outcome-thread-service";
+import { OutcomePlanService } from "./services/outcome-plan-service";
+import { OutcomeTaskReviewService } from "./services/outcome-task-review-service";
 import { OutcomeThreadTools } from "./services/outcome-thread-tools";
 import { ExploreService } from "./services/explore-service";
 import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
@@ -11,6 +14,7 @@ import { createOutcomeDecisionTool } from "./services/outcome-decision-tool";
 import { createOutcomeProgressTool } from "./services/outcome-progress-tool";
 import { createOutcomeCredentialApprovalTool } from "./services/outcome-credential-approval";
 import { OutcomeChatTools } from "./services/outcome-chat-tools";
+import { GroupTaskTools } from "./services/group-task-tools";
 import { OutcomeChatCards } from "./services/outcome-chat-cards";
 import { OutcomeInboxService } from "./services/outcome-inbox-service";
 import { createHumanWorkServices } from "./services/human-work-factory";
@@ -34,12 +38,15 @@ import {
   type UpdateUserTimeZoneInput,
   type UploadAssetInput,
 } from "@outcomego/contracts";
+import type { GroupTaskUserAction } from "@outcomego/contracts/group-tasks";
 import { createPrismaClient, Prisma, type PrismaClient } from "@outcomego/db";
 import {
   AgentDataStore,
   AgentMessaging,
   appendAgentTimelineEvent,
   AssetStore,
+  enqueueOutcomePrereviewIfNeeded,
+  GroupTaskService,
   readFeatureSettings,
   type RoutineMutationInput,
   RoutineService,
@@ -74,6 +81,8 @@ import { ScreenService } from "./services/screen-service";
 import { SearchService } from "./services/search-service";
 import { ChannelLibraryService } from "./services/channel-library";
 import { forwardServiceMethod, serviceEffect } from "./services/service-utils";
+import { verifyInferenceModelSelection } from "./services/inference-validation";
+import { isBotRunnable } from "./services/outcome-role-service";
 import { WebProviderSettingsService } from "./services/web-provider-settings";
 import { SettingsService } from "./services/settings-service";
 import { SnapshotService } from "./services/snapshot-service";
@@ -108,6 +117,8 @@ export class AppService {
   readonly outcomes: OutcomeService;
   readonly outcomePlanning: OutcomePlanningService;
   readonly outcomeThreads: OutcomeThreadService;
+  readonly outcomePlans: OutcomePlanService;
+  readonly outcomeTaskReviews: OutcomeTaskReviewService;
   readonly outcomeBriefs: OutcomeBriefService;
   readonly explore: ExploreService;
   readonly outcomeRecovery: OutcomeRecoveryService;
@@ -137,6 +148,7 @@ export class AppService {
   readonly screens: ScreenService;
   readonly searchIndex: SearchService;
   readonly library: ChannelLibraryService;
+  readonly groupTasks: GroupTaskService;
   readonly snapshots: SnapshotService;
   readonly assets: AssetStore;
   readonly notifications: NotificationService;
@@ -150,12 +162,14 @@ export class AppService {
   private readonly externalDelivery: ExternalDeliveryService;
   private readonly externalReminders: ExternalReminderService;
   private assetCleanupTimer: ReturnType<typeof setInterval> | null = null;
+  readonly replyPreviews: ReplyPreviews;
 
   constructor(
     authMode: import("./services/notification-service").PushAuthenticationMode = "required"
   ) {
     const databaseUrl = process.env.DATABASE_URL;
     this.prisma = createPrismaClient(databaseUrl);
+    this.replyPreviews = new ReplyPreviews(this.prisma);
     this.userLocations = new UserLocationService(this.prisma, authMode);
     this.apnsSettings = new ApnsSettingsStore(this.prisma);
     this.webProviders = new WebProviderSettingsService(this.prisma, async (request) => {
@@ -200,6 +214,7 @@ export class AppService {
     );
     this.searchIndex = new SearchService(this.prisma);
     this.library = new ChannelLibraryService(this.prisma);
+    this.groupTasks = new GroupTaskService(this.prisma);
     this.assets = new AssetStore({
       root: this.agentData.assetRoot,
       agentDataRoot: this.agentData.root,
@@ -236,6 +251,21 @@ export class AppService {
       () => this.transcription.store.status(),
       authMode
     );
+    this.runs = new RunService(
+      this.prisma,
+      (path, init) => this.computerFetch(path, init)
+    );
+    const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
+    this.outcomeBriefs = new OutcomeBriefService(inferOutcome, prismaOutcomeBriefStore(this.prisma));
+    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions, (outcome) =>
+      this.outcomeBriefs.warm(outcome)
+    );
+    // Planning is the goal's own bot's work (specs/004.8). This retired service keeps only the cleanup of old
+    // planning drafts, and can no longer reach a model.
+    this.outcomePlanning = new OutcomePlanningService(this.prisma, async () => {
+      throw new Error("Goal planning is done by the goal's own bot in its thread");
+    });
+    this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging, this.outcomes);
     this.channels = new ChannelService(
       this.prisma,
       this.messaging,
@@ -243,7 +273,8 @@ export class AppService {
       (path, init) => this.computerFetch(path, init),
       this.agentData,
       this.assets,
-      this.userLocations
+      this.userLocations,
+      (tx, input, actor) => this.outcomeThreads.createInTransaction(tx, input, actor)
     );
     this.plugins = new PluginService(
       this.prisma,
@@ -260,21 +291,8 @@ export class AppService {
       this.bots,
       this.machines
     );
-    this.runs = new RunService(
-      this.prisma,
-      (path, init) => this.computerFetch(path, init)
-    );
-    const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
-    this.outcomeBriefs = new OutcomeBriefService(inferOutcome, prismaOutcomeBriefStore(this.prisma));
-    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions, (outcome) =>
-      this.outcomeBriefs.warm(outcome)
-    );
-    // Planning is the goal's own bot's work (specs/004.8). This retired service keeps only the cleanup of old
-    // planning drafts, and can no longer reach a model.
-    this.outcomePlanning = new OutcomePlanningService(this.prisma, async () => {
-      throw new Error("Goal planning is done by the goal's own bot in its thread");
-    });
-    this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging, this.outcomes);
+    this.outcomePlans = new OutcomePlanService(this.prisma, this.outcomes, this.messaging);
+    this.outcomeTaskReviews = new OutcomeTaskReviewService(this.prisma, this.outcomes, this.messaging);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);
     const humanServices = createHumanWorkServices(this.prisma, this.messaging, this.agentData, this.assets);
@@ -294,7 +312,12 @@ export class AppService {
     });
     this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome, undefined, this.humanReceipts);
     this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
-    this.outcomeResultSummaries = new OutcomeResultSummaryWorker(this.prisma, this.outcomes, this.outcomeBriefs);
+    this.outcomeResultSummaries = new OutcomeResultSummaryWorker(this.prisma, this.outcomes,
+      (outcomeId, revision) => this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`}))`;
+        return enqueueOutcomePrereviewIfNeeded(tx, this.messaging, outcomeId, revision.id, revision.revision);
+      }),
+    );
     this.voice = new VoiceService(this.prisma, this.channels, this.runs);
     this.todos = new TodoService(this.prisma);
     this.administration = new AdministrationService(
@@ -367,7 +390,15 @@ export class AppService {
       this.messaging,
       this.automationWebhooks
     );
-    const outcomeChatTools = new OutcomeChatTools(this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging), this.outcomeDecisions);
+    const outcomeChatTools = new OutcomeChatTools(
+      this.outcomes,
+      new OutcomeInboxService(this.prisma),
+      this.explore,
+      new OutcomeChatCards(this.prisma, this.messaging),
+      this.outcomeDecisions,
+      this.outcomeThreads,
+      this.prisma
+    );
     this.internalTools = new InternalToolService(
       this.prisma,
       this.messaging,
@@ -390,7 +421,9 @@ export class AppService {
       },
       outcomeChatTools,
       this.userLocations,
-      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools)
+      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools, this.outcomePlans, this.outcomeTaskReviews),
+      new GroupTaskTools(this.groupTasks),
+      this.replyPreviews
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
@@ -587,8 +620,48 @@ export class AppService {
 
   featureSettings = () => readFeatureSettings(this.prisma);
 
-  updateFeatureSettings = (input: UpdateFeatureSettingsInput) =>
-    updateFeatureSettings(this.prisma, input);
+  updateFeatureSettings = async (input: UpdateFeatureSettingsInput) => {
+    if (input.environmentNote !== undefined && input.environmentNote !== null && input.environmentNote.length > 8_000) {
+      throw new ApiError(400, "invalid_request", "Environment note must be at most 8000 characters");
+    }
+    if (input.plannerBotId) {
+      if (!(await isBotRunnable(this.prisma, input.plannerBotId))) {
+        throw new ApiError(409, "bot_not_runnable", "Choose an active, runnable bot for the planning role");
+      }
+    }
+    if (input.reviewerBotId) {
+      if (!(await isBotRunnable(this.prisma, input.reviewerBotId))) {
+        throw new ApiError(409, "bot_not_runnable", "Choose an active, runnable bot for the review role");
+      }
+    }
+    const plannerModel =
+      input.plannerModel === undefined
+        ? undefined
+        : input.plannerModel === null
+          ? null
+          : await verifyInferenceModelSelection((path, init) => this.computerFetch(path, init), this.agentData, input.plannerModel).then((v) => ({
+              providerId: v.providerId,
+              modelId: v.modelId,
+              ...(v.reasoning ? { reasoning: v.reasoning } : {}),
+            }));
+    const reviewerModel =
+      input.reviewerModel === undefined
+        ? undefined
+        : input.reviewerModel === null
+          ? null
+          : await verifyInferenceModelSelection((path, init) => this.computerFetch(path, init), this.agentData, input.reviewerModel).then((v) => ({
+              providerId: v.providerId,
+              modelId: v.modelId,
+              ...(v.reasoning ? { reasoning: v.reasoning } : {}),
+            }));
+    const settings = await updateFeatureSettings(this.prisma, {
+      ...input,
+      ...(plannerModel !== undefined ? { plannerModel } : {}),
+      ...(reviewerModel !== undefined ? { reviewerModel } : {}),
+    });
+    if (input.streamBotReplies === false) this.replyPreviews.clear();
+    return settings;
+  };
 
   listRoutines = (botId: string) => serviceEffect(() => this.routines.list(botId));
 
@@ -863,6 +936,8 @@ export class AppService {
   clientBootstrap = forwardServiceMethod(() => this.snapshots.bootstrap);
 
   channelHistory = forwardServiceMethod(() => this.snapshots.history);
+  chatBranches = forwardServiceMethod(() => this.snapshots.chatBranches);
+  cancelChatBranch = forwardServiceMethod(() => this.runs.cancelChatBranch);
 
   channelMessageContext = forwardServiceMethod(() => this.snapshots.messageContext);
 
@@ -898,6 +973,10 @@ export class AppService {
 
   search = forwardServiceMethod(() => this.searchIndex.search);
   channelLibrary = forwardServiceMethod(() => this.library.list);
+  groupTaskBoard = (channelId: string, includeClosed: boolean) =>
+    serviceEffect(() => this.groupTasks.list(channelId, { kind: "user" }, { includeClosed }));
+  actOnGroupTask = (channelId: string, number: number, input: GroupTaskUserAction) =>
+    serviceEffect(async () => ({ task: await this.groupTasks.userAct(channelId, number, input) }));
 
   health = forwardServiceMethod(() => this.snapshots.health);
 

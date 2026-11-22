@@ -60,7 +60,8 @@ export function startReasoning(active: ActiveTurn, itemId: string): void {
 export function routeEvent(
   botStore: BotAgentStore | undefined,
   active: ActiveTurn,
-  event: AgentSessionEvent
+  event: AgentSessionEvent,
+  deliverAssistantText?: (callId: string, content: string, endTurn: boolean) => Promise<void>
 ): void {
   if (event.type === "message_start") {
     const message = event.message as { role?: string };
@@ -80,6 +81,13 @@ export function routeEvent(
   if (event.type === "message_update") {
     const update = event.assistantMessageEvent;
     if (update.type === "text_delta" && active.currentAssistantId) {
+      if (active.directTextReply && !active.endTurnRequested && !active.pluginAbortController?.signal.aborted) {
+        const callId = `text:${active.currentAssistantId}`;
+        const content = textFromContent(update.partial.content).trimStart();
+        if (content) active.firstReplyTextAt ??= performance.now();
+        active.replyPreview?.observe(callId, content);
+        active.speech?.observe(callId, { content });
+      }
       startAgentMessage(active, active.currentAssistantId);
       active.queue.push({
         type: "agent.delta",
@@ -123,6 +131,17 @@ export function routeEvent(
     active.lastStopReason = message.stopReason ?? null;
     active.lastErrorMessage = message.errorMessage ?? null;
     const text = textFromContent(message.content);
+    if (active.directTextReply && active.currentAssistantId) {
+      const callId = `text:${active.currentAssistantId}`;
+      const finished = message.stopReason === "stop" || message.stopReason === "toolUse";
+      if (text.trim() && finished && !active.endTurnRequested && !active.pluginAbortController?.signal.aborted) {
+        const endTurn = message.stopReason === "stop" && active.pendingResponseCalls.size === 0;
+        active.directTextDelivery = deliverAssistantText?.(callId, text.trim(), endTurn);
+      } else {
+        active.replyPreview?.finish(callId, true);
+        active.speech?.discard(callId);
+      }
+    }
     void botStore?.appendConversationEnvelope(active.botId, {
       role: "assistant",
       content: message.content,

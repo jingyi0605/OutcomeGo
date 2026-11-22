@@ -1,6 +1,8 @@
 import { TaskProgressInput, RequestProgressInput } from "@outcomego/contracts/task-progress";
 import { reportTaskProgress, reportRequestProgress, requestProgressSnapshot } from "@outcomego/messaging";
-import { readAgentActivity, readOutcomesEnabled, readTranscript } from "@outcomego/messaging";
+import { readAgentActivity, readFeatureSettings, readOutcomesEnabled, readTranscript } from "@outcomego/messaging";
+import { MAX_REPLY_PREVIEW_CHARS, REPLY_PREVIEW_CONTROL } from "@outcomego/contracts";
+import type { ReplyPreviews } from "./reply-previews";
 import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { subagentUsesParentConnectors } from "@outcomego/contracts/task-configuration";
 import {
@@ -45,6 +47,8 @@ import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
 import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
 import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
+import { isGroupTaskTool } from "@outcomego/contracts/group-tasks";
+import type { GroupTaskTools } from "./group-task-tools";
 import type { OutcomeChatTools } from "./outcome-chat-tools";
 import { isOutcomeThreadTool, type OutcomeThreadTools } from "./outcome-thread-tools";
 import { findOutcomeCredentialGrant } from "./outcome-credential-approval";
@@ -123,7 +127,9 @@ export class InternalToolService {
     private readonly outcomeThreadTools: OutcomeThreadToolHandlers = {},
     private readonly outcomeChatTools?: OutcomeChatTools,
     private readonly userLocations?: UserLocationService,
-    private readonly goalThreadTools?: OutcomeThreadTools
+    private readonly goalThreadTools?: OutcomeThreadTools,
+    private readonly groupTaskTools?: GroupTaskTools,
+    private readonly replyPreviews?: ReplyPreviews
   ) {}
 
   /**
@@ -159,7 +165,7 @@ export class InternalToolService {
         include: {
           inboxEvents: {
             orderBy: { createdAt: "desc" },
-            select: { payload: true },
+            select: { id: true, attempts: true, payload: true },
             take: 1,
           },
         },
@@ -201,6 +207,38 @@ export class InternalToolService {
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
       const backgroundRun = isBackgroundOrigin(run.origin);
+      if (request.tool === REPLY_PREVIEW_CONTROL) {
+        const input = request.arguments as { attempt?: unknown; callId?: unknown; content?: unknown } | null;
+        const inbox = run.inboxEvents[0];
+        if (!this.replyPreviews || !input || !inbox || input.attempt !== inbox.attempts ||
+            typeof input.callId !== "string" ||
+            !input.callId || input.callId.length > 256)
+          return { published: false };
+        const clientId = `tool:${input.callId}`;
+        if (input.content === null) {
+          this.replyPreviews.discard(context.channelId, inbox.id, inbox.attempts, clientId);
+          return { published: true };
+        }
+        if (typeof input.content !== "string" || !input.content.trim() ||
+            input.content.length > MAX_REPLY_PREVIEW_CHARS || run.origin !== "user" ||
+            context.deliveryId || context.isFork || childIdentity || !context.channelId)
+          return { published: false };
+        const [features, channel, externalOrigin, saved] = await Promise.all([
+          readFeatureSettings(this.prisma),
+          this.prisma.channel.findFirst({ where: {
+            id: context.channelId, kind: "bot_dm", directKey: `bot:${context.botId}`, archivedAt: null,
+            members: { some: { botId: context.botId, bot: { status: "active" } } },
+          }, select: { id: true } }),
+          this.externalOriginOf(context.runId),
+          this.prisma.channelMessage.findUnique({
+            where: { channelId_clientId: { channelId: context.channelId, clientId } },
+            select: { id: true },
+          }),
+        ]);
+        if (!features.streamBotReplies || !channel || externalOrigin || saved) return { published: false };
+        this.replyPreviews.publish(channel.id, inbox.id, inbox.attempts, { runId: run.id, clientId, content: input.content });
+        return { published: true };
+      }
       // A goal's own thread has its own small tool set, bound to that goal (specs/004.8).
       if (run.origin === "outcome_thread" && isOutcomeThreadTool(request.tool)) {
         if (!this.goalThreadTools)
@@ -217,6 +255,14 @@ export class InternalToolService {
         if (!this.outcomeChatTools)
           throw new ApiError(503, "outcome_chat_unavailable", "Native Outcome conversation tools are not available");
         return this.outcomeChatTools.execute(request, context, signal);
+      }
+      if (isGroupTaskTool(request.tool)) {
+        // A shared group board is for the group's own members, not their workers or background runs.
+        if (childIdentity || backgroundRun)
+          throw new ApiError(403, "group_task_unavailable", "Group tasks are managed from the member's own group conversation");
+        if (!this.groupTaskTools)
+          throw new ApiError(503, "group_task_unavailable", "Group task tools are not available");
+        return this.groupTaskTools.execute(request, context);
       }
       if (request.tool === GET_USER_LOCATION_TOOL.name) {
         if (childIdentity)
@@ -920,6 +966,7 @@ export class InternalToolService {
         } else if (!input.channel) {
           result = await this.messaging.sendVisible(context, input);
           const messageId = result && typeof result === "object" && "acknowledgement" in result && result.acknowledgement && typeof result.acknowledgement === "object" && "message_id" in result.acknowledgement && typeof result.acknowledgement.message_id === "string" ? result.acknowledgement.message_id : null;
+          if (messageId) this.replyPreviews?.commit(context.channelId, context.runId, context.callId);
           if (messageId && this.onVisibleMessage) await this.onVisibleMessage(request.runId, messageId).catch(() => undefined);
         } else if (addressed) {
           // A messaging platform: the same delivery service and the same honest result as an automatic reply.

@@ -5,6 +5,7 @@ export type SidebarChannelRow = {
   latest?: ChannelMessageView;
   running?: RunView;
   hasActiveTask?: boolean;
+  hasActiveThread?: boolean;
 };
 
 export function sidebarRowIsWorking(row: SidebarChannelRow) {
@@ -73,7 +74,8 @@ export function reconcileSidebarRows(
   channels: ChannelView[],
   latestMessageByChannel: ReadonlyMap<string, ChannelMessageView>,
   activeRunByChannel: ReadonlyMap<string, RunView>,
-  activeTaskChannelIds: ReadonlySet<string> = new Set()
+  activeTaskChannelIds: ReadonlySet<string> = new Set(),
+  activeThreadChannelIds: ReadonlySet<string> = new Set()
 ) {
   const rowByChannelId = new Map<string, SidebarChannelRow>();
   const channelById = new Map<string, ChannelView>();
@@ -81,14 +83,16 @@ export function reconcileSidebarRows(
     const latest = latestMessageByChannel.get(channel.id);
     const running = activeRunByChannel.get(channel.id);
     const hasActiveTask = activeTaskChannelIds.has(channel.id);
+    const hasActiveThread = activeThreadChannelIds.has(channel.id);
     const previous = previousRows.get(channel.id);
     const row =
       previous?.channel === channel &&
       previous.latest === latest &&
       previous.running === running &&
-      previous.hasActiveTask === hasActiveTask
+      previous.hasActiveTask === hasActiveTask &&
+      previous.hasActiveThread === hasActiveThread
         ? previous
-        : { channel, latest, running, hasActiveTask };
+        : { channel, latest, running, hasActiveTask, hasActiveThread };
     rowByChannelId.set(channel.id, row);
     channelById.set(channel.id, channel);
     return row;

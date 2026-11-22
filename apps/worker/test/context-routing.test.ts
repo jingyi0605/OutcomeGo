@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@outcomego/contracts";
 import { timestampUserTurn } from "@outcomego/messaging";
 import {
   contextScopeForRun,
@@ -21,6 +22,14 @@ describe("OutcomeGo-style runtime context routing", () => {
         scopeId: groupId,
       });
     }
+  });
+
+  test("goal planner turns share the thread context while review turns start fresh", () => {
+    const conversation = crypto.randomUUID();
+    const thread = crypto.randomUUID();
+    const run = crypto.randomUUID();
+    expect(contextScopeForRun("outcome_thread", null, conversation, run, null, thread)).toEqual({ scope: "outcome-thread", scopeId: thread });
+    expect(contextScopeForRun("outcome_thread", null, conversation, run, null, thread, run)).toEqual({ scope: "outcome-thread", scopeId: run });
   });
 
   test("isolates automation runs while continuations reuse the automation context", () => {
@@ -128,11 +137,19 @@ describe("reaction context routing", () => {
     expect(turnContentWithNotes(input, content)).toBe(content);
     expect(turnContentWithNotes({ ...input, appendReplyReminder: true }, content)).toContain("Reply to this message by actually invoking the SendToUser tool.");
     expect(turnContentWithNotes({ ...input, appendReplyReminder: true, inboxType: "user.reaction" }, wrapped(hidden))).toBe(wrapped(hidden));
+    expect(turnContentWithNotes({ ...input, appendReplyReminder: true, directTextReply: true }, content)).toBe(content);
   });
 
   test("hidden feedback retains meaningful instruction updates without demanding a reply", () => {
     const content = wrapped(hidden), note = "<instructions_update>new preference</instructions_update>";
     expect(turnContentWithNotes({ origin: "user", inboxType: "user.reaction", runtimeProfile: "agent", notes: [note] }, content))
       .toBe(`<system_reminder>\n${note}\n</system_reminder>\n${content}`);
+  });
+
+  test("delivery redrive uses the reply mode of the current conversation", () => {
+    const input = { origin: "handoff_resume" as const, inboxType: "ack.redrive", runtimeProfile: "agent" as const, notes: [] };
+    expect(turnContentWithNotes(input, SEND_TO_USER_REPLY_NUDGE_PROMPT)).toBe(SEND_TO_USER_REPLY_NUDGE_PROMPT);
+    expect(turnContentWithNotes({ ...input, directTextReply: true }, SEND_TO_USER_REPLY_NUDGE_PROMPT))
+      .toContain("Deliver it directly as assistant text.");
   });
 });

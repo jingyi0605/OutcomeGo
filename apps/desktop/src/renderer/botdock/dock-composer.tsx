@@ -108,9 +108,15 @@ export const formatBytes = (bytes: number) =>
  * The composer's draft and send. It lives above the panel, so what was typed survives closing
  * the panel, and a send still finishes (or fails visibly) after the person clicked away.
  */
-export function useDockComposer(bridge: BotDockBridge | undefined, roster: BotDockRosterView[]) {
+export function useDockComposer(
+  bridge: BotDockBridge | undefined,
+  roster: BotDockRosterView[],
+  outcomesEnabled = true
+) {
   const [text, setText] = useState("");
   const [targetId, setTargetId] = useState<string | null>(null);
+  const [goalModeState, setGoalMode] = useState(false);
+  const goalMode = outcomesEnabled && goalModeState;
   const [status, setStatus] = useState<Status>("idle");
   const [attachments, setAttachments] = useState<DraftAttachment[]>([]);
   const attachmentsRef = useRef<DraftAttachment[]>([]);
@@ -163,12 +169,14 @@ export function useDockComposer(bridge: BotDockBridge | undefined, roster: BotDo
     if (!bridge || busy.current) return;
     const message = composeMessage(text, roster, targetId, attachments.length > 0);
     if (!message) return;
-    const key = `${message.botId}\n${message.content}\n${attachments.map((item) => item.id).join(",")}`;
+    const effectiveGoalMode = outcomesEnabled && goalModeState;
+    const key = `${effectiveGoalMode ? "goal" : "chat"}\n${message.botId}\n${message.content}\n${attachments.map((item) => item.id).join(",")}`;
     if (attempt.current?.key !== key) attempt.current = { key, nonce: crypto.randomUUID() };
     busy.current = true;
     setStatus("sending");
     const result = await bridge.send({
       ...message,
+      ...(effectiveGoalMode ? { goalMode: true } : {}),
       nonce: attempt.current.nonce,
       attachments: attachments.map(({ bytes, fileName, mimeType, width, height }) => ({
         bytes,
@@ -188,15 +196,18 @@ export function useDockComposer(bridge: BotDockBridge | undefined, roster: BotDo
     setAttachments([]);
     setText("");
     setTargetId(null);
+    setGoalMode(false);
     busy.current = false;
     setStatus("idle");
-  }, [bridge, attachments, roster, targetId, text]);
+  }, [bridge, attachments, goalModeState, outcomesEnabled, roster, targetId, text]);
 
   return {
     text,
     change,
     targetId,
     setTargetId,
+    goalMode,
+    setGoalMode,
     status,
     send,
     attachments,
@@ -238,12 +249,21 @@ export function DockComposer({
     change,
     targetId,
     setTargetId,
+    goalMode,
+    setGoalMode,
     status,
     send,
     attachments,
     addFiles,
     removeAttachment,
   } = model;
+  const canGoalMode = state.outcomesEnabled !== false;
+  const activeGoalMode = canGoalMode && goalMode;
+  const chatModeLabel = labels.chatMode ?? "Chat";
+  const goalModeLabel = labels.goalMode ?? "Goal";
+  const activePlaceholder = activeGoalMode
+    ? (labels.goalPlaceholder ?? "Goal mode: describe what to achieve. Type @ to choose a Bot.")
+    : labels.placeholder;
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [caret, setCaret] = useState(text.length);
   const [chipOpen, setChipOpen] = useState(false);
@@ -342,6 +362,19 @@ export function DockComposer({
         return;
       }
     }
+    if (
+      event.key === "Tab" &&
+      !event.shiftKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      !event.altKey
+    ) {
+      event.preventDefault();
+      if (!event.repeat && canGoalMode) {
+        setGoalMode((current) => !current);
+      }
+      return;
+    }
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       if (!event.repeat) void send();
@@ -365,13 +398,17 @@ export function DockComposer({
   };
 
   return (
-    <div className="dock-composer" role="dialog">
+    <div
+      className="dock-composer"
+      data-goal-mode={activeGoalMode ? "true" : undefined}
+      role="dialog"
+    >
       {roster.length === 0 ? (
         <p className="dock-composer-empty">{labels.empty}</p>
       ) : (
         <>
           <textarea
-            aria-label={labels.placeholder}
+            aria-label={activePlaceholder}
             className="dock-input"
             disabled={locked}
             onChange={(event) => {
@@ -383,7 +420,7 @@ export function DockComposer({
             onKeyDown={onKeyDown}
             onPaste={onPaste}
             onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
-            placeholder={labels.placeholder}
+            placeholder={activePlaceholder}
             ref={inputRef}
             rows={3}
             value={text}
@@ -469,6 +506,27 @@ export function DockComposer({
             <span className="dock-status" data-status={status} role="status">
               {statusText}
             </span>
+            <button
+              aria-label={activeGoalMode ? goalModeLabel : chatModeLabel}
+              aria-pressed={activeGoalMode}
+              className="dock-mode-pill"
+              data-mode={activeGoalMode ? "goal" : "chat"}
+              disabled={locked || !canGoalMode}
+              onClick={() => {
+                if (!canGoalMode) return;
+                setGoalMode((current) => !current);
+                inputRef.current?.focus();
+              }}
+              onMouseDown={(event) => event.preventDefault()}
+              type="button"
+            >
+              {canGoalMode ? (
+                <kbd aria-hidden="true" className="dock-mode-kbd">
+                  Tab
+                </kbd>
+              ) : null}
+              <span>{activeGoalMode ? goalModeLabel : chatModeLabel}</span>
+            </button>
             <button
               className="dock-send"
               disabled={!canSend}

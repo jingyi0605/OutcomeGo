@@ -16,6 +16,7 @@ public struct OutcomeThreadTurn: Decodable, Sendable, Identifiable, Equatable {
   public let reply: String?
   public let error: Failure?
   public let runId: String?
+  public let workItemId: String?
   public let createdAt: String
   public let updatedAt: String
 
@@ -26,6 +27,8 @@ public struct OutcomeThreadTurn: Decodable, Sendable, Identifiable, Equatable {
 public struct OutcomeThreadView: Decodable, Sendable {
   public let threadId: String?
   public let turns: [OutcomeThreadTurn]
+  public let reviewerThreadId: String?
+  public let reviewTurns: [OutcomeThreadTurn]?
 }
 
 /// A new goal in the owner's own words; the chosen bot plans it.
@@ -61,6 +64,9 @@ public struct SendOutcomeThreadMessage: Encodable, Sendable, Equatable {
 extension API {
   public static func outcomeThreadPath(_ id: String) -> String {
     "/api/v0/outcomes/\(segment(id))/thread"
+  }
+  public static func outcomeAdoptPrereviewPath(_ id: String) -> String {
+    "/api/v0/outcomes/\(segment(id))/reviews/adopt-prereview"
   }
   public static let outcomeThreadsPath = "/api/v0/outcomes/threads"
 }

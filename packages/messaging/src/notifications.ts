@@ -161,6 +161,45 @@ export const refreshMessageNotification = async (
     WHERE "topic" = 'push.notification' AND "status" = 'pending' AND "payload"->>'messageId' = ${message.id}`;
 };
 
+const openWorkerStatuses = ["provisioning", "queued", "running", "waiting"] as const;
+
+/**
+ * Something this turn started still owes a result: a subagent of this turn (or of the request it
+ * continues), or a background command nobody read. Its result arrives in a later turn, so this
+ * turn's last message is an acknowledgement, not the settlement.
+ */
+export const runHasOpenWork = async (
+  tx: Prisma.TransactionClient,
+  runId: string
+): Promise<boolean> => {
+  const run = await tx.run.findUnique({ where: { id: runId }, select: { backgroundWorkPending: true } });
+  if (run?.backgroundWorkPending) return true;
+  const event = await tx.inboxEvent.findFirst({ where: { runId }, select: { payload: true } });
+  const contextRunId = (event?.payload as { taskContextRunId?: unknown } | null)?.taskContextRunId;
+  const requestRunIds = [runId, ...(typeof contextRunId === "string" ? [contextRunId] : [])];
+  return (
+    (await tx.subagent.count({
+      where: {
+        status: { in: [...openWorkerStatuses] },
+        OR: [{ parentRunId: runId }, { requestRunId: { in: requestRunIds } }],
+      },
+    })) > 0
+  );
+};
+
+/**
+ * Record that this message is the turn's settlement: the reply the user was waiting for. The
+ * floating window and its arrival cue key off this fact, not off the model remembering end_turn.
+ */
+export const markSettlementMessage = async (
+  tx: Pick<Prisma.TransactionClient, "$executeRaw">,
+  messageId: string
+): Promise<void> => {
+  await tx.$executeRaw`UPDATE "outcomego_channel_message"
+    SET "metadata" = COALESCE("metadata", '{}'::jsonb) || '{"settled": true}'::jsonb
+    WHERE "id" = ${messageId}::uuid AND NOT (COALESCE("metadata", '{}'::jsonb) ? 'settled')`;
+};
+
 /** The same plain-text line the chat list shows: first line of text, "Sent 1 image", a card's prompt. */
 export const messageNotificationBody = (message: {
   id: string;
@@ -234,6 +273,10 @@ export const channelNotificationStates = async (
         AND n."messageSequence" > COALESCE(state."lastReadSequence", 0)
         AND (
           m.metadata->'end_turn' = 'true'::jsonb
+          -- The server marks a turn's last visible message "settled" when the run completes with no
+          -- worker still owing a result (markSettlementMessage). That covers a final reply whose
+          -- own send omitted end_turn, such as a room turn that fell back to its final text.
+          OR m.metadata->'settled' = 'true'::jsonb
           OR m.metadata ? 'draftOutcomeNotification'
           OR m.metadata->>'type' IN ('widget', 'secret-request', 'computer-handoff', 'user-form')
           OR (m.metadata->>'type' IN ('external-draft', 'imessage-send')

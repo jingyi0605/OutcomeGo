@@ -11,7 +11,8 @@ import {
   Wrench,
 } from "lucide-react";
 import type { BotView } from "@outcomego/contracts";
-import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
+import { type OutcomeDetail, type OutcomeWorkThreadView, type WorkItemStatus, workThreadIsFinished } from "@outcomego/contracts/outcomes";
+import "./outcome-ui.css";
 import type { OutcomeClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";
 import { MessageResponse } from "../../ai-elements/message";
@@ -35,7 +36,7 @@ function ExecutionAvatar({ bot }: { bot?: Parameters<typeof BotAvatar>[0]["bot"]
 
 /** Bot identity used only for display; avatar fields are optional so name-only lists still work. */
 export type OutcomeExecutionBot = { id: string; name: string } & Partial<
-  Pick<BotView, "color" | "icon" | "hasAvatar" | "updatedAt">
+  Pick<BotView, "color" | "icon" | "hasAvatar" | "updatedAt" | "status">
 >;
 
 type TranscriptRow = {
@@ -45,7 +46,7 @@ type TranscriptRow = {
   status: string;
   content: string;
 };
-type TranscriptPage = { rows: TranscriptRow[]; next_before: number | null };
+type TranscriptPage = { rows: TranscriptRow[]; next_before: number | null; workItemStatus?: WorkItemStatus };
 
 function transcriptPage(value: unknown): TranscriptPage {
   const page = value as TranscriptPage | null;
@@ -145,20 +146,22 @@ export function OutcomeExecutionDialog({
   bot,
   open,
   onOpenChange,
-}: {
-  outcome: OutcomeDetail;
+  thread,
+}: ({ outcome: OutcomeDetail; thread?: never } | { outcome?: never; thread: OutcomeWorkThreadView }) & {
   client: Pick<OutcomeClient, "transcript">;
   bot?: OutcomeExecutionBot;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const { t } = useI18n();
-  const items = observableWorkItems(outcome);
+  const items = outcome ? observableWorkItems(outcome) : [];
   const [selected, setSelected] = useState("");
   const current =
-    items.find((item) => item.id === selected) ??
+    thread ?? items.find((item) => item.id === selected) ??
     items.find((item) => item.status === "running") ??
     items.at(-1);
+  const outcomeId = thread?.outcomeId ?? outcome!.id;
+  const outcomeTitle = thread?.outcomeTitle ?? outcome!.title;
   const [before, setBefore] = useState<number>();
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<{
@@ -166,17 +169,19 @@ export function OutcomeExecutionDialog({
     page?: TranscriptPage;
     error?: boolean;
   }>();
-  const key = `${outcome.id}:${current?.id}:${before ?? "latest"}`;
+  const key = `${outcomeId}:${current?.id}:${before ?? "latest"}`;
   const keyRef = useRef(key);
   keyRef.current = key;
-  const running = current?.status === "running" || current?.status === "queued";
+  const running = current && !workThreadIsFinished(current.status);
   useEffect(() => {
     if (!open || !current) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function read() {
+      let shouldPoll = running;
       try {
-        const page = transcriptPage(await client.transcript(outcome.id, current!.id, { before }));
+        const page = transcriptPage(await client.transcript(outcomeId, current!.id, { before }));
+        if (page.workItemStatus !== undefined) shouldPoll = !workThreadIsFinished(page.workItemStatus);
         if (active && keyRef.current === key) setState({ key, page });
       } catch {
         if (active && keyRef.current === key)
@@ -186,7 +191,7 @@ export function OutcomeExecutionDialog({
             error: true,
           }));
       }
-      if (active && running && before === undefined) timer = setTimeout(read, 5_000);
+      if (active && shouldPoll && before === undefined) timer = setTimeout(read, 5_000);
     }
     void read();
     return () => {
@@ -211,22 +216,13 @@ export function OutcomeExecutionDialog({
     bot && bot.color !== undefined && bot.icon !== undefined
       ? { ...bot, color: bot.color, icon: bot.icon }
       : undefined;
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="outcome-execution-dialog"
-        overlayClassName="outcome-modal-overlay"
-        showCloseButton={false}
-      >
-        <DialogTitle className="sr-only">{t("Execution messages")}</DialogTitle>
-        <DialogDescription className="sr-only">
-          {t("Follow visible messages and tool activity without interrupting the Bot.")}
-        </DialogDescription>
+  const conversation = (
+    <>
         <header className="outcome-execution-header">
           <ExecutionAvatar bot={avatarBot} />
           <div className="outcome-execution-heading">
             <strong>{botName}</strong>
-            <span>{outcome.title}</span>
+            <span>{outcomeTitle}</span>
           </div>
           {items.length > 1 ? (
             <select
@@ -305,7 +301,7 @@ export function OutcomeExecutionDialog({
                           <MessageResponse>{row.content}</MessageResponse>
                         </div>
                         <footer>
-                          <strong>{t("Bot")}</strong>
+                          <strong>{botName}</strong>
                           <span>{t(row.status)}</span>
                           <time dateTime={row.at}>{time}</time>
                         </footer>
@@ -350,8 +346,22 @@ export function OutcomeExecutionDialog({
         <footer className="outcome-execution-footer">
           <LockKeyhole aria-hidden="true" className="size-3.5" />
           <span>{t("This chat is view-only")}</span>
-          <OutcomeButton onClick={() => onOpenChange(false)}>{t("Close Chat")}</OutcomeButton>
+          <OutcomeButton onClick={() => onOpenChange(false)}>{t(thread ? "Back to chat" : "Close Chat")}</OutcomeButton>
         </footer>
+    </>
+  );
+  return thread ? (
+    <section aria-label={t("Execution messages")} className="outcome-execution-conversation">
+      {conversation}
+    </section>
+  ) : (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="outcome-execution-dialog" overlayClassName="outcome-modal-overlay" showCloseButton={false}>
+        <DialogTitle className="sr-only">{t("Execution messages")}</DialogTitle>
+        <DialogDescription className="sr-only">
+          {t("Follow visible messages and tool activity without interrupting the Bot.")}
+        </DialogDescription>
+        {conversation}
       </DialogContent>
     </Dialog>
   );

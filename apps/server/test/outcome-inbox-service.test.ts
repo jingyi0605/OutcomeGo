@@ -30,6 +30,18 @@ describe.skipIf(!url)("OutcomeInboxService live projection", () => {
     expect(await db.channelMessage.count({ where: { channelId: f.channel.id } })).toBe(messageCount);
     expect((await run(service.list(query(), completed.outcome.id))).items).toHaveLength(0);
   });
+  test("acceptance waits while another agent work item of the revision is still running", async () => {
+    const f = await create(); const service = new OutcomeInboxService(db);
+    const acceptance = async () => (await run(service.list(query({ category: "acceptance_pending" }), f.outcome.id))).items;
+    await db.outcome.update({ where: { id: f.outcome.id }, data: { status: "running" } });
+    await db.outcomeWorkItem.update({ where: { id: f.item.id }, data: { status: "completed", completedAt: new Date() } });
+    await db.outcomeOutput.create({ data: { outcomeId: f.outcome.id, workItemId: f.item.id, title: "Report", kind: "final_result", content: "Done", dedupeKey: `final:${f.item.id}` } });
+    const running = await db.outcomeWorkItem.create({ data: { outcomeId: f.outcome.id, contractRevisionId: f.revision.id, botId: f.bot.id, executorType: "agent", title: "Still running", ordinal: 2, status: "running", startedAt: new Date() } });
+    expect(await acceptance()).toHaveLength(0);
+    await db.outcomeWorkItem.update({ where: { id: running.id }, data: { status: "completed", completedAt: new Date() } });
+    await db.outcomeOutput.create({ data: { outcomeId: f.outcome.id, workItemId: running.id, title: "Report 2", kind: "final_result", content: "Done", dedupeKey: `final:${running.id}` } });
+    expect(await acceptance()).toHaveLength(1);
+  });
   test("keyset pagination has no duplicates or missing items, stable ties and a fixed snapshot", async () => {
     const f = await create(); const decisions = new DecisionService(db); const service = new OutcomeInboxService(db);
     for (let i = 0; i < 37; i++) await run(decisions.create({ ...f.input, workItemId: undefined, reasonCode: `fixture-${i}` }, actor));

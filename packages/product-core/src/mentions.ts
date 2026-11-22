@@ -1,3 +1,5 @@
+export const GOAL_MODE_OPTION_ID = "__goal_mode__";
+
 export interface MentionOption {
   id: string;
   label: string;
@@ -7,7 +9,7 @@ export interface MentionOption {
   hasAvatar?: boolean;
   updatedAt?: string;
   trigger?: "@" | "/";
-  kind?: "bot" | "connection" | "skill";
+  kind?: "bot" | "connection" | "skill" | "mode";
   status?: string;
 }
 

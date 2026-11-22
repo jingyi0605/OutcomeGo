@@ -322,6 +322,15 @@ ALTER TABLE "outcomego_web_tool_provider" ADD CONSTRAINT "outcomego_web_tool_pro
   (("checkStatus" IS NULL) = ("checkedAt" IS NULL))
 );
 
+-- Group task board (specs/010-群任务看板). No assignee rule: deleting a Bot sets its assignments to NULL.
+ALTER TABLE "outcomego_group_task" DROP CONSTRAINT IF EXISTS "outcomego_group_task_valid";
+ALTER TABLE "outcomego_group_task" ADD CONSTRAINT "outcomego_group_task_valid" CHECK (
+  "number" > 0 AND "revision" > 0 AND
+  char_length("title") BETWEEN 1 AND 200 AND char_length("titleKey") > 0 AND
+  (("status" IN ('done', 'cancelled')) = ("completedAt" IS NOT NULL)) AND
+  ("parentId" IS NULL OR "parentId" <> "id")
+);
+
 -- Preserve deletion markers from deployments that only recorded them in the event replay log.
 INSERT INTO "outcomego_retired_agent" ("id", "retiredAt")
 SELECT "entityId", MIN("createdAt") FROM "outcomego_event"

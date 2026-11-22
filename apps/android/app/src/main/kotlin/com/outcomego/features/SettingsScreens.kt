@@ -79,10 +79,12 @@ import com.outcomego.mobile.network.ProviderSnapshot
 import com.outcomego.mobile.network.ProviderState
 import com.outcomego.platform.AndroidUpdateState
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
+    streamBotReplies: suspend (Boolean?) -> Boolean?,
     accountName: String,
     server: String,
     networkSharing: ProviderSnapshot,
@@ -106,7 +108,26 @@ fun SettingsScreen(
     onSidebar: () -> Unit,
 ) {
     val haptic = LocalAppHaptics.current
+    val settingsScope = rememberCoroutineScope()
     var confirmSignOut by remember { mutableStateOf(false) }
+    var streamEnabled by remember(server) { mutableStateOf<Boolean?>(null) }
+    var streamSettingBusy by remember(server) { mutableStateOf(false) }
+    var streamSettingError by remember(server) { mutableStateOf(false) }
+    suspend fun updateStreamSetting(enabled: Boolean?) {
+        if (streamSettingBusy) return
+        streamSettingBusy = true
+        try {
+            streamEnabled = streamBotReplies(enabled)
+            streamSettingError = false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            streamSettingError = true
+        } finally {
+            streamSettingBusy = false
+        }
+    }
+    LaunchedEffect(server) { updateStreamSetting(null) }
     val language = settings.language
     val text: (String, String) -> String = { english, chinese ->
         if (language == AppSettings.Language.Chinese) chinese else english
@@ -280,6 +301,21 @@ fun SettingsScreen(
                                     if (it) haptic.play(HapticEffect.Selection)
                                 },
                             )
+                        }
+                        SettingsDivider()
+                        SettingsRow(text("Stream bot replies", "流式显示机器人回复"), "") {
+                            Switch(
+                                checked = streamEnabled == true,
+                                enabled = streamEnabled != null && !streamSettingBusy,
+                                onCheckedChange = { enabled ->
+                                    settingsScope.launch { updateStreamSetting(enabled) }
+                                },
+                            )
+                        }
+                        if (streamSettingError) {
+                            TextButton(onClick = { settingsScope.launch { updateStreamSetting(null) } }) {
+                                Text(text("Try again", "重试"))
+                            }
                         }
                     }
                 }

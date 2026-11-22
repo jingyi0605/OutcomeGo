@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { outcomeBriefSource, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { OutcomeBriefService, parseOutcomeBrief } from "../src/services/outcome-brief-service";
 import { OutcomeResultSummaryWorker } from "../src/services/outcome-result-summary-worker";
-import { outcomeResultInput, parseOutcomeResultSummary } from "../src/services/outcome-result-summary";
+import { assemblePrereviewReport } from "../src/services/outcome-result-summary";
 import { Effect } from "effect";
 
 const outcome: OutcomeDetail = {
@@ -236,222 +236,78 @@ test("warm never throws when inference is unavailable and the first read retries
   expect(calls).toBe(2);
 });
 
-test("results summary draws on both the final report and the measurement for the selected revision", async () => {
-  const { Effect } = await import("effect");
-  const { outcomeRoutes } = await import("../src/routes/outcome");
-  const revision = outcome.currentRevisionView!;
-  const finalReport = "Dify migration verified. Cache utilization fell from 84% to 63%.";
-  const measurement = "Cache used: before 480 GB, after 360 GB.";
-  const completed = {
-    ...outcome,
-    currentRevision: 2,
-    currentRevisionView: { ...revision, id: "revision-2", revision: 2 },
-    workItems: [{ id: "original", contractRevision: 1 }, { id: "successor", contractRevision: 2 }],
-    outputs: [
-      { id: "measurement", workItemId: "original", title: "Cache measurements", content: measurement },
-      { id: "report", workItemId: "original", title: "Cleanup report", content: finalReport },
-      { id: "new-report", workItemId: "successor", title: "Successor report", content: "Different revision" },
-    ],
-  } as OutcomeDetail;
-  const generatedReport = {
-    summary: "Cache went from 480 GB used (84%) to 360 GB used (63%), a drop of 120 GB.",
-    details: "Dify was migrated and verified.",
-    citations: [{ id: "measurement", quote: measurement }, { id: "report", quote: finalReport }],
-  };
-  const prompts: string[] = [];
-  const store = memoryStore();
-  const outcomeBriefs = new OutcomeBriefService(async ({ prompt }) => {
-    prompts.push(prompt);
-    return { text: JSON.stringify(generatedReport) };
-  }, store);
-  const path = `/api/outcomes/${outcome.id}/revisions/1/results-summary`;
-  const call = () => outcomeRoutes({
-    app: {
-      outcomes: { get: () => Effect.succeed(completed), getRevision: () => Effect.succeed(revision) },
-      outcomeBriefs,
-    },
-    path,
-    url: new URL(`http://localhost${path}`),
-    request: new Request(`http://localhost${path}`),
-    authMode: "disabled",
-    authenticatedSessionId: null,
-  } as unknown as import("../src/routes/context").RouteContext);
-  const responses = await Promise.all([call(), call()]);
-  expect(prompts).toHaveLength(1);
-  expect(prompts[0]).toContain(revision.goal[0]!);
-  expect(prompts[0]).toContain(measurement);
-  expect(prompts[0]).toContain(finalReport);
-  expect(prompts[0]).not.toContain("Different revision");
-  const expected = {
-    outcomeId: outcome.id,
-    revisionId: revision.id,
-    summary: generatedReport.summary,
-    details: generatedReport.details,
-    sources: [
-      { title: "Cache measurements", quote: measurement },
-      { title: "Cleanup report", quote: finalReport },
-    ],
-    charts: [],
-  };
-  for (const response of responses) expect(await response?.json()).toEqual(expected);
-  const reader = new OutcomeBriefService(async () => {
-    throw new Error("must use the saved report");
-  }, store);
-  expect(await reader.getResult(completed, revision)).toEqual(expected);
-  expect(await reader.getResult(outcome, revision)).toBeNull();
-
-  const invalidated = { ...completed, outputs: [
-    ...completed.outputs,
-    { ...completed.outputs[0]!, id: "updated-measurement", content: "Cache was measured again." },
-  ] };
-  await outcomeBriefs.getResult(invalidated, revision);
-  expect(prompts).toHaveLength(2);
-  expect(prompts[1]).toContain("Cache was measured again.");
-});
-
-test("results summary retries after an unsupported source quote", async () => {
-  const revision = outcome.currentRevisionView!;
-  const content = "Cache usage fell from 84% to 63%.";
-  const completed = {
-    ...outcome,
+test("the results report is the reviewer's saved submission, shown as saved and never regenerated", async () => {
+  const revision = { ...outcome.currentRevisionView!, status: "approved" as const };
+  const report = { outcomeId: outcome.id, revisionId: revision.id, reviewTurnId: "review-1", summary: "Keep the current settings.", details: "", sources: [], charts: [] };
+  const candidate = {
+    ...outcome, status: "decision_pending", currentRevisionView: revision,
     workItems: [{ id: "item", contractRevision: 1 }],
-    outputs: [{ id: "report", workItemId: "item", title: "Cleanup report", content }],
+    outputs: [{ id: "report", workItemId: "item", title: "Results", content: "Existing record" }],
   } as OutcomeDetail;
-  let attempts = 0;
-  const service = new OutcomeBriefService(async () => ({
-    text: JSON.stringify({
-      summary: `${content} The amount of space freed was not measured.`,
-      details: "",
-      citations: [{ id: "report", quote: ++attempts === 1 ? "120 GB was freed." : content }],
-    }),
-  }));
-  await expect(service.getResult(completed, revision)).rejects.toThrow("results summary is unavailable");
-  expect((await service.getResult(completed, revision))?.sources[0]?.quote).toBe(content);
-});
-
-test("background scan persists pending acceptance results and retries a failed generation", async () => {
-  const content = "Cache usage fell from 84% to 63%.";
-  const pending = {
-    ...outcome,
-    status: "review_pending",
-    workItems: [{ id: "item", contractRevision: 1 }],
-    outputs: [{ id: "report", workItemId: "item", title: "Cleanup report", content }],
-  } as OutcomeDetail;
-  const store = memoryStore();
   let inferenceCalls = 0;
-  let saves = 0;
   const service = new OutcomeBriefService(async () => {
     inferenceCalls++;
-    return { text: JSON.stringify({
-      summary: content, details: "", citations: [{ id: "report", quote: content }],
-    }) };
-  }, {
-    ...store,
-    save: async (...args) => {
-      if (++saves === 1) throw new Error("temporary persistence failure");
-      await store.save(...args);
-    },
-  });
-  const worker = new OutcomeResultSummaryWorker(
-    {
-      outcome: {
-        findMany: async (query: { where: { status: string } }) => {
-          expect(query.where.status).toBe("review_pending");
-          return [{ id: pending.id }];
-        },
-      },
-    } as unknown as ConstructorParameters<typeof OutcomeResultSummaryWorker>[0],
-    { get: () => Effect.succeed(pending) },
-    service,
-  );
-  await worker.scan();
-  expect(store.rows.size).toBe(0);
-  await worker.scan();
-  expect(store.rows.size).toBe(1);
-  await worker.scan();
-  expect(inferenceCalls).toBe(2);
-  const restarted = new OutcomeBriefService(async () => {
-    throw new Error("must use saved summary");
-  }, store);
-  expect((await restarted.getResult(pending, pending.currentRevisionView!))?.summary).toBe(content);
+    return { text: "{}" };
+  }, memoryStore());
+  expect(await service.getResult({ ...candidate, prereviewStatus: "stale" }, revision)).toBeNull();
+  expect(await service.getResult({ ...candidate, prereviewStatus: "pending" }, revision)).toBeNull();
+  const reviewed = {
+    ...candidate, prereview: { turnId: report.reviewTurnId, revision: 1, summary: report.summary,
+      attention: [], results: [], report, createdAt: outcome.createdAt },
+  };
+  expect(await service.getResult(reviewed, revision)).toBe(report);
+  expect(await service.getResult({ ...reviewed, prereview: { ...reviewed.prereview, turnId: "other" } }, revision)).toBeNull();
+  expect(await service.getResult(reviewed, { ...revision, id: "revision-2", revision: 2 })).toBeNull();
+  expect(inferenceCalls).toBe(0);
 });
 
-test("reports retain all five chart types with grounded values and omit unsupported charts", () => {
-  const quote = "Recorded percentages by group: A 84%, B 63%, C 44%, D 39%.";
-  const completed = {
-    ...outcome,
-    workItems: [{ id: "item", contractRevision: 1 }],
-    outputs: [{ id: "report", workItemId: "item", title: "Results", content: quote }],
-  } as OutcomeDetail;
-  const input = outcomeResultInput(completed, completed.currentRevisionView!);
-  const report = { summary: "Measured results", details: "", citations: [{ id: "report", quote }] };
-  const points = [84, 63, 44, 39].map((value, i) => ({
-    label: String.fromCharCode(65 + i), value, citation: 0,
-  }));
+test("the scan only queues a review for goals that have none; it summarizes nothing itself", async () => {
+  const revision = { ...outcome.currentRevisionView!, status: "approved" as const };
+  const candidate = { ...outcome, status: "decision_pending", currentRevisionView: revision } as OutcomeDetail;
+  let current = candidate;
+  const queued: string[] = [];
+  const scanner = new OutcomeResultSummaryWorker(
+    { outcome: { findMany: async () => [{ id: outcome.id }] } } as never,
+    { get: () => Effect.succeed(current) },
+    async (id) => { queued.push(id); return true; },
+  );
+  await scanner.scan();
+  current = { ...candidate, prereviewStatus: "pending" };
+  await scanner.scan();
+  current = { ...candidate, prereviewStatus: "unreviewed" };
+  await scanner.scan();
+  current = { ...candidate, prereview: { turnId: "t", revision: 1, summary: "", attention: [], results: [], createdAt: outcome.createdAt } };
+  await scanner.scan();
+  expect(queued).toEqual([outcome.id]);
+});
+
+test("reports keep all five chart types with grounded values and refuse ungrounded points", () => {
+  const quote = "Recorded percentages by group: A 84%, B 63%, C 44%, D 39%. North First 84%. North Second 63%. South First 44%. South Second 39%.";
+  const evidence = [{ id: "e1", sourceType: "check", contentSummary: quote, credibility: "external_record" as const }];
   const chart = { title: "Recorded percentages", unit: "%" };
+  const build = (charts: unknown) => assemblePrereviewReport(
+    "o", "r", "t", "Measured results", [{ evidenceIds: ["e1"] }], evidence, charts as never,
+  );
+  const grounded = (label: string, value: number, extra: object = {}) =>
+    ({ label, value, evidenceId: "e1", quote: `${label} ${value}%`, ...extra });
+  const values: Array<[string, number]> = [["A", 84], ["B", 63], ["C", 44], ["D", 39]];
+  const points = values.map(([label, value]) => grounded(label, value));
   for (const [type, data] of [
     ["metric", points.slice(0, 1)],
     ["bar", points.slice(0, 2)],
     ["line", points],
     ["pie", points.slice(0, 3)],
-    ["heatmap", points.map((point, i) => ({
-      ...point, label: i % 2 ? "Second" : "First", row: i < 2 ? "North" : "South",
-    }))],
+    ["heatmap", values.map(([, value], i) => {
+      const row = i < 2 ? "North" : "South";
+      const label = i % 2 ? "Second" : "First";
+      return grounded(label, value, { row, quote: `${row} ${label} ${value}%` });
+    })],
   ] as const) {
-    expect(parseOutcomeResultSummary({
-      ...report, charts: [{ ...chart, type, points: data }],
-    }, input).charts).toMatchObject([{ type, points: data }]);
+    const report = build([{ ...chart, type, points: data }] as never);
+    expect(report.charts).toMatchObject([{ type, points: data.map(({ value }) => ({ value })) }]);
   }
-  const damaged = parseOutcomeResultSummary({
-    ...report,
-    charts: [
-      { ...chart, type: "bar", points: [points[0], { ...points[1], value: 630 }] },
-      { ...chart, type: "bar", unit: "GB", points: points.slice(0, 2) },
-    ],
-  }, input);
-  expect(damaged.charts).toEqual([]);
-  expect(damaged.summary).toBe(report.summary);
-});
-
-test("saved Chinese summaries recover a before-and-after chart from the original result", async () => {
-  const revision = outcome.currentRevisionView!;
-  const content = "Dify 迁移实际已完成并验证。本轮结果不变：Cache 84% → 63%，9 个 LXC 已迁移。";
-  const completed = {
-    ...outcome,
-    workItems: [{ id: "item", contractRevision: 1 }],
-    outputs: [{ id: "report", workItemId: "item", title: "清理报告", content }],
-  } as OutcomeDetail;
-  const summary = "核心结果：Cache 池占用率由 84% 降至 63%（下降 21 个百分点）。";
-  const generated = {
-    summary,
-    details: "",
-    citations: [{ id: "report", quote: "Dify 迁移实际已完成并验证。" }],
-    charts: [],
-  };
-  const store = memoryStore();
-  const writer = new OutcomeBriefService(async () => ({ text: JSON.stringify(generated) }), store);
-  const report = await writer.getResult(completed, revision);
-  const chart = {
-    type: "bar" as const,
-    title: "Cache 池占用率",
-    unit: "%",
-    points: [
-      { label: "之前", value: 84, citation: 1 },
-      { label: "之后", value: 63, citation: 1 },
-    ],
-  };
-  expect(report?.charts).toEqual([chart]);
-  expect(report?.sources[1]?.quote).toBe("Cache 84% → 63%");
-
-  const [key] = [...store.rows.keys()];
-  store.rows.set(key!, { ...report, charts: [], sources: report?.sources.slice(0, 1) });
-  const reader = new OutcomeBriefService(async () => {
-    throw new Error("must reuse the saved summary");
-  }, store);
-  expect(await reader.getResult(completed, revision)).toEqual(report);
-
-  const wrongScope = new OutcomeBriefService(async () => ({
-    text: JSON.stringify({ ...generated, summary: summary.replace("Cache 池", "Secache 池") }),
-  }));
-  expect((await wrongScope.getResult(completed, revision))?.charts).toEqual([]);
+  expect(() => build([{ ...chart, type: "bar", points: [points[0], { ...points[1], value: 630 }] }] as never)).toThrow("exactly one reading");
+  expect(() => build([{ ...chart, type: "bar", points: [points[0], { ...points[1], quote: "B 99%", value: 99 }] }] as never)).toThrow("does not appear");
+  expect(() => build([{ ...chart, type: "bar", unit: "GB", points: points.slice(0, 2) }] as never)).toThrow("exactly one reading");
+  expect(() => build([{ ...chart, type: "bar", points: [points[0], { ...points[1], evidenceId: "missing" }] }] as never)).toThrow("not found");
 });

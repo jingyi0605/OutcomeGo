@@ -45,6 +45,10 @@ const hasSelectionInside = (element: HTMLElement | null) => {
 const activeGlides = new WeakMap<StickToBottomState, () => void>();
 const glideListeners = new WeakMap<StickToBottomState, Set<() => void>>();
 const viewportSyncs = new WeakMap<StickToBottomState, () => void>();
+const pausedReplyFollowing = new WeakMap<HTMLElement, () => void>();
+
+export const isConversationReplyFollowPaused = (viewport: HTMLElement | null) =>
+  viewport !== null && pausedReplyFollowing.has(viewport);
 
 const notifyGlide = (state: StickToBottomState) => {
   for (const listener of glideListeners.get(state) ?? []) listener();
@@ -93,6 +97,7 @@ export const glideConversationToBottom = (
   activeGlides.get(state)?.();
   const viewport = scrollRef.current;
   if (!viewport) return Promise.resolve(false);
+  pausedReplyFollowing.get(viewport)?.();
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     return Promise.resolve(context.scrollToBottom("instant"));
   }
@@ -183,12 +188,17 @@ export const glideConversationToBottom = (
   });
 };
 
-export const Conversation = ({ className, ...props }: ComponentProps<typeof StickToBottom>) => (
+export const Conversation = ({ className, targetScrollTop, ...props }: ComponentProps<typeof StickToBottom>) => (
   <StickToBottom
     className={cn("relative min-h-0 flex-1 overflow-y-hidden", className)}
     initial="instant"
     resize="instant"
     role="log"
+    targetScrollTop={(target, elements) =>
+      isConversationReplyFollowPaused(elements.scrollElement)
+        ? elements.scrollElement.scrollTop
+        : (targetScrollTop?.(target, elements) ?? target)
+    }
     {...props}
   />
 );
@@ -493,6 +503,8 @@ export const ConversationScrollButton = ({
   trackNewMessages = true,
   onAtBottomChange,
   onScrollToNewest,
+  streamingReply = false,
+  latestMessageWasStreamed = false,
 }: {
   conversationId: string;
   messageCount: number;
@@ -503,10 +515,14 @@ export const ConversationScrollButton = ({
   trackNewMessages?: boolean;
   onAtBottomChange?: (atBottom: boolean) => void;
   onScrollToNewest?: () => unknown;
+  streamingReply?: boolean;
+  latestMessageWasStreamed?: boolean;
 }) => {
   const { t } = useI18n();
   const context = useStickToBottomContext();
-  const { isAtBottom, scrollRef } = context;
+  const { scrollRef } = context;
+  const [replyFollowPaused, setReplyFollowPaused] = useState(false);
+  const isAtBottom = context.isAtBottom && !replyFollowPaused;
   const gliding = useConversationGliding();
   const [scrolling, setScrolling] = useState(false);
   const [newMessageCount, setNewMessageCount] = useState(0);
@@ -520,18 +536,49 @@ export const ConversationScrollButton = ({
   // rows grow the transcript without a scroll event, so this is the position
   // before they arrived.
   const restingDistanceRef = useRef(0);
+  const streamingReplyRef = useRef(streamingReply);
+  useLayoutEffect(() => {
+    streamingReplyRef.current = streamingReply;
+  }, [streamingReply]);
   useEffect(() => {
     const viewport = scrollRef.current;
     if (!viewport) return;
+    let previousTop = viewport.scrollTop;
+    const resume = () => {
+      pausedReplyFollowing.delete(viewport);
+      setReplyFollowPaused(false);
+    };
+    const pause = () => {
+      if (!streamingReplyRef.current || pausedReplyFollowing.has(viewport)) return;
+      pausedReplyFollowing.set(viewport, resume);
+      contextRef.current.stopScroll();
+      setReplyFollowPaused(true);
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY < 0 && !event.ctrlKey && viewport.scrollHeight > viewport.clientHeight)
+        pause();
+    };
     const update = () => {
       restingDistanceRef.current = Math.max(
         0,
         viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop
       );
+      if (viewport.scrollTop < previousTop && !contextRef.current.state.isAtBottom) pause();
+      if (viewport.scrollTop > previousTop && restingDistanceRef.current <= 1 &&
+          pausedReplyFollowing.has(viewport)) {
+        resume();
+        void contextRef.current.scrollToBottom("instant");
+      }
+      previousTop = viewport.scrollTop;
     };
     update();
+    viewport.addEventListener("wheel", onWheel, { capture: true, passive: true });
     viewport.addEventListener("scroll", update, { passive: true });
-    return () => viewport.removeEventListener("scroll", update);
+    return () => {
+      pausedReplyFollowing.delete(viewport);
+      viewport.removeEventListener("wheel", onWheel, true);
+      viewport.removeEventListener("scroll", update);
+    };
   }, [scrollRef]);
   const trackedMessageCount = authoritativeMessageCount ?? messageCount;
   const trackedLatestMessageKey = latestMessageKey ?? latestEntryKey;
@@ -572,6 +619,9 @@ export const ConversationScrollButton = ({
     if (
       !current.state.isAtBottom &&
       !glidingRef.current &&
+      !streamingReplyRef.current &&
+      !latestMessageWasStreamed &&
+      !isConversationReplyFollowPaused(current.scrollRef.current) &&
       restingDistanceRef.current <= NEAR_BOTTOM_FOLLOW_PX &&
       !hasSelectionInside(current.scrollRef.current)
     ) {
@@ -586,6 +636,7 @@ export const ConversationScrollButton = ({
   }, [
     conversationId,
     latestEntryKey,
+    latestMessageWasStreamed,
     trackNewMessages,
     trackedLatestMessageKey,
     trackedMessageCount,

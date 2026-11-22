@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Streamdown } from "streamdown";
+import { MessageResponse } from "../../src/renderer/components/ai-elements/message";
 import { advancedMessageCapabilitiesFor } from "../../src/renderer/components/ai-elements/message-response/capabilities";
 import {
   messageRemarkPlugins,
@@ -23,6 +24,15 @@ const render = (source: string) =>
 const text = (html: string) => html.replace(/<br\s*\/?>\n?/g, "\n").replace(/<[^>]*>/g, "");
 
 describe("message tables and line breaks", () => {
+  test("plain replies keep the same markup when streaming ends", () => {
+    const source = "A direct answer with a second line.\nStill in the same bubble.";
+    const active = renderToStaticMarkup(<MessageResponse streaming>{source}</MessageResponse>);
+    const completed = renderToStaticMarkup(<MessageResponse>{source}</MessageResponse>);
+
+    expect(active).toBe(completed);
+    expect(active).toContain("whitespace-pre-wrap");
+  });
+
   test("renders a currency table without treating prices as math", () => {
     const source = [
       "Checking `1234` · Sep 28–Oct 12",

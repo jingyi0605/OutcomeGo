@@ -1,6 +1,11 @@
 import type { BotView, ChannelMessageView, ChannelView } from "@outcomego/contracts";
 import { emptySidebarPreferences } from "@outcomego/contracts/client-preferences";
+import { useState } from "react";
 import { createRoot } from "react-dom/client";
+import type { OutcomeWorkThreadView } from "@outcomego/contracts/outcomes";
+import { OutcomeExecutionDialog } from "../../src/renderer/components/outcomego/outcomes/outcome-execution-card";
+import { I18nProvider } from "../../src/renderer/lib/i18n";
+import { ChatBranchNavigation, WorkThreadNavigation } from "../../src/renderer/lib/work-thread-navigation";
 import "../../src/renderer/styles.css";
 import { Inspector } from "../../src/renderer/components/outcomego/inspector";
 import { api } from "../../src/renderer/client/outcomego-api";
@@ -14,6 +19,32 @@ window.fetch = async () => {
 };
 Object.assign(api, { routines: async () => [] });
 const params = new URLSearchParams(location.search);
+const workThreads = params.has("work-threads");
+if (workThreads) {
+  Object.assign(api, {
+    chatBranches: async (channelId: string, query: { archived: boolean }) => ({
+      items: channelId === "channel-0" ? [{
+        id: query.archived ? "old-chat" : "recent-chat",
+        messageId: query.archived ? "old-chat-reply" : "recent-chat-reply",
+        title: query.archived ? "Archived chat branch" : "Ordinary chat branch",
+        updatedAt: "2026-01-01T00:00:00Z",
+      }] : [],
+      nextBefore: null,
+    }),
+  });
+  const recent = { id: "recent", outcomeId: "goal", outcomeTitle: "Capacity audit", botId: "bot-0", title: "Recent task", status: "running", completedAt: null } as const;
+  const archived = { ...recent, id: "archived", title: "Old task", status: "completed", completedAt: "2026-01-01T00:00:00Z" } as const;
+  Object.assign(api.outcomes, {
+    workThreads: async (botId: string, query: { archived?: boolean }) => {
+      window.dispatchEvent(new CustomEvent("work-thread-read", { detail: query.archived ? "archived" : "recent" }));
+      return { items: botId === "bot-0" ? [query.archived ? archived : recent] : [], nextCursor: null };
+    },
+    transcript: async (_outcomeId: string, id: string) => ({
+      next_before: null, workItemStatus: "completed",
+      rows: [{ id, at: "2026-01-01T00:00:00Z", role: "assistant", status: "completed", content: `Task reply: ${id}` }],
+    }),
+  });
+}
 const count = Number(params.get("count") ?? 40);
 localStorage.setItem(
   "outcomego:sidebar-preferences",
@@ -73,6 +104,8 @@ const latest = new Map(
 const noop = () => {};
 function Fixture() {
   const preferences = useSidebarPreferences();
+  const [thread, setThread] = useState<OutcomeWorkThreadView | null>(null);
+  const [branchMessage, setBranchMessage] = useState<string>();
   if (params.has("settings")) return (
     <TooltipProvider>
       <div style={{ width: 420, height: "100vh" }}>
@@ -87,6 +120,8 @@ function Fixture() {
   );
   return (
     <TooltipProvider>
+      <ChatBranchNavigation.Provider value={workThreads ? (_channelId, messageId) => { setThread(null); setBranchMessage(messageId); } : null}>
+      <WorkThreadNavigation.Provider value={workThreads ? setThread : null}>
       <div style={{ display: "flex", height: "100vh" }}>
         <Sidebar
           channels={channels}
@@ -94,6 +129,7 @@ function Fixture() {
           latestMessageByChannel={latest}
           activeRunByChannel={new Map()}
           activeTaskChannelIds={new Set()}
+          activeThreadChannelIds={workThreads ? new Set(["channel-0"]) : new Set()}
           selectedId="channel-0"
           preferences={preferences}
           onPreloadSearch={noop}
@@ -106,8 +142,13 @@ function Fixture() {
           onDeleteChannel={noop}
           onEditChannel={noop}
         />
+        {workThreads && (thread ? (
+          <OutcomeExecutionDialog key={thread.id} thread={thread} bot={bots.get(thread.botId)} client={api.outcomes} open onOpenChange={() => setThread(null)} />
+        ) : <p>{branchMessage ? `Selected chat branch: ${branchMessage}` : "Main conversation only"}</p>)}
       </div>
+      </WorkThreadNavigation.Provider>
+      </ChatBranchNavigation.Provider>
     </TooltipProvider>
   );
 }
-createRoot(document.getElementById("root")!).render(<Fixture />);
+createRoot(document.getElementById("root")!).render(<I18nProvider><Fixture /></I18nProvider>);

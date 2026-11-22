@@ -1,7 +1,7 @@
 import { ApiError } from "@outcomego/contracts";
 import {
-  CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
-  CancelOutcomeInput, DecideOutcomeAcceptanceInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, parseListOutcomesQuery,
+  AdoptPrereviewInput, CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
+  CancelOutcomeInput, DecideOutcomeAcceptanceInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, decodeOutcomeCursor, parseListOutcomesQuery,
 } from "@outcomego/contracts/outcomes";
 import { CreateOutcomeThreadInput, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
 import { OutcomeAttentionInput, ReconcileOutcomeInput } from "@outcomego/contracts/outcome-runtime";
@@ -28,6 +28,13 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (path === "/api/outcomes/threads" && request.method === "POST") {
       requireOutcomeDispatch();
       return json(await app.outcomeThreads.create(await parseBody(request, CreateOutcomeThreadInput), actor), 202);
+    }
+    const workThreads = path.match(/^\/api\/outcomes\/work-threads\/([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})$/i);
+    if (workThreads && request.method === "GET") {
+      return json(await run(app.outcomes.listWorkThreads(
+        workThreads[1]!, url.searchParams.get("archived") === "true",
+        decodeOutcomeCursor(url.searchParams.get("cursor")),
+      )), 200, { "cache-control": "no-store" });
     }
     if (path === "/api/outcomes") {
       if (request.method === "GET") return json(await run(app.outcomes.list(parseListOutcomesQuery(url.searchParams))));
@@ -58,7 +65,7 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
       const revision = outcome.currentRevisionView?.revision === number
         ? outcome.currentRevisionView
         : await run(app.outcomes.getRevision(id, number));
-      return json(await app.outcomeBriefs.getResult(outcome, revision));
+      return json(await app.outcomeBriefs.getResult(outcome, revision), 200, { "cache-control": "no-store" });
     }
     if (tail === "/revisions" && request.method === "POST") return json(await run(app.outcomes.createRevision(id, await parseBody(request, CreateContractRevisionInput), actor)), 201);
     const approve = tail?.match(/^\/revisions\/([1-9]\d*)\/approve$/);
@@ -66,6 +73,8 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (tail === "/cancel" && request.method === "POST") return json(await run(app.outcomes.cancel(id, await parseBody(request, CancelOutcomeInput), actor)));
     if (tail === "/acceptance" && request.method === "POST")
       return json(await run(app.outcomeReviews.decide(id, await parseBody(request, DecideOutcomeAcceptanceInput), actor)));
+    if (tail === "/reviews/adopt-prereview" && request.method === "POST")
+      return json(await run(app.outcomeReviews.adoptPrereview(id, await parseBody(request, AdoptPrereviewInput), actor)));
     if (tail === "/reviews" && request.method === "POST") return json(await run(app.outcomeReviews.submit(id, await parseBody(request, SubmitOutcomeReviewInput), actor)));
     if (tail === "/rework" && request.method === "POST") return json(await run(app.outcomeReviews.rework(id, await parseBody(request, OutcomeReworkInput), actor)), 202);
     const runtime = app.outcomes;
@@ -74,6 +83,9 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
       if (!runtime.startRun) throw new ApiError(503, "outcome_runtime_unavailable", "Outcome execution is not available yet", { retryable: true });
       return json(await run(runtime.startRun(id, await parseBody(request, StartOutcomeRunInput), actor)), 202);
     }
+    const stopWorkThread = tail?.match(/^\/work-items\/([\da-f-]{36})\/stop$/i);
+    if (stopWorkThread && request.method === "POST")
+      return json(await run(runtime.stopWorkThread(id, stopWorkThread[1]!)));
     const transcript = tail?.match(/^\/work-items\/([\da-f-]{36})\/transcript$/i);
     if (transcript && request.method === "GET") {
       if (!runtime.transcript) throw new ApiError(503, "outcome_runtime_unavailable", "Outcome transcript is not available yet", { retryable: true });

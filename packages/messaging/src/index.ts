@@ -18,14 +18,16 @@ import { requestProgressSnapshot } from "./request-progress";
 export { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
 import { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";
 import { renderTaskProgressContext } from "@outcomego/contracts/task-progress";
+import { GroupTaskService } from "./group-tasks";
 export { initialTaskProgress, settleTaskProgress, reportTaskProgress, dispatchTaskContinuations, taskProgress, taskProgressContext, notifyTaskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK } from "./task-progress";
 import { taskProgressContext, taskScopeContext } from "./task-progress";
 export { taskScopeContext, taskScopeUpdates } from "./task-progress";
 export { readTranscript } from "./read-transcript";
 export { readOutcomeTranscript } from "./outcome-transcript";
+export { isReviewBatchEvidence, outcomeReviewBatchKey, readOutcomeReviewBatch, outcomeReviewDecisionFilter } from "./outcome-review-batch";
 export { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
 export { startOutcomeThreadTurn, settleOutcomeThreadTurn, settleFinishedOutcomeThreadTurns, outcomeThreadContext, OUTCOME_THREAD_EVENT_TOPIC } from "./outcome-threads";
-export { enqueueOutcomeTurn, settleOutcomeWorkItem, dispatchQueuedOutcomeWorkItems, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
+export { enqueueOutcomeTurn, settleOutcomeWorkItem, emitReviewRequiredIfNeeded, enqueueOutcomePrereviewIfNeeded, dispatchQueuedOutcomeWorkItems, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
 export { recoverOutcomeWorkItem, recoverOutcomeWorkItems, routeOutcomeNextStep, OUTCOME_RECOVERY_PROMPT, type OutcomeRecoveryRuntime, type OutcomeNextFact } from "./outcome-recovery";
 export { outcomeDispatchEnabled } from "./outcome-availability";
 export { unavailableHumanActionPort, type DecisionEffect, type HumanActionPort, type HumanActionInput, type HumanActionResult } from "./outcome-actions";
@@ -46,10 +48,11 @@ export { nextMessageAddress, resolveMessageAddress } from "./message-address";
 export { parseAutomationEvent, matchesAutomationEvent, type AutomationEvent } from "./automation-events";
 export { wakeAutomationParent, saveSilentAutomationResult, automationBackgroundWorkRunning, automationContinuationRoute, automationContextRunId, reconcileRoutineExecution } from "./automation-results";
 import { outcomeRunContext, outcomeThreadContext } from "./outcome-threads";
+import { hasActivePlannerRole } from "./outcome-roles";
 import { AUTOMATION_RUN_INSTRUCTIONS, automationContinuationRoute } from "./automation-results";
 import { join } from "node:path";
 import { publishChannelNotification, publishMessageNotification } from "./notifications";
-export { publishChannelNotification, publishMessageNotification, publishOutcomeNotification, publishRequiredDecisionNotification, reconcileOutcomeDecisionNotifications, channelNotificationStates } from "./notifications";
+export { publishChannelNotification, publishMessageNotification, markSettlementMessage, runHasOpenWork, publishOutcomeNotification, publishRequiredDecisionNotification, reconcileOutcomeDecisionNotifications, channelNotificationStates } from "./notifications";
 import { messagePreviewText } from "@outcomego/contracts/message-preview";
 import { defaultTaskConfiguration, type TaskConfiguration } from "@outcomego/contracts/task-configuration";
 import { combinedGraphicalWorkerPrompt } from "./graphical-worker-prompts";
@@ -90,6 +93,7 @@ import { groupRoutineState } from "./group-routine-state";
 import { lockGroupExecution, lockGroupRound, lockGroupDelivery } from "./group-supersession";
 export { lockGroupExecution, supersedeGroupUserTurns } from "./group-supersession";
 export { groupRoutineState } from "./group-routine-state";
+export { GroupTaskService, releaseGroupTasksForBots, type CreateGroupTaskInput, type UpdateGroupTaskInput, type ListGroupTasksInput } from "./group-tasks";
 import {
   AUTOMATION_DELEGATING_SECTION,
   DELEGATING_SECTION,
@@ -97,10 +101,11 @@ import {
   ROUTINES_SECTION,
   renderAgentProfileFiles,
   renderPlatformBaseSystemPrompt,
+  DIRECT_TEXT_DELEGATING_SECTION,
   renderSkillsSection,
 } from "./platform-system-prompt";
 import { formatFriendlyDate, resolveTimeZone, retimestampUserTurn, timestampUserTurn } from "./timestamps";
-import { readOutcomesEnabled } from "./feature-settings";
+import { readFeatureSettings } from "./feature-settings";
 import { canonicalTimeZone, readUserTimeZone, userTimeZoneView } from "./user-time-zone";
 import { renderAgentSkillsSection } from "./skill-catalog";
 import type { AutomationStatusReceipt, MemoryContextReceipt, PromptSectionReceipt } from "./prompt-sections";
@@ -175,6 +180,7 @@ export const MAIN_AGENT_GRAPHICAL_DELEGATION_INSTRUCTIONS = graphicalDelegationI
 
 export interface PlatformPrompt {
   instructions: string;
+  directTextReply?: true;
   agentProfileUpdate: string | null;
   userInfo: string | null;
   userInfoEpoch: number | null;
@@ -186,6 +192,8 @@ export interface PlatformPrompt {
   ambientContext?: string | null;
   /** Whether the owner has goal management on; the worker forwards it so the computer offers the goal tools only then. */
   outcomesEnabled?: boolean;
+  /** The turn is a member's turn in a group chat: the worker forwards it so the computer offers the group task tools (specs/010). */
+  groupTasksEnabled?: boolean;
   acknowledgement?: {
     sections: PromptSectionReceipt[];
     memory?: MemoryContextReceipt;
@@ -614,7 +622,7 @@ export const buildGroupTurnPrompt = (input: {
     ...(participantDetails.length > 0 ? [`Participants: ${participantDetails.join(", ")}`] : []),
     ...messageSection,
     "",
-    `It's your turn, ${compactName(input.targetName)}. Reply in character with SendToUser if you have something worth adding; if you don't, end your turn without sending anything.`,
+    `It's your turn, ${compactName(input.targetName)}. If these messages address you or ask you to do something, your first action must be a short SendToUser to the room saying what you are about to do (end_turn false), before any other tool call; then do the work and send the result when it is ready. If they do not need you, end your turn without sending anything.`,
     ...(input.wrappingUp
       ? ["The room is wrapping up this turn: reply only if it's essential, otherwise stay silent."]
       : []),
@@ -2132,7 +2140,7 @@ export class AgentMessaging {
   }
 
   /** channelId is the run's channel (null for a home run); undefined renders no pending automation results. */
-  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string, outcomeWorkItemId?: string, outcomeThreadId?: string): Promise<PlatformPrompt> {
+  async platformPrompt(botId: string, contextSessionId: string, connectorInstructions = "", channelId?: string | null, taskConfigurationSnapshot?: TaskConfiguration, wakeOrigin?: string, outcomeWorkItemId?: string, outcomeThreadId?: string, allowDirectTextReply = false): Promise<PlatformPrompt> {
     const timeZone = await this.userTimeZone();
     const bot = await this.prisma.bot.findUniqueOrThrow({
       where: { id: botId },
@@ -2187,11 +2195,22 @@ export class AgentMessaging {
     const context = await this.prisma.contextSession.findFirst({ where: { id: contextSessionId, botId }, select: { scope: true, scopeId: true } });
     const outcome = context?.scope === "outcome";
     const goalThread = context?.scope === "outcome-thread";
+    const globalInference = goalThread ? await this.agentData.loadInferenceSettings().catch(() => null) : null;
     const outcomeContext = outcome
       ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId)
-      : goalThread ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId) : null;
+      : goalThread
+        ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId, { globalInference })
+        : null;
     const automation = context?.scope === "automation" || outcome || goalThread;
-    const outcomesEnabled = await readOutcomesEnabled(this.prisma);
+    const { outcomesEnabled, streamBotReplies } = await readFeatureSettings(this.prisma);
+    const plannerRole = outcomesEnabled && !automation ? await hasActivePlannerRole(this.prisma) : false;
+    const directTextReply = allowDirectTextReply && streamBotReplies && context?.scope === "channel" &&
+      Boolean(channelId && channelId === context.scopeId && await this.prisma.channel.findFirst({
+        where: { id: channelId, kind: "bot_dm", directKey: `bot:${botId}`, archivedAt: null },
+        select: { id: true },
+      }));
+    // Null outside a group the bot belongs to; an automation or goal run never sees the shared board.
+    const groupBoard = !automation && channelId ? await new GroupTaskService(this.prisma).snapshotFor(botId, channelId) : null;
     const [agentPrompt, taskConfiguration] = await Promise.all([
       this.agentData.promptContext(botId, contextSessionId, channelId),
       taskConfigurationSnapshot ?? this.agentData.loadTaskConfiguration(),
@@ -2332,11 +2351,16 @@ export class AgentMessaging {
     // memory, other conversations, Routines, Skills, channels, Teammates, connector instructions,
     // Your box, The box desktop, so per-turn changes sit late in the cached prefix.
     const instructions = [
-      renderPlatformBaseSystemPrompt({ outcomes: outcomesEnabled, ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}) }),
+      renderPlatformBaseSystemPrompt({
+        outcomes: outcomesEnabled,
+        plannerRole,
+        directTextReply,
+        ...(automation ? { automationRun: AUTOMATION_RUN_INSTRUCTIONS } : {}),
+      }),
       [agentPrompt.profileSection, renderAgentProfileFiles({ agentDataRoot: this.agentData.root, botId })].join("\n"),
       USER_IDENTITY_LINE,
       frozen.sections.agent_instructions,
-      automation ? AUTOMATION_DELEGATING_SECTION : DELEGATING_SECTION,
+      automation ? AUTOMATION_DELEGATING_SECTION : directTextReply ? DIRECT_TEXT_DELEGATING_SECTION : DELEGATING_SECTION,
       renderWorkerTimeSection(timeZone),
       agentPrompt.memory.policy,
       renderOtherActiveConversations(siblings),
@@ -2379,11 +2403,15 @@ export class AgentMessaging {
     })).flatMap((execution) => execution.runId ? [[execution.runId, execution.routine] as const] : []) : []);
     return {
       instructions,
+      ...(directTextReply ? { directTextReply: true } : {}),
       instructionsUpdate: [frozen.update, frozen.memory?.update].filter(Boolean).join("\n\n") || null,
       outcomesEnabled,
+      // Present only for a group turn, so every other platform prompt is exactly what it was.
+      ...(groupBoard !== null ? { groupTasksEnabled: true } : {}),
       automationStatus: frozen.automationStatus?.note ?? null,
       ambientContext: outcomeContext ?? (automation ? null : [
         dismissedWidgetPrompts.length > 0 ? buildDismissedQuestionsNote(dismissedWidgetPrompts) : "",
+        groupBoard ?? "",
         ...richMessagePrompts,
         ...automationResults.map((result) => {
           const routine = resultRoutines.get(result.runId);
@@ -3149,6 +3177,18 @@ export {
   readOutcomesEnabled,
   updateFeatureSettings,
 } from "./feature-settings";
+export {
+  OUTCOME_THREAD_PRIORITY,
+  OUTCOME_THREAD_SYSTEM_PRIORITY,
+  roleForThreadPurpose,
+  isBotRunnable,
+  resolveOutcomeRole,
+  hasActivePlannerRole,
+  enqueueOutcomeThreadTurn,
+  type RoleDb,
+  type ResolvedOutcomeRole,
+  type EnqueueOutcomeThreadTurnInput,
+} from "./outcome-roles";
 export {
   turnOwesReplyReminder,
   turnSystemReminder,

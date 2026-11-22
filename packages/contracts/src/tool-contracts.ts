@@ -581,6 +581,7 @@ const FIRST_PARTY_CATALOG_HEADER =
   "First-party tools built into you, listed first: they are trusted and core to your job, so prefer one over an external namespace that covers the same need. Read a tool's schema with GetDynamicTools, then call it with CallDynamicTool in the cursor namespace.";
 /** One-line cues for the cursor namespace, as in the reference's concise static contexts. */
 const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
+  SubmitOutcome: "Submit the user's verbatim goal request to the planning role when one is configured; never rewrite it or write a contract yourself.",
   CreateOutcome: "Save a native goal with a contract you wrote, for owner approval; use Outcomes before external task apps; never approve or accept it yourself.",
   TrackOutcome: "Register anything you cannot finish this turn on the goal board; owner decisions go to the inbox.",
   CloseOutcome: "Close a tracked goal you finished yourself, without user acceptance.",
@@ -590,6 +591,10 @@ const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
   StartOutcome: "Start the exact owner-approved revision only when asked.",
   CancelOutcome: "Cancel the native goal the user asked to stop, preserving history.",
   ListOutcomeInbox: "Read native decisions, reviews and human actions requiring attention.",
+  ListGroupTasks: "Read this group's shared task board before starting any work in a group.",
+  CreateGroupTask: "Register group work that needs follow-up or that the user asked you to own, before starting it; not quick answers or single-step actions.",
+  ClaimGroupTask: "Take an unowned group task; only one member can own it.",
+  UpdateGroupTask: "Update, finish, block, hand over or release a group task you own or created.",
   CreateExploreIdea: "Record an idea in native Explore without starting execution.",
   ListExploreIdeas: "Read the user's native Explore ideas.",
   AuthenticateMcpServer: "Start authentication for a connector that needs auth.",

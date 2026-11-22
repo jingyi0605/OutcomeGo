@@ -314,6 +314,18 @@ public struct API: Sendable {
 
 public struct FeatureSettings: Decodable, Sendable {
   public let outcomesEnabled: Bool?
+  public let streamBotReplies: Bool?
+}
+
+public struct ReplyPreview: Decodable, Equatable, Sendable {
+  public let runId: String
+  public let clientId: String
+  public let content: String
+}
+
+public struct ReplyPreviewSnapshot: Decodable, Sendable {
+  public let revision: String
+  public let preview: ReplyPreview?
 }
 
 extension API {

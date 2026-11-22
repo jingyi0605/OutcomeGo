@@ -16,6 +16,7 @@ export function NewOutcomeForm({
   botId: fixedBotId,
   exploreIdeaId,
   initialText = "",
+  postToChat = false,
   onCreated,
 }: {
   client: OutcomeClient;
@@ -24,6 +25,7 @@ export function NewOutcomeForm({
   botId?: string;
   exploreIdeaId?: string;
   initialText?: string;
+  postToChat?: boolean;
   onCreated: (outcome: OutcomeDetail) => void;
 }) {
   const { t } = useI18n();
@@ -40,7 +42,7 @@ export function NewOutcomeForm({
     setBusy(true);
     setError(null);
     try {
-      const input = { text, botId, ...(exploreIdeaId ? { exploreIdeaId } : {}) };
+      const input = { text, botId, ...(exploreIdeaId ? { exploreIdeaId } : {}), ...(postToChat ? { postToChat: true } : {}) };
       const result = await create!.call(client, {
         ...input,
         clientRequestId: ids.current.for("create-thread", input),

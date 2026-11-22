@@ -12,7 +12,7 @@ export async function promptFixture(scope: "home" | "automation" | "outcome", ou
   const db = {
     bot: { findUniqueOrThrow: async () => ({ id: "bot", name: "Fixture", todos: [], subagentIdentity: null, instructions: "Durable instruction", defaultDirectory: "/workspace" }), findMany: async () => [] },
     contextSession: { findFirst: async () => ({ scope, scopeId: scope === "outcome" ? "work-item" : "session" }), findMany: async () => [] },
-    channel: { findMany: async () => [] }, botConnectorState: { findMany: async () => [] },
+    channel: { findMany: async () => [], findFirst: async () => null }, botConnectorState: { findMany: async () => [] },
     routine: { findMany: async () => [] }, routineExecution: { findUnique: async () => null },
     automationResult: { findMany: async () => [] }, run: { findMany: async () => [] },
     outcomeWorkItem: { findFirst: async () => item }, $queryRaw: async () => [],

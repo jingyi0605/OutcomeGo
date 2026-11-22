@@ -123,11 +123,15 @@ export const OUTCOME_EVENT_TOPICS = [
   "outcome.status_changed",
   "outcome.contract.revision_created",
   "outcome.contract.revision_approved",
+  "outcome.plan.saved",
+  "outcome.replan.requested",
   "outcome.work_item.created",
   "outcome.work_item.updated",
   "outcome.progress.updated",
   "outcome.output.recorded",
+  "outcome.task_review.decided",
   "outcome.review.required",
+  "outcome.prereview.submitted",
   "outcome.review.recorded",
   "outcome.decision.required",
   "outcome.decision.resolved",
@@ -256,6 +260,105 @@ export function parseOutcomeWorkItemProgress(value: unknown): OutcomeWorkItemPro
 
 export type DecisionEffect = "plan_only" | "scope_change" | "acceptance_change" | "cancel_branch" | "manual_action";
 
+export const PLAN_LIMITS = {
+  maxTasks: 20,
+  keyChars: 64,
+  titleChars: 200,
+  instructionsChars: 8_000,
+  notesChars: 2_000,
+  environmentNoteChars: 8_000,
+  reasonChars: 1_000,
+  noteChars: 2_000,
+} as const;
+
+export const PLAN_TASK_NATURES = ["deliverable", "action"] as const;
+export type PlanTaskNature = (typeof PLAN_TASK_NATURES)[number];
+
+export interface PlanTask {
+  key: string;
+  title: string;
+  instructions: string;
+  botId: string;
+  dependsOn?: string[];
+  covers: string[];
+  nature: PlanTaskNature;
+}
+
+export interface OutcomePlanView {
+  notes?: string | null;
+  tasks: PlanTask[];
+}
+
+/** Validates and normalizes persisted revision plan JSON without throwing on legacy rows. */
+export function parseOutcomePlan(raw: unknown): OutcomePlanView | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as Record<string, unknown>;
+  if (!Array.isArray(obj.tasks)) return null;
+  const tasks: PlanTask[] = [];
+  for (const item of obj.tasks) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const task = item as Record<string, unknown>;
+    if (
+      typeof task.key !== "string" ||
+      typeof task.title !== "string" ||
+      typeof task.instructions !== "string" ||
+      typeof task.botId !== "string" ||
+      !Array.isArray(task.covers) ||
+      !(PLAN_TASK_NATURES as readonly unknown[]).includes(task.nature)
+    ) {
+      return null;
+    }
+    const dependsOn = Array.isArray(task.dependsOn)
+      ? task.dependsOn.filter((dep): dep is string => typeof dep === "string")
+      : [];
+    const covers = task.covers.filter((id): id is string => typeof id === "string");
+    tasks.push({
+      key: task.key,
+      title: task.title,
+      instructions: task.instructions,
+      botId: task.botId,
+      ...(dependsOn.length ? { dependsOn } : {}),
+      covers,
+      nature: task.nature as PlanTaskNature,
+    });
+  }
+  const notes = typeof obj.notes === "string" && obj.notes.trim() ? obj.notes.trim() : null;
+  return {
+    ...(notes ? { notes } : {}),
+    tasks,
+  };
+}
+
+export const PREREVIEW_SUGGESTIONS = ["likely_pass", "likely_fail", "unclear"] as const;
+export type PrereviewSuggestion = (typeof PREREVIEW_SUGGESTIONS)[number];
+
+export interface TaskReviewFinding {
+  kind: "error" | "omission";
+  basis: { criterionId: string } | { boundary: { side: "included" | "excluded"; index: number } };
+  reason: string;
+}
+
+export interface WorkItemReviewView {
+  state: "none" | "passed" | "rejected_once" | "unreviewed";
+  findings: TaskReviewFinding[];
+  reworkWorkItemId?: string | null;
+}
+
+export interface OutcomePrereviewView {
+  turnId: string;
+  revision: number;
+  summary: string;
+  attention: Array<{ criterionId?: string | null; question: string }>;
+  results: Array<{
+    criterionId: string;
+    suggestion: PrereviewSuggestion;
+    reason: string;
+    evidenceIds: string[];
+  }>;
+  report?: OutcomeResultSummary;
+  createdAt: string;
+}
+
 /** Payloads live inside the existing Event envelope; identifiers common to all events stay in that envelope. */
 export interface OutcomeEventPayloads {
   "outcome.created": { title: string; botId: string };
@@ -264,11 +367,24 @@ export interface OutcomeEventPayloads {
     revisionId: string; status: ContractRevisionStatus; baseRevisionId: string | null; sourceDecisionId: string | null;
   };
   "outcome.contract.revision_approved": { revisionId: string; contentHash: string };
+  "outcome.plan.saved": { revision: number; taskKeys: string[] };
+  "outcome.replan.requested": { workItemId: string; reason: string };
   "outcome.work_item.created": { workItemId: string; executorType: WorkItemExecutorType; kind: WorkItemKind };
   "outcome.work_item.updated": { from: WorkItemStatus; to: WorkItemStatus; reason: string };
   "outcome.progress.updated": { workItemId: string; phase: string; completedCount: number; totalCount: number };
   "outcome.output.recorded": { outputId: string; kind: OutputKind };
+  "outcome.task_review.decided": {
+    workItemId: string;
+    verdict: "pass" | "reject" | "unreviewed";
+    findings?: TaskReviewFinding[];
+    reworkWorkItemId?: string | null;
+  };
   "outcome.review.required": { criterionIds: string[]; workItemIds: string[] };
+  "outcome.prereview.submitted": {
+    revision: number;
+    turnId: string;
+    suggestions: Array<{ criterionId: string; suggestion: PrereviewSuggestion }>;
+  };
   "outcome.review.recorded": { reviewId: string; criterionId: string; result: ReviewResult; evidenceIds: string[] };
   "outcome.decision.required": { decisionId: string; reasonCode: string };
   "outcome.decision.resolved": { decisionId: string; resolutionEffect: DecisionEffect; optionId: string | null; customText: string | null };
@@ -327,6 +443,19 @@ export const OUTCOME_ERROR_CODES = {
   review_incomplete: 422,
   invalid_outcome_query: 400,
   manual_action_unavailable: 503,
+  plan_revision_conflict: 409,
+  plan_cycle: 400,
+  plan_uncovered_criteria: 400,
+  plan_task_locked: 409,
+  plan_unchanged: 409,
+  outcome_terminal: 409,
+  prereview_incomplete: 400,
+  prereview_stale: 409,
+  review_reject_exhausted: 409,
+  review_not_rejectable: 400,
+  review_task_stale: 409,
+  outcome_thread_tool_forbidden: 403,
+  model_unavailable: 400,
 } as const;
 export type OutcomeErrorCode = keyof typeof OUTCOME_ERROR_CODES;
 
@@ -431,7 +560,9 @@ export interface OutcomeResultSummary {
   revisionId: string;
   summary: string;
   details: string;
-  sources: { title: string; quote: string }[];
+  sources: { title: string; quote: string; evidenceId?: string; credibility?: EvidenceCredibility }[];
+  reviewTurnId?: string;
+  attention?: string[];
   charts?: OutcomeResultChart[];
 }
 
@@ -594,9 +725,36 @@ export interface ContractRevisionView {
   createdAt: string;
 }
 
+export const OUTCOME_WORK_THREAD_ARCHIVE_MS = 3 * 60 * 60 * 1000;
+
+export interface OutcomeWorkThreadView {
+  id: string;
+  outcomeId: string;
+  outcomeTitle: string;
+  botId: string;
+  title: string;
+  status: WorkItemStatus;
+  completedAt: string | null;
+  /** Queued behind an earlier task of the same plan that has not completed: no run exists yet. */
+  waitingOnDependency?: boolean;
+}
+
+export const workThreadIsFinished = (status: WorkItemStatus) =>
+  status === "completed" || status === "accepted" || status === "failed" || status === "cancelled";
+
+/** A task that is still waiting for an earlier one has no run to end; only the goal itself can be stopped. */
+export const workThreadCanStop = (thread: Pick<OutcomeWorkThreadView, "status" | "waitingOnDependency">) =>
+  !workThreadIsFinished(thread.status) && !thread.waitingOnDependency;
+
+export interface OutcomeWorkThreadPage {
+  items: OutcomeWorkThreadView[];
+  nextCursor: string | null;
+}
+
 export interface WorkItemView {
   id: string;
   contractRevision: number;
+  botId?: string;
   executorType: WorkItemExecutorType;
   kind: WorkItemKind;
   title: string;
@@ -604,6 +762,9 @@ export interface WorkItemView {
   statusReason: string | null;
   progress?: OutcomeWorkItemProgress | null;
   ordinal: number;
+  planKey?: string | null;
+  nature?: PlanTaskNature | null;
+  review?: WorkItemReviewView;
   dependsOn: string[];
   rootRunId: string | null;
   runIds: string[];
@@ -656,6 +817,8 @@ export interface OutcomeSummary {
   botId: string;
   currentRevision: number | null;
   updatedAt: string;
+  /** The Bot's holistic prereview is running. The owner has no action yet. */
+  prereviewStatus?: "pending" | "stale" | "unreviewed";
 }
 
 export interface OutcomeDetail extends OutcomeSummary {
@@ -679,6 +842,9 @@ export interface OutcomeDetail extends OutcomeSummary {
   outputs: OutputView[];
   evidence: EvidenceView[];
   reviews: ReviewView[];
+  plan?: OutcomePlanView | null;
+  prereview?: OutcomePrereviewView | null;
+  prereviewStatus?: "pending" | "stale" | "unreviewed";
 }
 
 export interface OutcomeListPage {
@@ -828,6 +994,13 @@ export const OutcomeReworkInput = Schema.Struct({
 });
 export type OutcomeReworkInput = typeof OutcomeReworkInput.Type;
 
+export const AdoptPrereviewInput = Schema.Struct({
+  expectedRevision: RevisionNumber,
+  turnId: Uuid,
+  clientRequestId: ClientRequestId,
+});
+export type AdoptPrereviewInput = typeof AdoptPrereviewInput.Type;
+
 export const CancelOutcomeInput = Schema.Struct({ clientRequestId: ClientRequestId });
 export type CancelOutcomeInput = typeof CancelOutcomeInput.Type;
 
@@ -876,6 +1049,7 @@ export type CloseOutcomeInput = typeof CloseOutcomeInput.Type;
 export interface ListOutcomesQuery {
   statuses: OutcomeStatus[];
   query?: string;
+  botId?: string;
   cursor: { updatedAt: string; id: string } | null;
   limit: number;
 }
@@ -889,12 +1063,16 @@ export function parseListOutcomesQuery(params: URLSearchParams): ListOutcomesQue
   const rawLimit = params.get("limit");
   const limit = rawLimit === null ? OUTCOME_LIMITS.listPageSize : Number(rawLimit);
   const query = params.get("query")?.trim();
+  const botId = params.get("botId");
+  if (botId !== null && !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(botId))
+    throw new OutcomeError("invalid_outcome_query", "botId is invalid", { field: "botId" });
   if (query && query.length > 200)
     throw new OutcomeError("invalid_outcome_query", "query must be at most 200 characters", { field: "query" });
   if (!Number.isInteger(limit) || limit < 1) throw new OutcomeError("invalid_outcome_query", "limit must be a positive integer", { field: "limit" });
   return {
     statuses: statuses as OutcomeStatus[],
     ...(query ? { query } : {}),
+    ...(botId ? { botId } : {}),
     cursor: decodeOutcomeCursor(params.get("cursor")),
     limit: Math.min(limit, OUTCOME_LIMITS.listPageSizeMax),
   };

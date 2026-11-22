@@ -6,6 +6,7 @@ interface BotDockSendInput {
   botId: string;
   content: string;
   nonce: string;
+  goalMode?: boolean;
   attachments: Array<
     Pick<BotDockAttachment, "bytes" | "fileName" | "mimeType" | "width" | "height">
   >;
@@ -74,6 +75,8 @@ contextBridge.exposeInMainWorld("botdock", {
   closeComposer: () => ipcRenderer.send("botdock:composer-close"),
   /** Brings the main window forward (the "+N" chip). */
   focusApp: () => ipcRenderer.send("botdock:focus-app"),
+  /** The goal management entry was clicked: brings the app forward on the goals page. */
+  openGoals: () => ipcRenderer.send("botdock:open-goals"),
   /** A Bot's avatar was clicked, or (without an id) the capsule's own button. */
   open: (botId?: string) =>
     ipcRenderer.send("botdock:open", typeof botId === "string" ? botId : null),

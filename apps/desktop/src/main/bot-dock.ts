@@ -225,6 +225,13 @@ export class DesktopBotDock {
       this.fromDock((_event, botId: unknown) => this.onOpen(botId))
     );
     listen(
+      "botdock:open-goals",
+      this.fromDock(() => {
+        this.closeComposer();
+        this.options.openGoals();
+      })
+    );
+    listen(
       "botdock:focus-app",
       this.fromDock(() => {
         this.closeComposer();
@@ -875,6 +882,7 @@ export class DesktopBotDock {
       botId: message.botId,
       content: message.content,
       nonce: message.nonce,
+      ...(message.goalMode ? { goalMode: true } : {}),
       staged,
     });
     // Refused: nothing will upload the staged copies. Unanswered, the chat window may already

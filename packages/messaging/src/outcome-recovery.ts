@@ -155,14 +155,14 @@ export async function recoverOutcomeWorkItem(tx: Prisma.TransactionClient, workI
     return null;
   }
   if (!latest && ["queued", "retry_pending"].includes(item.status)) {
-    await dispatchQueuedOutcomeWorkItems(tx, runtime.messaging, item.botId);
+    await dispatchQueuedOutcomeWorkItems(tx, runtime.messaging, item.botId, item.outcomeId);
     return null;
   }
   if (terminal.includes(item.status)) return null;
   const reason = latest?.status === "interrupted" || ["external_result_unknown", "external_receipt_unknown"].includes(item.statusReason ?? "") ? "external_result_unknown" : "state_inconsistent";
   // Shared transitions deliberately require queued/retry_pending -> running first.
   if (["queued", "retry_pending"].includes(item.status)) await transitionWorkItem(tx, { workItemId: item.id, to: "running", reason, actor });
-  if (item.status !== "needs_review") await transitionWorkItem(tx, { workItemId: item.id, to: "needs_review", reason, actor });
+  if (item.status !== "needs_review") await transitionWorkItem(tx, { workItemId: item.id, to: "needs_review", reason, actor, messaging: runtime.messaging });
   const existing = await tx.outcomeDecision.findUnique({ where: { openWorkItemId: item.id } });
   if (!existing) {
     await createOutcomeDecision(tx, {

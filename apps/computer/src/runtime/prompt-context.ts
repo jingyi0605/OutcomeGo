@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { STREAM_REPLY_TOOL } from "@outcomego/contracts";
+import { RICH_REPLY_TOOL } from "./reply-preview";
 import { existsSync } from "node:fs";
 import { platform, release } from "node:os";
 import { join } from "node:path";
@@ -133,6 +135,11 @@ export const END_TURN_HOLD_REMINDER =
 export const OUTPUT_LIMIT_REMINDER =
   "<system_reminder>Your response was cut off because it exceeded the output token limit. Please break your work into smaller pieces. Continue from where you left off.</system_reminder>";
 
+export const outputLimitReminder = (active: Pick<ActiveTurn, "directTextReply">): string =>
+  active.directTextReply
+    ? "<system_reminder>Your last response was cut off and its unfinished text was not saved. Keep your next reply smaller and complete. Include any essential text from the cut-off response, but do not repeat earlier completed replies.</system_reminder>"
+    : OUTPUT_LIMIT_REMINDER;
+
 /** The latest response hit the output limit, or the turn's first wall-clock cut, which the reference treats as one; this turn has not been told yet. */
 export const owesOutputLimitReminder = (messages: readonly BotMessage[], active: Pick<ActiveTurn, "outputLimitReminded">): boolean => {
   const last = messages.findLast((message) => message.role === "assistant");
@@ -178,10 +185,12 @@ const toolCalls = (message: BotMessage) =>
       })
     : [];
 
-const isTextSend = (call: ReturnType<typeof toolCalls>[number]) =>
-  call.name === "SendToUser" && (call.args.type ?? "text") === "text";
+const sendToolNames = ["SendToUser", RICH_REPLY_TOOL, STREAM_REPLY_TOOL];
 
-function callsSinceLastSend(messages: readonly BotMessage[]): number {
+const isTextSend = (call: ReturnType<typeof toolCalls>[number]) =>
+  typeof call.name === "string" && sendToolNames.includes(call.name) && (call.args.type ?? "text") === "text";
+
+function callsSinceLastSend(messages: readonly BotMessage[], directTextReply?: boolean): number {
   let count = 0;
   const failed = new Set<unknown>();
   for (let index = messages.length - 1; index >= 0; index--) {
@@ -189,8 +198,10 @@ function callsSinceLastSend(messages: readonly BotMessage[]): number {
     if (isUserRole(message)) break;
     if (message.role === "toolResult" && message.isError === true) failed.add(message.toolCallId);
     const calls = toolCalls(message);
-    if (calls.some((call) => call.name === "SendToUser" && !failed.has(call.id))) break;
+    if (calls.some((call) => typeof call.name === "string" && sendToolNames.includes(call.name) && !failed.has(call.id))) break;
     count += calls.length;
+    if (directTextReply && message.role === "assistant" && (message.stopReason === "stop" || message.stopReason === "toolUse") &&
+        messageText(message).trim()) break;
   }
   return count;
 }
@@ -212,24 +223,68 @@ function acknowledgedSinceTurnStart(messages: readonly BotMessage[]): boolean {
   return false;
 }
 
+/** A person opened the turn: a private message, or a group room that woke this bot. Agent, routine and event wakes owe nothing. */
+const owesOpeningAcknowledgement = (active: Pick<ActiveTurn, "requestSource"> & Partial<Pick<ActiveTurn, "groupTurn">>) =>
+  ["user", "turn"].includes(active.requestSource) || active.groupTurn === true;
+
+/** Tools that may come first without an acknowledgement: they are the acknowledgement, or only bookkeeping. */
+const OPENING_EXEMPT_TOOLS = new Set([...sendToolNames, "ReactToMessage", "TodoWrite"]);
+
+const OPENING_GATE_PRIVATE =
+  "The user has not heard from you yet, so this call was not run. First call the SendToUser tool with a one-line text acknowledgement of what you are about to do (end_turn false), then repeat this call.";
+const OPENING_GATE_GROUP =
+  "Nobody in the room has heard from you yet, so this call was not run. If the room's messages address you or ask you to do something, first call the SendToUser tool with a one-line text acknowledgement of what you are about to do (end_turn false), then repeat this call. If they do not need you, end your turn without doing any work.";
+
+/**
+ * Refuses the first work call of a person-opened turn that has not acknowledged them yet, once per turn.
+ * Returns the refusal to hand back to the model, or null to let the call run. Calls that share the
+ * refused response are refused together; the next response always runs, so the gate cannot loop.
+ */
+export function openingAcknowledgementGate(
+  messages: readonly BotMessage[],
+  active: Pick<ActiveTurn, "requestSource" | "subagentType"> &
+    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged" | "groupTurn" | "openingGateMessage" | "directTextReply">>,
+  toolName: string
+): string | null {
+  if (active.subagentType || active.narrator || !owesOpeningAcknowledgement(active)) return null;
+  if (OPENING_EXEMPT_TOOLS.has(toolName)) return null;
+  const acknowledged = active.userAcknowledged === undefined
+    ? acknowledgedSinceTurnStart(messages)
+    : active.userAcknowledged;
+  if (acknowledged) return null;
+  const latest = messages.findLast((message) => message.role === "assistant");
+  // A text send or tapback in this very response comes first in call order and reaches the user before the work.
+  if (latest && toolCalls(latest).some((call) => isTextSend(call) || call.name === "ReactToMessage")) return null;
+  const marker = latest ?? null;
+  if (active.openingGateMessage !== undefined && active.openingGateMessage !== marker) return null;
+  active.openingGateMessage = marker;
+  if (active.directTextReply)
+    return "The user has not heard from you yet, so this call was not run. Write a one-line acknowledgement as assistant text before repeating the call.";
+  return active.groupTurn === true ? OPENING_GATE_GROUP : OPENING_GATE_PRIVATE;
+}
+
 /** The ack repeats every 2 silent calls until a text send or reaction; the progress note every 7 after that. */
 export function communicationReminder(
   messages: readonly BotMessage[],
   active: Pick<ActiveTurn, "requestSource" | "subagentType"> &
-    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged">>
+    Partial<Pick<ActiveTurn, "narrator" | "userAcknowledged" | "groupTurn" | "directTextReply">>
 ) {
-  if (active.subagentType || !["user", "turn"].includes(active.requestSource)) return null;
+  if (active.subagentType || !owesOpeningAcknowledgement(active)) return null;
   // On a voice call the narrator keeps the user informed while the agent works.
   if (active.narrator) return null;
   const last = messages.at(-1);
   if (last && isCommunicationReminder(last)) return null;
-  const calls = callsSinceLastSend(messages);
+  const calls = callsSinceLastSend(messages, active.directTextReply);
   // The active turn tracks actual delivery. A soft-failed reaction returns a
   // normal tool result, so its mere presence in history is not an acknowledgement.
   const acknowledged = active.userAcknowledged === undefined
     ? acknowledgedSinceTurnStart(messages)
     : active.userAcknowledged;
-  if (calls > ACK_THRESHOLD && !acknowledged) return { kind: "ack", content: ACK_REMINDER };
-  if (calls > PROGRESS_THRESHOLD) return { kind: "progress", content: PROGRESS_REMINDER };
+  if (calls > ACK_THRESHOLD && !acknowledged) return { kind: "ack", content: active.directTextReply
+    ? "<system_reminder>Write one brief acknowledgement directly as assistant text before continuing the work.</system_reminder>"
+    : ACK_REMINDER };
+  if (calls > PROGRESS_THRESHOLD) return { kind: "progress", content: active.directTextReply
+    ? "<system_reminder>If you have a meaningful finding or blocker, write one brief update directly as assistant text. Omit routine progress narration.</system_reminder>"
+    : PROGRESS_REMINDER };
   return null;
 }

@@ -74,6 +74,102 @@ describe("Bot dock capsule", () => {
     expect(render([bot("a", 1, 0)])).not.toContain("<img");
   });
 
+  test("goal management gets its own icon: yellow when goals wait on the owner, blue when results wait for review", () => {
+    const withOutcomes = (outcomes: { action: number; review: number }, bots: BotDockBotView[] = []) =>
+      renderToStaticMarkup(
+        <DockBots
+          state={{
+            bots,
+            labels: { ...labels, outcomes: "Outcomes", review: "Awaiting review" },
+            outcomes,
+          } as BotDockStateView}
+        />,
+      );
+    const both = withOutcomes({ action: 2, review: 120 });
+    // The entry shows even though no Bot has anything unread.
+    expect(both).toContain("data-dock-outcomes");
+    expect(both).toMatch(/data-dock-badge="outcome-action"[^>]*>2</);
+    expect(both).toMatch(/data-dock-badge="outcome-review"[^>]*>99\+</);
+    expect(both).toContain("dock-badge-review");
+    expect(both).toContain('aria-label="Outcomes, Pending action: 2, Awaiting review: 120"');
+    const onlyReview = withOutcomes({ action: 0, review: 1 });
+    expect(onlyReview).not.toContain("outcome-action");
+    expect(onlyReview).toContain("outcome-review");
+    const onlyAction = withOutcomes({ action: 3, review: 0 });
+    expect(onlyAction).toContain("outcome-action");
+    expect(onlyAction).not.toContain("outcome-review");
+    // Nothing waiting: no entry. Bots keep their own badges beside it.
+    expect(withOutcomes({ action: 0, review: 0 })).toBe("");
+    const beside = withOutcomes({ action: 1, review: 0 }, [bot("a", 2, 0)]);
+    expect(beside).toContain("data-dock-outcomes");
+    expect(beside).toContain('data-dock-bot="a"');
+  });
+
+  test("pressing the goal management entry opens the goals page", async () => {
+    const dom = parseHTML("<html><body></body></html>");
+    Object.assign(dom.document, { oninput: null });
+    const openGoals = mock(() => {});
+    const open = mock((_botId?: string) => {});
+    const state = {
+      bots: [],
+      roster: [],
+      labels: { ...labels, outcomes: "Outcomes", review: "Awaiting review" },
+      outcomes: { action: 1, review: 1 },
+    };
+    const bridge: Partial<BotDockBridge> = {
+      getState: async () => state,
+      onState: () => () => {},
+      onMessageArrival: () => () => {},
+      onDockSide: () => () => {},
+      onSurfaceVisible: () => () => {},
+      onComposerAnchor: () => () => {},
+      onDroppedFiles: () => () => {},
+      resize() {},
+      openGoals,
+      open,
+    };
+    Object.defineProperty(dom.window, "botdock", { configurable: true, value: bridge });
+    Object.defineProperty(dom.window.HTMLElement.prototype, "setPointerCapture", { configurable: true, value() {} });
+    const descriptors = new Map<string, PropertyDescriptor | undefined>();
+    for (const [key, value] of Object.entries({
+      window: dom.window,
+      document: dom.document,
+      IS_REACT_ACT_ENVIRONMENT: true,
+      matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }),
+      ResizeObserver: class {
+        observe() {}
+        disconnect() {}
+      },
+    })) {
+      descriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+      Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    }
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(dom.document.body);
+    try {
+      await act(async () => root.render(<BotDockApp />));
+      await act(async () => {});
+      const entry = dom.document.querySelector("[data-dock-outcomes]");
+      if (!entry) throw new Error("Missing goal management entry");
+      const press = (type: string) => {
+        const event = new dom.window.Event(type, { bubbles: true });
+        Object.assign(event, { button: 0, screenX: 5, screenY: 5, pointerId: 1 });
+        return act(async () => entry.dispatchEvent(event));
+      };
+      await press("pointerdown");
+      await press("pointerup");
+      expect(openGoals).toHaveBeenCalledTimes(1);
+      expect(open).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root.unmount());
+      Reflect.deleteProperty(dom.window, "botdock");
+      for (const [key, descriptor] of descriptors) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+      }
+    }
+  });
+
   test("keeps capsule layouts fixed during drag and animates only the visible composer", async () => {
     const dom = parseHTML("<html><body></body></html>");
     Object.assign(dom.document, { oninput: null });
@@ -351,6 +447,104 @@ describe("Bot dock capsule", () => {
       expect(closeComposer).toHaveBeenCalledTimes(1);
       expect(focusApp).not.toHaveBeenCalled();
       expect(input.value).toBe("");
+    } finally {
+      await act(async () => root.unmount());
+      for (const [key, descriptor] of descriptors) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+      }
+    }
+  });
+
+  test("defaults to chat mode and toggles goal mode with Tab", async () => {
+    const dom = parseHTML("<html><body></body></html>");
+    Object.assign(dom.document, { oninput: null });
+    const descriptors = new Map<string, PropertyDescriptor | undefined>();
+    for (const [key, value] of Object.entries({
+      window: dom.window,
+      document: dom.document,
+      IS_REACT_ACT_ENVIRONMENT: true,
+      matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }),
+      requestAnimationFrame: (callback: FrameRequestCallback) => {
+        callback(0);
+        return 0;
+      },
+    })) {
+      descriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+      Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    }
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(dom.document.body);
+    const send = mock(async (_message: Parameters<BotDockBridge["send"]>[0]) => ({ ok: true }));
+    const closeComposer = mock(() => {});
+    const bridge = { send, closeComposer, focusApp: () => {} } as unknown as BotDockBridge;
+    const state: BotDockStateView = {
+      bots: [],
+      roster: [{ ...bot("a", 0, 0), name: "Alpha" }],
+      outcomesEnabled: true,
+      labels: {
+        ...labels,
+        placeholder: "Chat placeholder",
+        goalPlaceholder: "Goal placeholder",
+        chatMode: "对话",
+        goalMode: "目标",
+        to: "To",
+        send: "Send",
+        failed: "Send failed",
+        empty: "No Bot",
+        attachmentInvalid: "Invalid attachment",
+        removeAttachment: "Remove attachment",
+      },
+    };
+    let setDraft!: (next: string) => void;
+    function Fixture() {
+      const model = useDockComposer(bridge, state.roster, state.outcomesEnabled !== false);
+      setDraft = model.change;
+      return <DockComposer bridge={bridge} model={model} state={state} />;
+    }
+    try {
+      await act(async () => root.render(<Fixture />));
+      const input = dom.document.querySelector("textarea")!;
+      const modePill = () => dom.document.querySelector<HTMLButtonElement>(".dock-mode-pill")!;
+      expect(modePill().getAttribute("data-mode")).toBe("chat");
+      expect(modePill().textContent).toBe("Tab对话");
+      const kbd = modePill().querySelector(".dock-mode-kbd");
+      expect(kbd?.textContent).toBe("Tab");
+      expect(kbd?.querySelector("svg")).toBeNull();
+      expect(kbd?.nextElementSibling?.textContent).toBe("对话");
+      expect(dom.document.querySelector(".dock-composer-bar")?.contains(modePill())).toBe(true);
+      expect(modePill().nextElementSibling?.classList.contains("dock-send")).toBe(true);
+      expect(input.getAttribute("placeholder")).toBe("Chat placeholder");
+
+      const press = async (key: string, options: { shiftKey?: boolean; repeat?: boolean } = {}) => {
+        const event = new dom.window.Event("keydown", { bubbles: true, cancelable: true });
+        Object.assign(event, { key, ...options });
+        await act(async () => input.dispatchEvent(event));
+        return event.defaultPrevented;
+      };
+
+      // Tab toggles from chat mode to goal mode.
+      expect(await press("Tab")).toBe(true);
+      expect(modePill().getAttribute("data-mode")).toBe("goal");
+      expect(modePill().textContent).toContain("目标");
+      expect(input.getAttribute("placeholder")).toBe("Goal placeholder");
+      expect(dom.document.querySelector(".dock-composer")?.getAttribute("data-goal-mode")).toBe("true");
+
+      // Repeated Tab keydown does not flicker; another single Tab toggles back to chat mode.
+      expect(await press("Tab", { repeat: true })).toBe(true);
+      expect(modePill().getAttribute("data-mode")).toBe("goal");
+      expect(await press("Tab")).toBe(true);
+      expect(modePill().getAttribute("data-mode")).toBe("chat");
+
+      // Switch back to goal mode, enter text, and send -> sends goalMode: true and resets to chat mode.
+      await press("Tab");
+      expect(modePill().getAttribute("data-mode")).toBe("goal");
+      await act(async () => setDraft("整理今天的日志"));
+      await press("Enter");
+      expect(send).toHaveBeenCalledWith(
+        expect.objectContaining({ botId: "a", content: "整理今天的日志", goalMode: true })
+      );
+      expect(modePill().getAttribute("data-mode")).toBe("chat");
     } finally {
       await act(async () => root.unmount());
       for (const [key, descriptor] of descriptors) {

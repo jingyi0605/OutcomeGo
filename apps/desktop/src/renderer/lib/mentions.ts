@@ -1,4 +1,5 @@
 export {
+  GOAL_MODE_OPTION_ID,
   mentionHandleFor,
   type MentionOption,
 } from "@outcomego/product-core/mentions";

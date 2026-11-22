@@ -15,7 +15,7 @@ export const messageAddress = (message: ReplyTarget): string => {
 };
 
 /** A quoted goal notice names its Outcome so the Bot can read the real goal with GetOutcome. */
-const replyGoalHint = (reply: ReplyTarget): string => {
+export const replyGoalHint = (reply: ReplyTarget): string => {
   const card = metadataRecord(metadataRecord(reply.metadata).outcomeCard);
   return typeof card.outcomeId === "string" ? `; goal notice for Outcome ${card.outcomeId}` : "";
 };

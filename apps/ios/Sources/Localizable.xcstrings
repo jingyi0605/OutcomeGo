@@ -6881,6 +6881,16 @@
         }
       }
     },
+    "Stream bot replies": {
+      "localizations": {
+        "zh-CN": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流式显示机器人回复"
+          }
+        }
+      }
+    },
     "Submit": {
       "localizations": {
         "zh-CN": {

@@ -4,6 +4,7 @@ import { RuntimeTools } from "../../src/runtime/tools";
 import type { ActiveTurn } from "../../src/runtime/types";
 import {
   communicationReminder,
+  openingAcknowledgementGate,
   enrichUserInfo,
   renderDynamicToolCatalog,
   promptFingerprint,
@@ -255,4 +256,52 @@ test("Task, Stop and web schemas ride in the catalog without an extra discovery 
   const stop = preloaded.find(tool => tool.name === "StopSubagent")!;
   expect(JSON.stringify(stop.inputSchema)).toContain("all");
   expect(renderDynamicToolCatalog([cursor])).toContain('"tool":"StopSubagent"');
+});
+
+const group = { requestSource: "agent", subagentType: null, groupTurn: true } as const;
+
+test("a group turn owes the same acknowledgement reminder as a private turn", () => {
+  const messages = [user, call("Read"), call("Shell")];
+  expect(communicationReminder(messages, group)?.kind).toBe("ack");
+  // An agent-to-agent wake is not a person's message and owes nothing.
+  expect(communicationReminder(messages, { requestSource: "agent", subagentType: null })).toBeNull();
+});
+
+test("the first work call of an unacknowledged turn is refused once, with the group wording in a room", () => {
+  const state: { openingGateMessage?: unknown } = {};
+  const turn = { ...active, ...state };
+  const first = call("Shell");
+  const refusal = openingAcknowledgementGate([user, first], turn, "Shell");
+  expect(refusal).toContain("The user has not heard from you");
+  // Sibling calls of the refused response are refused with it.
+  expect(openingAcknowledgementGate([user, first], turn, "Read")).toBe(refusal);
+  // The retry in a later response runs, so the gate cannot loop.
+  expect(openingAcknowledgementGate([user, first, call("Shell")], turn, "Shell")).toBeNull();
+  const room = { ...group };
+  expect(openingAcknowledgementGate([user, call("Shell")], room, "Shell")).toContain("Nobody in the room has heard from you");
+});
+
+test("the opening gate lets acknowledgements, bookkeeping, and already acknowledged turns through", () => {
+  for (const tool of ["SendToUser", "ReactToMessage", "TodoWrite"])
+    expect(openingAcknowledgementGate([user, call(tool)], { ...active }, tool)).toBeNull();
+  expect(openingAcknowledgementGate([user, call("Shell")], { ...active, userAcknowledged: true }, "Shell")).toBeNull();
+  const together = { role: "assistant", content: [
+    { type: "toolCall", id: "a", name: "SendToUser", arguments: { type: "text", content: "On it." } },
+    { type: "toolCall", id: "b", name: "Shell", arguments: {} },
+  ] };
+  expect(openingAcknowledgementGate([user, together], { ...active }, "Shell")).toBeNull();
+  // A widget is not the opening reply.
+  const widget = { role: "assistant", content: [
+    { type: "toolCall", id: "a", name: "SendToUser", arguments: { type: "widget" } },
+    { type: "toolCall", id: "b", name: "Shell", arguments: {} },
+  ] };
+  expect(openingAcknowledgementGate([user, widget], { ...active }, "Shell")).not.toBeNull();
+});
+
+test("workers, routines, voice narration, and agent wakes are never gated", () => {
+  const messages = [user, call("Shell")];
+  expect(openingAcknowledgementGate(messages, { ...active, subagentType: "executor" }, "Shell")).toBeNull();
+  expect(openingAcknowledgementGate(messages, { ...active, requestSource: "automation" }, "Shell")).toBeNull();
+  expect(openingAcknowledgementGate(messages, { requestSource: "agent", subagentType: null }, "Shell")).toBeNull();
+  expect(openingAcknowledgementGate(messages, { ...active, narrator: {} as never }, "Shell")).toBeNull();
 });

@@ -12,6 +12,9 @@ struct SettingsView: View {
   @AppStorage("haptics") private var haptics = true
   @AppStorage("language") private var language = AppLanguage.default.rawValue
   @State private var signOut = false
+  @State private var streamBotReplies: Bool?
+  @State private var savingStreamSetting = false
+  @State private var streamSettingFailed = false
   @State private var path: [SettingsRoute]
   init(initialRoute: SettingsRoute? = nil) {
     _path = State(initialValue: initialRoute.map { [$0] } ?? [])
@@ -82,6 +85,16 @@ struct SettingsView: View {
         }
         Section {
           NavigationLink("Bot notifications") { notificationSettings }
+          Toggle("Stream bot replies", isOn: Binding(
+            get: { streamBotReplies ?? false },
+            set: { enabled in Task { await saveStreamSetting(enabled) } }
+          ))
+          .tint(NativePalette.toggle)
+          .disabled(streamBotReplies == nil || savingStreamSetting)
+          .accessibilityIdentifier("stream-bot-replies")
+          if streamSettingFailed {
+            Button("Try again") { Task { await loadStreamSetting() } }
+          }
         } header: {
           Text("Bot").font(.system(size: 13)).foregroundStyle(NativePalette.faint)
         }
@@ -127,7 +140,8 @@ struct SettingsView: View {
             signOut = true
           }.disabled(store.busy.contains("sign-out")).accessibilityIdentifier("sign-out")
         }
-      }.contentMargins(.top, 20, for: .scrollContent)
+      }.task { await loadStreamSetting() }
+        .contentMargins(.top, 20, for: .scrollContent)
         .listSectionSpacing(28)
         // Rows scroll under Close; give the bar the soft edge other settings pages have.
         .softTopScrollEdge()
@@ -203,6 +217,32 @@ struct SettingsView: View {
     }.padding(.vertical, 3).frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(Rectangle())
   }
+  private func loadStreamSetting() async {
+    do {
+      streamBotReplies = try await store.fetch("/api/v0/feature-settings", as: FeatureSettings.self).streamBotReplies
+      streamSettingFailed = false
+    } catch let error as APIError where error.status == 404 {
+      streamBotReplies = nil
+      streamSettingFailed = false
+    } catch {
+      if !Task.isCancelled { streamSettingFailed = true }
+    }
+  }
+
+  private func saveStreamSetting(_ enabled: Bool) async {
+    guard !savingStreamSetting else { return }
+    savingStreamSetting = true
+    defer { savingStreamSetting = false }
+    do {
+      let result = try await store.request(
+        "/api/v0/feature-settings", method: "PATCH", body: .object(["streamBotReplies": .bool(enabled)]))
+      streamBotReplies = result["streamBotReplies"].bool
+      streamSettingFailed = false
+    } catch {
+      if !Task.isCancelled { streamSettingFailed = true }
+    }
+  }
+
   var notificationSettings: some View {
     NativeList {
       ForEach(store.bots) { bot in

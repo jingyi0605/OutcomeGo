@@ -1,6 +1,6 @@
 {
   "name": "@outcomego/contracts",
-  "version": "0.1.0-beta.23",
+  "version": "0.1.0-beta.24",
   "license": "GPL-3.0-only",
   "private": true,
   "type": "module",
@@ -65,6 +65,7 @@
     "./inference-presets": "./src/inference-presets.ts",
     "./outcome-chat": "./src/outcome-chat.ts",
     "./outcome-chat-card": "./src/outcome-chat-card.ts",
+    "./group-tasks": "./src/group-tasks.ts",
     "./outcome-thread": "./src/outcome-thread.ts",
     "./outcome-inbox": "./src/outcome-inbox.ts",
     "./outcome-inbox-categories": "./src/outcome-inbox-categories.ts",

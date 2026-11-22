@@ -25,6 +25,8 @@ import { ChatPane } from "./components/outcomego/chat-pane";
 import { DesktopHeader } from "./components/outcomego/desktop-header";
 import type { SearchAction } from "./components/outcomego/search-dialog";
 import { Sidebar } from "./components/outcomego/sidebar";
+import { ChatBranchNavigation, WorkThreadNavigation } from "./lib/work-thread-navigation";
+import type { OutcomeWorkThreadView } from "@outcomego/contracts/outcomes";
 import { FirstRunShell } from "./components/outcomego/first-run-shell";
 import {
   clearLandingRow,
@@ -53,7 +55,11 @@ import {
   parseOutcomeGoDeepLink,
   type SettingsAnchor,
 } from "./lib/app-deep-links";
-import { activeAsyncTaskChannelIds, activeAsyncTasksForBot } from "./lib/async-tasks";
+import {
+  activeAsyncTaskChannelIds,
+  activeAsyncTasksForBot,
+  activeThreadChannelIds as activeThreadChannelIdsForSnapshot,
+} from "./lib/async-tasks";
 import { cn } from "./lib/cn";
 import { requestDesktopUpdateRestart } from "./lib/desktop-update";
 import {
@@ -139,12 +145,21 @@ const AboutPanel = lazy(() => import("./components/outcomego/settings/about"));
 const QuickIdeaDialog = lazy(
   () => import("./components/outcomego/outcomes/explore/quick-idea-dialog")
 );
+const OutcomeWorkThread = lazy(() =>
+  import("./components/outcomego/outcomes/outcome-execution-card").then((module) => ({ default: module.OutcomeExecutionDialog }))
+);
+const ChatGoals = lazy(() => import("./components/outcomego/outcomes/chat-goals"));
 const OutcomeWorkspace = lazy(
   () => import("./components/outcomego/outcomes/inbox/outcome-workspace")
 );
 const LiveVoiceLayer = lazy(() =>
   import("./components/outcomego/live-voice/live-voice-layer").then((module) => ({
     default: module.LiveVoiceLayer,
+  }))
+);
+const GroupTasksBottomSheet = lazy(() =>
+  import("./components/outcomego/group-tasks-bottom-sheet").then((module) => ({
+    default: module.GroupTasksBottomSheet,
   }))
 );
 const SettingsPanel = lazy(async () => {
@@ -269,6 +284,7 @@ export default function App() {
     messageId: string;
     nonce: number;
     readThroughSequence?: string;
+    branchOnly?: boolean;
   } | null>(null);
   const [routineOpenTarget, setRoutineOpenTarget] = useState<{
     channelId: string;
@@ -312,6 +328,7 @@ export default function App() {
   const a2aExchangeTrigger = useRef<HTMLElement | null>(null);
   const restoreA2AFocusAfterClose = useRef(false);
   const lastWritableChannelId = useRef<string | null>(null);
+  const [groupTasksOpen, setGroupTasksOpen] = useState(false);
   const a2aPerspectiveBotId = useRef<string | null>(null);
   const [pendingBot, setPendingBot] = useState<{
     name: string;
@@ -323,6 +340,11 @@ export default function App() {
   const [composerFocus, setComposerFocus] = useState<{ channelId: string; nonce: number } | null>(
     null
   );
+  const [goalModeRequest, setGoalModeRequest] = useState<{ channelId: string; nonce: number } | null>(
+    null
+  );
+  const consumeGoalModeRequest = useCallback(() => setGoalModeRequest(null), []);
+  const composerFocusNonceRef = useRef(0);
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
   const readReceipts = useRef(createReadReceiptController());
@@ -376,7 +398,7 @@ export default function App() {
   useOutcomeThreadNotices();
   const outcomeBadges = useOutcomeActionCounts(outcomesEnabled);
   // The floating Bot capsule shows the same unread messages and waiting goals, per Bot.
-  useBotDockSync(snapshot, outcomeBadges.approvalByBot);
+  useBotDockSync(snapshot, outcomeBadges.approvalByBot, outcomesEnabled, outcomeBadges);
 
   // Notify bot dock when files are being dragged in main window
   useEffect(() => {
@@ -418,10 +440,22 @@ export default function App() {
   const [requestedOutcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
   // Goal management is opt-in: while it is off no goal view can be shown, however it was requested.
   const outcomeTarget = outcomesEnabled ? requestedOutcomeTarget : null;
+  const [requestedWorkThread, setWorkThread] = useState<OutcomeWorkThreadView | null>(null);
+  const workThread = !outcomeTarget ? requestedWorkThread : null;
+  const openWorkThread = useCallback((thread: OutcomeWorkThreadView) => {
+    setOutcomeTarget(null);
+    setNewBotPicker(false);
+    setChatGoalsBotId(null);
+    setA2AExchange(null);
+    a2aExchangeTrigger.current = null;
+    restoreA2AFocusAfterClose.current = false;
+    setWorkThread(thread);
+  }, []);
+  const [chatGoalsBotId, setChatGoalsBotId] = useState<string | null>(null);
   const [quickIdeaOpen, setQuickIdeaOpen] = useState(false);
   const openQuickIdea = useCallback(() => setQuickIdeaOpen(true), []);
   const visibleChatId =
-    outcomeTarget || newBotPicker || pendingBot || landing || a2aExchange ? null : selectedId;
+    outcomeTarget || workThread || newBotPicker || pendingBot || landing || a2aExchange ? null : selectedId;
   const visibleChatIdRef = useRef(visibleChatId);
   visibleChatIdRef.current = visibleChatId;
   useEffect(() => {
@@ -583,6 +617,7 @@ export default function App() {
       restoreA2AFocusAfterClose.current = false;
       setNewBotPicker(false);
       setOutcomeTarget(null);
+      setWorkThread(null);
       setSelectedId(channelId);
       setInspectorMode("summary");
       setDetailsOpen(false);
@@ -941,6 +976,10 @@ export default function App() {
     () => activeAsyncTaskChannelIds(snapshot?.subagents ?? []),
     [snapshot?.subagents]
   );
+  const activeThreadChannelIds = useMemo(
+    () => activeThreadChannelIdsForSnapshot(snapshot?.runs ?? [], snapshot?.subagents ?? []),
+    [snapshot?.runs, snapshot?.subagents]
+  );
 
   const openNewBot = useCallback(() => {
     setOutcomeTarget(null);
@@ -976,6 +1015,7 @@ export default function App() {
   const selectSidebarChannel = useCallback(
     (id: string, focusComposer = false) => {
       setOutcomeTarget(null);
+      setWorkThread(null);
       setComposerFocus((previous) =>
         focusComposer ? { channelId: id, nonce: (previous?.nonce ?? 0) + 1 } : null
       );
@@ -1370,6 +1410,16 @@ export default function App() {
     ]
   );
 
+  const openChatBranch = useCallback((channelId: string, messageId: string) => {
+    selectSidebarChannel(channelId);
+    const nonce = ++searchLoadNonce.current;
+    void ensureMessageLoaded(channelId, messageId).then((found) => {
+      if (found && searchLoadNonce.current === nonce) {
+        setSearchMessageTarget({ channelId, messageId, nonce, branchOnly: true });
+      }
+    }).catch(() => undefined);
+  }, [ensureMessageLoaded, selectSidebarChannel]);
+
   const selectSearchResult = useCallback(
     (result: SearchResultView) => {
       if (result.kind === "link" && result.url) {
@@ -1455,6 +1505,8 @@ export default function App() {
   }
 
   return (
+    <ChatBranchNavigation.Provider value={openChatBranch}>
+    <WorkThreadNavigation.Provider value={openWorkThread}>
     <BotAvatarActivityProvider
       channel={newBotPicker || pendingBot ? null : (a2aExchangeChannel ?? selected)}
       run={index.activeRunByChannel.get((a2aExchangeChannel ?? selected)?.id ?? "")}
@@ -1488,6 +1540,7 @@ export default function App() {
             itemsByRun={index.itemsByRun}
             activeRunByChannel={index.activeRunByChannel}
             activeTaskChannelIds={activeTaskChannelIds}
+            activeThreadChannelIds={activeThreadChannelIds}
             botById={index.botById}
             channels={visibleChannels}
             creating={newBotPicker}
@@ -1509,6 +1562,7 @@ export default function App() {
             onOpenOutcomes={
               outcomesEnabled
                 ? () => {
+                    setWorkThread(null);
                     setOutcomeTarget({});
                     setNewBotPicker(false);
                   }
@@ -1520,7 +1574,7 @@ export default function App() {
             pendingBot={pendingBot}
             preferences={sidebarPreferences}
             selectedId={
-              outcomeTarget || newBotPicker || pendingBot || landing
+              outcomeTarget || workThread || newBotPicker || pendingBot || landing
                 ? null
                 : selected?.kind === "agent_dm"
                   ? lastWritableChannelId.current
@@ -1528,6 +1582,32 @@ export default function App() {
             }
           />
 
+          {outcomesEnabled && selectedBot && selectedBot.id === chatGoalsBotId && (
+            <Suspense fallback={null}>
+              <ChatGoals
+                key={selectedBot.id}
+                bot={selectedBot}
+                bots={snapshot.bots}
+                onClose={() => setChatGoalsBotId(null)}
+                onNewGoal={() => {
+                  const dmChannelId =
+                    selected?.kind === "bot_dm" && selectedBot.id === chatGoalsBotId
+                      ? selected.id
+                      : visibleChannels.find(
+                          (candidate) =>
+                            candidate.kind === "bot_dm" &&
+                            candidate.members.some((member) => member.botId === selectedBot.id)
+                        )?.id;
+                  setChatGoalsBotId(null);
+                  if (dmChannelId) {
+                    const nonce = ++composerFocusNonceRef.current;
+                    setGoalModeRequest({ channelId: dmChannelId, nonce });
+                    setComposerFocus({ channelId: dmChannelId, nonce });
+                  }
+                }}
+              />
+            </Suspense>
+          )}
           {outcomesEnabled && quickIdeaOpen && (
             <Suspense fallback={null}>
               <QuickIdeaDialog
@@ -1558,7 +1638,7 @@ export default function App() {
               inert={Boolean(outcomeTarget)}
               aria-hidden={outcomeTarget ? true : undefined}
             >
-              {!newBotPicker && !pendingBot && !landing && (
+              {!workThread && !newBotPicker && !pendingBot && !landing && (
                 <DesktopHeader
                   agentNameById={index.agentNameById}
                   botById={index.botById}
@@ -1583,6 +1663,10 @@ export default function App() {
                     if (open) setInspectorMode("summary");
                     setDetailsOpen(open);
                   }}
+                  onOpenChatGoals={outcomesEnabled && selectedBot?.status === "active" ? () => setChatGoalsBotId(selectedBot.id) : undefined}
+                  onOpenGroupTasks={
+                    selected?.kind === "group" ? () => setGroupTasksOpen(true) : undefined
+                  }
                   onShowSettings={() => setInspectorMode("settings")}
                   onShowSummary={() =>
                     setInspectorMode(inspectorMode === "routine" ? routineReturnMode : "summary")
@@ -1681,6 +1765,17 @@ export default function App() {
                     {t("{name} joined your team", { name: landing.name })}
                   </p>
                 </div>
+              ) : workThread ? (
+                <Suspense fallback={<p className="p-4 text-sm text-muted-foreground" role="status">{t("Loading execution messages…")}</p>}>
+                  <OutcomeWorkThread
+                    key={workThread.id}
+                    thread={workThread}
+                    bot={index.botById.get(workThread.botId)}
+                    client={api.outcomes}
+                    open
+                    onOpenChange={() => setWorkThread(null)}
+                  />
+                </Suspense>
               ) : selected ? (
                 <div className="flex min-h-0 flex-1">
                   <div className="relative min-w-0 flex-1">
@@ -1710,6 +1805,7 @@ export default function App() {
                               historyByChannel.get(channelId)?.threadContextTruncated ?? false
                             }
                             activeRun={index.activeRunByChannel.get(channelId)}
+                            goalsEnabled={outcomesEnabled}
                             agentNameById={index.agentNameById}
                             botById={index.botById}
                             channel={channel}
@@ -1718,6 +1814,12 @@ export default function App() {
                                 ? composerFocus.nonce
                                 : undefined
                             }
+                            goalModeRequest={
+                              goalModeRequest?.channelId === channelId
+                                ? goalModeRequest.nonce
+                                : undefined
+                            }
+                            onGoalModeRequestApplied={consumeGoalModeRequest}
                             incomingDraft={
                               transferredDraft?.channelId === channelId
                                 ? transferredDraft.draft
@@ -2055,8 +2157,19 @@ export default function App() {
               />
             </Suspense>
           )}
+          {selected?.kind === "group" && (
+            <Suspense fallback={null}>
+              <GroupTasksBottomSheet
+                channelId={selected.id}
+                open={groupTasksOpen}
+                onOpenChange={setGroupTasksOpen}
+              />
+            </Suspense>
+          )}
         </main>
       </TooltipProvider>
     </BotAvatarActivityProvider>
+    </WorkThreadNavigation.Provider>
+    </ChatBranchNavigation.Provider>
   );
 }

@@ -218,6 +218,7 @@ const dispatch = async (record: DurableSendRecord) => {
   const options = {
     ...(payload.richText ? { richText: payload.richText } : {}),
     ...(payload.isFork !== undefined ? { isFork: payload.isFork } : {}),
+    ...(payload.goalMode !== undefined ? { goalMode: payload.goalMode } : {}),
     clientId: record.nonce,
   };
   const accepted = target.conversationId

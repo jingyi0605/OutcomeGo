@@ -103,7 +103,9 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 40%, transparent);
 }
 .outcome-page-content
-  button:not(.outcome-row):not(.outcome-button):not(.outcome-control):not(.outcome-source-info) {
+  button:not(.outcome-row):not(.outcome-button):not(.outcome-control):not(.outcome-source-info):not(
+    [data-dash]
+  ):not([role="switch"]) {
   min-height: 28px;
   border-radius: 8px;
   padding: 4px 9px;
@@ -436,6 +438,10 @@ label.outcome-card:has(> input[type="radio"]:checked) {
   background: currentColor;
   content: "";
 }
+.outcome-status[data-outcome-status="planning"],
+.outcome-status[data-outcome-status="approved"] {
+  color: light-dark(#2b5f9e, #7fb3ee);
+}
 .outcome-status[data-outcome-status="running"] {
   color: light-dark(#377c56, #7bbb92);
 }
@@ -451,6 +457,338 @@ label.outcome-card:has(> input[type="radio"]:checked) {
 }
 .outcome-status[data-outcome-status="accepted"] {
   color: light-dark(#377c56, #7bbb92);
+}
+.chat-goal-status-badge {
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-weight: 500;
+  line-height: 1.35;
+  border: 0.5px solid color-mix(in srgb, currentColor 24%, transparent);
+  background: color-mix(in srgb, currentColor 9%, transparent);
+}
+
+/* Dashboard: metrics on top, then the steps that need the owner, then goals in motion. */
+.outcome-dash {
+  display: flex;
+  flex-direction: column;
+}
+.outcome-dash-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.outcome-dash-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.outcome-dash-metric-value {
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.outcome-dash-metric-label {
+  font-size: 12px;
+  color: var(--foreground-secondary);
+}
+.outcome-dash-metric[data-tone="attention"] .outcome-dash-metric-value {
+  color: light-dark(#966e2a, #d4b579);
+}
+.outcome-dash-section {
+  margin-top: 32px;
+}
+.outcome-dash-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.outcome-dash-heading h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.outcome-dash-heading h2 span {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--foreground-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.outcome-dash-heading button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 6px;
+  padding: 2px 4px;
+  color: var(--foreground-secondary);
+  font-size: 12px;
+}
+.outcome-dash-heading button:hover {
+  color: var(--foreground);
+}
+.outcome-dash-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0.5px dashed var(--border);
+  border-radius: 12px;
+  padding: 18px 16px;
+  font-size: 12px;
+  color: var(--foreground-secondary);
+}
+.outcome-dash-empty .outcome-button {
+  margin-left: auto;
+}
+.outcome-dash-act {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  border-radius: 7px;
+  background: var(--subtle);
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--foreground);
+}
+.outcome-row:hover .outcome-dash-act {
+  background: var(--selected);
+}
+
+/* Whose turn it is: each category has one color, used for the rail, the tag and the focus card. */
+.outcome-dash [data-category="decision_pending"] {
+  --dash-tone: light-dark(#966e2a, #d4b579);
+}
+.outcome-dash [data-category="acceptance_pending"] {
+  --dash-tone: light-dark(#377c56, #7bbb92);
+}
+.outcome-dash [data-category="human_action_pending"] {
+  --dash-tone: light-dark(#3f6ea3, #8db4e0);
+}
+.outcome-dash-focus {
+  position: relative;
+  overflow: hidden;
+  border: 0.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--background);
+  padding: 18px 22px 18px 25px;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+.outcome-dash-focus::before,
+.outcome-dash-step::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--dash-tone, var(--border));
+  content: "";
+}
+.outcome-dash-focus-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+}
+.outcome-dash-eyebrow {
+  font-weight: 500;
+  color: var(--dash-tone, var(--foreground));
+}
+.outcome-dash-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--foreground-secondary);
+}
+.outcome-dash-wait {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--foreground-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.outcome-dash-wait[data-stale] {
+  color: light-dark(#966e2a, #d4b579);
+}
+.outcome-dash-focus-meta .outcome-dash-wait {
+  margin-left: auto;
+}
+.outcome-dash-focus h3.outcome-dash-focus-title {
+  margin: 8px 0 12px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+.outcome-dash-facts {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 16px;
+}
+.outcome-dash-facts p {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--foreground-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.outcome-dash-facts p:first-child {
+  color: var(--foreground);
+}
+.outcome-dash-facts p[data-tone="problem"] {
+  color: var(--destructive);
+}
+.outcome-dash-focus-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 0.5px solid var(--border);
+  padding-top: 14px;
+}
+.outcome-dash-quick {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.outcome-dash-quick-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.outcome-dash-quick-loading {
+  height: 28px;
+  width: 160px;
+  border-radius: 8px;
+  background: var(--subtle);
+}
+.outcome-dash-quick-error {
+  font-size: 12px;
+  color: var(--destructive);
+}
+.outcome-dash-options {
+  display: grid;
+  width: 100%;
+  gap: 6px;
+}
+.outcome-dash-option {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  text-align: left;
+  outline: none;
+  transition:
+    background 120ms ease-out,
+    border-color 120ms ease-out;
+}
+.outcome-dash-option:hover:not(:disabled) {
+  background: var(--subtle);
+}
+.outcome-dash-option[aria-checked="true"] {
+  border-color: var(--foreground-secondary);
+  background: var(--subtle);
+}
+.outcome-dash-option:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 40%, transparent);
+}
+.outcome-dash-option:disabled {
+  opacity: 0.55;
+}
+.outcome-dash-option-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.outcome-dash-option em {
+  flex-shrink: 0;
+  border-radius: 5px;
+  background: var(--selected);
+  padding: 1px 6px;
+  font-size: 10px;
+  font-style: normal;
+  color: var(--foreground-secondary);
+}
+.outcome-dash-quick-buttons .outcome-button {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.outcome-dash-details {
+  margin-left: auto;
+  color: var(--foreground-secondary);
+}
+.outcome-dash-queue {
+  margin-top: 10px;
+}
+.outcome-dash-step {
+  position: relative;
+}
+.outcome-dash-step .outcome-dash-tag {
+  font-size: 11px;
+}
+.outcome-dash-step .outcome-row-meta {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+.outcome-dash-lanes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+.outcome-dash-lane h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--foreground-secondary);
+}
+.outcome-dash-lane h3 span {
+  font-weight: 400;
+  color: var(--foreground-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.outcome-dash-lane-empty {
+  border: 0.5px dashed var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 12px;
+  color: var(--foreground-tertiary);
+}
+.outcome-dash-lane .outcome-row {
+  padding: 12px 14px;
+}
+
+@media (max-width: 760px) {
+  .outcome-dash-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .outcome-dash-lanes {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 760px) {
@@ -476,8 +814,8 @@ label.outcome-card:has(> input[type="radio"]:checked) {
 
 /* Outcome conversation stages share the desktop's quiet surfaces and compact controls. */
 .outcome-chat-card {
-  width: 100%;
-  max-width: 420px;
+  width: 420px;
+  max-width: 100%;
   overflow: hidden;
   border: 0.5px solid var(--border);
   border-radius: 14px;
@@ -485,6 +823,38 @@ label.outcome-card:has(> input[type="radio"]:checked) {
   color: var(--foreground);
   font-size: 13px;
   line-height: 1.5;
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1) 20ms;
+}
+.outcome-chat-card[data-expanded="true"] {
+  width: 640px;
+  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1) 0ms;
+}
+.outcome-chat-expandable {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 130ms ease-out;
+}
+.outcome-chat-expandable[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 190ms ease-out 70ms;
+}
+.outcome-chat-expandable-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.outcome-chat-expanded {
+  padding: 10px 14px 14px;
+  transform: translateY(-4px);
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.outcome-chat-expandable[data-open="true"] .outcome-chat-expanded {
+  transform: translateY(0);
 }
 /* The whole card is one target: stage, title and a single progress line. */
 .outcome-chat-card-main {
@@ -527,6 +897,13 @@ button.outcome-chat-card-main:hover {
 .outcome-chat-chevron {
   flex-shrink: 0;
   color: var(--foreground-tertiary);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.outcome-chat-card[data-expanded="true"] .outcome-chat-chevron {
+  transform: rotate(90deg);
+}
+.outcome-chat-card-main[data-loading="true"] .outcome-chat-chevron {
+  opacity: 0.45;
 }
 .outcome-chat-bar {
   height: 2px;
@@ -736,6 +1113,7 @@ button.outcome-chat-card-main:hover {
   border-radius: 5px;
 }
 @media (prefers-reduced-motion: reduce) {
+  .outcome-chat-card,
   .outcome-chat-card *,
   .outcome-chat-card *::after {
     animation: none !important;
@@ -952,14 +1330,42 @@ button.outcome-chat-card-main:hover {
 .outcome-brief-unavailable button {
   text-decoration: underline;
 }
+.outcome-chat-card .outcome-detail,
+.outcome-chat-card .outcome-route-choices,
+.outcome-chat-card .outcome-approval {
+  max-width: none;
+}
 .outcome-chat-card .outcome-brief {
   border: 0;
-  margin-top: 14px;
+  margin-top: 0;
+  border-radius: 12px;
 }
 .outcome-chat-card .outcome-now,
 .outcome-chat-card .outcome-brief-facts {
-  padding-left: 12px;
-  padding-right: 12px;
+  padding: 12px 14px;
+}
+.outcome-chat-card .outcome-now {
+  border-radius: 10px;
+}
+.outcome-chat-card .outcome-now-item + .outcome-now-item {
+  margin-top: 10px;
+  padding-top: 10px;
+}
+.outcome-chat-card .outcome-review-footer {
+  padding: 10px 14px;
+}
+.outcome-chat-card .outcome-result-report {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.outcome-chat-card .outcome-result-chart {
+  padding: 10px 12px;
+}
+.outcome-chat-card .outcome-route-choices {
+  gap: 6px;
+}
+.outcome-chat-card .outcome-route-option {
+  padding: 8px 12px;
 }
 .outcome-chat-card .outcome-brief-label {
   width: auto;
@@ -1015,6 +1421,28 @@ button.outcome-chat-card-main:hover {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 272px), 1fr));
   gap: 12px;
   margin-bottom: 14px;
+}
+.outcome-result-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(240px, 0.85fr);
+  gap: 14px;
+  align-items: start;
+}
+.outcome-result-copy {
+  min-width: 0;
+}
+.outcome-result-attention {
+  margin-top: 8px;
+}
+.outcome-result-split .outcome-result-charts {
+  grid-template-columns: 1fr;
+  margin-bottom: 0;
+}
+@media (max-width: 680px) {
+  .outcome-result-split {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }
 .outcome-result-chart {
   min-width: 0;
@@ -1341,46 +1769,90 @@ button.outcome-chat-card-main:hover {
 }
 .outcome-route-choices > button {
   justify-self: start;
+  margin-top: 4px;
 }
 .outcome-route-option {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 11px 14px;
   border: 0.5px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--background);
+  cursor: pointer;
+  transition:
+    border-color 120ms ease-out,
+    background 120ms ease-out,
+    box-shadow 120ms ease-out;
 }
-.outcome-route-option:has(input:checked) {
+.outcome-route-option:not(:has(input:disabled)):hover {
+  border-color: color-mix(in srgb, var(--foreground-tertiary) 45%, var(--border));
+  background: color-mix(in srgb, var(--subtle) 55%, var(--background));
+}
+.outcome-route-option:has(> input[type="radio"]:checked) {
   border-color: var(--foreground-secondary);
+  background: color-mix(in srgb, var(--subtle) 75%, var(--background));
+}
+.outcome-route-option:has(input[type="text"]:focus-visible) {
+  border-color: color-mix(in srgb, var(--ring) 70%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ring) 25%, transparent);
+}
+.outcome-route-option:has(input:disabled) {
+  cursor: default;
 }
 .outcome-route-option input[type="radio"] {
   margin-top: 3px;
   flex-shrink: 0;
+  accent-color: var(--foreground);
 }
 .outcome-route-option-label {
+  flex: 1;
   min-width: 0;
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 13px;
+  line-height: 1.55;
 }
 .outcome-route-option label {
   cursor: pointer;
 }
 .outcome-route-recommended {
+  display: inline-flex;
+  align-items: center;
   margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
   color: var(--foreground-secondary);
-  font-size: 10px;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  vertical-align: 1px;
 }
 .outcome-route-action {
   display: inline-flex;
   align-items: center;
 }
+.outcome-route-custom {
+  align-items: center;
+}
+.outcome-route-custom input[type="radio"] {
+  margin-top: 0;
+}
 .outcome-route-custom input[type="text"] {
   flex: 1;
   min-width: 0;
+  height: auto;
+  min-height: 20px;
   border: 0;
+  border-radius: 0;
   background: transparent;
   padding: 0;
+  box-shadow: none;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.outcome-route-custom input[type="text"]:focus-visible {
+  box-shadow: none;
+  outline: none;
 }
 .outcome-source-content .bot-markdown {
   font-size: 12px;
@@ -1477,6 +1949,18 @@ button.outcome-chat-card-main:hover {
 }
 
 /* Read-only conversation, laid out like the Bot-to-Bot view-only chat. */
+.outcome-execution-conversation {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.outcome-execution-conversation .outcome-execution-messages {
+  max-width: 880px;
+  margin-inline: auto;
+}
 .outcome-execution-dialog {
   display: flex;
   flex-direction: column;
@@ -1670,4 +2154,200 @@ button.outcome-chat-card-main:hover {
   --foreground-tertiary: #fcfcfcb3;
   --color-foreground-secondary: #fcfcfccc;
   --color-foreground-tertiary: #fcfcfcb3;
+}
+
+/*
+ * Visual hierarchy for goal decisions and reports. Each kind of content has one look, so the part that
+ * needs the owner (amber), the reviewer's own words (blue), the proposed plan (teal) and supporting
+ * evidence (muted, small) can be told apart at a glance.
+ */
+.outcome-brief,
+.outcome-chat-card {
+  --tone-action: light-dark(#966e2a, #d4b579);
+  --tone-review: light-dark(#3f6fb5, #8db4ee);
+  --tone-plan: light-dark(#2f7d73, #7cc4b9);
+  --tone-pass: light-dark(#377c56, #7bbb92);
+  --tone-fail: light-dark(#b24a4a, #e08a8a);
+}
+.outcome-now-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--eyebrow-tone, var(--brief-muted));
+}
+.outcome-now-eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--eyebrow-tone, currentColor);
+  opacity: 0.9;
+}
+.outcome-now-eyebrow[data-tone="action"] { --eyebrow-tone: var(--tone-action); }
+.outcome-now-eyebrow[data-tone="review"] { --eyebrow-tone: var(--tone-review); }
+.outcome-now-eyebrow[data-tone="muted"]::before { opacity: 0.45; }
+
+/* The question the owner must answer. */
+.outcome-now-item > h3,
+.outcome-now-line h3 {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+
+/* The proposed plan the owner is asked to approve. */
+.outcome-plan-scope {
+  margin: 10px 0 4px;
+  padding: 10px 14px 11px;
+  border-left: 3px solid var(--tone-plan);
+  border-radius: 4px 10px 10px 4px;
+  background: color-mix(in srgb, var(--tone-plan) 9%, transparent);
+}
+.outcome-plan-scope-label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--tone-plan);
+}
+.outcome-plan-scope > p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+.outcome-approval-comment {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brief-muted, var(--foreground-secondary));
+}
+
+/* The reviewer's conclusion: the thing to read first. */
+.outcome-result-conclusion {
+  margin: 0 0 10px;
+  padding: 11px 14px;
+  border-left: 3px solid var(--tone-review);
+  border-radius: 4px 10px 10px 4px;
+  background: color-mix(in srgb, var(--tone-review) 9%, transparent);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.65;
+  color: var(--foreground);
+}
+.outcome-result-conclusion :is(p, ol, ul) {
+  margin: 0;
+}
+.outcome-result-conclusion :is(ol, ul) {
+  padding-left: 1.3em;
+}
+.outcome-result-conclusion li + li {
+  margin-top: 3px;
+}
+
+/* What the owner has to decide. */
+.outcome-result-attention {
+  margin-top: 10px;
+  padding: 10px 14px 11px;
+  border-left: 3px solid var(--tone-action);
+  border-radius: 4px 10px 10px 4px;
+  background: color-mix(in srgb, var(--tone-action) 10%, transparent);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.outcome-result-attention-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--tone-action);
+}
+.outcome-result-attention .outcome-brief-list > li + li {
+  margin-top: 6px;
+}
+
+/* Supporting detail stays quiet. */
+.outcome-result-report > details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--brief-muted);
+}
+.outcome-source-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--brief-muted);
+}
+.outcome-result-report blockquote {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Per-criterion preliminary review. */
+.outcome-prereview-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--brief-muted);
+  text-transform: none;
+}
+.outcome-criterion-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.55;
+  color: var(--foreground);
+}
+.outcome-brief-list > li > .outcome-prereview-note {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--brief-muted);
+}
+.outcome-prereview-badge {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.7;
+  background: color-mix(in srgb, currentColor 13%, transparent);
+}
+.outcome-prereview-badge[data-suggestion="likely_pass"] { color: var(--tone-pass); }
+.outcome-prereview-badge[data-suggestion="likely_fail"] { color: var(--tone-fail); }
+.outcome-prereview-badge[data-suggestion="unclear"] { color: var(--tone-action); }
+
+/* Content of the dashboard's first-priority goal: the plan to approve or the conclusion to accept. */
+.outcome-dash-detail {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.outcome-dash-detail .outcome-plan-scope,
+.outcome-dash-detail .outcome-result-conclusion,
+.outcome-dash-detail .outcome-result-attention {
+  margin: 0;
+}
+.outcome-dash-criteria {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--foreground-secondary);
+}
+.outcome-dash-criteria-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.outcome-dash-criteria ul {
+  margin: 0;
+  padding-left: 1.2em;
+  list-style: disc;
+  color: var(--foreground);
 }

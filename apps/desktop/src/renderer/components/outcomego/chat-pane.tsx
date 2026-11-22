@@ -1,5 +1,8 @@
+import { toast } from "sonner";
 import { useDayClock } from "../../hooks/use-day-clock";
-import { isOutcomeUpdateCardMetadata } from "@outcomego/contracts/outcome-chat-card";
+import { useReplyPreview } from "../../hooks/use-reply-preview";
+import { isOutcomeUpdateCardMetadata, parseOutcomeChatCard } from "@outcomego/contracts/outcome-chat-card";
+import { OutcomeRequestIds } from "./outcomes/planning/outcome-client";
 import { ResourceActivityProvider } from "../../hooks/resource-activity";
 import { ThinkingCaption } from "./thinking-caption";
 import { thinkingActivity } from "../../lib/thinking-activity";
@@ -38,7 +41,6 @@ import {
   messageDisplayProjection,
   messageMetadata,
   messageReactionPills,
-  messageRenderKey,
   messageSenderLabel,
   ownReactionEmojiSet,
   projectOutgoingMessages,
@@ -59,6 +61,7 @@ import {
   MessageCircle,
   Reply,
   Smile,
+  Target,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -99,7 +102,7 @@ import {
   discardDesktopDeliveryStages,
   stageDesktopDeliveryFile,
 } from "../../lib/durable-sends";
-import { type MentionOption, mentionHandleFor } from "../../lib/mentions";
+import { GOAL_MODE_OPTION_ID, type MentionOption, mentionHandleFor } from "../../lib/mentions";
 import { formatIdleGapTimestamp, shouldShowIdleGapTimestamp } from "../../lib/message-timestamps";
 import { addContextGaps } from "../../lib/search-context";
 import { mergeThreadTrayPin, type ThreadTrayPin } from "../../lib/thread-pin";
@@ -161,9 +164,12 @@ type Mutate = <T>(operation: () => Promise<T>) => Promise<T>;
 
 interface ChatPaneProps {
   composerFocusRequest?: number;
+  goalModeRequest?: number;
+  onGoalModeRequestApplied?: () => void;
   incomingDraft?: PromptDraft | null;
   onDraftApplied?: () => void;
   active?: boolean;
+  goalsEnabled?: boolean;
   agentNameById: ReadonlyMap<string, string>;
   channel: ChannelView;
   capabilities: ClientCapabilities;
@@ -180,7 +186,7 @@ interface ChatPaneProps {
   searchContextMessageIds?: ReadonlySet<string>;
   activityTruncated?: boolean;
   threadContextTruncated?: boolean;
-  focusMessage: { messageId: string; nonce: number } | null;
+  focusMessage: { messageId: string; nonce: number; branchOnly?: boolean } | null;
   historyGeneration?: number;
   initialHistoryPending?: boolean;
   /** The channel's newest message is known but not yet in this transcript. */
@@ -215,9 +221,12 @@ const runGroupsEqual = <T,>(
 
 const chatPanePropsEqual = (previous: ChatPaneProps, next: ChatPaneProps) =>
   previous.composerFocusRequest === next.composerFocusRequest &&
+  previous.goalModeRequest === next.goalModeRequest &&
+  previous.onGoalModeRequestApplied === next.onGoalModeRequestApplied &&
   previous.incomingDraft === next.incomingDraft &&
   previous.onDraftApplied === next.onDraftApplied &&
   previous.active === next.active &&
+  previous.goalsEnabled === next.goalsEnabled &&
   previous.channel === next.channel &&
   previous.capabilities === next.capabilities &&
   previous.agentNameById === next.agentNameById &&
@@ -310,16 +319,24 @@ const appendThinkingIndicatorToGroup = (
   return position;
 };
 
-const useThinkingPresence = (active: boolean, exitMs = THINKING_EXIT_MS): ThinkingPhase => {
+const useThinkingPresence = (
+  active: boolean,
+  exitMs: number,
+  suppressed = false
+): ThinkingPhase => {
   const [phase, setPhase] = useState<ThinkingPhase>(active ? "visible" : "hidden");
 
   useEffect(() => {
+    if (suppressed) {
+      setPhase("hidden");
+      return;
+    }
     if (active) {
       setPhase("visible");
       return;
     }
     setPhase((current) => (current === "visible" ? "exiting" : current));
-  }, [active]);
+  }, [active, suppressed]);
 
   useEffect(() => {
     if (phase !== "exiting") return;
@@ -329,7 +346,7 @@ const useThinkingPresence = (active: boolean, exitMs = THINKING_EXIT_MS): Thinki
     return () => window.clearTimeout(timer);
   }, [exitMs, phase]);
 
-  return active ? "visible" : phase;
+  return suppressed ? "hidden" : active ? "visible" : phase;
 };
 
 interface MessageTimelineEntry {
@@ -340,7 +357,10 @@ interface MessageTimelineEntry {
   animateEntrance: boolean;
   pending: boolean;
   delivery: DurableSendRecord | null;
+  streaming?: boolean;
 }
+
+const streamedReplyKey = (runId: string, clientId: string) => `reply:${runId}:${clientId}`;
 
 const messageImages = (message: ChannelMessageView) =>
   messageAssets(message)
@@ -383,6 +403,7 @@ const MessageRow = memo(function MessageRow({
   entranceKey,
   onConsumeEntrance,
   pending,
+  streaming,
   delivery,
   sendingSinceMs,
   onCancelSend,
@@ -410,6 +431,7 @@ const MessageRow = memo(function MessageRow({
   entranceKey: string;
   onConsumeEntrance: (key: string) => void;
   pending: boolean;
+  streaming?: boolean;
   delivery: DurableSendRecord | null;
   sendingSinceMs: number | null;
   onCancelSend: (nonce: string) => Promise<void>;
@@ -433,6 +455,7 @@ const MessageRow = memo(function MessageRow({
   const userReactionSet = ownReactionEmojiSet(message);
   const display = messageDisplayProjection(message);
   const isWidget = messageMetadata(message).type === "widget";
+  const isOutcomeCard = messageMetadata(message).type === "outcome-card";
   const externalDelivery = externalDeliveryOf(message.metadata);
   const externalSource = externalSourceOf(message.metadata);
   const isDraftCard =
@@ -587,13 +610,14 @@ const MessageRow = memo(function MessageRow({
   );
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>
+      <ContextMenuTrigger asChild disabled={streaming}>
         <Message
           className={`group/message${separatedFromPrevious && !hasAgentGutter ? " mt-3" : ""}`}
           data-group-author={hasAgentGutter || undefined}
           data-enter={entranceActive ? "new" : undefined}
           data-message-address={channelMessageAddress(message)}
           data-message-id={message.id}
+          data-reply-preview={streaming ? "" : undefined}
           data-failed={delivery?.phase === "failed" || undefined}
           data-pending={pending || undefined}
           aria-busy={pending || undefined}
@@ -670,10 +694,10 @@ const MessageRow = memo(function MessageRow({
                 data-group-position={groupPosition}
                 className={cn(
                   "message-with-actions relative min-w-0",
-                  display.richMessage ? "w-full" : "w-fit",
+                  isOutcomeCard ? "w-fit" : display.richMessage ? "w-full" : "w-fit",
                   isDraftCard
                     ? "max-w-[min(100%,560px,calc(100%-82px))]"
-                    : display.richMessage && !isWidget
+                    : display.richMessage && !isWidget && !isOutcomeCard
                       ? "max-w-[min(88%,520px,calc(100%-82px))]"
                       : "max-w-[min(88%,640px,calc(100%-82px))]"
                 )}
@@ -739,10 +763,12 @@ const MessageRow = memo(function MessageRow({
                     data-message-bubble-id={message.id}
                     from={from}
                   >
-                    <MessageResponse>{message.content}</MessageResponse>
+                    <ResourceActivityProvider active={!streaming}>
+                      <MessageResponse streaming={streaming}>{message.content}</MessageResponse>
+                    </ResourceActivityProvider>
                   </MessageContent>
                 )}
-                {!actionsBesideCaption && actions}
+                {!streaming && !actionsBesideCaption && actions}
               </div>
             </div>
           </div>
@@ -752,6 +778,12 @@ const MessageRow = memo(function MessageRow({
           {message.sender === "user" && externalSource ? (
             <div className="mr-2.5 mt-0.5 self-end text-xs text-muted-foreground" data-external-source={externalSource}>
               {t("From {platform}", { platform: externalPlatformLabel(externalSource, t) })}
+            </div>
+          ) : null}
+          {message.sender === "user" && messageMetadata(message).goalMode === true ? (
+            <div className="mr-2.5 mt-0.5 flex items-center gap-1 self-end text-[11px] text-emerald-700 dark:text-emerald-300" data-goal-mode-message="">
+              <Target aria-hidden="true" className="size-3 shrink-0" strokeWidth={1.8} />
+              <span>{t("Goal mode")}</span>
             </div>
           ) : null}
           {(reactionPills.length > 0 || userReactionSet.size > 0) && (
@@ -1070,9 +1102,12 @@ const VoiceConversationCard = memo(function VoiceConversationCard({
 
 export const ChatPane = memo(function ChatPane({
   composerFocusRequest,
+  goalModeRequest,
+  onGoalModeRequestApplied,
   incomingDraft,
   onDraftApplied,
   active = true,
+  goalsEnabled = false,
   agentNameById,
   channel,
   capabilities,
@@ -1117,6 +1152,14 @@ export const ChatPane = memo(function ChatPane({
   // Rows measured then (a bootstrap preview) would keep stale heights and jump
   // the transcript once the real page renders around them.
   const messages = initialHistoryPending ? EMPTY_PANE_MESSAGES : loadedMessages;
+  const preview = useReplyPreview(
+    active && channel.kind === "bot_dm" && historyMode === "latest" && !hasNewerGap ? channel.id : null
+  );
+  const visiblePreview = preview && !initialHistoryPending && !messages.some(message =>
+    message.sourceRunId === preview.runId && message.clientId === preview.clientId
+  ) ? preview : null;
+  const lastPreviewKey = useRef<string | null>(null);
+  if (visiblePreview) lastPreviewKey.current = streamedReplyKey(visiblePreview.runId, visiblePreview.clientId);
   // Keep the arrival boundary for this visit even after the read receipt is
   // acknowledged. Warm, inactive panes capture a fresh boundary on re-entry.
   const unreadVisit = useRef<{ channelId: string; active: boolean; through: string | null }>({
@@ -1138,6 +1181,33 @@ export const ChatPane = memo(function ChatPane({
     channelId: string;
     message: ChannelMessageView;
   } | null>(null);
+  const [goalModeChannelId, setGoalModeChannelId] = useState<string | null>(null);
+  const goalModeAvailable = goalsEnabled && channel.kind === "bot_dm" && selectedBot?.status === "active";
+  const goalMode = goalModeAvailable && goalModeChannelId === channel.id;
+  const setGoalMode = useCallback(
+    (enabled: boolean) => {
+      setGoalModeChannelId(enabled ? channel.id : null);
+    },
+    [channel.id]
+  );
+  const lastAppliedGoalModeRequest = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (
+      goalModeRequest === undefined ||
+      goalModeRequest === lastAppliedGoalModeRequest.current
+    ) {
+      return;
+    }
+    lastAppliedGoalModeRequest.current = goalModeRequest;
+    if (goalModeAvailable) {
+      setGoalModeChannelId(channel.id);
+      setReplyTarget((current) => {
+        if (current?.channelId !== channel.id) return current;
+        return messageMetadata(current.message).type === "outcome-card" ? null : current;
+      });
+    }
+    onGoalModeRequestApplied?.();
+  }, [channel.id, goalModeAvailable, goalModeRequest, onGoalModeRequestApplied]);
   const [pendingAttachmentCount, setPendingAttachmentCount] = useState(0);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const fileDropTargetRef = useRef<HTMLDivElement>(null);
@@ -1321,11 +1391,12 @@ export const ChatPane = memo(function ChatPane({
     () =>
       visibleMessages.filter(({ message }) => {
         if (isBranchedMessage(message)) {
-          return message.id === focusMessage?.messageId && !focusedThreadRootId;
+          return !focusMessage?.branchOnly && message.id === focusMessage?.messageId && !focusedThreadRootId;
         }
         return !threadContextMessageIds?.has(message.id) || threads.has(message.id);
       }),
     [
+      focusMessage?.branchOnly,
       focusMessage?.messageId,
       focusedThreadRootId,
       threadContextMessageIds,
@@ -1357,7 +1428,10 @@ export const ChatPane = memo(function ChatPane({
     const ordered: MessageTimelineEntry[] = mainMessageRecords.map(
       ({ animateEntrance, delivery, message, pending, renderKey }): MessageTimelineEntry => ({
         type: "message" as const,
-        id: renderKey,
+        id: channel.kind === "bot_dm" && message.sender === "agent" &&
+          message.sourceRunId && message.clientId?.startsWith("tool:")
+          ? streamedReplyKey(message.sourceRunId, message.clientId)
+          : renderKey,
         createdAt: message.createdAt,
         message,
         animateEntrance,
@@ -1392,6 +1466,11 @@ export const ChatPane = memo(function ChatPane({
     );
   }, [channel.kind, mainMessageRecords, visibleContextMessageIds]);
   const replyingTo = replyTarget?.channelId === channel.id ? replyTarget.message : null;
+  const replyMetadata = replyingTo ? messageMetadata(replyingTo) : null;
+  const goalReplyId = goalsEnabled && channel.kind === "bot_dm" && replyMetadata?.type === "outcome-card"
+    ? parseOutcomeChatCard(replyMetadata.outcomeCard)?.outcomeId
+    : undefined;
+  const goalReplyRequests = useRef(new OutcomeRequestIds());
   const replyToMessage = useCallback(
     (message: ChannelMessageView) => {
       setReplyTarget({ channelId: channel.id, message });
@@ -1431,7 +1510,7 @@ export const ChatPane = memo(function ChatPane({
     [onReactMessage]
   );
   const pluginMentions = usePluginMentions(selectedBot?.id ?? channel.members[0]?.botId, active);
-  const mentionOptions = useMemo<MentionOption[]>(() => {
+  const threadMentionOptions = useMemo<MentionOption[]>(() => {
     const bots =
       channel.kind === "group"
         ? channel.members.flatMap((member) => {
@@ -1463,6 +1542,19 @@ export const ChatPane = memo(function ChatPane({
       })),
     ];
   }, [botById, channel.kind, channel.members, selectedBot?.id, pluginMentions]);
+  const mentionOptions = useMemo<MentionOption[]>(() => {
+    if (!goalModeAvailable) return threadMentionOptions;
+    return [
+      {
+        id: GOAL_MODE_OPTION_ID,
+        label: t("Goal mode"),
+        handle: "goal-mode",
+        trigger: "/",
+        kind: "mode",
+      },
+      ...threadMentionOptions,
+    ];
+  }, [goalModeAvailable, t, threadMentionOptions]);
   const enqueueDurableSend = useCallback(
     (
       content: string,
@@ -1471,6 +1563,7 @@ export const ChatPane = memo(function ChatPane({
       options?: {
         richText?: string;
         isFork?: boolean;
+        goalMode?: boolean;
         stagedAttachments?: DurableSendPayload["stagedAttachments"];
       }
     ) =>
@@ -1489,6 +1582,7 @@ export const ChatPane = memo(function ChatPane({
           ...(replyToMessageId ? { replyToMessageId } : {}),
           ...(options?.richText ? { richText: options.richText } : {}),
           ...(options?.isFork !== undefined ? { isFork: options.isFork } : {}),
+          ...(options?.goalMode !== undefined ? { goalMode: options.goalMode } : {}),
         },
       }),
     [channel.id, channel.kind, selectedBot, sendController]
@@ -1522,11 +1616,30 @@ export const ChatPane = memo(function ChatPane({
         stagedAttachments?: DurableSendPayload["stagedAttachments"];
       }
     ) => {
-      const sent = enqueueDurableSend(content, attachments, replyingTo?.id, options);
+      if (goalReplyId && api.outcomes.sendThreadMessage && !goalMode) {
+        if (attachments.length || options?.stagedAttachments?.length)
+          return Promise.reject(new Error(t("Send a text-only reply to the goal planner.")));
+        const requestKey = `chat-planner:${goalReplyId}`;
+        return api.outcomes.sendThreadMessage(goalReplyId, {
+          text: content, clientRequestId: goalReplyRequests.current.for(requestKey, { text: content }),
+        }).then(() => {
+          goalReplyRequests.current.complete(requestKey);
+          toast.success(t("Sent to the goal planner"));
+        });
+      }
+      const sentGoalMode = goalMode;
+      const sent = enqueueDurableSend(content, attachments, replyingTo?.id, {
+        ...options,
+        ...(sentGoalMode ? { goalMode: true } : {}),
+      });
+      if (sentGoalMode) {
+        setGoalMode(false);
+        void sent.catch(() => setGoalMode(true));
+      }
       revealSentMessage();
       return sent;
     },
-    [enqueueDurableSend, replyingTo?.id, revealSentMessage]
+    [enqueueDurableSend, goalMode, goalReplyId, replyingTo?.id, revealSentMessage, setGoalMode, t]
   );
   const resendDurableSend = useCallback(
     async (nonce: string) => {
@@ -1591,6 +1704,14 @@ export const ChatPane = memo(function ChatPane({
       ),
     [channel.id, channel.kind, selectedBot?.id, subagents]
   );
+  const latestMessage = mainMessages.at(-1);
+  const latestMessageWasStreamed = Boolean(
+    latestMessage?.sourceRunId && latestMessage.clientId &&
+    lastPreviewKey.current === streamedReplyKey(latestMessage.sourceRunId, latestMessage.clientId)
+  );
+  const finishingStream = latestMessageWasStreamed && activeRun &&
+    latestMessage?.sourceRunId === activeRun.id && messageMetadata(latestMessage).end_turn === true;
+  const suppressThinking = Boolean(visiblePreview) || finishingStream;
   const wantsThinkingIndicator = groupActivity
     ? groupActivity.workers.length + groupActivity.readers.length > 0
     : Boolean(
@@ -1601,10 +1722,11 @@ export const ChatPane = memo(function ChatPane({
   // Only its appearance waits; an indicator already showing stays put.
   const thinkingShownRef = useRef(false);
   const showThinkingIndicator =
-    wantsThinkingIndicator && (!transcriptBehind || thinkingShownRef.current);
+    !suppressThinking && wantsThinkingIndicator && (!transcriptBehind || thinkingShownRef.current);
   const thinkingPhase = useThinkingPresence(
     showThinkingIndicator,
-    channel.kind === "group" ? 160 : THINKING_EXIT_MS
+    channel.kind === "group" ? 160 : THINKING_EXIT_MS,
+    suppressThinking
   );
   useEffect(() => {
     thinkingShownRef.current = thinkingPhase !== "hidden";
@@ -1635,7 +1757,33 @@ export const ChatPane = memo(function ChatPane({
       : 0;
   const renderedTimeline = useMemo(() => {
     const transcriptTimeline = timeline;
-    if (thinkingPhase === "hidden") return transcriptTimeline;
+    if (visiblePreview) {
+      const id = streamedReplyKey(visiblePreview.runId, visiblePreview.clientId);
+      const createdAt = activeRun?.createdAt ?? transcriptTimeline.at(-1)?.createdAt ?? channel.createdAt;
+      const entry: MessageTimelineEntry = {
+        type: "message",
+        id,
+        createdAt,
+        message: {
+          id,
+          clientId: visiblePreview.clientId,
+          sequence: "",
+          channelId: channel.id,
+          sender: "agent",
+          senderBotId: selectedBot?.id ?? null,
+          sourceRunId: visiblePreview.runId,
+          content: visiblePreview.content,
+          metadata: {},
+          createdAt,
+        },
+        animateEntrance: false,
+        pending: false,
+        delivery: null,
+        streaming: true,
+      };
+      return [...transcriptTimeline, entry];
+    }
+    if (!thinkingMounted) return transcriptTimeline;
     return [
       ...transcriptTimeline,
       {
@@ -1647,9 +1795,13 @@ export const ChatPane = memo(function ChatPane({
         bot: activeRun ? botById.get(activeRun.botId) : selectedBot,
       },
     ];
-  }, [activeRun, botById, channel.createdAt, selectedBot, thinkingPhase, timeline]);
+  }, [activeRun, botById, channel.createdAt, channel.id, selectedBot, thinkingMounted, thinkingPhase, timeline, visiblePreview]);
+  const latestEntry = renderedTimeline.at(-1);
+  const messageGroups = latestEntry?.type === "message" && latestEntry.streaming
+    ? [...mainMessages, latestEntry.message]
+    : mainMessages;
   const timelineMessageIds = useCallback((entry: (typeof renderedTimeline)[number]) => {
-    if (entry.type === "message") return [entry.message.id];
+    if (entry.type === "message") return entry.streaming ? [] : [entry.message.id];
     if (entry.type === "a2a" || entry.type === "voice")
       return entry.entries.map((candidate) => candidate.message.id);
     return [];
@@ -1761,7 +1913,7 @@ export const ChatPane = memo(function ChatPane({
                           {t("NEW")}
                         </div>
                       )}
-                      {entry.type !== "thinking" &&
+                      {entry.type !== "thinking" && !(entry.type === "message" && entry.streaming) &&
                         shouldShowIdleGapTimestamp(
                           renderedTimeline[index - 1]?.createdAt,
                           entry.createdAt
@@ -1778,7 +1930,9 @@ export const ChatPane = memo(function ChatPane({
                           </div>
                         )}
                       <TimestampedEntry
-                        createdAt={entry.type === "thinking" ? undefined : entry.createdAt}
+                        createdAt={entry.type === "thinking" || (entry.type === "message" && entry.streaming)
+                          ? undefined
+                          : entry.createdAt}
                         from={
                           entry.type === "message" && entry.message.sender === "user"
                             ? "user"
@@ -1827,18 +1981,21 @@ export const ChatPane = memo(function ChatPane({
                         ) : (
                           <MessageRow
                             animateEntrance={
-                              entry.animateEntrance && !consumedEntrances.current.has(entry.id)
+                              entry.animateEntrance && !consumedEntrances.current.has(entry.id) &&
+                              entry.id !== lastPreviewKey.current
                             }
                             entranceKey={entry.id}
                             onConsumeEntrance={consumeEntrance}
                             canInteract={
                               canSend &&
+                              !entry.streaming &&
                               !entry.pending &&
                               entry.delivery?.phase !== "failed" &&
                               entry.message.sender !== "system"
                             }
                             canReply={
                               canSend &&
+                              !entry.streaming &&
                               !entry.pending &&
                               entry.delivery?.phase !== "failed" &&
                               (entry.message.sender !== "system" ||
@@ -1847,8 +2004,8 @@ export const ChatPane = memo(function ChatPane({
                             channel={channel}
                             groupPosition={appendThinkingIndicatorToGroup(
                               getMessageGroupPosition(
-                                mainMessages,
-                                mainMessageIndexById.get(entry.message.id) ?? -1,
+                                messageGroups,
+                                entry.streaming ? mainMessages.length : (mainMessageIndexById.get(entry.message.id) ?? -1),
                                 unreadMessageId
                               ),
                               (() => {
@@ -1872,6 +2029,7 @@ export const ChatPane = memo(function ChatPane({
                                 : null
                             }
                             pending={entry.pending}
+                            streaming={entry.streaming}
                             onCancelSend={cancelDurableSend}
                             onDeleteSend={deleteDurableSend}
                             onReact={reactToMessage}
@@ -1937,6 +2095,8 @@ export const ChatPane = memo(function ChatPane({
             messageCount={renderedTimeline.length}
             onAtBottomChange={onViewportAtBottomChange}
             onScrollToNewest={onScrollToNewest}
+            streamingReply={Boolean(visiblePreview)}
+            latestMessageWasStreamed={latestMessageWasStreamed}
             trackNewMessages={historyMode === "latest"}
           />
         </Conversation>
@@ -1998,15 +2158,26 @@ export const ChatPane = memo(function ChatPane({
             onSubmit={submit}
             onStage={stageDesktopDeliveryFile}
             onDiscardStages={discardDesktopDeliveryStages}
+            goalMode={goalMode}
+            onCancelGoalMode={() => setGoalMode(false)}
+            onSelectMode={(option) => {
+              if (option.id !== GOAL_MODE_OPTION_ID || !goalModeAvailable) return;
+              setGoalMode(true);
+              if (replyMetadata?.type === "outcome-card") setReplyTarget(null);
+            }}
             mentionOptions={mentionOptions}
             placeholder={
-              selectedBot?.status === "provisioning"
-                ? t("Message {name} — it will be queued", { name: channel.name })
-                : runtime.inference !== "ready"
-                  ? channel.kind === "bot_dm"
+              goalMode
+                ? t("Describe the goal you want {name} to achieve…", { name: channel.name })
+                : goalReplyId
+                  ? t("Reply to the goal planner")
+                  : selectedBot?.status === "provisioning"
                     ? t("Message {name} — it will be queued", { name: channel.name })
-                    : t("Pi runtime is not ready")
-                  : t("Message {name}", { name: channel.name })
+                    : runtime.inference !== "ready"
+                      ? channel.kind === "bot_dm"
+                        ? t("Message {name} — it will be queued", { name: channel.name })
+                        : t("Pi runtime is not ready")
+                      : t("Message {name}", { name: channel.name })
             }
             reply={
               replyingTo
@@ -2030,7 +2201,7 @@ export const ChatPane = memo(function ChatPane({
           deliveries={channelSends}
           recoveries={channelRecoveries}
           focusMessageId={focusedThreadRootId && focusMessage ? focusMessage.messageId : null}
-          mentionOptions={mentionOptions}
+          mentionOptions={threadMentionOptions}
           onClose={closeThread}
           onCancelSend={(nonce) => sendController.cancelQueued(nonce)}
           onDeleteSend={(nonce) => sendController.deleteFailed(nonce)}

@@ -9,6 +9,7 @@ struct OutcomeThreadSection: View {
   /// Called after the owner sends something and again when the bot finishes, so the goal can be re-read.
   var onChanged: () -> Void
   @State private var turns: [OutcomeThreadTurn] = []
+  @State private var reviewTurns: [OutcomeThreadTurn] = []
   @State private var loaded = false
   @State private var text = ""
   @State private var sending = false
@@ -17,7 +18,9 @@ struct OutcomeThreadSection: View {
   @State private var requestId = UUID().uuidString
   @State private var requestFor = ""
 
-  private var working: Bool { turns.contains { $0.inProgress } }
+  private var working: Bool {
+    turns.contains { $0.inProgress } || reviewTurns.contains { $0.inProgress }
+  }
 
   var body: some View {
     Section("Bot conversation") {
@@ -46,6 +49,24 @@ struct OutcomeThreadSection: View {
       if loaded && turns.isEmpty {
         Text("Nothing here yet. Tell the bot what to change, ask a question, or cancel.")
           .foregroundStyle(NativePalette.muted)
+      }
+      if !reviewTurns.isEmpty {
+        Text("Reviewer turns").font(.caption).foregroundStyle(NativePalette.faint)
+        ForEach(reviewTurns) { turn in
+          VStack(alignment: .leading, spacing: 4) {
+            Text(turn.purpose == "review_task" ? "Task review · \(turn.status)" : "Overall prereview · \(turn.status)")
+              .font(.caption)
+              .foregroundStyle(NativePalette.muted)
+            Text(turn.trigger).font(.subheadline)
+            if turn.inProgress {
+              Text("Reviewer is working…").font(.caption).foregroundStyle(NativePalette.muted)
+            } else if turn.status == "failed" {
+              Text(turn.error?.message ?? "Reviewer turn failed.").font(.caption).foregroundStyle(.red)
+            } else if let reply = turn.reply, !reply.isEmpty {
+              Text(reply).font(.subheadline).textSelection(.enabled)
+            }
+          }
+        }
       }
       if working {
         HStack(spacing: 8) { ProgressView(); Text("Bot is working") }
@@ -77,7 +98,9 @@ struct OutcomeThreadSection: View {
 
   private func load() async {
     do {
-      turns = try await store.outcomeThread(outcomeId).turns
+      let thread = try await store.outcomeThread(outcomeId)
+      turns = thread.turns
+      reviewTurns = thread.reviewTurns ?? []
       loaded = true
       failure = nil
     } catch {

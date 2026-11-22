@@ -85,14 +85,16 @@ export function roundViews<
   }));
 }
 
-export function runViews<T extends Array<{ createdAt: Date; updatedAt: Date; requestProgress?: unknown; requestStoppedAt?: Date | null; requestNextCheckAt?: Date | null; requestRevision?: number; requestReconciliations?: number }>>(
-  runs: T
+export function runViews<T extends Array<{ id: string; createdAt: Date; updatedAt: Date; requestProgress?: unknown; requestStoppedAt?: Date | null; requestNextCheckAt?: Date | null; requestRevision?: number; requestReconciliations?: number }>>(
+  runs: T,
+  forkRunIds?: ReadonlySet<string>
 ): Snapshot["runs"] {
   return runs.map((run) => {
     const { requestProgress, requestStoppedAt, requestNextCheckAt, requestRevision: _, requestReconciliations: __, ...publicRun } = run;
     const state = (requestProgress as { state?: string } | null)?.state;
     return {
       ...publicRun,
+      ...(forkRunIds?.has(run.id) ? { isFork: true } : {}),
       ...(!requestStoppedAt && state && ["working", "waiting", "blocked", "complete"].includes(state)
         ? { requestState: state, requestNextCheckAt: requestNextCheckAt?.toISOString() ?? null } : {}),
       createdAt: run.createdAt.toISOString(), updatedAt: run.updatedAt.toISOString(),

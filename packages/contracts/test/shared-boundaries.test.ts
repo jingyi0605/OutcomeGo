@@ -30,6 +30,14 @@ describe("shared boundary codecs", () => {
     expect(() => parseComputerEvent({ type: "agent.delta", turnId: "turn-1" })).toThrow();
   });
 
+  test("a completed turn may report background commands it still owes", () => {
+    const completed = { type: "turn.completed", turnId: "turn-1", status: "completed" };
+    expect(parseComputerEvent({ ...completed, backgroundWorkPending: true })).toMatchObject({
+      backgroundWorkPending: true,
+    });
+    expect(() => parseComputerEvent({ ...completed, backgroundWorkPending: "yes" })).toThrow();
+  });
+
   test("validates host responses", () => {
     expect(
       parseHostShellResponse({

@@ -183,6 +183,17 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
         )
     }.onFailure { if (it is CancellationException) throw it }
 
+    override suspend fun adoptOutcomePrereview(id: String, input: com.outcomego.mobile.core.AdoptPrereviewRequest): Result<OutcomeDetail> = runCatching {
+        mobileJson.decodeFromJsonElement(
+            OutcomeDetail.serializer(),
+            client.request(
+                HttpMethod.POST,
+                "${outcomeDetailPath(id)}/reviews/adopt-prereview",
+                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.AdoptPrereviewRequest.serializer(), input).jsonObject,
+            ),
+        )
+    }.onFailure { if (it is CancellationException) throw it }
+
     override suspend fun reworkOutcome(id: String, input: com.outcomego.mobile.core.OutcomeReworkRequest): Result<OutcomeDetail> = runCatching {
         mobileJson.decodeFromJsonElement(
             OutcomeDetail.serializer(),

@@ -23,7 +23,7 @@ export * from "./user-forms";
 export { formatUserFormReceipt } from "./user-form-receipts";
 import nativeToolsDocument from "./native-tools.json";
 import { CLIENT_CAPABILITIES, type ClientCapabilities } from "./capabilities";
-import { PI_REASONING_LEVELS, type RuntimeEngine } from "./inference";
+import { PI_REASONING_LEVELS, type InferenceFallbackRecord, type InferenceModelSelection, type RuntimeEngine, type ServerInferenceSettings } from "./inference";
 import type {
   AgentNotificationKind,
   ChannelNotificationState,
@@ -187,6 +187,12 @@ export const CreateBotInput = Schema.Struct({
 });
 export type CreateBotInput = typeof CreateBotInput.Type;
 
+export const InferenceModelSelectionSchema = Schema.Struct({
+  providerId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(128)),
+  modelId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(256)),
+  reasoning: Schema.optional(Schema.Literal(...PI_REASONING_LEVELS)),
+});
+
 export const UpdateBotInput = Schema.Struct({
   name: Schema.optional(
     Schema.String.pipe(
@@ -210,6 +216,7 @@ export const UpdateBotInput = Schema.Struct({
       )
     ).pipe(Schema.maxItems(500))
   ),
+  model: Schema.optional(Schema.NullOr(InferenceModelSelectionSchema)),
 });
 export type UpdateBotInput = typeof UpdateBotInput.Type;
 
@@ -319,6 +326,7 @@ export const SendMessageInput = Schema.Struct({
   replyToMessageId: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
   richText: Schema.optional(Schema.String),
   isFork: Schema.optional(Schema.Boolean),
+  goalMode: Schema.optional(Schema.Boolean),
   attachments: Schema.optional(
     Schema.Array(AssetRef).pipe(
       Schema.maxItems(CLIENT_CAPABILITIES.uploads.maxAttachmentsPerMessage)
@@ -1567,8 +1575,14 @@ export const ComputerTurnRequest = Schema.Struct({
   requestSource: Schema.optional(RuntimeRequestSource),
   /** Set by the worker only for an Outcome sub-thread; routine and ordinary turns omit it. */
   outcomeThread: Schema.optional(Schema.Struct({ workItemId: Schema.String })),
-  /** Set by the worker only for a turn of a goal's own thread (specs/004.8). */
-  goalThread: Schema.optional(Schema.Struct({ threadId: Schema.String, outcomeId: Schema.String, purpose: Schema.Literal("plan", "owner_message") })),
+  /** Set by the worker only for a turn of a goal's own thread (specs/004.8, 004.9). */
+  goalThread: Schema.optional(
+    Schema.Struct({
+      threadId: Schema.String,
+      outcomeId: Schema.String,
+      purpose: Schema.Literal("plan", "owner_message", "replan", "review", "review_task"),
+    })
+  ),
   channelId: Schema.String,
   deliveryId: Schema.NullOr(Schema.String),
   runtimeProfile: Schema.optional(Schema.Literal("agent", "subagent")),
@@ -1579,6 +1593,10 @@ export const ComputerTurnRequest = Schema.Struct({
   timeZone: Schema.optional(Schema.String),
   /** Goal management is an opt-in module; without it the turn gets no Outcome or Explore tools. */
   outcomesEnabled: Schema.optional(Schema.Boolean),
+  /** A member's turn in a group chat: the turn gets the group task board tools (specs/010-群任务看板). */
+  groupTasksEnabled: Schema.optional(Schema.Boolean),
+  /** Set by the worker only when a group room woke this bot; its messages are not a private chat turn, but the opening acknowledgement still applies. */
+  groupTurn: Schema.optional(Schema.Boolean),
   model: Schema.String,
   reasoning: Schema.Literal(...PI_REASONING_LEVELS),
   fileAttachments: Schema.optional(Schema.Array(Schema.String)),
@@ -1597,6 +1615,8 @@ export const ComputerTurnRequest = Schema.Struct({
    * Set for a room turn that belongs to a realtime voice call, where the message goes to the room.
    */
   voiceSpeech: Schema.optional(Schema.Literal(true)),
+  directTextReply: Schema.optional(Schema.Literal(true)),
+  replyPreviewAttempt: Schema.optional(Schema.Number),
 });
 export type ComputerTurnRequest = typeof ComputerTurnRequest.Type;
 
@@ -1686,7 +1706,14 @@ export type ComputerEvent =
       message: string;
       retrying: boolean;
     }
-  | { type: "turn.completed"; turnId: string; status: string; error?: unknown };
+  | {
+      type: "turn.completed";
+      turnId: string;
+      status: string;
+      error?: unknown;
+      /** Background commands started by this turn are still owed; their completion wakes a later turn. */
+      backgroundWorkPending?: boolean;
+    };
 
 export interface BotView {
   id: string;
@@ -1715,6 +1742,12 @@ export interface BotView {
   updatedAt: string;
   conversationId: string;
   dmChannelId: string;
+  /** Per-bot configured model; null/undefined means global model. */
+  model?: InferenceModelSelection | null;
+  /** Effective model resolved for this bot (bot model or global model). */
+  effectiveModel?: ServerInferenceSettings | null;
+  /** Latest fallback annotation if the configured bot model failed to resolve. */
+  inferenceFallback?: InferenceFallbackRecord | null;
 }
 
 export interface TranscriptEventView {
@@ -1820,6 +1853,11 @@ export interface MessageDeliveryStatusView {
 }
 
 /** A bounded, chronological window around or immediately beside one anchor message. */
+export interface ChatBranchPage {
+  items: Array<{ id: string; messageId: string; title: string; updatedAt: string; running?: boolean }>;
+  nextBefore: string | null;
+}
+
 export interface ChannelMessageContextView {
   channelId: string;
   targetMessageId: string;
@@ -1928,6 +1966,7 @@ export interface RunView {
   status: RunStatus;
   runtimeTurnId: string | null;
   origin: RunOrigin;
+  isFork?: boolean;
   channelId: string | null;
   deliveryId: string | null;
   error: unknown;
@@ -1945,6 +1984,7 @@ export interface SubagentActivityView {
   subagentId: string;
   parentBotId: string;
   parentRunId: string;
+  parentIsThread?: boolean;
   parentChannelId: string;
   parentToolCallId: string;
   currentRunId: string | null;
@@ -2096,6 +2136,7 @@ export class ApiError extends Error {
 export * from "./external-draft";
 export * from "./messages-send";
 export * from "./outcomes";
+export * from "./group-tasks";
 export * from "./bot-recipe";
 
 export * from "./web-search";
@@ -2117,11 +2158,32 @@ export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: 
 export interface FeatureSettingsView {
   /** Goal management: the Outcomes entry, quick ideas, and the bots' goal tools and prompt. */
   outcomesEnabled: boolean;
+  streamBotReplies: boolean;
+  plannerBotId?: string | null;
+  reviewerBotId?: string | null;
+  plannerModel?: InferenceModelSelection | null;
+  reviewerModel?: InferenceModelSelection | null;
+  environmentNote?: string | null;
+  updatedAt?: string | null;
 }
+const OptionalFeatureUuid = Schema.optional(
+  Schema.NullOr(
+    Schema.String.pipe(
+      Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+    )
+  )
+);
 export const UpdateFeatureSettingsInput = Schema.Struct({
   outcomesEnabled: Schema.optional(Schema.Boolean),
+  streamBotReplies: Schema.optional(Schema.Boolean),
+  plannerBotId: OptionalFeatureUuid,
+  reviewerBotId: OptionalFeatureUuid,
+  plannerModel: Schema.optional(Schema.NullOr(InferenceModelSelectionSchema)),
+  reviewerModel: Schema.optional(Schema.NullOr(InferenceModelSelectionSchema)),
+  environmentNote: Schema.optional(Schema.NullOr(Schema.String.pipe(Schema.maxLength(8_000)))),
 });
 export type UpdateFeatureSettingsInput = typeof UpdateFeatureSettingsInput.Type;
+export * from "./reply-preview";
 
 export * from "./outcome-inbox";
 export * from "./knowledge";

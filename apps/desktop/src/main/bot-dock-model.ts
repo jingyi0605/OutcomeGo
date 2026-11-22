@@ -26,13 +26,26 @@ export interface BotDockRosterBot {
   avatarDataUrl?: string;
 }
 
+/** Goal records that wait on the owner: to approve, decide or act on (yellow), and results to review (blue). */
+export interface BotDockOutcomeCounts {
+  action: number;
+  review: number;
+}
+
 export interface BotDockLabels {
   messages: string;
   goals: string;
+  /** The goal management entry and its blue badge. */
+  outcomes: string;
+  review: string;
   open: string;
   running?: string;
   /** Composer copy. */
   placeholder: string;
+  goalPlaceholder?: string;
+  chatMode?: string;
+  goalMode?: string;
+  switchMode?: string;
   send: string;
   to: string;
   failed: string;
@@ -49,6 +62,9 @@ export interface BotDockState {
   labels: BotDockLabels;
   theme?: "light" | "dark" | "system";
   running?: boolean;
+  outcomesEnabled?: boolean;
+  /** Totals across all Bots; absent when goals are off or nothing waits. */
+  outcomes?: BotDockOutcomeCounts;
 }
 
 export interface DockRect {
@@ -153,6 +169,11 @@ export const parseBotDockState = (value: unknown): BotDockState | null | undefin
     });
   }
   const labels = isRecord(value.labels) ? value.labels : {};
+  const action = isRecord(value.outcomes) ? count(value.outcomes.action) : null;
+  const review = isRecord(value.outcomes) ? count(value.outcomes.review) : null;
+  // Nothing waiting means no goal entry; an invalid pair is ignored rather than rejecting the state.
+  const outcomes =
+    action !== null && review !== null && action + review > 0 ? { action, review } : undefined;
   const theme =
     value.theme === "light" || value.theme === "dark" || value.theme === "system"
       ? value.theme
@@ -163,9 +184,17 @@ export const parseBotDockState = (value: unknown): BotDockState | null | undefin
     labels: {
       messages: text(labels.messages, 80) ?? "Unread messages",
       goals: text(labels.goals, 80) ?? "Pending action",
+      outcomes: text(labels.outcomes, 80) ?? "Outcomes",
+      review: text(labels.review, 80) ?? "Awaiting review",
       open: text(labels.open, 80) ?? "Open OutcomeGo",
       running: text(labels.running, 80) ?? "Bot activity in progress",
       placeholder: text(labels.placeholder, 160) ?? "Message the main Bot. Type @ to choose a Bot.",
+      ...(text(labels.goalPlaceholder, 160)
+        ? { goalPlaceholder: text(labels.goalPlaceholder, 160)! }
+        : {}),
+      ...(text(labels.chatMode, 40) ? { chatMode: text(labels.chatMode, 40)! } : {}),
+      ...(text(labels.goalMode, 40) ? { goalMode: text(labels.goalMode, 40)! } : {}),
+      ...(text(labels.switchMode, 40) ? { switchMode: text(labels.switchMode, 40)! } : {}),
       send: text(labels.send, 40) ?? "Send",
       to: text(labels.to, 40) ?? "To",
       failed: text(labels.failed, 160) ?? "Couldn’t send. Try again.",
@@ -175,6 +204,10 @@ export const parseBotDockState = (value: unknown): BotDockState | null | undefin
     },
     ...(theme ? { theme } : {}),
     ...(value.running === true ? { running: true } : {}),
+    ...(typeof value.outcomesEnabled === "boolean"
+      ? { outcomesEnabled: value.outcomesEnabled }
+      : {}),
+    ...(outcomes ? { outcomes } : {}),
   };
 };
 
@@ -367,6 +400,7 @@ export interface BotDockMessage {
   /** May be empty when files are attached. */
   content: string;
   nonce: string;
+  goalMode?: boolean;
   attachments: BotDockAttachment[];
 }
 
@@ -438,7 +472,13 @@ export const parseBotDockMessage = (value: unknown): BotDockMessage | null => {
     (!content && attachments.length === 0)
   )
     return null;
-  return { botId, content, nonce, attachments };
+  return {
+    botId,
+    content,
+    nonce,
+    ...(value.goalMode === true ? { goalMode: true } : {}),
+    attachments,
+  };
 };
 
 export const parseBotDockSettings = (value: unknown): BotDockSettings => {

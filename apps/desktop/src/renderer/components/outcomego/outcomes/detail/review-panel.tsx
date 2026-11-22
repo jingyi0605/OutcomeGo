@@ -33,7 +33,7 @@ import { OutcomeAsset } from "../outcome-asset";
 import { outcomeAssetId } from "../outcome-asset-resource";
 import { OutcomeSourceInfo } from "../outcome-source-info";
 import { OutcomeButton } from "../outcome-ui";
-import { OutcomeResultReport } from "./outcome-result-report";
+import { OutcomeResultReport, OutcomeResultReportContent } from "./outcome-result-report";
 
 type ReviewEntry = SubmitOutcomeReviewInput["results"][number];
 
@@ -263,22 +263,28 @@ export function ReviewPanel({
   loadResultSummary,
   busy,
   onSubmit,
+  onAdoptPrereview,
   onRework,
   onClose,
   receiptReview = false,
   onApprove,
   onReject,
+  useCache = false,
+  onReady,
 }: {
   outcome: OutcomeDetail;
   busy: boolean;
   reviewRevisionView?: ContractRevisionView | null;
   loadResultSummary?: OutcomeClient["resultSummary"];
   onSubmit: (input: Omit<SubmitOutcomeReviewInput, "clientRequestId">) => void;
+  onAdoptPrereview?: (turnId: string) => void;
   onRework: (ids: string[], comment: string) => void;
   onClose?: () => void;
   receiptReview?: boolean;
   onApprove?: () => void;
   onReject?: (reason: string) => void;
+  useCache?: boolean;
+  onReady?: () => void;
 }) {
   const revision =
     reviewRevisionView === undefined ? outcome.currentRevisionView : reviewRevisionView;
@@ -317,7 +323,7 @@ export function ReviewPanel({
   for (const criterion of criteria) {
     const latestPrereview = [...revisionEvidence]
       .reverse()
-      .find((e) => e.criterionId === criterion.id && e.credibility === "ai_prereview");
+      .find((e) => e.criterionId === criterion.id && e.credibility === "ai_prereview" && e.capturedBy === "system:outcome-prereview");
     if (latestPrereview) {
       prereviewByCriterion.set(
         criterion.id,
@@ -344,6 +350,31 @@ export function ReviewPanel({
   const allRequiredCriteriaSatisfied = requiredCriteriaSatisfied(reviewStates);
 
   const current = revision?.revision === outcome.currentRevision;
+  const currentReview = outcome.prereview?.revision === revision?.revision ? outcome.prereview : undefined;
+  const reviewStatus = current ? outcome.prereviewStatus : undefined;
+  const suggestions = criteria.flatMap((criterion) => {
+    const result = currentReview?.results.find((item) => item.criterionId === criterion.id);
+    return result ? [{ criterion, result }] : [];
+  });
+  const needsAttention = ({ criterion, result }: (typeof suggestions)[number]) =>
+    criterion.required && result.suggestion !== "likely_pass";
+  const attentionResults = suggestions.filter(needsAttention);
+  const otherSuggestions = suggestions.filter((item) => !needsAttention(item));
+  const renderSuggestions = (items: typeof suggestions) => (
+    <ul className="outcome-brief-list">
+      {items.map(({ criterion, result }) => (
+        <li key={criterion.id}>
+          <strong className="outcome-criterion-title">{criterion.statement}</strong>
+          <p className="outcome-prereview-note">
+            <span className="outcome-prereview-badge" data-suggestion={result.suggestion}>
+              {translateCurrent(PREREVIEW_LABELS[result.suggestion])}
+            </span>
+            {result.reason}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
   const pendingSuccessor =
     ["draft", "pending_approval"].includes(outcome.currentRevisionView?.status ?? "") &&
     outcome.workItems.some(
@@ -367,7 +398,7 @@ export function ReviewPanel({
     >
       <div className="outcome-now">
         <div className="outcome-review-header">
-          <p className="outcome-now-eyebrow">{translateCurrent("Acceptance summary")}</p>
+          <p className="outcome-now-eyebrow" data-tone="action">{translateCurrent("Acceptance summary")}</p>
           {onClose && (
             <OutcomeButton variant="ghost" onClick={onClose}>
               {translateCurrent("Hide review")}
@@ -382,12 +413,72 @@ export function ReviewPanel({
             )}
           </p>
         )}
-        {revision && loadResultSummary ? (
-          <OutcomeResultReport outcomeId={outcome.id} revision={revision} load={loadResultSummary} />
-        ) : (
-          <p>{translateCurrent("The results summary is unavailable.")}</p>
+        {reviewStatus === "pending" && <p role="status">{translateCurrent("The reviewer is checking the latest results.")}</p>}
+        {reviewStatus === "stale" && <p role="status">{translateCurrent("The results changed. Suggestions from the previous review can no longer be adopted.")}</p>}
+        {reviewStatus === "unreviewed" && <p role="status">{translateCurrent("The reviewer did not finish. You can still review the results yourself.")}</p>}
+        {currentReview?.report ? <OutcomeResultReportContent report={currentReview.report} /> :
+          !currentReview && reviewStatus !== "pending" && revision && loadResultSummary ? (
+            <OutcomeResultReport outcomeId={outcome.id} revision={revision} load={loadResultSummary} useCache={useCache} onReady={onReady} hideWhenEmpty={reviewStatus === "stale"} />
+          ) : null}
+        {outcome.prereview && revision && (
+          <section
+            aria-label={translateCurrent("Preliminary review summary")}
+            className="outcome-card mt-3 space-y-2"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="outcome-prereview-title">
+                {translateCurrent("Preliminary review (revision {revision})", {
+                  revision: outcome.prereview.revision,
+                })}
+              </p>
+              {outcome.prereview.revision === revision.revision &&
+                editable &&
+                outcome.status === "review_pending" &&
+                onAdoptPrereview &&
+                outcome.prereview.results.some((r) => r.suggestion === "likely_pass") && (
+                  <OutcomeButton
+                    variant="default"
+                    disabled={busy}
+                    onClick={() => onAdoptPrereview(outcome.prereview!.turnId)}
+                  >
+                    {translateCurrent("Adopt likely-pass items")}
+                  </OutcomeButton>
+                )}
+            </div>
+            {outcome.prereview.revision !== revision.revision ? (
+              <p role="alert" className="text-xs text-amber-600 dark:text-amber-400">
+                {translateCurrent(
+                  "This preliminary review is from revision {prerev} and cannot be adopted on revision {rev}. Review criteria individually.",
+                  { prerev: outcome.prereview.revision, rev: revision.revision }
+                )}
+              </p>
+            ) : (
+              <>
+                {!currentReview?.report && <p className="outcome-result-conclusion whitespace-pre-wrap">{outcome.prereview.summary}</p>}
+                {attentionResults.length > 0 && renderSuggestions(attentionResults)}
+                {otherSuggestions.length > 0 && (
+                  <details className="outcome-technical">
+                    <summary>{translateCurrent("Other review suggestions")}</summary>
+                    {renderSuggestions(otherSuggestions)}
+                  </details>
+                )}
+                {!currentReview?.report && outcome.prereview.attention.length > 0 && (
+                  <div className="outcome-result-attention">
+                    <strong className="outcome-result-attention-title">
+                      {translateCurrent("Needs your attention")}
+                    </strong>
+                    <ul className="outcome-brief-list">
+                      {outcome.prereview.attention.map((item, idx) => (
+                        <li key={`${item.criterionId ?? "item"}-${idx}`}>{item.question}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
         )}
-        {!receiptReview && current && editable && outcome.status === "review_pending" && onApprove && onReject && (
+        {!receiptReview && reviewStatus !== "pending" && current && editable && outcome.status === "review_pending" && onApprove && onReject && (
           <section
             aria-label={translateCurrent("Result decision")}
             className="outcome-approval mt-4"
@@ -483,8 +574,17 @@ export function ReviewPanel({
                   const independentEvidence = evidence.filter(
                     (e) => !isAdvisoryCredibility(e.credibility)
                   );
-                  const advisoryEvidence = evidence.filter((e) => isAdvisoryCredibility(e.credibility));
-                  const prereview = prereviewByCriterion.get(criterion.id);
+                  const advisoryEvidence = evidence.filter((e) => isAdvisoryCredibility(e.credibility) &&
+                    (e.credibility !== "ai_prereview" || e.capturedBy === "system:outcome-prereview"));
+                  const prereviewSuggestion =
+                    outcome.prereview?.revision === revision?.revision
+                      ? outcome.prereview?.results.find((r) => r.criterionId === criterion.id)
+                      : undefined;
+                  const prereview = prereviewSuggestion
+                    ? { suggestion: prereviewSuggestion.suggestion, reason: prereviewSuggestion.reason }
+                    : !reviewStatus ? prereviewByCriterion.get(criterion.id) : undefined;
+                  const hasAttentionPrereview =
+                    prereview?.suggestion === "likely_fail" || prereview?.suggestion === "unclear";
                   const hasExtraInputs =
                     entry.result === "FAIL" ||
                     Boolean(references[criterion.id]?.trim()) ||
@@ -502,6 +602,7 @@ export function ReviewPanel({
                       key={criterion.id}
                       icon={CriterionIcon}
                       wideLabel
+                      open={hasAttentionPrereview ? true : undefined}
                       label={`${criterion.ordinal}. ${criterion.statement}`}
                       preview={
                         <>

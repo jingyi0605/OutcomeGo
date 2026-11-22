@@ -19,6 +19,13 @@ import type {
 } from "@outcomego/contracts";
 import { MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES, SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@outcomego/contracts";
 import { CLIENT_CAPABILITIES, formatPiModelRef, normalizePiReasoningLevel } from "@outcomego/contracts";
+import { checkComputerModelAvailable, resolveRunInference } from "./inference-selection";
+import {
+  canClaimThreadTurn,
+  countThreadLeasesByRole,
+  PLANNER_TURN_CONCURRENCY,
+  REVIEWER_TURN_CONCURRENCY,
+} from "./thread-concurrency";
 import { selectTaskConfiguration, parseTaskConfiguration, subagentUsesParentConnectors, type TaskConfiguration, type TaskCapabilities } from "@outcomego/contracts/task-configuration";
 import { finalizeInterruptedItems } from "./interrupted-progress";
 import { dispatchComputerTurn } from "./runtime-dispatch";
@@ -156,6 +163,9 @@ export const isVoiceNarration = (metadata: unknown): boolean =>
 export const voiceTurnPrompt =
   "[SAND_HIDDEN_PROMPT]This is a realtime voice conversation. The user hears your SendToUser messages spoken aloud. Keep each one short, warm and natural, as if talking, with no tables, code blocks or long lists. A separate voice narrator tells the user what you are doing while you work, so do not announce routine tool use yourself. Call SendToUser when you have a result, a question, or something genuinely new to say, and never repeat what the user has already heard. Begin a message with a brief first-person sentence such as \"I'm checking that now\" only when the work will take a while and the narrator has not already said so. This instruction is internal and must not be shown as a chat message.";
 
+const directTextVoicePrompt =
+  "[SAND_HIDDEN_PROMPT]The user hears your assistant text spoken aloud. Write short, natural sentences with no tables, code blocks or long lists. A separate narrator covers routine work. Write only a result, a question, or a meaningful update, and never repeat what the user has already heard.";
+
 /** Added in a spoken room, where the speaker turns after a reply are decided by the @ it contains. */
 export const voiceRoomPrompt =
   " You are in a spoken room with other participants. To give another participant the next turn, end your message by naming them with @Name; that @ and the name after it are not spoken aloud. Do not @ anyone when you have nothing for them to answer. If you were asked a direct question, always answer it with SendToUser.";
@@ -215,11 +225,13 @@ export const contextScopeForRun = (
   conversationId: string,
   automationRunId?: string,
   outcomeWorkItemId?: string | null,
-  outcomeThreadId?: string | null
+  outcomeThreadId?: string | null,
+  isolatedRunId?: string | null
 ): { scope: "home" | "channel" | "automation" | "outcome" | "outcome-thread"; scopeId: string } => {
   if (origin === "outcome_thread") {
     if (!outcomeThreadId) throw new Error("A goal thread turn requires its thread ID");
-    return { scope: "outcome-thread", scopeId: outcomeThreadId };
+    // A review judges the saved facts anew, so it must not see (and copy) its own earlier conclusions.
+    return { scope: "outcome-thread", scopeId: isolatedRunId ?? outcomeThreadId };
   }
   if (origin === "outcome") {
     if (!outcomeWorkItemId) throw new Error("An Outcome requires its work item ID");
@@ -420,6 +432,7 @@ export const turnContentWithNotes = (
     origin: RunOrigin;
     inboxType?: string;
     appendReplyReminder?: boolean;
+    directTextReply?: boolean;
     runtimeProfile: "agent" | "subagent";
     notes: ReadonlyArray<string | null | undefined>;
     unfinishedTasks?: boolean;
@@ -431,10 +444,13 @@ export const turnContentWithNotes = (
       unfinishedTasks: input.unfinishedTasks,
       reply:
         input.appendReplyReminder === true &&
+        !input.directTextReply &&
         input.runtimeProfile === "agent" &&
         turnOwesReplyReminder(input.origin, content, input.inboxType),
     }),
-    content
+    input.directTextReply && input.inboxType === "ack.redrive" && content === SEND_TO_USER_REPLY_NUDGE_PROMPT
+      ? "The user still needs the result of the previous turn. Deliver it directly as assistant text. If the result requires a card or attachment, use SendRichMessageToUser."
+      : content
   );
 
 const assetRefs = (value: unknown): AssetRef[] => {
@@ -1440,7 +1456,29 @@ export class WakeWorker {
         const foregroundBusy = existingLeases.some(lease => lease.scope === "foreground");
         const automations = existingLeases.filter(lease => lease.scope.startsWith("automation:"));
         const outcomes = existingLeases.filter(lease => lease.scope.startsWith("outcome:"));
-        if (foregroundBusy && automations.length >= 4 && outcomes.length >= 2) return null;
+        const threadLeaseRunIds = existingLeases
+          .filter((lease) => lease.scope.startsWith("outcome-thread:"))
+          .map((lease) => lease.runId);
+        const threadTurnPurposes = threadLeaseRunIds.length
+          ? new Map(
+              (
+                await tx.outcomeThreadTurn.findMany({
+                  where: { runId: { in: threadLeaseRunIds } },
+                  select: { runId: true, purpose: true },
+                })
+              ).map((row) => [row.runId!, row.purpose] as const)
+            )
+          : new Map();
+        const threadCounts = countThreadLeasesByRole(threadLeaseRunIds, threadTurnPurposes);
+        if (
+          foregroundBusy &&
+          automations.length >= 4 &&
+          outcomes.length >= 2 &&
+          threadCounts.planner >= PLANNER_TURN_CONCURRENCY &&
+          threadCounts.reviewer >= REVIEWER_TURN_CONCURRENCY
+        ) {
+          return null;
+        }
         const pendingCandidates = await tx.inboxEvent.findMany({
           where: {
             botId,
@@ -1511,6 +1549,7 @@ export class WakeWorker {
               await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_thread_not_runnable" } } });
               continue;
             }
+            if (!canClaimThreadTurn(turn.purpose, threadCounts)) continue;
             inbox = candidate;
             break;
           }
@@ -1730,13 +1769,17 @@ export class WakeWorker {
           },
         });
         const runtimeOwners = subagentRuntimeOwners(botId, inbox.bot.subagentIdentity);
+        const threadTurn = inbox.run.origin === "outcome_thread"
+          ? await tx.outcomeThreadTurn.findUnique({ where: { runId: inbox.runId }, select: { purpose: true } })
+          : null;
         const contextAddress = contextScopeForRun(
           inbox.run.origin,
           inbox.run.channelId,
           inbox.conversationId,
           payload.automationContextRunId ?? inbox.runId,
           inbox.run.outcomeWorkItemId,
-          inbox.run.outcomeThreadId
+          inbox.run.outcomeThreadId,
+          threadTurn?.purpose === "review" || threadTurn?.purpose === "review_task" ? inbox.runId : null
         );
         const contextSession = await tx.contextSession.upsert({
           where: {
@@ -1814,9 +1857,8 @@ export class WakeWorker {
     }, 30_000);
     let completion: Extract<ComputerEvent, { type: "turn.completed" }> | null = null;
     try {
-      await this.reconcileContextState(claimed);
       const skillAgent = pluginSkillAgent(claimed.runtimeProfile, claimed.subagentType);
-      const [pluginContext, inference, configuredTasks] = await Promise.all([
+      const [pluginContext, inference, configuredTasks, capabilities] = await Promise.all([
         subagentLoadsPluginContext(claimed.subagentType)
           ? pluginRuntimeContext(this.prisma, claimed.pluginBotId, skillAgent)
           : pluginSkillInstructions(this.prisma, claimed.pluginBotId, skillAgent).then((skillInstructions) => ({
@@ -1824,16 +1866,15 @@ export class WakeWorker {
             })),
         this.agentData.loadInferenceSettings(),
         this.agentData.loadTaskConfiguration(),
+        this.loadTaskCapabilities(),
+        this.reconcileContextState(claimed),
       ]);
-      const capabilityResponse = await this.computerFetch("/v1/task-capabilities", { method: "GET" });
-      if (!capabilityResponse.ok) throw new Error("Could not determine Task computer capabilities");
-      const capabilities = await capabilityResponse.json() as TaskCapabilities;
-      if (typeof capabilities.desktopAvailable !== "boolean" || typeof capabilities.boxAvailable !== "boolean") throw new Error("Invalid Task computer capabilities");
       const taskConfiguration = selectTaskConfiguration(claimed.taskConfiguration ?? configuredTasks, capabilities);
       // Plugin skills are global/read-only inputs. User workflows are rendered
       // later by platformInstructions and therefore win on conflict.
       const platformPrompt = await this.messaging.platformPrompt(claimed.botId, claimed.contextSessionId,
-        pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin, claimed.outcomeWorkItemId ?? undefined, claimed.outcomeThreadId ?? undefined);
+        pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin, claimed.outcomeWorkItemId ?? undefined, claimed.outcomeThreadId ?? undefined,
+        claimed.runtimeProfile === "agent" && !claimed.subagentType && !claimed.readOnly);
       // Replay failed user inputs whose durable-session delivery was never
       // acknowledged, including a turn a typed message superseded before its input
       // reached the model. Runtime message IDs prevent duplication after a lost ack.
@@ -1851,15 +1892,15 @@ export class WakeWorker {
         missedMessages.push({ id: `input:${payload.clientId}`, content: `[SAND_HIDDEN_PROMPT]Earlier user input whose delivery was interrupted:\n${payload.content}`, images: await this.messaging.assets.runtimeImages(assetRefs(payload.attachments), budget) });
       }
       const instructions = platformPrompt.instructions;
-      // A goal's own thread tells the computer which goal it works on, so only that thread's tools appear.
-      const goalThreadRow = claimed.outcomeThreadId
-        ? await this.prisma.outcomeThread.findUnique({
-            where: { id: claimed.outcomeThreadId },
-            select: { outcomeId: true, turns: { where: { status: { in: ["queued", "running"] } }, orderBy: { createdAt: "asc" }, take: 1, select: { purpose: true } } },
+      // A goal's own thread tells the computer which goal and turn purpose it works on, so only allowed tools appear.
+      const goalTurnRow = claimed.outcomeThreadId
+        ? await this.prisma.outcomeThreadTurn.findUnique({
+            where: { runId: claimed.runId },
+            select: { purpose: true, thread: { select: { outcomeId: true } } },
           })
         : null;
-      const goalThread = claimed.outcomeThreadId && goalThreadRow
-        ? { threadId: claimed.outcomeThreadId, outcomeId: goalThreadRow.outcomeId, purpose: goalThreadRow.turns[0]?.purpose ?? ("owner_message" as const) }
+      const goalThread = claimed.outcomeThreadId && goalTurnRow
+        ? { threadId: claimed.outcomeThreadId, outcomeId: goalTurnRow.thread.outcomeId, purpose: goalTurnRow.purpose }
         : null;
       // A room turn is woken by a synthetic clientId, so its spoken origin is the message that started the round.
       const triggeringMessage = claimed.deliveryId
@@ -1878,7 +1919,14 @@ export class WakeWorker {
         ? triggeringMessage.metadata as Record<string, unknown>
         : null;
       const voiceTurn = Boolean(triggeringMetadata?.voice && typeof triggeringMetadata.voice === "object" && !Array.isArray(triggeringMetadata.voice));
-      const voicePrompt = voiceTurn ? [{ id: `${claimed.clientId}:voice`, content: claimed.deliveryId ? voiceTurnPrompt + voiceRoomPrompt : voiceTurnPrompt }] : [];
+      const streamReply = platformPrompt.directTextReply && !voiceTurn && claimed.origin === "user" &&
+        triggeringMessage && !triggeringMetadata?.branched &&
+        !(await this.prisma.externalMessageReceipt.findFirst({
+          where: { runId: claimed.runId, status: "accepted", mappingId: { not: null } },
+          select: { id: true },
+        }));
+      const voicePrompt = voiceTurn ? [{ id: `${claimed.clientId}:voice`, content:
+        platformPrompt.directTextReply ? directTextVoicePrompt : claimed.deliveryId ? voiceTurnPrompt + voiceRoomPrompt : voiceTurnPrompt }] : [];
       // Spoken progress uses the configured narration model, or the bot's own model, with reasoning off: at the lowest
       // level some models still spend the whole token budget thinking and return no text.
       const narrationSetting = voiceTurn && !claimed.subagentType && claimed.origin === "user"
@@ -1886,14 +1934,34 @@ export class WakeWorker {
         : null;
       // Subagents run on the parent run's recorded model and reasoning, so a
       // settings change mid-run never switches models inside one task tree.
-      const inferenceParent = claimed.inferenceParentRunId
-        ? await this.prisma.run.findUnique({ where: { id: claimed.inferenceParentRunId } })
-        : null;
-      const selectedInference = inferenceParent?.inferenceProvider && inferenceParent.inferenceModel
-        ? { providerId: inferenceParent.inferenceProvider, modelId: inferenceParent.inferenceModel,
-            reasoning: inferenceParent.inferenceReasoning
-              ? normalizePiReasoningLevel(inferenceParent.inferenceReasoning) : inference.reasoning }
-        : inference;
+      const [inferenceParent, botInferenceRow, activeThreadTurn] = await Promise.all([
+        claimed.inferenceParentRunId
+          ? this.prisma.run.findUnique({ where: { id: claimed.inferenceParentRunId } })
+          : null,
+        this.prisma.bot.findUnique({
+          where: { id: claimed.botId },
+          select: { inferenceProvider: true, inferenceModel: true, inferenceReasoning: true },
+        }),
+        claimed.outcomeThreadId
+          ? this.prisma.outcomeThreadTurn.findUnique({
+              where: { runId: claimed.runId },
+              select: { id: true, model: true },
+            })
+          : null,
+      ]);
+      const turnModel =
+        activeThreadTurn?.model && typeof activeThreadTurn.model === "object" && !Array.isArray(activeThreadTurn.model)
+          ? (activeThreadTurn.model as { providerId?: string | null; modelId?: string | null; reasoning?: string | null })
+          : null;
+      const resolvedInference = await resolveRunInference({
+        parentRun: inferenceParent,
+        turnModel,
+        botModel: botInferenceRow,
+        globalInference: inference,
+        checkAvailability: (candidate) =>
+          checkComputerModelAvailable(this.computerUrl, this.controlToken, candidate),
+      });
+      const selectedInference = resolvedInference.settings;
       await this.prisma.$transaction(async (tx) => {
         await lockWakeAttempt(tx, claimed);
         if (!(await ownsWakeAttempt(tx, claimed))) throw new Error("Wake attempt was superseded before dispatch");
@@ -1901,8 +1969,39 @@ export class WakeWorker {
           inferenceProvider: selectedInference.providerId,
           inferenceModel: selectedInference.modelId,
           inferenceReasoning: selectedInference.reasoning,
+          inferenceFallback: resolvedInference.fallback ? JSON.parse(JSON.stringify(resolvedInference.fallback)) : Prisma.DbNull,
           taskConfiguration: JSON.parse(JSON.stringify(taskConfiguration)),
         } });
+        if (resolvedInference.fallback) {
+          await tx.event.create({
+            data: {
+              topic: "run.inference_fallback",
+              entityId: claimed.runId,
+              payload: JSON.parse(
+                JSON.stringify({
+                  runId: claimed.runId,
+                  botId: claimed.botId,
+                  ...resolvedInference.fallback,
+                })
+              ),
+            },
+          });
+          if (activeThreadTurn && resolvedInference.fallback.fromLevel === "role") {
+            await tx.outcomeThreadTurn.update({
+              where: { id: activeThreadTurn.id },
+              data: {
+                model: JSON.parse(
+                  JSON.stringify({
+                    providerId: selectedInference.providerId,
+                    modelId: selectedInference.modelId,
+                    reasoning: selectedInference.reasoning,
+                    fallback: resolvedInference.fallback,
+                  })
+                ),
+              },
+            });
+          }
+        }
       });
       const turnRequest = {
         runId: claimed.runId,
@@ -1916,6 +2015,7 @@ export class WakeWorker {
           origin: claimed.origin,
           inboxType: claimed.inboxType,
           appendReplyReminder: true,
+          directTextReply: platformPrompt.directTextReply,
           runtimeProfile: claimed.runtimeProfile,
           notes: [platformPrompt.automationStatus, platformPrompt.agentProfileUpdate, platformPrompt.instructionsUpdate],
           unfinishedTasks: await this.supersededUnfinishedRun(claimed),
@@ -1945,6 +2045,8 @@ export class WakeWorker {
         readOnly: claimed.readOnly,
         timeZone: await this.messaging.userTimeZone(),
         outcomesEnabled: platformPrompt.outcomesEnabled === true,
+        groupTasksEnabled: platformPrompt.groupTasksEnabled === true,
+        ...(claimed.origin === "group" ? { groupTurn: true } : {}),
         model: formatPiModelRef(selectedInference),
         reasoning: selectedInference.reasoning,
         ...(narrationSetting !== null
@@ -1952,6 +2054,8 @@ export class WakeWorker {
           : {}),
         // A turn in a voice-call room: no narrator, but each sentence of the reply is spoken as it is written.
         ...(voiceTurn && claimed.deliveryId && !claimed.subagentType ? { voiceSpeech: true as const } : {}),
+        ...(platformPrompt.directTextReply ? { directTextReply: true as const } : {}),
+        ...(streamReply ? { replyPreviewAttempt: claimed.attempt } : {}),
         fileAttachments: claimed.fileAttachments,
         attachmentOwnerBotId: claimed.attachmentOwnerBotId,
         dynamicNamespaces: pluginContext.dynamicNamespaces,
@@ -2030,7 +2134,7 @@ export class WakeWorker {
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
       await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
-      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId);
+      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId, this.messaging);
       if (claimed.origin === "bootstrap") {
         const onboarding = await tx.bot.updateMany({
           where: { id: claimed.botId, onboardingStatus: "running" },
@@ -2093,6 +2197,16 @@ export class WakeWorker {
     if (!(await this.projection.apply(claimed.runId, claimed.conversationId, claimed.botId, event, claimed))) {
       throw new Error("Wake attempt was superseded during context reconciliation");
     }
+  }
+
+  private async loadTaskCapabilities(): Promise<TaskCapabilities> {
+    const response = await this.computerFetch("/v1/task-capabilities", { method: "GET" });
+    if (!response.ok) throw new Error("Could not determine Task computer capabilities");
+    const capabilities = await response.json() as TaskCapabilities;
+    if (typeof capabilities.desktopAvailable !== "boolean" || typeof capabilities.boxAvailable !== "boolean") {
+      throw new Error("Invalid Task computer capabilities");
+    }
+    return capabilities;
   }
 
   private async heartbeat(claimed: Claimed): Promise<void> {
@@ -2359,7 +2473,7 @@ export class WakeWorker {
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
       await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
-      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId);
+      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId, this.messaging);
       if (priorityInterrupted) await this.redriveSupersededWake(tx, claimed);
       if (claimed.origin === "bootstrap") {
         const onboarding = await tx.bot.updateMany({

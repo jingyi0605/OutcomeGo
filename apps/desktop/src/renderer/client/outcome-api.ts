@@ -4,6 +4,7 @@ import type {
   CreateOutcomeInput,
   CreateContractRevisionInput,
   ApproveContractRevisionInput,
+  AdoptPrereviewInput,
   SubmitOutcomeReviewInput,
   DecideOutcomeAcceptanceInput,
   OutcomeReworkInput,
@@ -14,6 +15,7 @@ import type {
   ContractRevisionView,
   OutcomeBrief,
   OutcomeResultSummary,
+  OutcomeWorkThreadPage,
 } from "@outcomego/contracts/outcomes";
 
 import type {
@@ -46,9 +48,12 @@ export interface OutcomeClient {
   ): Promise<OutcomeDetail>;
   start(id: string, input: StartOutcomeRunInput): Promise<OutcomeDetail>;
   review(id: string, input: SubmitOutcomeReviewInput): Promise<OutcomeDetail>;
+  adoptPrereview?(id: string, input: AdoptPrereviewInput): Promise<OutcomeDetail>;
   decideAcceptance?(id: string, input: DecideOutcomeAcceptanceInput): Promise<OutcomeDetail>;
   rework(id: string, input: OutcomeReworkInput): Promise<OutcomeDetail>;
   cancel(id: string, input: CancelOutcomeInput): Promise<OutcomeDetail>;
+  stopWorkThread?(id: string, itemId: string): Promise<{ ok: boolean }>;
+  workThreads?(botId: string, query: { archived?: boolean; cursor?: string; signal?: AbortSignal }): Promise<OutcomeWorkThreadPage>;
   transcript(id: string, itemId: string, query?: { before?: number }): Promise<unknown>;
 }
 
@@ -75,9 +80,17 @@ export function createOutcomeApi(
       outcomePost(`${outcomePath(id)}/revisions/${revision}/approve`, input),
     start: (id, input) => outcomePost(`${outcomePath(id)}/runs`, input),
     review: (id, input) => outcomePost(`${outcomePath(id)}/reviews`, input),
+    adoptPrereview: (id, input) => outcomePost(`${outcomePath(id)}/reviews/adopt-prereview`, input),
     decideAcceptance: (id, input) => outcomePost(`${outcomePath(id)}/acceptance`, input),
     rework: (id, input) => outcomePost(`${outcomePath(id)}/rework`, input),
     cancel: (id, input) => outcomePost(`${outcomePath(id)}/cancel`, input),
+    stopWorkThread: (id, itemId) => outcomePost(`${outcomePath(id)}/work-items/${encodeURIComponent(itemId)}/stop`, {}),
+    workThreads: (botId, { archived, cursor, signal }) => {
+      const query = new URLSearchParams();
+      if (archived) query.set("archived", "true");
+      if (cursor) query.set("cursor", cursor);
+      return request(`/api/outcomes/work-threads/${encodeURIComponent(botId)}?${query}`, { signal });
+    },
     transcript: (id, itemId, query) =>
       request(
         `${outcomePath(id)}/work-items/${encodeURIComponent(itemId)}/transcript${query?.before !== undefined ? `?before=${query.before}` : ""}`

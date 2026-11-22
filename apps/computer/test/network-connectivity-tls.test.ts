@@ -25,7 +25,7 @@ test("real Node TLS probes verify certificates, use only the chosen exit, and ca
           "-subj",
           "/CN=cloudflare-dns.com",
           "-addext",
-          "subjectAltName=DNS:cloudflare-dns.com,DNS:dns.google",
+          "subjectAltName=DNS:cloudflare-dns.com,DNS:dns.google,DNS:dns.quad9.net,DNS:dns.alidns.com,DNS:doh.pub",
         ],
         { stdout: "ignore", stderr: "ignore" }
       );
@@ -44,14 +44,22 @@ import { probeNetworkFamily } from ${JSON.stringify(resolve(import.meta.dirname,
 const root=${JSON.stringify(directory)};
 const context=(name)=>({key:readFileSync(root+'/'+name+'.key'),cert:readFileSync(root+'/'+name+'.pem')});
 const server=createServer(context('trusted'),socket=>socket.on('error',()=>{}));
-const sockets=new Set();let opened=0,blockedV6=true,failedProvider=false;
+const sockets=new Set();let opened=0,blockedV6=true,failedProvider=false,hangGlobal=false,abortedSlow=0;
 server.on('tlsClientError',()=>{});
 server.on('connection',s=>{sockets.add(s);s.on('close',()=>sockets.delete(s));});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const open=async(host,port,signal)=>{
  assert.equal(port,443);opened++;
+ if(hangGlobal&&(host==='1.1.1.1'||host==='8.8.8.8')){
+  return await new Promise((_,reject)=>{
+   signal.addEventListener('abort',()=>{abortedSlow++;reject(Error('aborted'));},{once:true});
+  });
+ }
  if(failedProvider&&host==='1.1.1.1')throw Error('one provider unavailable');
- assert.ok(['1.1.1.1','8.8.8.8','2606:4700:4700::1111','2001:4860:4860::8888'].includes(host));
+ assert.ok([
+  '1.1.1.1','8.8.8.8','9.9.9.9','223.5.5.5','1.12.12.12',
+  '2606:4700:4700::1111','2001:4860:4860::8888','2620:fe::fe','2400:3200::1'
+ ].includes(host));
  if(blockedV6&&host.includes(':'))throw Error('exit IPv6 unavailable');
  return await new Promise((resolve,reject)=>{
   const socket=createConnection({host:'127.0.0.1',port:server.address().port,signal});
@@ -63,6 +71,12 @@ try {
  failedProvider=true;
  assert.deepEqual(await probeNetworkFamily(open,'ipv4',new AbortController().signal),{state:'working'});
  failedProvider=false;
+ hangGlobal=true;
+ const started=Date.now();
+ assert.deepEqual(await probeNetworkFamily(open,'ipv4',new AbortController().signal),{state:'working'});
+ assert.ok(Date.now()-started<1000);
+ assert.equal(abortedSlow,2);
+ hangGlobal=false;
  assert.deepEqual(await probeNetworkFamily(open,'ipv6',new AbortController().signal),{state:'unavailable',reason:'connect_failed'});
  blockedV6=false;
  assert.deepEqual(await probeNetworkFamily(open,'ipv6',new AbortController().signal),{state:'working'});
@@ -72,7 +86,7 @@ try {
  const result=probeNetworkFamily(open,'ipv4',controller.signal);controller.abort();
  await assert.rejects(result);
  await new Promise(r=>setTimeout(r,50));assert.equal(sockets.size,0);
- assert.equal(opened,12);console.log('verified TLS, both families, certificate rejection and abort cleanup');
+ assert.equal(opened,33);console.log('verified TLS, both families, certificate rejection and abort cleanup');
 } finally {for(const socket of sockets)socket.destroy();await new Promise(r=>server.close(r));}
 `
     );

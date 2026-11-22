@@ -1,3 +1,4 @@
+import type { ChatBranchPage } from "@outcomego/contracts";
 import { createOutcomeApi } from "./outcome-api";
 import { createInboxApi } from "../components/outcomego/outcomes/inbox/inbox-api";
 import type { AttentionSample } from "../lib/outcome-attention";
@@ -37,6 +38,13 @@ const outcomes = createOutcomeApi(request);
 
 export const api = {
   outcomes,
+  stopChatBranch: (channelId: string, branchId: string) =>
+    request<{ ok: boolean }>(`/api/channels/${encodeURIComponent(channelId)}/branches/${encodeURIComponent(branchId)}/stop`, { method: "POST" }),
+  chatBranches: (channelId: string, { archived, before, signal }: { archived: boolean; before?: string; signal: AbortSignal }) => {
+    const query = new URLSearchParams({ archived: String(archived) });
+    if (before) query.set("before", before);
+    return request<ChatBranchPage>(`/api/channels/${encodeURIComponent(channelId)}/branches?${query}`, { signal });
+  },
   outcomeInbox: createInboxApi(request),
   humanMaterials: createHumanMaterialApi(request),
   explore: createExploreApi(request),

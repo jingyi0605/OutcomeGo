@@ -13,6 +13,7 @@ import {
   WidgetDismissInput,
   WidgetResponseInput,
 } from "@outcomego/contracts";
+import { GroupTaskUserAction } from "@outcomego/contracts/group-tasks";
 import { corsHeaders, json, parseBody } from "../http";
 import { messageContextExtents } from "../message-context-query";
 import { type RouteContext, run } from "./context";
@@ -21,6 +22,13 @@ import { historyCursor } from "./input";
 
 export async function channelRoutes(context: RouteContext): Promise<Response | undefined> {
   const { app, request, url, path } = context;
+
+  const replyPreviewMatch = path.match(/^\/api\/channels\/([\da-f-]{36})\/reply-preview$/i);
+  if (request.method === "GET" && replyPreviewMatch?.[1]) {
+    return json(await app.replyPreviews.poll(
+      replyPreviewMatch[1], url.searchParams.get("after") ?? "", request.signal
+    ), 200, { "cache-control": "no-store" });
+  }
 
   const channelMatch = path.match(/^\/api\/channels\/([^/]+)$/);
   if (request.method === "GET" && channelMatch?.[1]) {
@@ -33,6 +41,15 @@ export async function channelRoutes(context: RouteContext): Promise<Response | u
       rounds: snapshot.channelRounds.filter((round) => round.channelId === channel.id),
       runs: snapshot.runs.filter((candidate) => candidate.channelId === channel.id),
     });
+  }
+
+  const branchStop = path.match(/^\/api\/channels\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})\/branches\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})\/stop$/i);
+  if (request.method === "POST" && branchStop?.[1] && branchStop[2]) {
+    return json(await run(app.cancelChatBranch(branchStop[1], branchStop[2])));
+  }
+  const branches = path.match(/^\/api\/channels\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})\/branches$/i);
+  if (request.method === "GET" && branches?.[1]) {
+    return json(await run(app.chatBranches(branches[1], url.searchParams.get("archived") === "true", historyCursor(url.searchParams.get("before")))), 200, { "cache-control": "no-store" });
   }
 
   const channelHistoryMatch = path.match(/^\/api\/channels\/([^/]+)\/history$/);
@@ -194,6 +211,15 @@ const routes = [
     /^\/api\/channels\/([^/]+)\/hidden$/,
     SetChannelHiddenInput,
     ({ app }, id, input) => app.setChannelHidden(id, input)
+  ),
+  effectRoute("GET", /^\/api\/channels\/([^/]+)\/tasks$/, ({ app, url }, id) =>
+    app.groupTaskBoard(decodeURIComponent(id), url.searchParams.get("includeClosed") === "true")
+  ),
+  bodyRoute(
+    "PATCH",
+    /^\/api\/channels\/([^/]+)\/tasks\/(\d{1,9})$/,
+    GroupTaskUserAction,
+    ({ app }, id, input, number) => app.actOnGroupTask(decodeURIComponent(id), Number(number), input)
   ),
   bodyRoute(
     "POST",

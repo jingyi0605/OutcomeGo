@@ -16,9 +16,11 @@ export function OutcomeThreadPanel({
   client,
   closed = false,
   composer = true,
+  compact = false,
 }: {
   outcomeId: string;
   client: OutcomeClient;
+  compact?: boolean;
   /** A finished goal keeps its record but takes no more messages. */
   closed?: boolean;
   /** False while another box on the page already sends to the bot (the approval comment): history only. */
@@ -27,6 +29,7 @@ export function OutcomeThreadPanel({
   const { t } = useI18n();
   const { view, reload } = useOutcomeThread(outcomeId, client);
   const [text, setText] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ids = useRef(new OutcomeRequestIds());
@@ -54,10 +57,54 @@ export function OutcomeThreadPanel({
       setSending(false);
     }
   }
+  const purposeLabels: Record<string, string> = {
+    plan: t("Plan"),
+    owner_message: t("Owner message"),
+    replan: t("Replan"),
+    review: t("Holistic prereview"),
+    review_task: t("Task review"),
+  };
   return (
-    <section aria-label={t("Conversation with the bot")} className="space-y-3">
-      {view?.turns.map((turn) => (
+    <section aria-label={t(compact ? "Conversation with the planner" : "Conversation with the bot")} className="space-y-3">
+      {compact && (
+        <>
+          <button type="button" className="outcome-execution-card" aria-haspopup="dialog" onClick={() => setHistoryOpen(true)}>
+            <MessagesSquare size={15} aria-hidden="true" />
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block">{t("Conversation with the planner")}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {view?.turns.at(-1)?.reply ?? view?.turns.at(-1)?.trigger ?? t("View conversation history")}
+              </span>
+            </span>
+            <ChevronRight size={13} aria-hidden="true" />
+          </button>
+          {view?.turns.some((turn) => turn.status === "queued" || turn.status === "running") && (
+            <p role="status" className="text-xs text-muted-foreground">{t("The bot is working on this…")}</p>
+          )}
+          {historyOpen && (
+            <Dialog open onOpenChange={setHistoryOpen}>
+              <DialogContent className="outcome-execution-dialog" overlayClassName="outcome-modal-overlay">
+                <DialogTitle className="px-5 pt-4">{t("Conversation with the planner")}</DialogTitle>
+                <DialogDescription className="sr-only">{t("View conversation history")}</DialogDescription>
+                <div className="outcome-execution-scroll">
+                  <OutcomeThreadPanel outcomeId={outcomeId} client={client} closed composer={false} />
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </>
+      )}
+      {!compact && view?.turns.map((turn) => (
         <div key={turn.id} className="space-y-1.5" data-turn-status={turn.status}>
+          <div className="flex items-center justify-end gap-1.5 text-[11px] text-foreground-secondary">
+            <span>{purposeLabels[turn.purpose] ?? turn.purpose}</span>
+            {turn.model && (
+              <span>
+                · {turn.model.providerId}/{turn.model.modelId}
+                {turn.model.fallback ? ` (${t("fallback")})` : ""}
+              </span>
+            )}
+          </div>
           <p className="ml-auto max-w-[85%] whitespace-pre-wrap rounded-xl bg-subtle px-3 py-2 text-[13px]">
             {turn.trigger}
           </p>
@@ -79,7 +126,38 @@ export function OutcomeThreadPanel({
           )}
         </div>
       ))}
-      {canWrite && view && view.turns.length === 0 && (
+      {!compact && view?.reviewTurns && view.reviewTurns.length > 0 && (
+        <div className="space-y-2 border-t border-black/[0.06] pt-3 dark:border-white/[0.07]">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-foreground-secondary">
+            {t("Reviewer records")}
+          </p>
+          {view.reviewTurns.map((turn) => (
+            <div key={turn.id} className="space-y-1 rounded-lg bg-subtle/60 p-2.5 text-[12px]" data-turn-status={turn.status}>
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-foreground-secondary">
+                <span className="font-medium text-foreground">{purposeLabels[turn.purpose] ?? turn.purpose}</span>
+                <span>· {t(turn.status)}</span>
+                {turn.workItemId && <span>· {turn.workItemId.slice(0, 8)}</span>}
+                {turn.model && (
+                  <span>
+                    · {turn.model.providerId}/{turn.model.modelId}
+                    {turn.model.fallback ? ` (${t("fallback")})` : ""}
+                  </span>
+                )}
+              </div>
+              {turn.reply && <p className="whitespace-pre-wrap">{turn.reply}</p>}
+              {turn.status === "failed" && (
+                <p role="alert" className="text-xs text-destructive">
+                  {turn.purpose === "review"
+                    ? t("Preliminary review failed.")
+                    : t("Task review failed (passed as unreviewed).")}{" "}
+                  {turn.error?.message}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {!compact && canWrite && view && view.turns.length === 0 && (
         <p className="text-xs opacity-70">{t("Nothing yet. Tell the bot what you want to change or ask.")}</p>
       )}
       {error && <p role="alert">{t(error)}</p>}
@@ -136,9 +214,12 @@ export function OutcomeThreadEntry({
   const [open, setOpen] = useState(false);
   if (!client.thread || !client.sendThreadMessage) return null;
   const turns = view?.turns ?? [];
+  const reviewTurns = view?.reviewTurns ?? [];
   const canWrite = composer && !closed;
-  if (!open && turns.length === 0 && !canWrite) return null;
-  const working = turns.some((turn) => turn.status === "queued" || turn.status === "running");
+  if (!open && turns.length === 0 && reviewTurns.length === 0 && !canWrite) return null;
+  const working =
+    turns.some((turn) => turn.status === "queued" || turn.status === "running") ||
+    reviewTurns.some((turn) => turn.status === "queued" || turn.status === "running");
   return (
     <>
       <button type="button" className="outcome-execution-card" aria-haspopup="dialog" onClick={() => setOpen(true)}>

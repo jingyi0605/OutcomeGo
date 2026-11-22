@@ -178,12 +178,14 @@ describe("first greeting cut off by the computer", () => {
 
 describe("execute tells a computer outage from a reported failure", () => {
   const run = async (turn: "unreachable" | "cut" | "failed") => {
+    const capabilitiesRequested = Promise.withResolvers<void>();
     const computer = Bun.serve({
       hostname: "127.0.0.1",
       port: 0,
-      fetch(request) {
+      async fetch(request) {
         const path = new URL(request.url).pathname;
         if (path === "/v1/context-sessions/context") {
+          if (turn === "cut") await capabilitiesRequested.promise;
           return Response.json({
             type: "context.state",
             contextSessionId: "context",
@@ -192,6 +194,7 @@ describe("execute tells a computer outage from a reported failure", () => {
           });
         }
         if (path === "/v1/task-capabilities") {
+          capabilitiesRequested.resolve();
           return Response.json({ desktopAvailable: true, boxAvailable: true });
         }
         // A computer that dies mid-turn ends the stream with no completion.
@@ -219,6 +222,8 @@ describe("execute tells a computer outage from a reported failure", () => {
       inboxEvent: { findUnique: async () => ({ attempts: 1, runId: "run", botId: "bot", status: "processing" }) },
       botRunLease: { findUnique: async () => ({ ownerId: "owner" }) },
       subagent: { findUnique: async () => null },
+      // execute reads the bot's own model override before choosing the run's inference.
+      bot: { findUnique: async () => null },
       // execute looks up the triggering message to detect a realtime voice turn; none exists here.
       channelMessage: { findUnique: async () => null },
     };
@@ -250,7 +255,7 @@ describe("execute tells a computer outage from a reported failure", () => {
     expect((await run("unreachable")).interrupted).toBe(true);
   });
 
-  test("a stream that ends without a completion is an interruption", async () => {
+  test("preflights overlap and a stream ending without completion is an interruption", async () => {
     const failure = await run("cut");
     expect(failure.interrupted).toBe(true);
     expect(String(failure.error)).toContain("without an authoritative turn completion");

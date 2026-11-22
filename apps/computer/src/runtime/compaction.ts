@@ -27,7 +27,7 @@ import { textFromContent } from "./content";
 import { inferenceReasoningOptions } from "./reasoning";
 import type { RuntimeTools } from "./tools";
 import type { ActiveTurn } from "./types";
-import { communicationReminder, OUTPUT_LIMIT_REMINDER, owesOutputLimitReminder, promptFingerprint } from "./prompt-context";
+import { communicationReminder, openingAcknowledgementGate, outputLimitReminder, owesOutputLimitReminder, promptFingerprint } from "./prompt-context";
 import { compactRepeatedDiscovery } from "./discovery-context";
 import { DISK_PRESSURE_REMINDER } from "./disk-pressure";
 import { INSTALL_NOTICE_TYPE } from "./install-notice";
@@ -63,8 +63,17 @@ export const modelVisibleSummaryTools = (
   }));
 
 /** Use one context shape for every summary entry point. */
+const STREAMING_CHAT_CONTEXT_TARGET = 256_000;
+
+function compactionThreshold(active: ActiveTurn, maxTokens: number): number | undefined {
+  return active.directTextReply && maxTokens > STREAMING_CHAT_CONTEXT_TARGET
+    ? Math.min(active.compactionEarlyThreshold ?? Infinity, STREAMING_CHAT_CONTEXT_TARGET)
+    : active.compactionEarlyThreshold;
+}
+
 export function compactionObservation(active: ActiveTurn): Omit<BotObservation, "infer"> {
   const usage = active.session?.getContextUsage();
+  const maxTokens = usage?.contextWindow ?? active.session?.model?.contextWindow ?? 0;
   const piMessages =
     active.compactionReadPiMessages?.() ?? ((active.session?.messages ?? []) as BotMessage[]);
   const tools = modelVisibleSummaryTools(
@@ -81,9 +90,9 @@ export function compactionObservation(active: ActiveTurn): Omit<BotObservation, 
     systemPrompt: taskProgressBaseInstructions(active.instructions),
     userInfoMessage: active.userInfoMessage,
     usedTokens: active.compactionUsageInvalidated?.() ? null : estimateBotMeasuredContextTokens(piMessages),
-    maxTokens: usage?.contextWindow ?? active.session?.model?.contextWindow ?? 0,
+    maxTokens,
     modelKey: sha256(canonicalJson({ model: active.modelRef, reasoning: active.reasoning, tools })),
-    earlyThreshold: active.compactionEarlyThreshold,
+    earlyThreshold: compactionThreshold(active, maxTokens),
     tools,
     projectRoot: active.cwd,
     isRootProject: active.isRootProject,
@@ -128,7 +137,23 @@ export function compactionExtension(
     hidden: true,
     factory: (pi) => {
       pi.on("before_agent_start", async () => ({ systemPrompt: taskProgressBaseInstructions(active.instructions) }));
+      // A turn a person opened must acknowledge them before its first work call; the refusal costs one retry.
+      pi.on("tool_call", async (event) => {
+        await active.directTextDelivery;
+        const reason = openingAcknowledgementGate(readPiMessages(), active, event.toolName);
+        return reason ? { block: true, reason } : undefined;
+      });
       pi.on("context", async (event, ctx) => {
+        await active.directTextDelivery;
+        if (active.directTextDeliveryNotice && active.session) {
+          const content = active.directTextDeliveryNotice;
+          active.directTextDeliveryNotice = undefined;
+          await active.session.sendCustomMessage(
+            { customType: "outcomego-reply-delivery", content, display: false, details: { origin: "host" } },
+            { triggerTurn: false }
+          );
+          event.messages = [...event.messages, active.session.messages.at(-1)!];
+        }
         if (!restoredMeasurement) {
           restoredMeasurement = true;
           const latest = await compaction.latestEvent(active.contextSessionId);
@@ -179,7 +204,7 @@ export function compactionExtension(
         if (owesOutputLimitReminder(readPiMessages(), active) && active.session) {
           active.outputLimitReminded = true;
           await active.session.sendCustomMessage(
-            { customType: "outcomego-output-limit", content: OUTPUT_LIMIT_REMINDER, display: false, details: { origin: "host" } },
+            { customType: "outcomego-output-limit", content: outputLimitReminder(active), display: false, details: { origin: "host" } },
             { triggerTurn: false }
           );
           event.messages = [...event.messages, active.session.messages.at(-1)!];
@@ -288,7 +313,8 @@ export function compactionExtension(
         if (isValidBotEarlyThreshold(early, observation.maxTokens) && inputTokens >= early) {
           active.compactionEarlyThreshold = early;
         }
-        const signature = `${inputTokens}:${active.compactionEarlyThreshold}`;
+        const earlyThreshold = compactionThreshold(active, observation.maxTokens);
+        const signature = `${inputTokens}:${earlyThreshold}`;
         if (signature === active.compactionUsageSignature) return;
         active.compactionUsageSignature = signature;
         await compaction.observe({
@@ -297,7 +323,7 @@ export function compactionExtension(
           piMessages: active.compactionRequestMessages,
           usedTokens: inputTokens,
           freshUsage: true,
-          earlyThreshold: active.compactionEarlyThreshold,
+          earlyThreshold,
         });
       });
       pi.on("message_end", async (event) => {
@@ -341,7 +367,7 @@ export function compactionExtension(
           piMessages: [...observation.piMessages, message],
           usedTokens: usedTokens > 0 ? usedTokens : observation.usedTokens,
           freshUsage: usedTokens > 0,
-          earlyThreshold: active.compactionEarlyThreshold,
+          earlyThreshold: compactionThreshold(active, observation.maxTokens),
         });
       });
       pi.on("session_before_compact", async (event) => {

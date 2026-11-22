@@ -53,6 +53,7 @@ interface Window {
           botId: string;
           content: string;
           nonce: string;
+          goalMode?: boolean;
           /** Files already written to the send staging area by main. */
           staged: Array<{
           stagingId: string;

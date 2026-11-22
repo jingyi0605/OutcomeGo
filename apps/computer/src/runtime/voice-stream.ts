@@ -71,6 +71,10 @@ export class SendToUserSpeech {
     return this.emitted.get(callId) ?? 0;
   }
 
+  discard(callId: string): void {
+    this.broken.add(callId);
+  }
+
   /** Resolves once every chunk so far has reached the server, so the saved message can be reconciled against them. */
   flush(): Promise<void> {
     return this.chain;

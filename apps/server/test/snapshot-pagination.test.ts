@@ -39,6 +39,34 @@ describe("snapshot pagination", () => {
     expect(normalizeMessageContextExtent(10_000)).toBe(100);
   });
 
+  test("lists private-chat branches with separate recent and archived pages", async () => {
+    const channelId = "00000000-0000-0000-0000-000000000020";
+    const rows = Array.from({ length: 41 }, (_, index) => ({
+      id: `branch-${index}`, messageId: `reply-${index}`, title: `Title ${index}`,
+      updatedAt: new Date(0), sequence: BigInt(100 - index),
+    }));
+    const queries: RawQuery[] = [];
+    const service = new SnapshotService({
+      channel: { findFirst: async ({ where }: any) => where.id === channelId && where.kind === "bot_dm" ? { id: channelId } : null },
+      $queryRaw: async (strings: readonly string[], ...values: unknown[]) => {
+        queries.push({ strings, values });
+        return rows;
+      },
+    } as never, "/workspace", "http://computer", () => true);
+    const recent = await Effect.runPromise(service.chatBranches(channelId, false, null));
+    expect(recent.items).toHaveLength(40);
+    expect(recent.items[0]).toEqual({ id: "branch-0", messageId: "reply-0", title: "Title 0", updatedAt: new Date(0).toISOString() });
+    expect(recent.nextBefore).toBe("61");
+    await Effect.runPromise(service.chatBranches(channelId, true, 61n));
+    expect(rawSql(queries[0]!)).toContain("DISTINCT ON (m.metadata->>'questionScopeId')");
+    expect(rawSql(queries[0]?.values?.[2] as RawQuery)).toContain("active.running OR");
+    expect(rawSql(queries[1]?.values?.[2] as RawQuery)).toContain("NOT active.running AND");
+    expect(rawSql(queries[0]?.values?.[3] as RawQuery)).toContain('latest."createdAt" >=');
+    expect(rawSql(queries[1]?.values?.[3] as RawQuery)).toContain('latest."createdAt" <');
+    expect((queries[1]?.values?.[4] as RawQuery).values).toEqual([61n]);
+    await expect(Effect.runPromise(service.chatBranches("another-channel", false, null))).rejects.toThrow("Channel not found");
+  });
+
   test("client state carries run items only for queued or running runs", async () => {
     const channelId = "00000000-0000-0000-0000-000000000020";
     const at = (seconds: number) => new Date(Date.UTC(2026, 9, 16, 12, 0, seconds));
@@ -727,5 +755,114 @@ describe("snapshot pagination", () => {
       cursorAhead: true,
     });
     expect(await service.eventWindowAfter(20n)).toMatchObject({ cursorAhead: false });
+  });
+
+  test("projects isFork on active branched runs and parentIsThread on subagents", async () => {
+    const botId = "00000000-0000-0000-0000-000000000040";
+    const channelId = "00000000-0000-0000-0000-000000000041";
+    const forkRunId = "00000000-0000-0000-0000-000000000051";
+    const mainRunId = "00000000-0000-0000-0000-000000000052";
+    const completedOutcomeParentRunId = "00000000-0000-0000-0000-000000000053";
+    const now = new Date("2026-08-31T12:00:00.000Z");
+
+    const service = new SnapshotService(
+      {
+        notificationPresence: { findMany: async () => [] },
+        notificationPreferences: { findUnique: async () => null },
+        event: { findFirst: async () => ({ sequence: 10n }) },
+        bot: { findMany: async () => [] },
+        channel: {
+          findMany: async () => [
+            {
+              id: channelId,
+              kind: "bot_dm",
+              name: "Bot",
+              description: "",
+              avatarPath: null,
+              directKey: `bot:${botId}`,
+              workingDirectory: null,
+              members: [{ botId, ordinal: 0 }],
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+        },
+        run: {
+          findMany: async (args: { where?: { id?: { in?: string[] } } }) => {
+            if (args?.where?.id?.in) {
+              return [{ id: completedOutcomeParentRunId, botId, origin: "outcome" }];
+            }
+            return [
+              {
+                id: forkRunId,
+                botId,
+                conversationId: "conv-1",
+                status: "running",
+                runtimeTurnId: null,
+                origin: "user",
+                channelId,
+                deliveryId: null,
+                error: null,
+                createdAt: now,
+                updatedAt: now,
+              },
+              {
+                id: mainRunId,
+                botId,
+                conversationId: "conv-1",
+                status: "running",
+                runtimeTurnId: null,
+                origin: "user",
+                channelId,
+                deliveryId: null,
+                error: null,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ];
+          },
+        },
+        inboxEvent: {
+          findMany: async () => [{ runId: forkRunId }],
+        },
+        channelRound: { findMany: async () => [] },
+        subagentAttempt: {
+          findMany: async () => [
+            {
+              id: "attempt-1",
+              parentRunId: completedOutcomeParentRunId,
+              parentChannelId: channelId,
+              parentToolCallId: "call-1",
+              childRunId: "child-run-1",
+              description: "Child task",
+              status: "running",
+              result: null,
+              error: null,
+              startedAt: now,
+              completedAt: null,
+              stoppedAt: null,
+              createdAt: now,
+              updatedAt: now,
+              subagent: {
+                id: "subagent-1",
+                parentBotId: botId,
+                subagentType: "executor",
+                status: "running",
+                currentRunId: "child-run-1",
+              },
+            },
+          ],
+        },
+        $queryRaw: async () => [],
+      } as never,
+      "/workspace",
+      "http://computer",
+      () => true
+    );
+
+    const bootstrap = await Effect.runPromise(service.bootstrap());
+    expect(bootstrap.activeRuns.find((r) => r.id === forkRunId)?.isFork).toBe(true);
+    expect(bootstrap.activeRuns.find((r) => r.id === mainRunId)?.isFork).toBeUndefined();
+    expect(bootstrap.subagents[0]?.parentIsThread).toBe(true);
   });
 });

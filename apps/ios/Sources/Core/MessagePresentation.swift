@@ -13,6 +13,11 @@ public struct MessagePresentation {
     public let timestamp: Date?
     public let animatesArrival: Bool
     public let groupsWithPrevious: Bool
+    public static func replyPreview(_ message: Message, groupsWithPrevious: Bool) -> Row {
+      Row(id: "client:\(message.channelId):\(message.clientId ?? message.id)",
+        content: .confirmed(MessageTimeline.Entry(message: message, timestamp: nil, showsReplyContext: false)),
+        timestamp: nil, animatesArrival: false, groupsWithPrevious: groupsWithPrevious)
+    }
     public var isUser: Bool {
       if case .confirmed(let entry) = content { return entry.message.isUser }
       return true

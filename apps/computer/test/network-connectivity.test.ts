@@ -144,7 +144,7 @@ test("independent provider failures classify connection vs TLS without leaking e
     "ipv6",
     new AbortController().signal
   );
-  expect(hosts).toHaveLength(2);
+  expect(hosts).toHaveLength(4);
   expect(hosts.every((host) => host.includes(":"))).toBe(true);
   expect(result).toEqual(unavailable);
   const controller = new AbortController();

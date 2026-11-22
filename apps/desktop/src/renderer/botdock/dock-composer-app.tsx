@@ -5,7 +5,7 @@ import { DockComposer, useDockComposer } from "./dock-composer";
 export function DockComposerApp() {
   const bridge = window.botdock;
   const state = useDockState(bridge);
-  const model = useDockComposer(bridge, state?.roster ?? []);
+  const model = useDockComposer(bridge, state?.roster ?? [], state?.outcomesEnabled !== false);
   const frameRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const hasState = state !== null;

@@ -172,6 +172,29 @@ BEGIN
     ALTER TABLE "outcomego_memory_fact" ALTER COLUMN "scope" TYPE "MemoryScope" USING "scope"::text::"MemoryScope";
     DROP TYPE "MemoryScope_retired";
   END IF;
+  IF to_regclass('"outcomego_bot"') IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema()
+        AND table_name = 'outcomego_bot' AND column_name = 'inferenceReasoning') THEN
+    UPDATE "outcomego_bot" SET "inferenceProvider" = NULL, "inferenceModel" = NULL;
+    ALTER TABLE "outcomego_bot" ADD COLUMN "inferenceReasoning" TEXT;
+  END IF;
+  IF to_regclass('"outcomego_outcome_thread"') IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema()
+        AND table_name = 'outcomego_outcome_thread' AND column_name = 'role') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typnamespace = current_schema()::regnamespace AND typname = 'outcomego_outcome_thread_role') THEN
+      CREATE TYPE "outcomego_outcome_thread_role" AS ENUM ('planner', 'reviewer');
+    END IF;
+    ALTER TABLE "outcomego_outcome_thread" ADD COLUMN "role" "outcomego_outcome_thread_role" NOT NULL DEFAULT 'planner';
+    ALTER TABLE "outcomego_outcome_thread" DROP CONSTRAINT IF EXISTS "outcomego_outcome_thread_outcomeId_key";
+    DROP INDEX IF EXISTS "outcomego_outcome_thread_outcomeId_key";
+    ALTER TABLE "outcomego_outcome_thread" ADD CONSTRAINT "outcomego_outcome_thread_outcome_id_role_key" UNIQUE ("outcomeId", "role");
+  END IF;
+  IF to_regclass('"outcomego_outcome_work_item"') IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema()
+        AND table_name = 'outcomego_outcome_work_item' AND column_name = 'planKey') THEN
+    ALTER TABLE "outcomego_outcome_work_item" ADD COLUMN "planKey" TEXT;
+    ALTER TABLE "outcomego_outcome_work_item" ADD CONSTRAINT "outcomego_outcome_work_item_revision_id_plan_key_key" UNIQUE ("contractRevisionId", "planKey");
+  END IF;
 END $$;
 ALTER TABLE IF EXISTS "outcomego_memory_fact" DROP COLUMN IF EXISTS "memoryConversationId",
   DROP COLUMN IF EXISTS "sourcePath", DROP COLUMN IF EXISTS "sourceLine", DROP COLUMN IF EXISTS "projectSlug";

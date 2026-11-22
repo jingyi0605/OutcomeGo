@@ -12,6 +12,7 @@
   --dock-red: #ff3b30;
   --dock-yellow: #ffcc00;
   --dock-yellow-ink: #3d2f00;
+  --dock-blue: #0a84ff;
   --dock-invitation-rgb: 94 143 223;
   color-scheme: light;
 }
@@ -27,6 +28,7 @@
     --dock-badge-ring: rgb(44 44 48);
     --dock-red: #ff453a;
     --dock-yellow: #ffd60a;
+    --dock-blue: #409cff;
     color-scheme: dark;
   }
 }
@@ -41,6 +43,7 @@
   --dock-badge-ring: rgb(44 44 48);
   --dock-red: #ff453a;
   --dock-yellow: #ffd60a;
+  --dock-blue: #409cff;
   color-scheme: dark;
 }
 
@@ -209,6 +212,33 @@ body {
   margin-left: -8px;
 }
 
+/* Goal management: its own round button, clear of the overlapping avatars so both badges stay visible. */
+.dock-outcomes {
+  position: relative;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  margin-right: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--dock-home-bg);
+  color: var(--dock-ink);
+  box-shadow: 0 0 0 2px var(--dock-badge-ring);
+  animation: dock-pop 220ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.dock-outcomes:last-child {
+  margin-right: 0;
+}
+.dock-outcomes-icon {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
 /* The chip sits clear of the last avatar and its badges. */
 .dock-bot + .dock-more {
   margin-left: 12px;
@@ -269,6 +299,17 @@ body {
   color: var(--dock-yellow-ink);
 }
 
+/* Goal records: yellow (approve, decide, act) on top, blue (review) below. */
+.dock-badge-top {
+  top: -5px;
+  bottom: auto;
+}
+.dock-badge-review {
+  bottom: -5px;
+  background: var(--dock-blue);
+  color: #fff;
+}
+
 @keyframes dock-pop {
   from {
     opacity: 0;
@@ -277,7 +318,8 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dock-bot {
+  .dock-bot,
+  .dock-outcomes {
     animation: none;
   }
 }
@@ -302,6 +344,63 @@ body {
 
 .dock-composer-frame[data-visible] .dock-composer {
   animation: dock-pop 160ms ease-out both;
+}
+
+.dock-composer .dock-mode-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 9px 0 6px;
+  border-radius: 999px;
+  background: var(--dock-home-bg);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.dock-composer .dock-mode-pill:not(:disabled):hover {
+  background: var(--dock-home-hover);
+}
+
+.dock-composer .dock-mode-pill[data-mode="goal"] {
+  background: rgb(52 199 89 / 18%);
+  color: light-dark(#157f3c, #6ee79b);
+  box-shadow: inset 0 0 0 0.5px rgb(52 199 89 / 35%);
+}
+
+.dock-composer .dock-mode-pill[data-mode="goal"]:not(:disabled):hover {
+  background: rgb(52 199 89 / 26%);
+}
+
+.dock-mode-kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: rgb(120 120 128 / 18%);
+  box-shadow: inset 0 0 0 0.5px var(--dock-edge);
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0.78;
+}
+
+.dock-composer .dock-mode-pill[data-mode="goal"] .dock-mode-kbd {
+  background: rgb(52 199 89 / 16%);
+  box-shadow: inset 0 0 0 0.5px rgb(52 199 89 / 30%);
+  opacity: 0.9;
+}
+
+.dock-composer[data-goal-mode="true"] .dock-input {
+  box-shadow: inset 0 0 0 1px rgb(52 199 89 / 38%);
 }
 
 .dock-composer button {
@@ -352,7 +451,7 @@ body {
 .dock-composer-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -369,7 +468,8 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  max-width: 160px;
+  min-width: 0;
+  max-width: 136px;
   height: 28px;
   padding: 0 10px 0 4px;
   border-radius: 999px;

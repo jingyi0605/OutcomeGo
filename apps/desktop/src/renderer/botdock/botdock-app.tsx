@@ -1,4 +1,5 @@
 import { normalizeRobotAvatarShape } from "@outcomego/contracts/robot-avatar";
+import { Target } from "lucide-react";
 import {
   type PointerEvent,
   useEffect,
@@ -32,14 +33,49 @@ function DockAvatar({ bot }: { bot: BotDockBotView }) {
   );
 }
 
-/** The right side of the capsule: the Bots with something waiting, overlapped, each with a red
- * (unread messages) and a yellow (goals waiting on the owner) badge. */
+/** The goal management entry: its own icon, yellow when goal records wait on the owner to approve,
+ * decide or act, and blue when results wait for review. */
+function DockOutcomes({ state }: { state: BotDockStateView }) {
+  const counts = state.outcomes;
+  if (!counts || counts.action + counts.review <= 0) return null;
+  const parts = [
+    counts.action > 0 ? `${state.labels.goals}: ${counts.action}` : "",
+    counts.review > 0 ? `${state.labels.review}: ${counts.review}` : "",
+  ].filter(Boolean);
+  return (
+    <button
+      aria-label={[state.labels.outcomes, ...parts].join(", ")}
+      className="dock-outcomes"
+      data-dock-outcomes=""
+      title={[state.labels.outcomes, ...parts].join(" · ")}
+      type="button"
+    >
+      <Target aria-hidden="true" className="dock-outcomes-icon" strokeWidth={1.8} />
+      {counts.action > 0 ? (
+        <span className="dock-badge dock-badge-goals dock-badge-top" data-dock-badge="outcome-action">
+          {badgeText(counts.action)}
+        </span>
+      ) : null}
+      {counts.review > 0 ? (
+        <span className="dock-badge dock-badge-review" data-dock-badge="outcome-review">
+          {badgeText(counts.review)}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+/** The right side of the capsule: the goal management entry when goal records wait, then the Bots
+ * with something waiting, overlapped, each with a red (unread messages) and a yellow (goals
+ * waiting on the owner) badge. */
 export function DockBots({ state }: { state: BotDockStateView }) {
   const visible = state.bots.slice(0, MAX_VISIBLE_BOTS);
   const hidden = state.bots.length - visible.length;
-  if (visible.length === 0) return null;
+  const hasOutcomes = Boolean(state.outcomes && state.outcomes.action + state.outcomes.review > 0);
+  if (visible.length === 0 && !hasOutcomes) return null;
   return (
     <div className="dock-bots">
+      <DockOutcomes state={state} />
       {visible.map((bot, index) => (
         <button
           aria-label={[
@@ -87,7 +123,7 @@ export function DockBots({ state }: { state: BotDockStateView }) {
 }
 
 /** What a press landed on: a Bot's avatar, the capsule's own button, or the "+N" chip. */
-type PressTarget = { kind: "bot"; id: string } | { kind: "home" } | { kind: "app" };
+type PressTarget = { kind: "bot"; id: string } | { kind: "home" } | { kind: "app" } | { kind: "outcomes" };
 
 interface Gesture {
   x: number;
@@ -270,9 +306,10 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
 
   const pressTarget = (event: PointerEvent): PressTarget | undefined => {
     const element = (event.target as HTMLElement).closest<HTMLElement>(
-      "[data-dock-bot], [data-dock-open], [data-dock-app]"
+      "[data-dock-bot], [data-dock-open], [data-dock-app], [data-dock-outcomes]"
     );
     if (!element) return undefined;
+    if ("dockOutcomes" in element.dataset) return { kind: "outcomes" };
     if (element.dataset.dockBot) return { kind: "bot", id: element.dataset.dockBot };
     return "dockApp" in element.dataset ? { kind: "app" } : { kind: "home" };
   };
@@ -302,6 +339,7 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
     else if (activate && current.target) {
       if (current.target.kind === "bot") bridge.open(current.target.id);
       else if (current.target.kind === "app") bridge.focusApp();
+      else if (current.target.kind === "outcomes") bridge.openGoals();
       else bridge.open();
     }
   };

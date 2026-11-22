@@ -9,7 +9,7 @@ import {
 } from "@outcomego/product-core/attachments";
 import type { DurableStagedAttachment } from "@outcomego/product-core/durable-delivery";
 import { clientErrorMessage } from "@outcomego/product-core/redaction";
-import { Paperclip, X } from "lucide-react";
+import { Paperclip, Target, X } from "lucide-react";
 import type {
   ClipboardEvent,
   FormEvent,
@@ -113,6 +113,9 @@ export function PromptInput({
   onStage,
   onDiscardStages,
   onSubmit,
+  goalMode = false,
+  onCancelGoalMode,
+  onSelectMode,
   mentionOptions = [],
   uploadCapabilities = CLIENT_CAPABILITIES.uploads,
   transcriptionConfigured = false,
@@ -126,6 +129,9 @@ export function PromptInput({
   disabled?: boolean;
   placeholder?: string;
   reply?: { id: string; content: string } | null;
+  goalMode?: boolean;
+  onCancelGoalMode?: () => void;
+  onSelectMode?: (option: MentionOption) => void;
   recovery?: {
     id: string;
     message?: string;
@@ -323,6 +329,7 @@ export function PromptInput({
   const expanded =
     autoExpanded ||
     replyOpen ||
+    goalMode ||
     attachments.length > 0 ||
     Boolean(attachmentError) ||
     Boolean(voice.error || voice.notice);
@@ -414,6 +421,7 @@ export function PromptInput({
     attachmentError,
     attachments.length,
     autoExpanded,
+    goalMode,
     replyOpen,
     value,
     voice.error,
@@ -437,6 +445,7 @@ export function PromptInput({
   useLayoutEffect(measureSurface, [
     measureSurface,
     textareaHeight,
+    goalMode,
     reply,
     attachments.length,
     attachmentError,
@@ -826,6 +835,24 @@ export function PromptInput({
           }
         >
           <div className="shrink-0" data-prompt-content ref={contentRef}>
+            {goalMode && (
+              <div className="mb-1.5 flex items-center gap-1.5" data-goal-mode-tag="">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-[12px] font-medium leading-5 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/12 dark:text-emerald-300">
+                  <Target aria-hidden="true" className="size-3.5 shrink-0" strokeWidth={1.8} />
+                  <span>{t("Goal mode")}</span>
+                  {onCancelGoalMode && (
+                    <button
+                      aria-label={t("Exit goal mode")}
+                      className="-mr-1 inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 text-current opacity-70 transition hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/15"
+                      onClick={onCancelGoalMode}
+                      type="button"
+                    >
+                      <BotCloseIcon className="size-2.5" />
+                    </button>
+                  )}
+                </span>
+              </div>
+            )}
             {reply && (
               <div
                 className="mb-1.5 flex w-full items-center gap-1.5 rounded-[10px] bg-[#f0f0f0] py-1 pl-2 pr-1 text-[14px] leading-[22px] text-[#747474] dark:bg-[#3b3b3b] dark:text-[rgba(240,240,240,0.74)]"
@@ -1018,6 +1045,7 @@ export function PromptInput({
                   }}
                   onEscape={reply ? onCancelReply : undefined}
                   onPaste={onPaste}
+                  onSelectMode={onSelectMode}
                   onSubmit={() => void submit()}
                   options={mentionOptions}
                   placeholder={

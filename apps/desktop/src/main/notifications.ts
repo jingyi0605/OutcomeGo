@@ -166,6 +166,9 @@ export class DesktopNotificationManager {
   private visibleChannelId: string | null = null;
   private lastBadge = "";
   private activityCursors = new Map<string, bigint>();
+  /** Newest floating-window message already seen per conversation. A reply that settles later can
+   * carry an older notification sequence than the activity cursor, so it needs its own marker. */
+  private dockSequences = new Map<string, bigint>();
   private deliveredActivity = new Map<string, ChannelNotificationView>();
   private readonly localReads = new Map<string, NotificationReadState>();
   private readonly channelStates = new Map<string, DesktopNotificationSnapshot["channels"][number]>();
@@ -290,11 +293,17 @@ export class DesktopNotificationManager {
       const channelCursor = BigInt(channel.notificationCursor);
       if (previousCursor !== undefined && channelCursor < previousCursor) continue;
       this.activityCursors.set(channel.channelId, channelCursor);
-      if (previousCursor === undefined) continue;
       const dockMessage = channel.botDock?.latest;
+      const previousDock = this.dockSequences.get(channel.channelId);
+      if (channel.botDock)
+        this.dockSequences.set(
+          channel.channelId,
+          dockMessage ? BigInt(dockMessage.notificationSequence) : 0n
+        );
+      if (previousCursor === undefined) continue;
       if (
         dockMessage &&
-        BigInt(dockMessage.notificationSequence) > previousCursor &&
+        BigInt(dockMessage.notificationSequence) > (previousDock ?? previousCursor) &&
         BigInt(dockMessage.messageSequence) > BigInt(
           this.localReads.get(channel.channelId)?.lastReadSequence ?? channel.lastReadSequence
         )
@@ -317,7 +326,10 @@ export class DesktopNotificationManager {
       }
     }
     for (const channelId of this.activityCursors.keys()) {
-      if (!byChannel.has(channelId)) this.activityCursors.delete(channelId);
+      if (!byChannel.has(channelId)) {
+        this.activityCursors.delete(channelId);
+        this.dockSequences.delete(channelId);
+      }
     }
     for (const channelId of this.localReads.keys()) {
       if (!byChannel.has(channelId)) this.localReads.delete(channelId);
@@ -368,6 +380,7 @@ export class DesktopNotificationManager {
     for (const id of this.deliveredActivity.keys()) this.adapter.dismiss?.(id);
     this.deliveredActivity.clear();
     this.activityCursors.clear();
+    this.dockSequences.clear();
     this.lastAlertAt.clear();
     this.unreadByChannel.clear();
     this.lastCursor = null;

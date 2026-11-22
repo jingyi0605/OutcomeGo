@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../../../client/outcomego-api";
+import type { OutcomeDetail as OutcomeDetailView } from "@outcomego/contracts/outcomes";
 import type { HumanWorkItemView } from "@outcomego/contracts/human-work";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { DecisionCard } from "./decision-card";
@@ -7,6 +8,7 @@ import { OutcomeDetail } from "../detail/outcome-detail";
 import { HumanAction } from "../human-work/human-action";
 import { useI18n } from "../../../../lib/i18n";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
+import { getCachedOutcomeActions, setCachedOutcomeActions } from "./outcome-card-cache";
 
 /** Pages a goal can show inside a modal without leaving the current screen. */
 export type OutcomeDetailRoute =
@@ -18,14 +20,33 @@ export type OutcomeDetailRoute =
 export function OutcomeRouteView({
   route,
   bots,
+  initialOutcome,
+  active = true,
   onOpen,
   onClose,
+  onSubmitted,
+  onReady,
+  useCache = false,
+  inChat = false,
+  onOpenDetails,
 }: {
   route: OutcomeDetailRoute;
   bots: OutcomeExecutionBot[];
+  initialOutcome?: OutcomeDetailView;
+  /** Pauses background polling while an inline chat card is collapsed. */
+  active?: boolean;
   onOpen: (route: OutcomeDetailRoute) => void;
   /** Closes the hosting modal; a goal does so once a plan change continues in the background. */
   onClose?: () => void;
+  /** Collapses and refreshes the inline chat card once an action or choice is submitted. */
+  onSubmitted?: () => void;
+  /** Called once initial data for the view has settled so chat cards open without flicker. */
+  onReady?: () => void;
+  useCache?: boolean;
+  /** Compact inline mode inside a bot chat message card. */
+  inChat?: boolean;
+  /** Opens the full goal details in a standalone modal when clicked from chat. */
+  onOpenDetails?: () => void;
 }) {
   const review = (id: string, reviewRevision?: number) =>
     onOpen({ kind: "outcome", id, reviewRevision });
@@ -36,7 +57,10 @@ export function OutcomeRouteView({
         decisionId={route.id}
         client={api.outcomeInbox}
         outcomes={api.outcomes}
+        useCache={useCache}
+        onReady={onReady}
         onOutcome={review}
+        onResolved={onSubmitted}
       />
     );
   if (route.kind === "human")
@@ -58,11 +82,18 @@ export function OutcomeRouteView({
       key={`${route.id}:${route.reviewRevision ?? "current"}`}
       bots={bots}
       outcomeId={route.id}
+      initialOutcome={initialOutcome}
+      active={active}
       reviewRevision={route.reviewRevision}
       onHuman={(id) => onOpen({ kind: "human", id })}
       onDecision={(id) => onOpen({ kind: "decision", id })}
       onReceipt={(revision) => review(route.id, revision)}
       onClose={onClose}
+      onSubmitted={onSubmitted}
+      onReady={onReady}
+      useCache={useCache}
+      inChat={inChat}
+      onOpenDetails={onOpenDetails}
     />
   );
 }
@@ -70,47 +101,85 @@ export function OutcomeRouteView({
 function OutcomeWithActions({
   bots,
   outcomeId,
+  initialOutcome,
+  active = true,
   reviewRevision,
   onHuman,
   onDecision,
   onReceipt,
   onClose,
+  onSubmitted,
+  onReady,
+  useCache = false,
+  inChat = false,
+  onOpenDetails,
 }: {
   bots: OutcomeExecutionBot[];
   outcomeId: string;
+  initialOutcome?: OutcomeDetailView;
+  active?: boolean;
   reviewRevision?: number;
   onHuman: (id: string) => void;
   onDecision: (id: string) => void;
   onReceipt: (revision: number) => void;
   onClose?: () => void;
+  onSubmitted?: () => void;
+  onReady?: () => void;
+  useCache?: boolean;
+  inChat?: boolean;
+  onOpenDetails?: () => void;
 }) {
   const { t } = useI18n();
-  const [items, setItems] = useState<HumanWorkItemView[]>([]);
-  const [inbox, setInbox] = useState<OutcomeInboxItemView[]>([]);
+  const initialCached = useCache ? getCachedOutcomeActions(outcomeId) : undefined;
+  const [items, setItems] = useState<HumanWorkItemView[]>(() => initialCached?.items ?? []);
+  const [inbox, setInbox] = useState<OutcomeInboxItemView[]>(() => initialCached?.inbox ?? []);
   const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !initialCached);
+  const loadedOnceRef = useRef(Boolean(initialCached));
   useEffect(() => {
-    let active = true;
+    const cached = useCache ? getCachedOutcomeActions(outcomeId) : undefined;
+    loadedOnceRef.current = Boolean(cached);
+    setItems(cached?.items ?? []);
+    setInbox(cached?.inbox ?? []);
+    setError(false);
+    setLoading(!cached);
+  }, [outcomeId, useCache]);
+  useEffect(() => {
+    if (!active) return;
+    let mounted = true;
     let timer: ReturnType<typeof setTimeout>;
     async function read() {
       const [human, page] = await Promise.allSettled([
         api.outcomeInbox.humanItems(outcomeId),
         api.outcomeInbox.forOutcome(outcomeId),
       ]);
-      if (!active) return;
-      if (human.status === "fulfilled") setItems(human.value);
-      if (page.status === "fulfilled")
-        setInbox(page.value.items.filter((item) => item.outcomeId === outcomeId));
+      if (!mounted) return;
+      const nextItems = human.status === "fulfilled" ? human.value : undefined;
+      const nextInbox =
+        page.status === "fulfilled"
+          ? page.value.items.filter((item) => item.outcomeId === outcomeId)
+          : undefined;
+      if (nextItems) setItems(nextItems);
+      if (nextInbox) setInbox(nextInbox);
+      if (useCache && (nextItems || nextInbox)) {
+        const existing = getCachedOutcomeActions(outcomeId);
+        setCachedOutcomeActions(outcomeId, {
+          items: nextItems ?? existing?.items ?? [],
+          inbox: nextInbox ?? existing?.inbox ?? [],
+        });
+      }
       setError(human.status === "rejected" || page.status === "rejected");
+      loadedOnceRef.current = true;
       setLoading(false);
       timer = setTimeout(read, 10_000);
     }
     void read();
     return () => {
-      active = false;
+      mounted = false;
       clearTimeout(timer);
     };
-  }, [outcomeId]);
+  }, [outcomeId, active, useCache]);
+  const actionItems = useMemo(() => inbox.filter((item) => item.requiresAction), [inbox]);
   return (
     <div className="space-y-4">
       <OutcomeDetail
@@ -118,11 +187,17 @@ function OutcomeWithActions({
         bots={bots}
         client={api.outcomes}
         inboxClient={api.outcomeInbox}
+        initialOutcome={initialOutcome}
         reviewRevision={reviewRevision}
         onReplanStarted={onClose}
-        actionItems={inbox.filter((item) => item.requiresAction)}
+        onActionSubmitted={onSubmitted}
+        onReady={onReady}
+        useCache={useCache}
+        inChat={inChat}
+        onOpenDetails={onOpenDetails}
+        actionItems={actionItems}
         actionsError={error}
-        actionsLoading={loading}
+        actionsLoading={loading && !loadedOnceRef.current}
         onAction={(item) => {
           if (item.decisionId) onDecision(item.decisionId);
           else if (item.category === "human_action_pending" && item.workItemId)
@@ -130,7 +205,7 @@ function OutcomeWithActions({
           else if (item.category === "acceptance_pending") onReceipt(item.contractRevision);
         }}
       />
-      {items.length > 0 && (
+      {!inChat && items.length > 0 && (
         <details className="outcome-disclosure">
           <summary>{t("Human tasks")}</summary>
           {items.map((item) => (

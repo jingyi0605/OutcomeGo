@@ -2,6 +2,7 @@ import { REPORT_TASK_PROGRESS_TOOL, TaskProgressInput, REPORT_REQUEST_PROGRESS_T
 import { READ_TRANSCRIPT_TOOL, parseReadTranscriptInput } from "@outcomego/contracts/read-transcript";
 import { READ_AGENT_ACTIVITY_TOOL, parseReadAgentActivityInput } from "@outcomego/contracts/read-agent-activity";
 import { OUTCOME_CHAT_TOOLS, decodeOutcomeChatInput } from "@outcomego/contracts/outcome-chat";
+import { GROUP_TASK_TOOLS, decodeGroupTaskInput } from "@outcomego/contracts/group-tasks";
 import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { withCanonicalSubagentType } from "@outcomego/contracts/subagent-dispatch";
 import { withReferenceContract, taskToolContract, firstPartyNamespaceDescription } from "@outcomego/contracts/tool-contracts";
@@ -201,6 +202,17 @@ export function dynamicCatalog(
           inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
           source: "first-party",
           decodeArguments: (args) => decodeOutcomeChatInput(tool.name, args),
+          execute: (turn, callId, args, signal) =>
+            callControlPlaneTool(turn, callId, tool.name, args, signal),
+        }))
+      : []),
+    // The shared group board is for a member's own group turn, never its workers, routines or read-only runs.
+    ...(active.groupTasksEnabled && active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && !active.readOnly && !active.goalThread
+      ? GROUP_TASK_TOOLS.map((tool): RuntimeDynamicTool => ({
+          ...tool,
+          inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
+          source: "first-party",
+          decodeArguments: (args) => decodeGroupTaskInput(tool.name, args),
           execute: (turn, callId, args, signal) =>
             callControlPlaneTool(turn, callId, tool.name, args, signal),
         }))

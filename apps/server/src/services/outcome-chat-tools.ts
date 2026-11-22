@@ -10,11 +10,12 @@ import { decodeOutcomeCursor } from "@outcomego/contracts/outcomes";
 import { parseOutcomeInboxQuery } from "@outcomego/contracts/outcome-inbox";
 import { Effect } from "effect";
 import type { DecisionOption } from "@outcomego/contracts/outcome-inbox";
-import type { Prisma } from "@outcomego/db";
-import { createOutcomeDecision, outcomeDispatchEnabled } from "@outcomego/messaging";
+import type { Prisma, PrismaClient } from "@outcomego/db";
+import { createOutcomeDecision, hasActivePlannerRole, outcomeDispatchEnabled } from "@outcomego/messaging";
 import type { DecisionService } from "./decision-service";
 import type { OutcomeService } from "./outcome-service";
 import type { OutcomeInboxService } from "./outcome-inbox-service";
+import type { OutcomeThreadService } from "./outcome-thread-service";
 import type { ExploreService } from "./explore-service";
 import { mapOutcomeError } from "./outcome-write";
 import type { ToolContext } from "@outcomego/messaging";
@@ -46,7 +47,9 @@ export class OutcomeChatTools {
     private readonly inbox: OutcomeInboxService,
     private readonly explore: ExploreService,
     private readonly cards?: OutcomeChatCards,
-    private readonly decisions?: Pick<DecisionService, "projectNotification">
+    private readonly decisions?: Pick<DecisionService, "projectNotification">,
+    private readonly threads?: Pick<OutcomeThreadService, "create">,
+    private readonly prisma?: Pick<PrismaClient, "featureSettings" | "bot" | "channel">
   ) {}
 
   execute = async (
@@ -54,8 +57,16 @@ export class OutcomeChatTools {
     context: ToolContext,
     signal?: AbortSignal
   ): Promise<unknown> => {
+    if (request.tool === "CreateOutcome" && this.prisma && (await hasActivePlannerRole(this.prisma))) {
+      throw new ApiError(
+        409,
+        "planner_role_active",
+        "A planner role is configured for goals. Call SubmitOutcome with the user's exact original words instead of CreateOutcome."
+      );
+    }
     const cardTools = [
       "CreateOutcome",
+      "SubmitOutcome",
       "ReviseOutcome",
       "StartOutcome",
       "CancelOutcome",
@@ -75,7 +86,7 @@ export class OutcomeChatTools {
     const args = request.arguments as Record<string, unknown>;
     const card: OutcomeChatCard = {
       stage: "analyzing",
-      title: String(args.title ?? args.sourceText ?? "Goal")
+      title: String(args.title ?? args.text ?? args.sourceText ?? "Goal")
         .split("\n")[0]!
         .slice(0, 120),
       updatedAt: new Date().toISOString(),
@@ -107,7 +118,7 @@ export class OutcomeChatTools {
           title: outcome.title,
           outcomeId: outcome.id,
           revision: outcome.currentRevision ?? undefined,
-          summary: outcome.currentRevisionView?.goal[0]?.slice(0, 220),
+          summary: outcome.currentRevisionView?.goal[0]?.slice(0, 220) ?? outcome.description?.slice(0, 220),
         });
       }
       if (id) {
@@ -165,8 +176,40 @@ export class OutcomeChatTools {
     };
     try {
       switch (request.tool) {
-        case "CreateOutcome":
+        case "CreateOutcome": {
+          if (this.prisma && (await hasActivePlannerRole(this.prisma))) {
+            throw new ApiError(
+              409,
+              "planner_role_active",
+              "A planner role is configured for goals. Call SubmitOutcome with the user's exact original words instead of CreateOutcome."
+            );
+          }
           return await detail(this.outcomes.createFromContract(input("CreateOutcome"), context.botId, actor));
+        }
+        case "SubmitOutcome": {
+          requireOutcomeDispatch();
+          const args = input("SubmitOutcome");
+          if (!this.threads) {
+            throw new ApiError(503, "outcome_thread_unavailable", "Goal thread creation is not available");
+          }
+          const created = await this.threads.create(
+            {
+              text: args.text,
+              botId: context.botId,
+              ...(args.exploreIdeaId ? { exploreIdeaId: args.exploreIdeaId } : {}),
+              clientRequestId: args.clientRequestId,
+            },
+            actor
+          );
+          return {
+            outcome: created.outcome,
+            turn: created.turn,
+            url: outcomeDeepLink(created.outcome.id),
+            approvalRequired: false,
+            nextStep:
+              "Submitted the owner's exact words to the goal planner. Report briefly that goal planning has started.",
+          };
+        }
         case "ListOutcomes": {
           const args = input("ListOutcomes");
           return await run(

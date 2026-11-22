@@ -14,6 +14,7 @@ import {
   type AgentMessaging,
   appendAgentTimelineEvent,
   stopRequestProgress,
+  releaseGroupTasksForBots,
   lockAgentLifecycle,
   cleanupRetiredAgent,
   type BotFileTarget,
@@ -27,6 +28,7 @@ import {
   serviceEffect,
   toJson,
 } from "./service-utils";
+import { verifyInferenceModelSelection } from "./inference-validation";
 import { type BotWithConversation, toBotView } from "./view-mappers";
 
 export class BotService {
@@ -41,18 +43,21 @@ export class BotService {
 
   list = (_includeHidden = false) =>
     serviceEffect(async () => {
-      const bots = await this.prisma.bot.findMany({
-        where: {
-          status: { not: "archived" },
-          subagentIdentity: { is: null },
-        },
-        include: {
-          conversation: true,
-          channelMemberships: { include: { channel: true } },
-        },
-        orderBy: { createdAt: "asc" },
-      });
-      return bots.map(toBotView);
+      const [bots, globalInference] = await Promise.all([
+        this.prisma.bot.findMany({
+          where: {
+            status: { not: "archived" },
+            subagentIdentity: { is: null },
+          },
+          include: {
+            conversation: true,
+            channelMemberships: { include: { channel: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
+        this.agentData.loadInferenceSettings?.({ allowUnconfigured: true }).catch(() => null) ?? null,
+      ]);
+      return bots.map((bot) => toBotView(bot, globalInference));
     });
 
   create = (input: CreateBotInput, recipe?: BotRecipe) =>
@@ -165,6 +170,18 @@ export class BotService {
     serviceEffect(async () => {
       const name = input.name?.trim();
       if (name === "") throw new ApiError(400, "invalid_bot_name", "Bot name must not be blank");
+      const modelUpdate =
+        input.model === undefined
+          ? undefined
+          : input.model === null
+            ? { inferenceProvider: null, inferenceModel: null, inferenceReasoning: null }
+            : await verifyInferenceModelSelection(this.computerFetch, this.agentData, input.model).then(
+                (verified) => ({
+                  inferenceProvider: verified.providerId,
+                  inferenceModel: verified.modelId,
+                  inferenceReasoning: verified.reasoning,
+                })
+              );
       await this.agentData.reconcileBot(botId);
       const fileTargets: BotFileTarget[] = [];
       if (
@@ -203,6 +220,7 @@ export class BotService {
             draftAllowedRecipients: input.draftAllowedRecipients
               ? [...new Set(input.draftAllowedRecipients.map((address) => address.trim().toLowerCase()))]
               : undefined,
+            ...(modelUpdate ?? {}),
           },
           include: {
             conversation: true,
@@ -232,13 +250,16 @@ export class BotService {
           settingsChanged:
             input.notificationsEnabled !== undefined ||
             input.draftingDisabled !== undefined ||
-            input.draftAllowedRecipients !== undefined,
+            input.draftAllowedRecipients !== undefined ||
+            input.model !== undefined,
         });
         return updated;
       });
       if (!bot.conversation)
         throw new ApiError(500, "bot_incomplete", "Bot conversation is missing");
-      return toBotView(bot);
+      const globalInference =
+        await this.agentData.loadInferenceSettings?.({ allowUnconfigured: true }).catch(() => null) ?? null;
+      return toBotView(bot, globalInference);
     });
 
   retryProvisioning = (botId: string) =>
@@ -445,6 +466,8 @@ export class BotService {
           where: { id: botId },
           data: { status: "archived", avatarPath: null },
         });
+        // An archived Bot cannot finish its group tasks; make them claimable again.
+        await releaseGroupTasksForBots(tx, [botId]);
         await tx.routine.updateMany({
           where: { botId, deletedAt: null },
           data: {

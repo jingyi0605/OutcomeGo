@@ -3,6 +3,7 @@ import {
   ApiError,
   type ChannelClientState,
   type ChannelHistoryPage,
+  type ChatBranchPage,
   type ChannelMessageContextView,
   CLIENT_CAPABILITIES,
   type ClientBootstrapView,
@@ -144,10 +145,14 @@ export class SnapshotService {
         }),
         this.runtimeHealth.runtimeStatus(),
       ]);
-      const unreadCounts = await channelUnreadCounts(
-        this.prisma,
-        channels.map((channel) => channel.id)
-      );
+      const [unreadCounts, lineage] = await Promise.all([
+        channelUnreadCounts(
+          this.prisma,
+          channels.map((channel) => channel.id)
+        ),
+        this.threadLineage(runs, subagentAttempts),
+      ]);
+      const globalInference = await this.inferenceSettings?.().catch(() => null) ?? null;
       return {
         cursor: cursor?.sequence.toString() ?? "0",
         notificationRouting: await notificationRouting(this.prisma, this.authMode),
@@ -157,7 +162,7 @@ export class SnapshotService {
           .filter((bot) =>
             bot.channelMemberships.some((membership) => membership.channel.kind === "bot_dm")
           )
-          .map(toBotView),
+          .map((bot) => toBotView(bot, globalInference)),
         channels: channelViews(
           channels,
           unreadCounts,
@@ -173,13 +178,15 @@ export class SnapshotService {
           createdAt: message.createdAt.toISOString(),
           updatedAt: message.updatedAt.toISOString(),
         })),
-        runs: runViews(runs),
+        runs: runViews(runs, lineage.forkRunIds),
         runItems: runItems.map((item) => ({
           ...item,
           createdAt: item.createdAt.toISOString(),
           updatedAt: item.updatedAt.toISOString(),
         })),
-        subagents: subagentAttempts.map(subagentActivityView),
+        subagents: subagentAttempts.map((attempt) =>
+          subagentActivityView(attempt, lineage.threadRunIds)
+        ),
         runtime,
       } as Snapshot;
     });
@@ -229,12 +236,14 @@ export class SnapshotService {
         channelUnreadCounts(this.prisma, channelIds),
       ]);
     const runIds = runs.map((run) => run.id);
-    const [runItems] = await Promise.all([
+    const [runItems, lineage] = await Promise.all([
       this.prisma.runItem.findMany({
         where: { runId: { in: runIds }, kind: { notIn: ["agent_message", "reasoning"] } },
         orderBy: { createdAt: "asc" },
       }),
+      this.threadLineage(runs, subagentAttempts),
     ]);
+    const globalInference = await this.inferenceSettings?.().catch(() => null) ?? null;
     return {
       cursor: cursor?.sequence.toString() ?? "0",
       notificationRouting: await notificationRouting(this.prisma, this.authMode),
@@ -244,7 +253,7 @@ export class SnapshotService {
         .filter((bot) =>
           bot.channelMemberships.some((membership) => membership.channel.kind === "bot_dm")
         )
-        .map(toBotView),
+        .map((bot) => toBotView(bot, globalInference)),
       channels: channelViews(
         channels,
         unreadCounts,
@@ -255,13 +264,15 @@ export class SnapshotService {
       ),
       channelMessages: messageViews(channelMessages),
       channelRounds: roundViews(channelRounds),
-      runs: runViews(runs),
+      runs: runViews(runs, lineage.forkRunIds),
       runItems: runItems.map((item) => ({
         ...item,
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
       })),
-      subagents: subagentAttempts.map(subagentActivityView),
+      subagents: subagentAttempts.map((attempt) =>
+        subagentActivityView(attempt, lineage.threadRunIds)
+      ),
       runtime,
     } as ClientSnapshot;
   }
@@ -340,6 +351,10 @@ export class SnapshotService {
         }),
         channelUnreadCounts(this.prisma, channelIds),
       ]);
+    const [globalInference, lineage] = await Promise.all([
+      this.inferenceSettings?.().catch(() => null) ?? Promise.resolve(null),
+      this.threadLineage(activeRuns, subagentAttempts),
+    ]);
     return {
       cursor: startCursor?.sequence.toString() ?? "0",
       notificationRouting: await notificationRouting(this.prisma, this.authMode),
@@ -349,7 +364,7 @@ export class SnapshotService {
         .filter((bot) =>
           bot.channelMemberships.some((membership) => membership.channel.kind === "bot_dm")
         )
-        .map(toBotView),
+        .map((bot) => toBotView(bot, globalInference)),
       channels: channelViews(
         channels,
         unreadCounts,
@@ -359,9 +374,11 @@ export class SnapshotService {
         )
       ),
       latestMessages: messageViews(latestMessages),
-      activeRuns: runViews(activeRuns),
+      activeRuns: runViews(activeRuns, lineage.forkRunIds),
       channelRounds: roundViews(channelRounds),
-      subagents: subagentAttempts.map(subagentActivityView),
+      subagents: subagentAttempts.map((attempt) =>
+        subagentActivityView(attempt, lineage.threadRunIds)
+      ),
       runtime,
       capabilities: CLIENT_CAPABILITIES,
     };
@@ -411,6 +428,53 @@ export class SnapshotService {
         beforeSequence: messages[0]?.sequence.toString() ?? null,
         hasMore,
         revision: revision?.sequence.toString() ?? "0",
+      };
+    });
+
+  chatBranches = (channelId: string, archived: boolean, before: bigint | null) =>
+    serviceEffect(async (): Promise<ChatBranchPage> => {
+      const channel = await this.prisma.channel.findFirst({
+        where: { id: channelId, kind: "bot_dm", archivedAt: null, members: {
+          some: { bot: { status: { not: "archived" }, subagentIdentity: { is: null } } },
+        } },
+        select: { id: true },
+      });
+      if (!channel) throw new ApiError(404, "channel_not_found", "Channel not found");
+      const cutoff = new Date(Date.now() - 3 * 60 * 60_000);
+      const liveRun = archived ? Prisma.sql`NOT active.running AND` : Prisma.sql`active.running OR`;
+      const timeFilter = archived ? Prisma.sql`latest."createdAt" < ${cutoff}` : Prisma.sql`latest."createdAt" >= ${cutoff}`;
+      const cursor = before === null ? Prisma.empty : Prisma.sql`AND latest.sequence < ${before}`;
+      const rows = await this.prisma.$queryRaw<Array<{ id: string; messageId: string; title: string; updatedAt: Date; sequence: bigint; running: boolean }>>`
+        WITH latest AS (
+          SELECT DISTINCT ON (m.metadata->>'questionScopeId')
+            m.metadata->>'questionScopeId' AS "scope", m.id, m.sequence, m."createdAt"
+          FROM outcomego_channel_message m
+          WHERE m."channelId" = ${channelId}::uuid
+            AND m.metadata->'branched' = 'true'::jsonb
+            AND m.metadata->>'questionScopeId' IS NOT NULL
+          ORDER BY m.metadata->>'questionScopeId', m.sequence DESC
+        )
+        SELECT root.id, latest.id AS "messageId", left(root.content, 160) AS title,
+          latest."createdAt" AS "updatedAt", latest.sequence, active.running
+        FROM latest JOIN outcomego_channel_message root ON root.id = CASE
+          WHEN latest.scope ~ '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$' THEN latest.scope::uuid END
+          AND root."channelId" = ${channelId}::uuid
+        CROSS JOIN LATERAL (
+          SELECT EXISTS (
+            SELECT 1 FROM outcomego_run r
+            JOIN outcomego_inbox_event i ON i."runId" = r.id
+            JOIN outcomego_channel_message m ON m."channelId" = r."channelId" AND m.id::text = i.payload->>'replyToMessageId'
+            WHERE r."channelId" = root."channelId" AND r.origin = 'user'
+              AND (r.status IN ('queued', 'running') OR (r."requestNextCheckAt" IS NOT NULL AND r."requestStoppedAt" IS NULL))
+              AND m.metadata->'branched' = 'true'::jsonb AND m.metadata->>'questionScopeId' = latest.scope
+          ) AS running
+        ) active
+        WHERE (${liveRun} ${timeFilter}) ${cursor}
+        ORDER BY latest.sequence DESC LIMIT 41`;
+      const page = rows.slice(0, 40);
+      return {
+        items: page.map(({ id, messageId, title, updatedAt, running }) => ({ id, messageId, title, updatedAt: updatedAt.toISOString(), ...(running ? { running } : {}) })),
+        nextBefore: rows.length > 40 ? page.at(-1)!.sequence.toString() : null,
       };
     });
 
@@ -571,26 +635,31 @@ export class SnapshotService {
       // Clients read run items only to describe queued or running work.
       // Finished runs' tool calls made this response megabytes in busy
       // channels, and it is re-read after every live event.
-      const currentRunItems = await this.prisma.runItem.findMany({
-        where: {
-          runId: { in: selectedCurrentRunIds },
-          kind: { notIn: ["agent_message", "reasoning"] },
-        },
-        orderBy: { createdAt: "desc" },
-        take: runItemLimit + 1,
-      });
+      const [currentRunItems, lineage] = await Promise.all([
+        this.prisma.runItem.findMany({
+          where: {
+            runId: { in: selectedCurrentRunIds },
+            kind: { notIn: ["agent_message", "reasoning"] },
+          },
+          orderBy: { createdAt: "desc" },
+          take: runItemLimit + 1,
+        }),
+        this.threadLineage(runs.items, subagentAttempts.items),
+      ]);
       const runItems = selectBoundedActivity(currentRunItems, [], runItemLimit);
       return {
         channelId,
         revision: revision?.sequence.toString() ?? "0",
         channelRounds: roundViews(rounds.items),
-        runs: runViews(runs.items),
+        runs: runViews(runs.items, lineage.forkRunIds),
         runItems: runItems.items.map((item) => ({
           ...item,
           createdAt: item.createdAt.toISOString(),
           updatedAt: item.updatedAt.toISOString(),
         })) as ClientSnapshot["runItems"],
-        subagents: subagentAttempts.items.map(subagentActivityView),
+        subagents: subagentAttempts.items.map((attempt) =>
+          subagentActivityView(attempt, lineage.threadRunIds)
+        ),
         truncated: {
           channelRounds: rounds.truncated,
           runs: runs.truncated,
@@ -599,6 +668,66 @@ export class SnapshotService {
         },
       };
     });
+
+  private async threadLineage(
+    runs: ReadonlyArray<{ id: string; botId: string; status: string; origin: string }>,
+    attempts: ReadonlyArray<{ parentRunId: string; status: string }>
+  ): Promise<{ forkRunIds: Set<string>; threadRunIds: Set<string> }> {
+    const activeRuns = runs.filter((run) => run.status === "queued" || run.status === "running");
+    const activeAttempts = attempts.filter((attempt) =>
+      ["provisioning", "queued", "running"].includes(attempt.status)
+    );
+    const runIds = new Set(runs.map((run) => run.id));
+    const missingParentRunIds = [
+      ...new Set(
+        activeAttempts.map((attempt) => attempt.parentRunId).filter((id) => !runIds.has(id))
+      ),
+    ];
+    const forkRunIds = new Set<string>();
+    const inboxFindMany = (this.prisma as Partial<PrismaClient>).inboxEvent?.findMany;
+    if (inboxFindMany && activeRuns.length > 0) {
+      const botIds = [...new Set(activeRuns.map((run) => run.botId))];
+      const activeIds = activeRuns.map((run) => run.id);
+      const forked = await inboxFindMany({
+        where: {
+          botId: { in: botIds },
+          status: { in: ["pending", "processing"] },
+          runId: { in: activeIds },
+          payload: { path: ["isFork"], equals: true },
+        },
+        select: { runId: true },
+      });
+      for (const row of forked) forkRunIds.add(row.runId);
+    }
+    const threadRunIds = new Set(
+      runs.filter((run) => run.origin === "outcome" || forkRunIds.has(run.id)).map((run) => run.id)
+    );
+    if (missingParentRunIds.length > 0) {
+      const parentRuns = await this.prisma.run.findMany({
+        where: { id: { in: missingParentRunIds } },
+        select: { id: true, botId: true, origin: true },
+      });
+      for (const parent of parentRuns) {
+        if (parent.origin === "outcome") threadRunIds.add(parent.id);
+      }
+      const nonOutcomeIds = parentRuns
+        .filter((parent) => parent.origin !== "outcome")
+        .map((parent) => parent.id);
+      if (inboxFindMany && nonOutcomeIds.length > 0) {
+        const parentBotIds = [...new Set(parentRuns.map((parent) => parent.botId))];
+        const forkedParents = await inboxFindMany({
+          where: {
+            botId: { in: parentBotIds },
+            runId: { in: nonOutcomeIds },
+            payload: { path: ["isFork"], equals: true },
+          },
+          select: { runId: true },
+        });
+        for (const row of forkedParents) threadRunIds.add(row.runId);
+      }
+    }
+    return { forkRunIds, threadRunIds };
+  }
 
   clientRuntime = () =>
     serviceEffect(

@@ -9,9 +9,11 @@ import {
   lazy,
   memo,
   Suspense,
+  useMemo,
   useState,
 } from "react";
 import { cn } from "../../lib/cn";
+import { useStreamedText } from "../../hooks/use-streamed-text";
 import { useI18n } from "../../lib/i18n";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -123,17 +125,21 @@ export class MessageRendererBoundary extends Component<
 export const MessageResponse = memo(function MessageResponse({
   children,
   textOnly = false,
+  streaming = false,
 }: {
   children: string;
   textOnly?: boolean;
+  streaming?: boolean;
 }) {
   // Keep one component type per mounted message so finishing a preload never
   // remounts a message that is already showing.
   const [MarkdownMessageResponse] = useState(() => markdownRenderer ?? LazyMarkdownMessageResponse);
   const [AdvancedMessageResponse] = useState(() => advancedRenderer ?? LazyAdvancedMessageResponse);
-  const capabilities = textOnly ? null : advancedMessageCapabilitiesFor(children);
-  if (!messageContainsDesktopMarkup(children) && !capabilities) {
-    return <span className="whitespace-pre-wrap">{children}</span>;
+  const source = useStreamedText(children, streaming);
+  const capabilities = useMemo(() => textOnly ? null : advancedMessageCapabilitiesFor(children), [children, textOnly]);
+  const containsMarkup = useMemo(() => messageContainsDesktopMarkup(children), [children]);
+  if (!containsMarkup && !capabilities) {
+    return <span className="whitespace-pre-wrap">{source}</span>;
   }
   if (capabilities) {
     // Begin the selected plug-in requests in parallel with the lazy Streamdown
@@ -144,29 +150,31 @@ export const MessageResponse = memo(function MessageResponse({
   }
   if (capabilities) {
     return (
-      <MessageRendererBoundary content={children}>
+      <MessageRendererBoundary content={source}>
         <Suspense
           fallback={
             <span data-chat-layout-pending className="whitespace-pre-wrap">
-              {children}
+              {source}
             </span>
           }
         >
-          <AdvancedMessageResponse capabilities={capabilities}>{children}</AdvancedMessageResponse>
+          <AdvancedMessageResponse capabilities={capabilities}>{source}</AdvancedMessageResponse>
         </Suspense>
       </MessageRendererBoundary>
     );
   }
   return (
-    <MessageRendererBoundary content={children}>
+    <MessageRendererBoundary content={source}>
       <Suspense
         fallback={
           <span data-chat-layout-pending className="whitespace-pre-wrap">
-            {children}
+            {source}
           </span>
         }
       >
-        <MarkdownMessageResponse textOnly={textOnly}>{children}</MarkdownMessageResponse>
+        <MarkdownMessageResponse textOnly={textOnly} streaming={streaming || source !== children}>
+          {source}
+        </MarkdownMessageResponse>
       </Suspense>
     </MessageRendererBoundary>
   );

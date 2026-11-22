@@ -42,6 +42,19 @@ export const outcomeReviewNotificationFactsSql = Prisma.sql`
   ) ready
   WHERE ${outcomeDecisionRevisionActiveSql(Prisma.sql`o.id`, Prisma.sql`r.id`, Prisma.sql`(SELECT w.id FROM "outcomego_outcome_work_item" w WHERE w."outcomeId" = o.id AND w."contractRevisionId" = r.id AND w."executorType" = 'agent' AND w."startedAt" IS NOT NULL ORDER BY w.ordinal LIMIT 1)`)}
     AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL AND r.status = 'approved'
+    AND NOT EXISTS (
+      SELECT 1 FROM "outcomego_outcome_work_item" unfinished
+      WHERE unfinished."contractRevisionId" = r.id AND unfinished."executorType" = 'agent'
+        AND unfinished.status IN ('queued', 'running', 'retry_pending', 'pending', 'ready', 'in_progress')
+    )
+    AND NOT EXISTS (
+      SELECT 1
+      FROM "outcomego_outcome_thread" reviewer
+      JOIN "outcomego_outcome_thread_turn" active_review ON active_review."threadId" = reviewer.id
+      WHERE reviewer."outcomeId" = o.id AND reviewer.role = 'reviewer'
+        AND active_review.purpose = 'review' AND active_review.status IN ('queued', 'running')
+        AND active_review."clientRequestId" LIKE 'review-batch:%' || r.id::text || ':%'
+    )
     AND (ready.ids IS NOT NULL OR (o.status = 'review_pending' AND NOT EXISTS (
       SELECT 1 FROM "outcomego_outcome_work_item" rework WHERE rework."contractRevisionId" = r.id
         AND rework."reworkOfWorkItemId" IS NOT NULL AND rework.status <> 'cancelled')))

@@ -3,10 +3,12 @@ import {
   ArrowLeftRight,
   ChevronLeft,
   ChevronsRight,
+  ClipboardList,
   Info,
   MessageCircle,
   Monitor,
   Settings,
+  Target,
 } from "lucide-react";
 import { useRef } from "react";
 import type { A2AExchangePhase } from "../../lib/a2a-exchange";
@@ -30,6 +32,8 @@ export function DesktopHeader({
   selectedBot,
   liveVoice,
   onDetailsOpenChange,
+  onOpenGroupTasks,
+  onOpenChatGoals,
   onShowSettings,
   onShowSummary,
 }: {
@@ -48,6 +52,8 @@ export function DesktopHeader({
   selectedBot?: BotView;
   liveVoice?: ReactNode;
   onDetailsOpenChange: (open: boolean) => void;
+  onOpenGroupTasks?: () => void;
+  onOpenChatGoals?: () => void;
   onShowSettings: () => void;
   onShowSummary: () => void;
 }) {
@@ -176,9 +182,41 @@ export function DesktopHeader({
             </h2>
           </div>
 
+          {selected.kind === "bot_dm" && onOpenChatGoals && (
+            <div className="pointer-events-auto flex h-full shrink-0 items-center px-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button aria-label={t("Goals with {name}", { name: selected.name })} className="rounded-full text-foreground-tertiary" onClick={onOpenChatGoals} size="icon-sm" variant="ghost">
+                    <Target className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("Goals with {name}", { name: selected.name })}</TooltipContent>
+              </Tooltip>
+            </div>
+          )}
+
           {liveVoice ? (
             <div className="pointer-events-auto mr-[2.5px] flex h-full shrink-0 items-center">
               {liveVoice}
+            </div>
+          ) : null}
+
+          {selected.kind === "group" && onOpenGroupTasks ? (
+            <div className="pointer-events-auto mr-[2.5px] flex h-full shrink-0 items-center px-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={t("Tasks")}
+                    className="rounded-full text-foreground-tertiary"
+                    onClick={onOpenGroupTasks}
+                    size="icon-sm"
+                    variant="ghost"
+                  >
+                    <ClipboardList className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("Tasks")}</TooltipContent>
+              </Tooltip>
             </div>
           ) : null}
 
