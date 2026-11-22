@@ -1,5 +1,5 @@
 import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "@outcomego/contracts/outcome-inbox";
-import { OUTCOME_GOAL_THREAD_TOOLS, decodeOutcomeThreadInput } from "@outcomego/contracts/outcome-thread";
+import { OUTCOME_GOAL_THREAD_TOOLS, decodeOutcomeThreadInput, goalThreadToolsForPurpose } from "@outcomego/contracts/outcome-thread";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 import {
   OUTCOME_THREAD_TOOL_NAMES,
@@ -283,17 +283,18 @@ const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
   },
 };
 
-/** The small tool set of a goal's own thread; it appears only on that thread's turns. */
-export const goalThreadToolDefinitions = (active: Pick<ActiveTurn, "goalThread">): Array<Omit<RuntimeDynamicTool, "execute">> =>
-  active.goalThread
-    ? OUTCOME_GOAL_THREAD_TOOLS.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
-        source: "first-party" as const,
-        decodeArguments: (args: unknown) => decodeOutcomeThreadInput(tool.name, args),
-      }))
-    : [];
+/** The small tool set of a goal's own thread; it appears only on that thread's turns and is filtered by turn purpose. */
+export const goalThreadToolDefinitions = (active: Pick<ActiveTurn, "goalThread">): Array<Omit<RuntimeDynamicTool, "execute">> => {
+  if (!active.goalThread) return [];
+  const allowed = new Set<string>(goalThreadToolsForPurpose(active.goalThread.purpose));
+  return OUTCOME_GOAL_THREAD_TOOLS.filter((tool) => allowed.has(tool.name)).map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
+    source: "first-party" as const,
+    decodeArguments: (args: unknown) => decodeOutcomeThreadInput(tool.name, args),
+  }));
+};
 
 export const outcomeThreadToolDefinitions = (
   active: Pick<ActiveTurn, "outcomeThread">,
@@ -2072,7 +2073,7 @@ export class RuntimeTools {
     active: ActiveTurn
   ): Array<DynamicNamespaceDefinition<RuntimeDynamicTool>> {
     const bitwardenTools: RuntimeDynamicTool[] =
-      (active.runtimeProfile === "agent" || active.subagentType === "computerUse") && !active.readOnly
+      (active.runtimeProfile === "agent" || active.subagentType === "computerUse") && !active.readOnly && !active.goalThread
         ? [
             {
               name: "RequestBitwardenReadApproval",

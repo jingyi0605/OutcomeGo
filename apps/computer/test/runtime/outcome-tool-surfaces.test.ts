@@ -96,7 +96,7 @@ test("turn contract accepts the optional marker and keeps ordinary requests with
   expect(decode({ ...request, outcomeThread: { workItemId: "work" } }).outcomeThread).toEqual({ workItemId: "work" });
 });
 
-test("a goal's own thread gets its four tools, never the chat's goal tools or WakeParent; other turns never get them", () => {
+test("a goal's own thread filters tools by purpose and excludes chat, WakeParent, Decision, and Bitwarden tools", () => {
   const runtime = tools();
   const names = (turn: Record<string, unknown>) => {
     const active = { runtimeProfile: "agent", subagentType: null, pluginNamespaces: [], outcomesEnabled: true, ...turn };
@@ -106,13 +106,37 @@ test("a goal's own thread gets its four tools, never the chat's goal tools or Wa
       ...runtime.dynamicCatalog(active).flatMap((namespace) => namespace.tools.map((tool) => tool.name)),
     ];
   };
-  const goalThread = { threadId: "t", outcomeId: "o", purpose: "owner_message" };
-  const inThread = names({ requestSource: "automation", goalThread });
-  for (const name of ["SaveOutcomeContract", "GetOutcome", "ListOutcomes", "CancelOutcome"]) expect(inThread).toContain(name);
-  // The chat's goal tools (planning, approving-adjacent, registering) and the parent handoff stay out.
-  for (const name of ["CreateOutcome", "TrackOutcome", "CloseOutcome", "StartOutcome", "ReviseOutcome", "WakeParent"])
-    expect(inThread).not.toContain(name);
+  for (const purpose of ["plan", "owner_message", "replan"] as const) {
+    const inThread = names({ requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose } });
+    for (const name of ["Read", "Shell", "AwaitShell", "SaveOutcomeContract", "SavePlan", "GetOutcome", "ListOutcomes", "CancelOutcome"])
+      expect(inThread).toContain(name);
+    for (const forbidden of [
+      "SubmitPrereview", "ReviewTaskResult",
+      "CreateOutcome", "TrackOutcome", "CloseOutcome", "StartOutcome", "ReviseOutcome", "WakeParent",
+      "RequestOutcomeDecision", "RequestHumanAction", "ReportOutcomeProgress",
+      "RequestBitwardenReadApproval", "SearchBitwardenItems", "ReadBitwardenCredential",
+    ]) expect(inThread).not.toContain(forbidden);
+  }
+
+  const reviewThread = names({ requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose: "review" } });
+  for (const name of ["Read", "Shell", "AwaitShell", "GetOutcome", "SubmitPrereview"])
+    expect(reviewThread).toContain(name);
+  for (const forbidden of [
+    "SaveOutcomeContract", "SavePlan", "CancelOutcome", "ListOutcomes", "ReviewTaskResult",
+    "RequestOutcomeDecision", "RequestHumanAction", "RequestBitwardenReadApproval",
+  ]) expect(reviewThread).not.toContain(forbidden);
+
+  const reviewTaskThread = names({ requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose: "review_task" } });
+  for (const name of ["Read", "Shell", "AwaitShell", "GetOutcome", "ReviewTaskResult"])
+    expect(reviewTaskThread).toContain(name);
+  for (const forbidden of [
+    "SaveOutcomeContract", "SavePlan", "CancelOutcome", "ListOutcomes", "SubmitPrereview",
+    "RequestOutcomeDecision", "RequestHumanAction", "RequestBitwardenReadApproval",
+  ]) expect(reviewTaskThread).not.toContain(forbidden);
+
   const ordinary = names({ requestSource: "turn" });
   expect(ordinary).not.toContain("SaveOutcomeContract");
+  expect(ordinary).not.toContain("SavePlan");
+  expect(ordinary).toContain("SubmitOutcome");
   expect(names({ requestSource: "automation" })).not.toContain("SaveOutcomeContract");
 });
