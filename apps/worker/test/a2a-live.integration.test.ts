@@ -341,7 +341,9 @@ test("live 1:1 A2A mirrors both home stores and wakes both agents without a pair
     expect(probeProjection[0]?.metadata).toMatchObject({
       fromAgent: { id: sourceId, name: "Source" },
     });
+    // A completed turn's last visible message carries the settled marker.
     expect(probeProjection[1]?.metadata).toEqual({
+      settled: true,
       toAgent: { id: sourceId, name: "Source", kind: "agent" },
     });
 

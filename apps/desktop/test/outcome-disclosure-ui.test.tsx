@@ -2225,7 +2225,7 @@ test("inChat mode removes redundant top action banner, splits conclusion/charts 
     ...decisionItem,
     id: "inbox-accept",
     category: "acceptance_pending" as const,
-    decisionId: null,
+    decisionId: undefined,
     title: "Unraid 清理后容量复查",
     completed: "Cache checked",
     problem: "None",
@@ -2296,7 +2296,7 @@ test("OutcomeChatCardView auto-collapses and refreshes status when an inline dec
     stageReads++;
     return resolved
       ? { ...decisionGoal, status: "running" as const }
-      : { ...decisionGoal, status: "waiting_decision" as const };
+      : { ...decisionGoal, status: "decision_pending" as const };
   };
   api.outcomeInbox.humanItems = async () => [];
   api.outcomeInbox.forOutcome = async () => ({

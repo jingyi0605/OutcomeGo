@@ -46,7 +46,11 @@ runtime.tools.processSecrets = async () => ({});
 const beginTurn = runtime.tools.userForms.beginTurn.bind(runtime.tools.userForms);
 runtime.tools.userForms.beginTurn = async (...args: unknown[]) => {
   // The artificial setup gate must not prevent cancellation from releasing the context.
-  const signal: AbortSignal | undefined = runtime.activeByRun.get(args[1])?.pluginAbortController?.signal;
+  const activeTurn = runtime.activeByRun.get(args[1]);
+  // These tests are about superseding a running turn, so the user counts as acknowledged
+  // and the opening gate does not refuse the scripted first Shell call.
+  if (activeTurn) activeTurn.userAcknowledged = true;
+  const signal: AbortSignal | undefined = activeTurn?.pluginAbortController?.signal;
   signal?.throwIfAborted();
   if (holdSetup) await (signal ? Promise.race([holdSetup, once(signal, "abort")]) : holdSetup);
   signal?.throwIfAborted();

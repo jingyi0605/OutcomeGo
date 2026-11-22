@@ -3148,36 +3148,6 @@ export const sourceTranslations: Record<string, string> = {
   "Paused or failed": "已暂停或失败",
   "Nothing here.": "暂无",
   "Loading preview…": "正在加载预览…",
-  "Back to goal": "返回目标",
-  "Bot model": "机器人模型",
-  "Choose a dedicated model suited to this bot's role, or clear to follow global settings.":
-    "选择适合该机器人角色的专用模型，或清除以跟随全局设置。",
-  "Configured model is unavailable; falling back cleanly.":
-    "所配置的模型不可用，已安全回退。",
-  "Depends on": "前置依赖",
-  "Describe what this bot specializes in so the Outcome planner assigns matching work.":
-    "描述此机器人擅长的领域，以便目标规划器分配匹配的任务。",
-  "Holistic prereview": "整体初验",
-  "Owner message": "所有者消息",
-  "Passed task review": "任务审查通过",
-  Plan: "计划",
-  "Preliminary review failed.": "整体初验失败。",
-  "Rejected once by review": "曾被审查驳回一次",
-  Replan: "重新规划",
-  "Reviewer records": "审查记录",
-  "Task plan": "任务计划",
-  "Task review": "任务审查",
-  "Task review failed (passed as unreviewed).": "任务审查失败（按未审查通过）。",
-  "Task review findings ({count})": "任务审查发现（{count}）",
-  "The planner role did not save a task plan; approving will fall back to default execution.":
-    "规划角色未保存任务计划，批准后将回退到默认执行方式。",
-  "The reviewer is checking the latest results. Acceptance will open after the preliminary review finishes.":
-    "审查者正在核对最新成果，整体初验完成后将开放验收。",
-  "This preliminary review is from revision {prerev} and cannot be adopted on revision {rev}. Review criteria individually.":
-    "此初验报告来自修订版 {prerev}，无法用于修订版 {rev}，请逐条核对验收标准。",
-  Unreviewed: "未审查",
-  "Use global model": "使用全局模型",
-  fallback: "回退",
   now: "刚刚",
   "{count}d": "{count} 天",
   "{count}h": "{count} 小时",

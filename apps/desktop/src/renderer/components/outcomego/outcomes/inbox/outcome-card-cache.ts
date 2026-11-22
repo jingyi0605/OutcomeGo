@@ -2,7 +2,6 @@ import type { HumanWorkItemView } from "@outcomego/contracts/human-work";
 import { CREDENTIAL_ACCESS_REASON_CODE } from "@outcomego/contracts/outcome-inbox-categories";
 import type { DecisionView, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { OutcomeResultSummary } from "@outcomego/contracts/outcomes";
-import { api } from "../../../../client/outcomego-api";
 import { isApprovalDecision } from "./decision-state";
 
 export interface CachedOutcomeActions {
@@ -84,6 +83,7 @@ export function prefetchOutcomeCardData(
   let task!: Promise<void>;
   task = (async () => {
     try {
+      const { api } = await import("../../../../client/outcomego-api");
       const [human, page] = await Promise.allSettled([
         api.outcomeInbox.humanItems(outcomeId),
         api.outcomeInbox.forOutcome(outcomeId),
