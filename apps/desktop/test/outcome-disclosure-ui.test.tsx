@@ -10,6 +10,7 @@ let OutcomeThreadPanel: typeof import("../src/renderer/components/outcomego/outc
 let OutcomeThreadEntry: typeof import("../src/renderer/components/outcomego/outcomes/thread/outcome-thread-panel").OutcomeThreadEntry;
 let BotAvatar: typeof import("../src/renderer/components/outcomego/avatar").BotAvatar;
 let OutcomeExecutionCard: typeof import("../src/renderer/components/outcomego/outcomes/outcome-execution-card").OutcomeExecutionCard;
+let clearOutcomeCardCache: typeof import("../src/renderer/components/outcomego/outcomes/inbox/outcome-card-cache").clearOutcomeCardCache;
 import {
   OUTCOME_CARD_STAGES,
   parseOutcomeChatCard,
@@ -21,6 +22,7 @@ import type { ChannelMessageView } from "@outcomego/contracts";
 import type { OutcomeClient } from "../src/renderer/client/outcome-api";
 import type { OutcomeThreadTurnView, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
 import { OUTCOMEGO_DEEP_LINK_EVENT } from "../src/renderer/lib/app-deep-links";
+import { OUTCOME_REFRESH_DEBOUNCE_MS, refreshOutcomeViews } from "../src/renderer/lib/outcome-events";
 import { outcomeFixture, planFixture } from "./outcome-fixture";
 
 const dom = parseHTML("<!doctype html><html><body></body></html>");
@@ -116,11 +118,15 @@ beforeAll(async () => {
     "../src/renderer/components/outcomego/outcomes/outcome-execution-card"
   ));
   ({ BotAvatar } = await import("../src/renderer/components/outcomego/avatar"));
+  ({ clearOutcomeCardCache } = await import(
+    "../src/renderer/components/outcomego/outcomes/inbox/outcome-card-cache"
+  ));
 });
 afterEach(async () => {
   if (root) await act(async () => root!.unmount());
   root = undefined;
   host?.remove();
+  clearOutcomeCardCache();
 });
 afterAll(() => {
   for (const [key, descriptor] of descriptors) {
@@ -322,8 +328,8 @@ test("a historical receipt opens its original criteria without substituting a pe
   );
   expect(reads.length).toBeGreaterThan(0);
   expect(reads.every((revision) => revision === 1)).toBe(true);
-  expect(host.querySelector("#outcome-review")?.hasAttribute("hidden")).toBe(false);
-  expect(host.querySelector("#outcome-goal-details")?.hasAttribute("hidden")).toBe(true);
+  expect(host.querySelector('[data-outcome-section="review"]')?.hasAttribute("hidden")).toBe(false);
+  expect(host.querySelector('[data-outcome-section="goal-details"]')?.hasAttribute("hidden")).toBe(true);
   const review = host.querySelector('[aria-label="Review and rework"]')!;
   expect(review.textContent).toContain("Compare costs");
   expect(review.textContent).not.toContain("Future-only criterion");
@@ -332,7 +338,7 @@ test("a historical receipt opens its original criteria without substituting a pe
     "All required criteria are satisfied. Submit to record your review."
   );
 });
-test("card is compact: stage, title and one line, with details left to the modal", async () => {
+test("card is compact until the user expands the in-chat actions", async () => {
   let target: unknown;
   const handler = (event: Event) => {
     target = (event as CustomEvent).detail;
@@ -348,7 +354,7 @@ test("card is compact: stage, title and one line, with details left to the modal
     expect(host.textContent).not.toContain("Comparison report");
     expect(host.textContent).not.toContain("Plan A restores faster");
     const main = host.querySelector<HTMLButtonElement>("button.outcome-chat-card-main")!;
-    expect(main.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(main.getAttribute("aria-expanded")).toBe("false");
     expect(host.querySelector(".outcome-execution-card")).toBeNull();
     // Opening happens in place; it must never navigate to the goals page.
     await act(async () => {
@@ -910,6 +916,29 @@ test("the thread shows what the owner said and what the bot answered, and a ques
   expect(server.sent.map((entry) => entry.text)).toEqual(["还要美元"]);
 });
 
+test("compact planner preview opens full history and sends the owner's exact words", async () => {
+  const server = threadServer();
+  server.turns.push(
+    turn({ id: "first", trigger: "旧请求", status: "completed", reply: "旧回复" }),
+    turn({ id: "second", trigger: "新请求", status: "completed", reply: "最新回复" })
+  );
+  await mount(<OutcomeThreadPanel outcomeId={semanticGoal.id} client={{ ...client, ...server.client }} compact />);
+  expect(host.textContent).toContain("最新回复");
+  expect(host.textContent).not.toContain("旧回复");
+  const box = host.querySelector('textarea[aria-label="Message to the bot"]') as HTMLTextAreaElement;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(box), "value")!.set!.call(box, "只读检查\n  不要清理 ");
+    box.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    box.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  await click("Send to bot");
+  expect(server.sent.map(entry => entry.text)).toEqual(["只读检查\n  不要清理 "]);
+  await act(async () => {
+    host.querySelector("button[aria-haspopup=dialog]")!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("旧回复");
+});
+
 test("a failed turn says so, and a finished goal keeps its record but takes no more messages", async () => {
   const server = threadServer();
   server.turns.push(turn({ status: "failed", error: { code: "run_failed", message: "model unavailable" } }));
@@ -1100,6 +1129,73 @@ test("goal opens real route controls at the top; option details stay behind info
   expect(document.querySelector(".outcome-source-content")?.textContent).toContain("RAW_IMPACT_1");
   expect(inputs).toHaveLength(1);
   expect(reads).toBeLessThan(4);
+});
+
+test("a pending work decision shows its revision's result chart before the choices", async () => {
+  const reads: Array<[string, number]> = [];
+  const originalText = "RAW_NEXT_STEP ".repeat(20);
+  const decision = {
+    ...decisionFixture,
+    outcomeId: decisionGoal.id,
+    workItemId: "result-task",
+    nextStepSummary: originalText,
+  };
+  await mount(
+    <OutcomeDetail
+      outcomeId={decisionGoal.id}
+      initialOutcome={decisionGoal}
+      client={{
+        ...client,
+        get: async () => decisionGoal,
+        resultSummary: async (id, revision) => {
+          reads.push([id, revision]);
+          return {
+            outcomeId: id, revisionId: decision.contractRevisionId,
+            summary: "There is enough space; choose whether to record the early cleanup.", details: "",
+            sources: [{ title: "Capacity reading", quote: "Cache 63%, array 34%" }],
+            charts: [{ type: "bar", unit: "%", title: "Storage use", points: [
+              { label: "Cache", value: 63, citation: 0 }, { label: "Array", value: 34, citation: 0 },
+            ] }],
+          };
+        },
+      }}
+      inboxClient={decisionInbox(decision, unexpected)}
+      actionItems={[decisionItem]}
+    />
+  );
+  const card = host.querySelector('article[aria-label="Decision"]')!;
+  expect(reads).toEqual([[decisionGoal.id, decision.contractRevision]]);
+  expect(card.querySelector("h3")?.textContent).toBe("Choose how to proceed");
+  expect(card.querySelector('figure[data-chart-type="bar"]')?.textContent).toContain("63%");
+  expect(card.innerHTML.indexOf("Storage use")).toBeLessThan(card.innerHTML.indexOf("<form"));
+  expect(card.textContent).not.toContain("RAW_NEXT_STEP");
+  await expand("Recommendation, impact and evidence");
+  expect(card.textContent).toContain(originalText.trim());
+});
+
+test("an open decision card shows the saved report when the review finishes without changing the choices", async () => {
+  const decision = { ...decisionFixture, outcomeId: decisionGoal.id, workItemId: "result-task" };
+  let reviewed = false;
+  await mount(
+    <OutcomeDetail outcomeId={decisionGoal.id} initialOutcome={decisionGoal}
+      client={{ ...client, get: async () => decisionGoal, resultSummary: async () => reviewed ? {
+        outcomeId: decision.outcomeId, revisionId: decision.contractRevisionId, reviewTurnId: "turn-1",
+        summary: "Keep the current configuration.", details: "", sources: [],
+      } : null }}
+      inboxClient={decisionInbox(decision, unexpected)} actionItems={[decisionItem]}
+    />,
+  );
+  const card = host.querySelector('article[aria-label="Decision"]')!;
+  const form = card.querySelector("form")!;
+  expect(card.textContent).not.toContain("Keep the current configuration.");
+  reviewed = true;
+  await act(async () => {
+    refreshOutcomeViews({ sequence: "1", topic: "goal.thread.updated", entityId: decision.outcomeId,
+      payload: { status: "completed" }, createdAt: new Date().toISOString() });
+    await new Promise((resolve) => setTimeout(resolve, OUTCOME_REFRESH_DEBOUNCE_MS + 30));
+  });
+  expect(card.textContent).toContain("Keep the current configuration.");
+  expect(card.querySelector("form")).toBe(form);
 });
 
 test("typing an independent custom route and submitting uses exact text without a separate reveal or radio click", async () => {
@@ -1672,7 +1768,7 @@ test("acceptance shows measured results and sends the rejection reason directly"
   );
 
   expect(summaryRequests).toEqual([[richOutcome.id, 1]]);
-  const goalDetails = host.querySelector("#outcome-goal-details")!;
+  const goalDetails = host.querySelector('[data-outcome-section="goal-details"]')!;
   expect(goalDetails.hasAttribute("hidden")).toBe(true);
   await click("Goal details");
   expect(goalDetails.hasAttribute("hidden")).toBe(false);
@@ -1684,7 +1780,7 @@ test("acceptance shows measured results and sends the rejection reason directly"
   expect(host.textContent).not.toContain("Execution progress");
   expect(host.textContent).not.toContain("More actions and diagnostics");
 
-  const review = host.querySelector('#outcome-review [aria-label="Review and rework"]')!;
+  const review = host.querySelector('[data-outcome-section="review"] [aria-label="Review and rework"]')!;
   expect(review).not.toBeNull();
   expect(review.textContent).toContain("Acceptance summary");
   const report = review.querySelector(".outcome-result-report")!;
@@ -1692,7 +1788,8 @@ test("acceptance shows measured results and sends the rejection reason directly"
     "120 GB freed on Cache. Used space fell from 480 GB (84%) to 360 GB (63%)."
   );
   const chart = report.querySelector('figure[data-chart-type="bar"]')!;
-  expect(report.firstElementChild?.contains(chart)).toBe(true);
+  expect(report.firstElementChild?.textContent).toBe("Results summary · not reviewed");
+  expect(report.innerHTML.indexOf("120 GB freed on Cache")).toBeLessThan(report.innerHTML.indexOf("<figure"));
   expect(chart.querySelector("figcaption")?.textContent).toBe("Cache utilization");
   expect([...chart.querySelectorAll("li strong")].map((value) => value.textContent)).toEqual(["84%", "63%"]);
   expect([...chart.querySelectorAll<HTMLElement>(".outcome-chart-bar-fill")].map((bar) => bar.style.width)).toEqual(["84%", "63%"]);
@@ -1716,7 +1813,7 @@ test("acceptance shows measured results and sends the rejection reason directly"
   });
   expect(reject.hasAttribute("disabled")).toBe(false);
   await click("Hide review");
-  expect(host.querySelector("#outcome-review")?.hasAttribute("hidden")).toBe(true);
+  expect(host.querySelector('[data-outcome-section="review"]')?.hasAttribute("hidden")).toBe(true);
   await click("Review results");
   expect(reason.value).toBe("  Include the before and after available space.  ");
   expect(summaryRequests).toHaveLength(1);
@@ -1769,7 +1866,7 @@ test("marking a failed criterion for rework automatically expands the Rework sec
   await expand("Review acceptance criteria");
   await expand("1. Compare costs");
   await expand("Comment, evidence link or rework");
-  const review = host.querySelector('#outcome-review [aria-label="Review and rework"]')!;
+  const review = host.querySelector('[data-outcome-section="review"] [aria-label="Review and rework"]')!;
   const reworkDetails = [...review.querySelectorAll("details.outcome-brief-section")].find((el) =>
     el.querySelector("summary")?.textContent?.startsWith("Rework")
   )!;
@@ -1808,4 +1905,462 @@ test("summarizeOutputContent strips Markdown tables and code blocks into a reada
   );
   expect(truncated).toBe(false);
   expect(preview).toBe("Disk usage Share · Reclaimable cache · 120 GB");
+});
+
+test("expanded chat goal card matches normal message bubble width, hides goal details, and opens them from top info button", async () => {
+  const css = await Bun.file(
+    new URL("../src/renderer/components/outcomego/outcomes/outcome-ui.css", import.meta.url)
+  ).text();
+  const chatPaneSource = await Bun.file(
+    new URL("../src/renderer/components/outcomego/chat-pane.tsx", import.meta.url)
+  ).text();
+  expect(css).toContain("width: 420px;");
+  expect(css).toContain('.outcome-chat-card[data-expanded="true"]');
+  expect(css).toContain("width: 640px;");
+  expect(chatPaneSource).toContain("max-w-[min(88%,640px,calc(100%-82px))]");
+  expect(chatPaneSource).not.toContain("760px");
+
+  let briefCalls = 0;
+  let modalRequests = 0;
+  const server = threadServer();
+  server.turns.push(turn({ id: "t1", trigger: "先检查容量", status: "completed", reply: "已复查完成" }));
+  const decision = {
+    ...decisionFixture,
+    outcomeId: decisionGoal.id,
+    workItemId: "result-task",
+  };
+  await mount(
+    <OutcomeDetail
+      outcomeId={decisionGoal.id}
+      initialOutcome={decisionGoal}
+      inChat
+      onOpenDetails={() => modalRequests++}
+      client={{
+        ...client,
+        ...server.client,
+        get: async () => decisionGoal,
+        brief: async () => {
+          briefCalls++;
+          return semanticBrief(decisionGoal);
+        },
+        resultSummary: async (id, revision) => ({
+          outcomeId: id,
+          revisionId: decision.contractRevisionId,
+          summary: "Main cache 63%, array 34%.",
+          details: "",
+          sources: [{ title: "Disk check", quote: "cache 63%" }],
+          charts: [{ type: "bar", unit: "%", title: "Current storage", points: [{ label: "Cache", value: 63, citation: 0 }] }],
+        }),
+      }}
+      inboxClient={decisionInbox(decision, unexpected)}
+      actionItems={[decisionItem]}
+    />
+  );
+
+  // Result report and choices are visible.
+  expect(host.textContent).toContain("Main cache 63%, array 34%.");
+  expect(host.textContent).toContain("Current storage");
+  expect(host.textContent).toContain("Use source A");
+  // Background, prerequisites, thread history, and thread composer are omitted inline.
+  expect(briefCalls).toBe(0);
+  expect(host.textContent).not.toContain("Background");
+  expect(host.textContent).not.toContain("Prerequisites");
+  expect(host.textContent).not.toContain("Conversation with the planner");
+  expect(host.querySelector('textarea[aria-label="Message to the bot"]')).toBeNull();
+
+  await click("View goal details");
+  expect(modalRequests).toBe(1);
+  // Clicking info in chat opens the standalone modal instead of expanding inline records.
+  expect(host.querySelector('[aria-label="Supporting records"]')).toBeNull();
+});
+
+test("OutcomeChatCardView expands with data-expanded and opens details modal on info click", async () => {
+  await mount(
+    <OutcomeChatCardView
+      card={{ ...card, stage: "review" }}
+      client={{
+        ...client,
+        get: async () => outcomeFixture,
+        brief: async () => semanticBrief(outcomeFixture),
+      }}
+    />
+  );
+  const cardEl = host.querySelector(".outcome-chat-card")!;
+  expect(cardEl.getAttribute("data-expanded")).toBeNull();
+  const main = host.querySelector<HTMLButtonElement>("button.outcome-chat-card-main")!;
+  await act(async () => {
+    main.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  expect(cardEl.getAttribute("data-expanded")).toBe("true");
+  expect(main.getAttribute("aria-expanded")).toBe("true");
+});
+
+test("custom idea in decision card sends exact message to planner bot instead of resolving decision", async () => {
+  const server = threadServer();
+  let resolvedCalls = 0;
+  const decision = { ...decisionFixture, outcomeId: decisionGoal.id };
+  await mount(
+    <OutcomeDetail
+      outcomeId={decisionGoal.id}
+      initialOutcome={decisionGoal}
+      client={{ ...client, ...server.client, get: async () => decisionGoal }}
+      inboxClient={decisionInbox(decision, async () => {
+        resolvedCalls++;
+        return decisionResolutionFixture;
+      })}
+      actionItems={[decisionItem]}
+    />
+  );
+  await enterIdea("  Keep VM image only and recheck backup folder size  ");
+  expect(server.sent).toHaveLength(0);
+  expect(resolvedCalls).toBe(0);
+  await click("Send to bot");
+  expect(resolvedCalls).toBe(0);
+  expect(server.sent).toHaveLength(1);
+  expect(server.sent[0]!.text).toBe("  Keep VM image only and recheck backup folder size  ");
+  expect((host.querySelector('[aria-label="Your own idea"]') as HTMLInputElement).value).toBe("");
+  expect(host.textContent).toContain("Sent to the goal planner");
+});
+
+test("OutcomeChatCardView keeps expanded subtree mounted across collapse/re-expand and animates smoothly", async () => {
+  const css = await Bun.file(
+    new URL("../src/renderer/components/outcomego/outcomes/outcome-ui.css", import.meta.url)
+  ).text();
+  expect(css).toContain(".outcome-chat-expandable");
+  expect(css).toContain("grid-template-rows: 0fr");
+  expect(css).toContain("grid-template-rows: 1fr");
+
+  await mount(
+    <OutcomeChatCardView
+      card={{ ...card, stage: "review" }}
+      client={{
+        ...client,
+        get: async () => outcomeFixture,
+        brief: async () => semanticBrief(outcomeFixture),
+      }}
+    />
+  );
+  const cardEl = host.querySelector(".outcome-chat-card")!;
+  const main = host.querySelector<HTMLButtonElement>("button.outcome-chat-card-main")!;
+  expect(host.querySelector(".outcome-chat-expandable")).toBeNull();
+
+  // Expand once.
+  await act(async () => {
+    main.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  const expandable = host.querySelector(".outcome-chat-expandable")!;
+  const expandedPanel = host.querySelector("[data-goal-chat-actions]")!;
+  expect(cardEl.getAttribute("data-expanded")).toBe("true");
+  expect(expandable.getAttribute("data-open")).toBe("true");
+  expect(expandable.getAttribute("aria-hidden")).toBe("false");
+  expect(expandable.hasAttribute("inert")).toBe(false);
+
+  // Collapse: panel stays mounted (no reload on next open), just closed and inert.
+  await act(async () => {
+    main.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(cardEl.getAttribute("data-expanded")).toBeNull();
+  expect(main.getAttribute("aria-expanded")).toBe("false");
+  expect(host.querySelector(".outcome-chat-expandable")).toBe(expandable);
+  expect(host.querySelector("[data-goal-chat-actions]")).toBe(expandedPanel);
+  expect(expandable.getAttribute("data-open")).toBe("false");
+  expect(expandable.getAttribute("aria-hidden")).toBe("true");
+  expect(expandable.hasAttribute("inert")).toBe(true);
+
+  // Re-expand: exact same DOM node re-opens without remounting.
+  await act(async () => {
+    main.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(cardEl.getAttribute("data-expanded")).toBe("true");
+  expect(host.querySelector("[data-goal-chat-actions]")).toBe(expandedPanel);
+  expect(expandable.getAttribute("data-open")).toBe("true");
+  expect(expandable.hasAttribute("inert")).toBe(false);
+});
+
+test("OutcomeResultReport retains loaded summary while a background refresh is pending", async () => {
+  const decision = { ...decisionFixture, outcomeId: decisionGoal.id, workItemId: "result-task" };
+  let calls = 0;
+  let resolveSecond!: (value: any) => void;
+  await mount(
+    <OutcomeDetail
+      outcomeId={decisionGoal.id}
+      initialOutcome={decisionGoal}
+      inChat
+      client={{
+        ...client,
+        get: async () => decisionGoal,
+        resultSummary: async (id) => {
+          calls++;
+          if (calls === 1) {
+            return {
+              outcomeId: id,
+              revisionId: decision.contractRevisionId,
+              summary: "Main cache 63%, array 34%.",
+              details: "",
+              sources: [],
+            };
+          }
+          return new Promise((resolve) => {
+            resolveSecond = resolve;
+          });
+        },
+      }}
+      inboxClient={decisionInbox(decision, unexpected)}
+      actionItems={[decisionItem]}
+    />
+  );
+
+  expect(host.textContent).toContain("Main cache 63%, array 34%.");
+  await act(async () => {
+    refreshOutcomeViews({
+      sequence: "2",
+      topic: "goal.thread.updated",
+      entityId: decision.outcomeId,
+      payload: { status: "completed" },
+      createdAt: new Date().toISOString(),
+    });
+    await new Promise((resolve) => setTimeout(resolve, OUTCOME_REFRESH_DEBOUNCE_MS + 30));
+  });
+  // Still visible while second fetch is pending — never flashes "Summarizing the results…".
+  expect(host.textContent).toContain("Main cache 63%, array 34%.");
+  expect(host.textContent).not.toContain("Summarizing the results");
+
+  await act(async () => {
+    resolveSecond({
+      outcomeId: decision.outcomeId,
+      revisionId: decision.contractRevisionId,
+      summary: "Updated cache 61%, array 34%.",
+      details: "",
+      sources: [],
+    });
+  });
+  expect(host.textContent).toContain("Updated cache 61%, array 34%.");
+});
+
+test("inChat mode removes redundant top action banner, splits conclusion/charts into two columns, and notifies onActionSubmitted", async () => {
+  const css = await Bun.file(
+    new URL("../src/renderer/components/outcomego/outcomes/outcome-ui.css", import.meta.url)
+  ).text();
+  expect(css).toContain(".outcome-result-split");
+
+  const decision = {
+    ...decisionFixture,
+    outcomeId: decisionGoal.id,
+    workItemId: "result-task",
+  };
+  const acceptanceItem = {
+    ...decisionItem,
+    id: "inbox-accept",
+    category: "acceptance_pending" as const,
+    decisionId: null,
+    title: "Unraid 清理后容量复查",
+    completed: "Cache checked",
+    problem: "None",
+    next: "Review results",
+  };
+  let submittedCount = 0;
+  await mount(
+    <OutcomeDetail
+      outcomeId={decisionGoal.id}
+      initialOutcome={decisionGoal}
+      inChat
+      onActionSubmitted={() => submittedCount++}
+      client={{
+        ...client,
+        get: async () => decisionGoal,
+        resultSummary: async (id) => ({
+          outcomeId: id,
+          revisionId: decision.contractRevisionId,
+          summary: "1. Cache 63% · 2. Array 34%",
+          details: "",
+          sources: [],
+          charts: [{ type: "bar", unit: "%", title: "Current storage", points: [{ label: "Cache", value: 63, citation: 0 }] }],
+        }),
+      }}
+      inboxClient={decisionInbox(decision, async () => decisionResolutionFixture)}
+      actionItems={[acceptanceItem, decisionItem]}
+    />
+  );
+
+  // Top "What needs you now" eyebrow and redundant acceptance banner are removed in chat.
+  expect(host.querySelector(".outcome-now > .outcome-now-eyebrow")).toBeNull();
+  expect(host.textContent).not.toContain("What needs you now");
+  expect(host.textContent).not.toContain("What is this decision based on?");
+  expect(host.textContent).not.toContain("Review results");
+
+  // Summary text and chart render in two columns (.outcome-result-split).
+  const split = host.querySelector(".outcome-result-split")!;
+  expect(split).not.toBeNull();
+  expect(split.querySelector(".outcome-result-copy")?.textContent).toContain("Cache 63%");
+  expect(split.querySelector(".outcome-result-charts")?.textContent).toContain("Current storage");
+
+  // Selecting and submitting an option notifies onActionSubmitted so the card auto-collapses & refreshes.
+  const radio = host.querySelector<HTMLInputElement>('input[type="radio"][value="source-a"]')!;
+  await act(async () => {
+    radio.click();
+  });
+  await click("Submit choice");
+  expect(submittedCount).toBe(1);
+});
+
+test("OutcomeChatCardView auto-collapses and refreshes status when an inline decision is resolved", async () => {
+  const { api } = await import("../src/renderer/client/outcomego-api");
+  const originalGet = api.outcomes.get;
+  const originalHuman = api.outcomeInbox.humanItems;
+  const originalForOutcome = api.outcomeInbox.forOutcome;
+  const originalDecision = api.outcomeInbox.decision;
+  const originalResolve = api.outcomeInbox.resolve;
+  const originalResultSummary = api.outcomes.resultSummary;
+
+  const decision = {
+    ...decisionFixture,
+    outcomeId: decisionGoal.id,
+    workItemId: "result-task",
+  };
+  let stageReads = 0;
+  let resolved = false;
+  api.outcomes.get = async () => {
+    stageReads++;
+    return resolved
+      ? { ...decisionGoal, status: "running" as const }
+      : { ...decisionGoal, status: "waiting_decision" as const };
+  };
+  api.outcomeInbox.humanItems = async () => [];
+  api.outcomeInbox.forOutcome = async () => ({
+    items: resolved ? [] : [decisionItem],
+    nextCursor: null,
+  });
+  api.outcomeInbox.decision = async () => decision;
+  api.outcomeInbox.resolve = async () => {
+    resolved = true;
+    return decisionResolutionFixture;
+  };
+  api.outcomes.resultSummary = async () => null;
+
+  try {
+    await mount(
+      <OutcomeChatCardView
+        card={{ ...card, outcomeId: decisionGoal.id, stage: "attention" }}
+      />
+    );
+    const cardEl = host.querySelector(".outcome-chat-card")!;
+    const main = host.querySelector<HTMLButtonElement>("button.outcome-chat-card-main")!;
+
+    await act(async () => {
+      main.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    });
+    expect(cardEl.getAttribute("data-expanded")).toBe("true");
+    expect(host.textContent).toContain("Use source A");
+    const readsBeforeSubmit = stageReads;
+
+    const radio = host.querySelector<HTMLInputElement>('input[type="radio"][value="source-a"]')!;
+    await act(async () => {
+      radio.click();
+    });
+    await click("Submit choice");
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    });
+
+    expect(cardEl.getAttribute("data-expanded")).toBeNull();
+    expect(main.getAttribute("aria-expanded")).toBe("false");
+    expect(stageReads).toBeGreaterThan(readsBeforeSubmit);
+    expect(cardEl.getAttribute("data-stage")).toBe("running");
+  } finally {
+    api.outcomes.get = originalGet;
+    api.outcomeInbox.humanItems = originalHuman;
+    api.outcomeInbox.forOutcome = originalForOutcome;
+    api.outcomeInbox.decision = originalDecision;
+    api.outcomeInbox.resolve = originalResolve;
+    api.outcomes.resultSummary = originalResultSummary;
+  }
+});
+
+test("OutcomeChatCardView waits until initial data is ready before expanding and shares cache across cards", async () => {
+  const { api } = await import("../src/renderer/client/outcomego-api");
+  const originalGet = api.outcomes.get;
+  const originalHuman = api.outcomeInbox.humanItems;
+  const originalForOutcome = api.outcomeInbox.forOutcome;
+  const originalDecision = api.outcomeInbox.decision;
+  const originalResultSummary = api.outcomes.resultSummary;
+
+  const decision = {
+    ...decisionFixture,
+    outcomeId: decisionGoal.id,
+    workItemId: "result-task",
+  };
+  let releaseSummary!: (value: any) => void;
+  api.outcomes.get = async () => ({ ...decisionGoal, status: "cancelled" as const });
+  api.outcomeInbox.humanItems = async () => [];
+  api.outcomeInbox.forOutcome = async () => ({
+    items: [decisionItem],
+    nextCursor: null,
+  });
+  api.outcomeInbox.decision = async () => decision;
+  api.outcomes.resultSummary = () =>
+    new Promise((resolve) => {
+      releaseSummary = resolve;
+    });
+
+  try {
+    // Settled card does not prefetch on mount; clicking waits for summary before expanding.
+    await mount(
+      <OutcomeChatCardView
+        card={{ ...card, outcomeId: decisionGoal.id, stage: "cancelled" }}
+      />
+    );
+    const cardEl = host.querySelector(".outcome-chat-card")!;
+    const main = host.querySelector<HTMLButtonElement>("button.outcome-chat-card-main")!;
+
+    await act(async () => {
+      main.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(cardEl.getAttribute("data-expanded")).toBeNull();
+    expect(main.getAttribute("data-loading")).toBe("true");
+
+    await act(async () => {
+      releaseSummary({
+        outcomeId: decisionGoal.id,
+        revisionId: decision.contractRevisionId,
+        summary: "Cache 63%, Array 34%.",
+        details: "",
+        sources: [],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+    expect(cardEl.getAttribute("data-expanded")).toBe("true");
+    expect(main.getAttribute("data-loading")).toBeNull();
+    expect(host.textContent).toContain("Cache 63%, Array 34%.");
+    expect(host.textContent).toContain("Use source A");
+
+    // Another card instance in the chat for the same outcome opens immediately from cache without loading flash.
+    await act(async () => root!.unmount());
+    host.remove();
+    api.outcomes.resultSummary = () => new Promise(() => {});
+    await mount(
+      <OutcomeChatCardView
+        card={{ ...card, outcomeId: decisionGoal.id, stage: "cancelled" }}
+      />
+    );
+    const secondCardEl = host.querySelector(".outcome-chat-card")!;
+    const secondMain = host.querySelector<HTMLButtonElement>("button.outcome-chat-card-main")!;
+    await act(async () => {
+      secondMain.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    });
+    expect(secondCardEl.getAttribute("data-expanded")).toBe("true");
+    expect(host.textContent).toContain("Cache 63%, Array 34%.");
+    expect(host.textContent).not.toContain("Summarizing the results");
+    expect(host.textContent).not.toContain("Loading Decision");
+  } finally {
+    api.outcomes.get = originalGet;
+    api.outcomeInbox.humanItems = originalHuman;
+    api.outcomeInbox.forOutcome = originalForOutcome;
+    api.outcomeInbox.decision = originalDecision;
+    api.outcomes.resultSummary = originalResultSummary;
+  }
 });
