@@ -11,7 +11,8 @@ import {
   Wrench,
 } from "lucide-react";
 import type { BotView } from "@outcomego/contracts";
-import { type OutcomeDetail, type OutcomeWorkThreadView, type WorkItemStatus, workThreadIsFinished } from "@outcomego/contracts/outcomes";
+import type { OutcomeDetail, OutcomeWorkThreadView, WorkItemStatus } from "@outcomego/contracts/outcomes";
+import { workThreadIsFinished } from "@outcomego/contracts/outcome-view";
 import "./outcome-ui.css";
 import type { OutcomeClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";

@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Inbox, Lightbulb, LayoutDashboard, ListChecks, Plus, Target } from "lucide-react";
 import { api } from "../../../../client/outcomego-api";
 import type { DesktopOutcomeTarget } from "../../../../lib/outcome-target";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeInbox } from "./outcome-inbox";
-import { OutcomeRouteView } from "./outcome-route-view";
 import { useI18n } from "../../../../lib/i18n";
 import { ExplorePanel } from "../explore/explore-panel";
 import { OutcomeList } from "../outcome-list";
@@ -14,6 +13,10 @@ import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { NewOutcomeForm } from "../thread/new-outcome-form";
 import { OutcomeButton } from "../outcome-ui";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../ui/dialog";
+
+const OutcomeRouteView = lazy(() =>
+  import("./outcome-route-view").then((module) => ({ default: module.OutcomeRouteView }))
+);
 
 type Route =
   | { kind: "overview" }
@@ -236,7 +239,9 @@ export default function OutcomeWorkspace({
                 </p>
               ))}
             {(route.kind === "decision" || route.kind === "human" || route.kind === "outcome") && (
-              <OutcomeRouteView route={route} bots={bots} onOpen={openRoute} onClose={closeModal} />
+              <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+                <OutcomeRouteView route={route} bots={bots} onOpen={openRoute} onClose={closeModal} />
+              </Suspense>
             )}
           </div>
         </DialogContent>

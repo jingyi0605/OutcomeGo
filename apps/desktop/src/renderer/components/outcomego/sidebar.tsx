@@ -40,7 +40,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { Collapsible } from "radix-ui";
-import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import calendarLogo from "../../assets/apps/google-calendar.svg?url";
 import notionLogo from "../../assets/apps/notion.svg?url";
@@ -117,7 +117,6 @@ import {
 import { Input } from "../ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { BotAvatar, ChannelAvatar } from "./avatar";
-import { WorkThreadAvatarTrigger } from "./work-thread-navigation";
 import { BotName, BotRenameContext } from "./bot-name";
 import { DesktopUpdateCard } from "./desktop-update-card";
 import { SidebarCollapseMotion, SidebarMotion } from "./sidebar-motion";
@@ -128,6 +127,19 @@ import { OutcomeNavigation } from "./outcomes/outcome-navigation";
 import type { OutcomeActionCounts } from "../../hooks/use-outcome-action-counts";
 
 const EMPTY_PINNED_IDS: ReadonlySet<string> = new Set();
+
+const ThreadTrigger = lazy(() => import("./work-thread-navigation").then((module) => ({
+  default: module.WorkThreadAvatarTrigger,
+})));
+
+function WorkThreadAvatarTrigger(props: React.ComponentProps<typeof ThreadTrigger>) {
+  const shown = useRef(false);
+  useEffect(() => {
+    if (props.active) shown.current = true;
+  }, [props.active]);
+  if (!props.active && !shown.current) return null;
+  return <Suspense fallback={null}><ThreadTrigger {...props} /></Suspense>;
+}
 
 function WorkingAvatar({
   active,

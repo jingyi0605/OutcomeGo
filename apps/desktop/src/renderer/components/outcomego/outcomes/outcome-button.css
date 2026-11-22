@@ -1,0 +1,18 @@
+.outcome-button {
+  display: inline-flex;
+  height: 28px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  box-shadow: none;
+}
+.outcome-button.outcome-button-icon {
+  width: 28px;
+  padding: 0;
+}

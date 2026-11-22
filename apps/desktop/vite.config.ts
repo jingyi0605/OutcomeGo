@@ -1,4 +1,4 @@
-import { emojiPickerRuntimeEntries, type EmojiRuntimeSource } from "./scripts/emoji-runtime-data";
+import { packEmojiPickerRuntimeEntries, type EmojiRuntimeSource } from "./src/renderer/components/outcomego/emoji/runtime-data";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
@@ -25,7 +25,7 @@ const emojiPickerRuntimeData = (): Plugin => ({
   enforce: "pre",
   transform(source, id) {
     if (!/[\\/]emojibase-data[\\/]en[\\/]compact\.json(?:\?|$)/.test(id)) return;
-    const entries = emojiPickerRuntimeEntries(JSON.parse(source) as EmojiRuntimeSource[]);
+    const entries = packEmojiPickerRuntimeEntries(JSON.parse(source) as EmojiRuntimeSource[]);
     return JSON.stringify(entries);
   },
 });
@@ -79,6 +79,8 @@ export default defineConfig({
   optimizeDeps: { include: ["mammoth", "xlsx"] },
   worker: { format: "es" },
   build: {
+    target: "chrome140",
+    modulePreload: { polyfill: false },
     manifest: "manifest.json",
     outDir: "dist",
     // Let lifecycle/resource modules follow automatic chunking. Fixed groups can

@@ -2,25 +2,10 @@ import { RefreshCw, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useI18n } from "../../../lib/i18n";
 import { cn } from "../../../lib/cn";
-import { Button, type ButtonProps } from "../../ui/button";
+import { OutcomeButton } from "./outcome-button";
 import "./outcome-ui.css";
 
-export function OutcomeButton({
-  className,
-  iconOnly = false,
-  variant = "secondary",
-  size = "sm",
-  ...props
-}: ButtonProps & { iconOnly?: boolean }) {
-  return (
-    <Button
-      variant={variant}
-      size={size}
-      className={cn("outcome-button", iconOnly && "outcome-button-icon", className)}
-      {...props}
-    />
-  );
-}
+export { OutcomeButton } from "./outcome-button";
 
 export function OutcomeRefresh({ busy, onRefresh }: { busy: boolean; onRefresh: () => void }) {
   const { t } = useI18n();

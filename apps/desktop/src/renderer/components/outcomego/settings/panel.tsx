@@ -18,7 +18,7 @@ import {
 } from "../../../lib/app-deep-links";
 import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
-import { SettingsHeading } from "./ui";
+import { SettingsHeading } from "./heading";
 import {
   Dialog,
   DialogClose,

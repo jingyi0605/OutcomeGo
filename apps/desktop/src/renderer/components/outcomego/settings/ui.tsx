@@ -5,6 +5,8 @@ import { useI18n } from "../../../lib/i18n";
 import { Skeleton } from "../../ui/skeleton";
 import "./ui.css";
 
+export { SettingsHeading } from "./heading";
+
 const settingsButton =
   "inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-[8px] px-3 text-[12px] font-normal outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-default disabled:opacity-50";
 
@@ -169,24 +171,6 @@ export function SettingsRow({
         </>
       )}
     </div>
-  );
-}
-
-export function SettingsHeading({
-  children,
-  anchor,
-}: {
-  children: ReactNode;
-  anchor?: SettingsAnchor;
-}) {
-  const { t } = useI18n();
-  return (
-    <h2
-      className="mb-7 px-2 text-[17px] font-medium leading-6 tracking-[-0.018em]"
-      data-settings-anchor={anchor}
-    >
-      {typeof children === "string" ? t(children) : children}
-    </h2>
   );
 }
 

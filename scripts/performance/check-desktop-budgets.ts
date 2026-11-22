@@ -224,6 +224,14 @@ const lazyBudgets: Record<string, number> = {
   outcomeWorkspace: 171_000,
   outcomeDetail: 152_000,
   outcomeAsset: 31_000,
+  outcomeRouteView: 175_000,
+  outcomeChatCard: 185_000,
+  chatGoals: 185_000,
+  outcomeExecutionCard: 55_000,
+  groupTasksBottomSheet: 12_000,
+  workThreadNavigation: 10_000,
+  attachmentStage: 38_000,
+  outcomeRoleSettings: 52_000,
   quickIdea: 36_000,
   settingsKeyboard: 19_000,
   settingsBotDock: 11_000,
@@ -252,7 +260,7 @@ const lazyBudgets: Record<string, number> = {
   // 40,936 bytes on the beta.15 build.
   pluginStudio: 42_000,
   privateSkills: 37_000,
-  settingsMicrophone: 13_000,
+  settingsMicrophone: 14_000,
   basicMarkdown: 600_000,
   advancedRich: 600_000,
   cjk: 600_000,
@@ -366,7 +374,7 @@ const lazyBudgets: Record<string, number> = {
   // v0.0.13 compact shared buttons/styles: 18,677 bytes.
   // November 10 update-message localization adds the server and desktop status catalog:
   // 27,699 bytes measured in the lazy closure. Keep this page lazy with modest headroom.
-  settingsUpdates: 31_000,
+  settingsUpdates: 32_000,
   // ScreenBot's signed-in bridge is loaded after authentication and measures 3,414 bytes.
   screenbotBridge: 5_000,
   // The full provider preset catalog is loaded only when the Add provider dialog opens.

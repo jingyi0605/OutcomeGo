@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { useI18n } from "../../../../lib/i18n";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../../ui/dialog";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
-import { OutcomeRouteView, type OutcomeDetailRoute } from "./outcome-route-view";
+import type { OutcomeDetailRoute } from "./outcome-route-view";
 import "../outcome-ui.css";
+
+const OutcomeRouteView = lazy(() =>
+  import("./outcome-route-view").then((module) => ({ default: module.OutcomeRouteView }))
+);
 
 /**
  * Goal detail opened in place (for example from a chat card) so the reader never leaves the
@@ -36,7 +40,9 @@ export default function OutcomeDetailModal({
           {t("Review the goal and handle current decisions.")}
         </DialogDescription>
         <div className="outcome-page-content outcome-modal-body space-y-5">
-          <OutcomeRouteView route={route} bots={bots} onOpen={setRoute} onClose={onClose} />
+          <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+            <OutcomeRouteView route={route} bots={bots} onOpen={setRoute} onClose={onClose} />
+          </Suspense>
         </div>
       </DialogContent>
     </Dialog>

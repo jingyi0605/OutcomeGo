@@ -1,5 +1,6 @@
 import { use, useMemo } from "react";
 import { Streamdown } from "streamdown";
+import "./streamdown.css";
 import {
   messageComponents,
   messageRemarkPlugins,
