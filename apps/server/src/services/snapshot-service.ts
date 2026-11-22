@@ -152,6 +152,7 @@ export class SnapshotService {
         ),
         this.threadLineage(runs, subagentAttempts),
       ]);
+      const globalInference = await this.inferenceSettings?.().catch(() => null) ?? null;
       return {
         cursor: cursor?.sequence.toString() ?? "0",
         notificationRouting: await notificationRouting(this.prisma, this.authMode),
@@ -161,7 +162,7 @@ export class SnapshotService {
           .filter((bot) =>
             bot.channelMemberships.some((membership) => membership.channel.kind === "bot_dm")
           )
-          .map(toBotView),
+          .map((bot) => toBotView(bot, globalInference)),
         channels: channelViews(
           channels,
           unreadCounts,
@@ -242,6 +243,7 @@ export class SnapshotService {
       }),
       this.threadLineage(runs, subagentAttempts),
     ]);
+    const globalInference = await this.inferenceSettings?.().catch(() => null) ?? null;
     return {
       cursor: cursor?.sequence.toString() ?? "0",
       notificationRouting: await notificationRouting(this.prisma, this.authMode),
@@ -251,7 +253,7 @@ export class SnapshotService {
         .filter((bot) =>
           bot.channelMemberships.some((membership) => membership.channel.kind === "bot_dm")
         )
-        .map(toBotView),
+        .map((bot) => toBotView(bot, globalInference)),
       channels: channelViews(
         channels,
         unreadCounts,
@@ -349,7 +351,10 @@ export class SnapshotService {
         }),
         channelUnreadCounts(this.prisma, channelIds),
       ]);
-    const lineage = await this.threadLineage(activeRuns, subagentAttempts);
+    const [globalInference, lineage] = await Promise.all([
+      this.inferenceSettings?.().catch(() => null) ?? Promise.resolve(null),
+      this.threadLineage(activeRuns, subagentAttempts),
+    ]);
     return {
       cursor: startCursor?.sequence.toString() ?? "0",
       notificationRouting: await notificationRouting(this.prisma, this.authMode),
@@ -359,7 +364,7 @@ export class SnapshotService {
         .filter((bot) =>
           bot.channelMemberships.some((membership) => membership.channel.kind === "bot_dm")
         )
-        .map(toBotView),
+        .map((bot) => toBotView(bot, globalInference)),
       channels: channelViews(
         channels,
         unreadCounts,

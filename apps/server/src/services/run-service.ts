@@ -39,6 +39,11 @@ export class RunService {
     return this.cancelRunGroups(runs);
   });
 
+  cancelOutcomeRoleRuns = (outcomeId: string) => serviceEffect(async () => {
+    const runs = await this.prisma.run.findMany({ where: { outcomeThread: { outcomeId } } });
+    return this.cancelRunGroups(runs);
+  });
+
   cancelChatBranch = (channelId: string, branchId: string) => serviceEffect(async () => {
     const runs = await this.prisma.$transaction(async tx => {
       const scoped = await tx.$queryRaw<Array<{ id: string; botId: string }>>(Prisma.sql`

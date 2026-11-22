@@ -1,12 +1,12 @@
 import { ApiError } from "@outcomego/contracts";
 import {
   requiredCriteriaSatisfied, passIsSupported,
-  type SubmitOutcomeReviewInput, type OutcomeReworkInput, type CriterionReviewState,
+  type AdoptPrereviewInput, type SubmitOutcomeReviewInput, type OutcomeReworkInput, type CriterionReviewState,
   type DecideOutcomeAcceptanceInput,
 } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
-  appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, enqueueOutcomeTurn,
+  appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, enqueueOutcomeTurn, readOutcomeReviewBatch,
   type ActorRef, type AgentMessaging,
 } from "@outcomego/messaging";
 import { OutcomeService, outcomeApiError } from "./outcome-service";
@@ -31,6 +31,78 @@ export class OutcomeReviewService {
 
   submit = (outcomeId: string, input: SubmitOutcomeReviewInput, actor: ActorRef) => serviceEffect(() =>
     outcomeWrite(this.prisma, `outcome-review:${outcomeId}`, input.clientRequestId, { input, actor }, async tx => {
+      return this.submitInTransaction(tx, outcomeId, input, actor);
+    }));
+
+  adoptPrereview = (outcomeId: string, input: AdoptPrereviewInput, actor: ActorRef) => serviceEffect(() => {
+    if (!actor.startsWith("user:") && actor !== "owner:local") {
+      throw new ApiError(403, "forbidden", "Only the owner can adopt preliminary review results");
+    }
+    return outcomeWrite(this.prisma, `outcome-adopt-prereview:${outcomeId}`, input.clientRequestId, { input, actor }, async tx => {
+      const outcome = await lockOutcome(tx, outcomeId);
+      if (closed(outcome.status)) {
+        throw outcomeApiError("invalid_outcome_transition", `This Outcome is ${outcome.status}`, { currentStatus: outcome.status });
+      }
+      const revision = outcome.currentRevisionId
+        ? await tx.outcomeContractRevision.findUnique({ where: { id: outcome.currentRevisionId } })
+        : null;
+      if (!revision || revision.revision !== input.expectedRevision || revision.status !== "approved") {
+        throw outcomeApiError("prereview_stale", "Contract revision changed; preliminary review is no longer current", {
+          currentRevision: revision?.revision ?? null,
+        });
+      }
+      const turn = await tx.outcomeThreadTurn.findUnique({
+        where: { id: input.turnId },
+        include: { thread: { select: { outcomeId: true, role: true } } },
+      });
+      const result = turn?.result && typeof turn.result === "object" && !Array.isArray(turn.result)
+        ? (turn.result as { revision?: unknown; results?: unknown })
+        : null;
+      const batch = await readOutcomeReviewBatch(tx, outcomeId, revision.id);
+      if (
+        outcome.status !== "review_pending" ||
+        !turn ||
+        turn.thread.outcomeId !== outcomeId ||
+        turn.thread.role !== "reviewer" ||
+        turn.clientRequestId !== batch.key ||
+        turn.purpose !== "review" ||
+        turn.status !== "completed" ||
+        !result ||
+        result.revision !== revision.revision ||
+        !Array.isArray(result.results)
+      ) {
+        throw outcomeApiError("prereview_stale", "This review no longer matches the current results. Refresh before adopting suggestions.");
+      }
+      const likelyPassResults = (
+        result.results as Array<{ criterionId?: unknown; suggestion?: unknown; reason?: unknown; evidenceIds?: unknown }>
+      )
+        .filter((entry) => entry.suggestion === "likely_pass" && typeof entry.criterionId === "string")
+        .map((entry) => ({
+          criterionId: entry.criterionId as string,
+          result: "PASS" as const,
+          evidenceIds: Array.isArray(entry.evidenceIds)
+            ? entry.evidenceIds.filter((id): id is string => typeof id === "string")
+            : [],
+          comment: typeof entry.reason === "string" ? entry.reason : "",
+          userConfirmed: true,
+        }));
+      if (!likelyPassResults.length) {
+        throw outcomeApiError("prereview_incomplete", "No likely_pass criteria found in preliminary review");
+      }
+      return this.submitInTransaction(
+        tx,
+        outcomeId,
+        {
+          expectedRevision: revision.revision,
+          results: likelyPassResults,
+          clientRequestId: input.clientRequestId,
+        },
+        actor
+      );
+    });
+  });
+
+  private async submitInTransaction(tx: Tx, outcomeId: string, input: SubmitOutcomeReviewInput, actor: ActorRef) {
       const outcome = await lockOutcome(tx, outcomeId);
       if (closed(outcome.status)) throw outcomeApiError("invalid_outcome_transition", `This Outcome is ${outcome.status}`, { currentStatus: outcome.status });
       let revision = await tx.outcomeContractRevision.findUnique({ where: { id: outcome.currentRevisionId ?? "00000000-0000-0000-0000-000000000000" }, include: { criteria: true } });
@@ -118,7 +190,7 @@ export class OutcomeReviewService {
       }
       await recomputeOutcomeStatus(tx, outcomeId, actor);
       return this.outcomes.getInTransaction(tx, outcomeId);
-    }));
+  }
 
   rework = (outcomeId: string, input: OutcomeReworkInput, actor: ActorRef) => serviceEffect(() =>
     outcomeWrite(this.prisma, `outcome-rework:${outcomeId}`, input.clientRequestId, { input, actor }, async tx => {

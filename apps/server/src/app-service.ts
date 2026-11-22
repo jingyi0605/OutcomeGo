@@ -4,6 +4,8 @@ import { lockAssetReferences, referencedAssetIdsSql } from "./services/asset-ret
 import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
 import { OutcomePlanningService } from "./services/outcome-planning-service";
 import { OutcomeThreadService } from "./services/outcome-thread-service";
+import { OutcomePlanService } from "./services/outcome-plan-service";
+import { OutcomeTaskReviewService } from "./services/outcome-task-review-service";
 import { OutcomeThreadTools } from "./services/outcome-thread-tools";
 import { ExploreService } from "./services/explore-service";
 import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
@@ -43,6 +45,7 @@ import {
   AgentMessaging,
   appendAgentTimelineEvent,
   AssetStore,
+  enqueueOutcomePrereviewIfNeeded,
   GroupTaskService,
   readFeatureSettings,
   type RoutineMutationInput,
@@ -78,6 +81,8 @@ import { ScreenService } from "./services/screen-service";
 import { SearchService } from "./services/search-service";
 import { ChannelLibraryService } from "./services/channel-library";
 import { forwardServiceMethod, serviceEffect } from "./services/service-utils";
+import { verifyInferenceModelSelection } from "./services/inference-validation";
+import { isBotRunnable } from "./services/outcome-role-service";
 import { WebProviderSettingsService } from "./services/web-provider-settings";
 import { SettingsService } from "./services/settings-service";
 import { SnapshotService } from "./services/snapshot-service";
@@ -112,6 +117,8 @@ export class AppService {
   readonly outcomes: OutcomeService;
   readonly outcomePlanning: OutcomePlanningService;
   readonly outcomeThreads: OutcomeThreadService;
+  readonly outcomePlans: OutcomePlanService;
+  readonly outcomeTaskReviews: OutcomeTaskReviewService;
   readonly outcomeBriefs: OutcomeBriefService;
   readonly explore: ExploreService;
   readonly outcomeRecovery: OutcomeRecoveryService;
@@ -284,6 +291,8 @@ export class AppService {
       this.bots,
       this.machines
     );
+    this.outcomePlans = new OutcomePlanService(this.prisma, this.outcomes, this.messaging);
+    this.outcomeTaskReviews = new OutcomeTaskReviewService(this.prisma, this.outcomes, this.messaging);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);
     const humanServices = createHumanWorkServices(this.prisma, this.messaging, this.agentData, this.assets);
@@ -303,7 +312,12 @@ export class AppService {
     });
     this.outcomeReviews = new OutcomeReviewService(this.prisma, this.messaging, inferOutcome, undefined, this.humanReceipts);
     this.outcomeEvidence = new OutcomeEvidenceConsumer(this.prisma, this.outcomeReviews, this.eventWakeup);
-    this.outcomeResultSummaries = new OutcomeResultSummaryWorker(this.prisma, this.outcomes, this.outcomeBriefs);
+    this.outcomeResultSummaries = new OutcomeResultSummaryWorker(this.prisma, this.outcomes, this.outcomeBriefs,
+      (outcomeId, revision) => this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`}))`;
+        return enqueueOutcomePrereviewIfNeeded(tx, this.messaging, outcomeId, revision.id, revision.revision);
+      }),
+    );
     this.voice = new VoiceService(this.prisma, this.channels, this.runs);
     this.todos = new TodoService(this.prisma);
     this.administration = new AdministrationService(
@@ -376,7 +390,15 @@ export class AppService {
       this.messaging,
       this.automationWebhooks
     );
-    const outcomeChatTools = new OutcomeChatTools(this.outcomes, new OutcomeInboxService(this.prisma), this.explore, new OutcomeChatCards(this.prisma, this.messaging), this.outcomeDecisions);
+    const outcomeChatTools = new OutcomeChatTools(
+      this.outcomes,
+      new OutcomeInboxService(this.prisma),
+      this.explore,
+      new OutcomeChatCards(this.prisma, this.messaging),
+      this.outcomeDecisions,
+      this.outcomeThreads,
+      this.prisma
+    );
     this.internalTools = new InternalToolService(
       this.prisma,
       this.messaging,
@@ -399,7 +421,7 @@ export class AppService {
       },
       outcomeChatTools,
       this.userLocations,
-      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools),
+      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools, this.outcomePlans, this.outcomeTaskReviews),
       new GroupTaskTools(this.groupTasks),
       this.replyPreviews
     );
@@ -599,7 +621,44 @@ export class AppService {
   featureSettings = () => readFeatureSettings(this.prisma);
 
   updateFeatureSettings = async (input: UpdateFeatureSettingsInput) => {
-    const settings = await updateFeatureSettings(this.prisma, input);
+    if (input.environmentNote !== undefined && input.environmentNote !== null && input.environmentNote.length > 8_000) {
+      throw new ApiError(400, "invalid_request", "Environment note must be at most 8000 characters");
+    }
+    if (input.plannerBotId) {
+      if (!(await isBotRunnable(this.prisma, input.plannerBotId))) {
+        throw new ApiError(409, "bot_not_runnable", "Choose an active, runnable bot for the planning role");
+      }
+    }
+    if (input.reviewerBotId) {
+      if (!(await isBotRunnable(this.prisma, input.reviewerBotId))) {
+        throw new ApiError(409, "bot_not_runnable", "Choose an active, runnable bot for the review role");
+      }
+    }
+    const plannerModel =
+      input.plannerModel === undefined
+        ? undefined
+        : input.plannerModel === null
+          ? null
+          : await verifyInferenceModelSelection((path, init) => this.computerFetch(path, init), this.agentData, input.plannerModel).then((v) => ({
+              providerId: v.providerId,
+              modelId: v.modelId,
+              ...(v.reasoning ? { reasoning: v.reasoning } : {}),
+            }));
+    const reviewerModel =
+      input.reviewerModel === undefined
+        ? undefined
+        : input.reviewerModel === null
+          ? null
+          : await verifyInferenceModelSelection((path, init) => this.computerFetch(path, init), this.agentData, input.reviewerModel).then((v) => ({
+              providerId: v.providerId,
+              modelId: v.modelId,
+              ...(v.reasoning ? { reasoning: v.reasoning } : {}),
+            }));
+    const settings = await updateFeatureSettings(this.prisma, {
+      ...input,
+      ...(plannerModel !== undefined ? { plannerModel } : {}),
+      ...(reviewerModel !== undefined ? { reviewerModel } : {}),
+    });
     if (input.streamBotReplies === false) this.replyPreviews.clear();
     return settings;
   };

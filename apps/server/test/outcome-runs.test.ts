@@ -14,7 +14,34 @@ const errorCode = async (effect: Effect.Effect<unknown, Error>) => {
   return result._tag === "Left" ? (result.left as { code?: string }).code : undefined;
 };
 
-test("work-thread stop validates membership and does not pass other work items to the runtime", async () => {
+test("role-run cancellation selects only the target goal and keeps each Bot's shell scope", async () => {
+  const goalId = "goal-for-stop";
+  const roleRuns = [{ id: "plan-run", botId: "planner" }, { id: "review-run", botId: "reviewer" }];
+  const stopped: string[] = [];
+  const shells: Array<{ path: string; runIds: string[] }> = [];
+  const prisma = {
+    run: { findMany: async ({ where }: { where: unknown }) => {
+      expect(where).toEqual({ outcomeThread: { outcomeId: goalId } });
+      return roleRuns;
+    } },
+    $transaction: async (run: (tx: unknown) => Promise<unknown>) => run({
+      $executeRaw: async () => 0,
+      subagent: { findMany: async () => [] },
+    }),
+    subagent: { count: async () => 0 },
+    botRunLease: { deleteMany: async () => ({ count: 0 }) },
+  };
+  const service = new RunService(prisma as never, async (path, options) => {
+    shells.push({ path, runIds: JSON.parse(String(options?.body)).runIds });
+    return new Response("{}");
+  });
+  service.cancel = (id) => Effect.sync(() => { stopped.push(id); return { ok: true, status: "cancelled" }; });
+  await expect(Effect.runPromise(service.cancelOutcomeRoleRuns(goalId))).resolves.toEqual({ ok: true });
+  expect(stopped).toEqual(["plan-run", "review-run"]);
+  expect(shells).toEqual(roleRuns.map(run => ({ path: COMPUTER_API_PATHS.backgroundShellRunsStop(run.botId), runIds: [run.id] })));
+});
+
+ test("work-thread stop validates membership and does not pass other work items to the runtime", async () => {
   const stopped: string[][] = [];
   const service = new OutcomeService({ outcomeWorkItem: {
     findFirst: async ({ where }: { where: { id: string; outcomeId: string; executorType: string } }) => {
@@ -31,7 +58,7 @@ test("work-thread stop validates membership and does not pass other work items t
   expect(stopped).toEqual([["item"]]);
 });
 
-describe.skipIf(!url)("Outcome execution service", () => {
+ describe.skipIf(!url)("Outcome execution service", () => {
   test("approved start is transactional, deduplicated, and D11 creates only one initial item", async () => {
     const h = await outcomeThreadFixture();
     try {

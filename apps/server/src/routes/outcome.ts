@@ -1,6 +1,6 @@
 import { ApiError } from "@outcomego/contracts";
 import {
-  CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
+  AdoptPrereviewInput, CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
   CancelOutcomeInput, DecideOutcomeAcceptanceInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, decodeOutcomeCursor, parseListOutcomesQuery,
 } from "@outcomego/contracts/outcomes";
 import { CreateOutcomeThreadInput, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
@@ -65,7 +65,7 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
       const revision = outcome.currentRevisionView?.revision === number
         ? outcome.currentRevisionView
         : await run(app.outcomes.getRevision(id, number));
-      return json(await app.outcomeBriefs.getResult(outcome, revision));
+      return json(await app.outcomeBriefs.getResult(outcome, revision), 200, { "cache-control": "no-store" });
     }
     if (tail === "/revisions" && request.method === "POST") return json(await run(app.outcomes.createRevision(id, await parseBody(request, CreateContractRevisionInput), actor)), 201);
     const approve = tail?.match(/^\/revisions\/([1-9]\d*)\/approve$/);
@@ -73,6 +73,8 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (tail === "/cancel" && request.method === "POST") return json(await run(app.outcomes.cancel(id, await parseBody(request, CancelOutcomeInput), actor)));
     if (tail === "/acceptance" && request.method === "POST")
       return json(await run(app.outcomeReviews.decide(id, await parseBody(request, DecideOutcomeAcceptanceInput), actor)));
+    if (tail === "/reviews/adopt-prereview" && request.method === "POST")
+      return json(await run(app.outcomeReviews.adoptPrereview(id, await parseBody(request, AdoptPrereviewInput), actor)));
     if (tail === "/reviews" && request.method === "POST") return json(await run(app.outcomeReviews.submit(id, await parseBody(request, SubmitOutcomeReviewInput), actor)));
     if (tail === "/rework" && request.method === "POST") return json(await run(app.outcomeReviews.rework(id, await parseBody(request, OutcomeReworkInput), actor)), 202);
     const runtime = app.outcomes;

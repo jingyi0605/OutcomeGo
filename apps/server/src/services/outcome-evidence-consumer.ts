@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient, type Event } from "@outcomego/db";
+import { resolveOutcomeRole } from "@outcomego/messaging";
 import type { EventWakeup } from "../event-wakeup";
 import type { OutcomeReviewService } from "./outcome-review-service";
 import { outcomeWrite } from "./outcome-write";
@@ -31,15 +32,19 @@ export class OutcomeEvidenceConsumer {
       WHERE ${pendingOutcomeEvidenceEventSql}
       ORDER BY event."sequence" ASC LIMIT 100
     `);
+    const resolvedReviewer = await resolveOutcomeRole(this.prisma, "reviewer");
+    const useReviewerRole = resolvedReviewer.status === "configured" || resolvedReviewer.status === "model_only";
     let processed = 0;
     for (const event of events) {
       if (signal?.aborted) break;
       const envelope = event.payload as { eventId?: string; workItemId?: string; payload?: { outputId?: string; to?: string } };
       if (event.topic === "outcome.output.recorded" && envelope.payload?.outputId) {
         await this.reviews.recordOutputEvidence(envelope.payload.outputId);
-        const output = await this.prisma.outcomeOutput.findUnique({ where: { id: envelope.payload.outputId }, select: { workItemId: true } });
-        if (output) await this.reviews.prereview(output.workItemId, signal);
-      } else if (envelope.payload?.to === "completed" && envelope.workItemId) {
+        if (!useReviewerRole) {
+          const output = await this.prisma.outcomeOutput.findUnique({ where: { id: envelope.payload.outputId }, select: { workItemId: true } });
+          if (output) await this.reviews.prereview(output.workItemId, signal);
+        }
+      } else if (!useReviewerRole && envelope.payload?.to === "completed" && envelope.workItemId) {
         await this.reviews.prereview(envelope.workItemId, signal);
       }
       if (signal?.aborted) break;

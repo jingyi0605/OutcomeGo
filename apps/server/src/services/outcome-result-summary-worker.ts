@@ -14,6 +14,7 @@ export class OutcomeResultSummaryWorker {
     private readonly prisma: Pick<PrismaClient, "outcome">,
     private readonly outcomes: Pick<OutcomeService, "get">,
     private readonly briefs: Pick<OutcomeBriefService, "getResult">,
+    private readonly ensurePrereview?: (outcomeId: string, revision: { id: string; revision: number }) => Promise<boolean>,
   ) {}
 
   start(): void {
@@ -33,7 +34,7 @@ export class OutcomeResultSummaryWorker {
     let after: string | undefined;
     while (!signal?.aborted) {
       const page: { id: string }[] = await this.prisma.outcome.findMany({
-        where: { status: "review_pending", id: after ? { gt: after } : undefined },
+        where: { status: { in: ["review_pending", "decision_pending"] }, id: after ? { gt: after } : undefined },
         select: { id: true },
         orderBy: { id: "asc" },
         take: BATCH_SIZE,
@@ -42,8 +43,14 @@ export class OutcomeResultSummaryWorker {
         if (signal?.aborted) return;
         try {
           const outcome = await Effect.runPromise(this.outcomes.get(id));
-          if (outcome.status === "review_pending" && outcome.currentRevisionView && !signal?.aborted) {
-            await this.briefs.getResult(outcome, outcome.currentRevisionView, signal);
+          const revision = outcome.currentRevisionView;
+          if (!revision || signal?.aborted || !["review_pending", "decision_pending"].includes(outcome.status)) return;
+          if (outcome.prereview || outcome.prereviewStatus === "pending") return;
+          if (revision.status === "approved" && outcome.prereviewStatus !== "unreviewed" &&
+              await this.ensurePrereview?.(id, revision)) return;
+          // Preserve the background summary when there is no current, runnable review.
+          if (outcome.status === "review_pending" && !signal?.aborted) {
+            await this.briefs.getResult(outcome, revision, signal);
           }
         } catch (error) {
           if (!signal?.aborted) console.warn("Outcome results summary generation failed", id, error);

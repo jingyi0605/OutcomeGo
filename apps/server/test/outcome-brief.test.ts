@@ -309,6 +309,29 @@ test("results summary draws on both the final report and the measurement for the
   expect(prompts[1]).toContain("Cache was measured again.");
 });
 
+test("a new work-item decision invalidates the result report without treating the decision as verified evidence", async () => {
+  const revision = outcome.currentRevisionView!;
+  const completed = {
+    ...outcome,
+    workItems: [{ id: "item", contractRevision: 1 }],
+    outputs: [{ id: "report", workItemId: "item", title: "Earlier report", content: "Cache use is 63%." }],
+  } as OutcomeDetail;
+  let decisions: NonNullable<Parameters<typeof outcomeResultInput>[2]> = [];
+  const store = { ...memoryStore(), decisionRecords: async () => [...decisions] };
+  const prompts: string[] = [];
+  const service = new OutcomeBriefService(async ({ prompt }) => {
+    prompts.push(prompt);
+    const source = JSON.parse(prompt).sources[0];
+    return { text: JSON.stringify({ summary: "Recorded findings", details: "", citations: [{ id: source.id, quote: source.text }] }) };
+  }, store);
+  await service.getResult(completed, revision);
+  decisions = [{ id: "later", createdAt: new Date("2026-11-22T06:00:00Z"), completedSummary: "The saved receipt reports deletion at 13:11.", problemSummary: "It happened ahead of schedule." }];
+  const report = await service.getResult(completed, revision);
+  expect(prompts).toHaveLength(2);
+  expect(JSON.parse(prompts[1]!).sources[0]).toMatchObject({ id: "later", credibility: "agent_report" });
+  expect(report?.sources[0]?.quote).toContain("13:11");
+});
+
 test("results summary retries after an unsupported source quote", async () => {
   const revision = outcome.currentRevisionView!;
   const content = "Cache usage fell from 84% to 63%.";
@@ -355,8 +378,8 @@ test("background scan persists pending acceptance results and retries a failed g
   const worker = new OutcomeResultSummaryWorker(
     {
       outcome: {
-        findMany: async (query: { where: { status: string } }) => {
-          expect(query.where.status).toBe("review_pending");
+        findMany: async (query: { where: { status: { in: string[] } } }) => {
+          expect(query.where.status.in).toEqual(["review_pending", "decision_pending"]);
           return [{ id: pending.id }];
         },
       },
@@ -374,6 +397,46 @@ test("background scan persists pending acceptance results and retries a failed g
     throw new Error("must use saved summary");
   }, store);
   expect((await restarted.getResult(pending, pending.currentRevisionView!))?.summary).toBe(content);
+});
+
+test("pending and completed role reviews never generate a separate results summary", async () => {
+  const revision = { ...outcome.currentRevisionView!, status: "approved" as const };
+  const report = { outcomeId: outcome.id, revisionId: revision.id, reviewTurnId: "review-1", summary: "Keep the current settings.", details: "", sources: [], charts: [] };
+  const candidate = {
+    ...outcome, status: "decision_pending", currentRevisionView: revision,
+    workItems: [{ id: "item", contractRevision: 1 }],
+    outputs: [{ id: "report", workItemId: "item", title: "Results", content: "Existing record" }],
+  } as OutcomeDetail;
+  let inferenceCalls = 0;
+  const infer = async () => {
+    inferenceCalls++;
+    return { text: JSON.stringify({ summary: "Recorded result", details: "", citations: [{ id: "report", quote: "Existing record" }] }) };
+  };
+  const writer = new OutcomeBriefService(infer, { ...memoryStore(), hasReviewer: async () => true });
+  expect(await writer.getResult({ ...candidate, prereviewStatus: "stale" }, revision)).toBeNull();
+  expect(await writer.getResult({ ...candidate, prereviewStatus: "pending" }, revision)).toBeNull();
+  const reviewed = {
+    ...candidate, prereview: { turnId: report.reviewTurnId, revision: 1, summary: report.summary,
+      attention: [], results: [], report, createdAt: outcome.createdAt },
+  };
+  const server = new OutcomeBriefService(infer);
+  expect(await server.getResult(reviewed, revision)).toEqual(report);
+  let current = candidate;
+  const queued: string[] = [];
+  const scanner = new OutcomeResultSummaryWorker(
+    { outcome: { findMany: async () => [{ id: outcome.id }] } } as never,
+    { get: () => Effect.succeed(current) }, server,
+    async (id) => { queued.push(id); return true; },
+  );
+  await scanner.scan();
+  current = { ...candidate, status: "review_pending" };
+  await scanner.scan();
+  current = { ...candidate, prereviewStatus: "pending" };
+  await scanner.scan();
+  current = reviewed;
+  await scanner.scan();
+  expect(queued).toEqual([outcome.id, outcome.id]);
+  expect(inferenceCalls).toBe(0);
 });
 
 test("reports retain all five chart types with grounded values and omit unsupported charts", () => {

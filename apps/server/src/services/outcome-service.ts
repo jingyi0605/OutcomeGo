@@ -23,12 +23,16 @@ import {
   type OutcomeEventTopic,
   type OutcomeEventPayloads,
   type OutcomeListPage,
+  type OutcomePrereviewView,
   type OutcomeStatus,
+  parseOutcomePlan,
   parseOutcomeWorkItemProgress,
   type PlanningConflict,
   type PlanningDraftView,
   type StartOutcomeRunInput,
+  type TaskReviewFinding,
   type TrackOutcomeInput,
+  type WorkItemReviewView,
   resolvePlanningSelections,
 } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
@@ -37,7 +41,8 @@ import type { RunService } from "./run-service";
 import { hashRequest, serviceEffect, toJson } from "./service-utils";
 import { lockExploreIdea } from "./explore-state";
 
-import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, enqueueOutcomeTurn, readOutcomeTranscript, type AgentMessaging, type ActorRef } from "@outcomego/messaging";
+import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, enqueueOutcomeTurn, readOutcomeTranscript, isReviewBatchEvidence, outcomeReviewBatchKey, outcomeReviewDecisionFilter, type AgentMessaging, type ActorRef } from "@outcomego/messaging";
+import { topologicalPlanOrder } from "./outcome-plan-service";
 export type { ActorRef } from "@outcomego/messaging";
 
 type Tx = Prisma.TransactionClient;
@@ -77,10 +82,21 @@ const asBoundaries = (value: Prisma.JsonValue) => {
 const detailInclude = {
   currentRevision: { include: { criteria: { orderBy: { ordinal: "asc" } } } },
   revisions: { orderBy: { revision: "asc" }, select: { id: true, revision: true, status: true, changeSummary: true, baseRevisionId: true, sourceDecisionId: true, createdBy: true, createdAt: true } },
-  workItems: { orderBy: { ordinal: "asc" }, include: { contractRevision: { select: { revision: true } }, runs: { select: { id: true }, orderBy: { createdAt: "asc" } } } },
+  workItems: { orderBy: { ordinal: "asc" }, include: { contractRevision: { select: { revision: true, plan: true } }, runs: { select: { id: true }, orderBy: { createdAt: "asc" } } } },
   outputs: { orderBy: { createdAt: "asc" } },
   evidence: { orderBy: { capturedAt: "asc" }, include: { contractRevision: { select: { revision: true } } } },
   reviews: { orderBy: [{ criterionId: "asc" }, { sequence: "asc" }], include: { contractRevision: { select: { revision: true } } } },
+  decisions: { where: outcomeReviewDecisionFilter, select: { id: true, contractRevisionId: true, status: true } },
+  threads: {
+    where: { role: "reviewer" },
+    include: {
+      turns: {
+        where: { purpose: { in: ["review", "review_task"] } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { id: true, purpose: true, status: true, workItemId: true, result: true, createdAt: true, clientRequestId: true },
+      },
+    },
+  },
 } satisfies Prisma.OutcomeInclude;
 
 type OutcomeRow = Prisma.OutcomeGetPayload<{ include: typeof detailInclude }>;
@@ -96,7 +112,7 @@ export class OutcomeService {
   constructor(
     private readonly prisma: PrismaClient,
     private readonly messaging?: AgentMessaging,
-    private readonly runService?: Pick<RunService, "cancel"> & Partial<Pick<RunService, "cancelOutcomeWorkItems">>,
+    private readonly runService?: Pick<RunService, "cancel"> & Partial<Pick<RunService, "cancelOutcomeWorkItems" | "cancelOutcomeRoleRuns">>,
     private readonly onRevisionCreated?: (tx: Tx, outcomeId: string, actor: ActorRef) => Promise<void>,
     /** Called after a goal or contract revision is committed, e.g. to pre-generate its overview. */
     private readonly onContractSaved?: (outcome: OutcomeDetail) => void,
@@ -206,6 +222,8 @@ export class OutcomeService {
       this.idempotent(`outcome-approve:${outcomeId}`, input.clientRequestId, { revisionNumber, ...input }, async (tx) => {
         const outcome = await this.lockOutcome(tx, outcomeId);
         this.assertOpen(outcome.status);
+        if (outcome.status === "planning")
+          throw outcomeApiError("invalid_outcome_transition", "Wait for the planner to finish before approving", { currentStatus: outcome.status });
         const revision = await tx.outcomeContractRevision.findUnique({
           where: { outcomeId_revision: { outcomeId, revision: revisionNumber } },
         });
@@ -289,19 +307,68 @@ export class OutcomeService {
   private async startApprovedRevision(
     tx: Tx,
     outcome: { id: string; title: string },
-    revision: { id: string; revision: number; executionBotId: string },
+    revision: { id: string; revision: number; executionBotId: string; plan?: Prisma.JsonValue },
     actor: ActorRef,
     clientRequestId: string,
   ) {
     if (!this.messaging) return;
     const outcomeId = outcome.id;
+    const plan = parseOutcomePlan(revision.plan);
+    const last = await tx.outcomeWorkItem.findFirst({ where: { outcomeId }, orderBy: { ordinal: "desc" }, select: { ordinal: true } });
+    let nextOrdinal = last?.ordinal ?? 0;
+
+    if (plan && plan.tasks.length) {
+      const existingItems = await tx.outcomeWorkItem.findMany({
+        where: { outcomeId, contractRevisionId: revision.id, executorType: "agent", planKey: { not: null } },
+        select: { id: true, planKey: true },
+      });
+      const itemIdByKey = new Map(existingItems.filter((row) => row.planKey).map((row) => [row.planKey!, row.id]));
+      for (const task of topologicalPlanOrder(plan.tasks)) {
+        if (itemIdByKey.has(task.key)) continue;
+        const depIds = (task.dependsOn ?? [])
+          .map((depKey) => itemIdByKey.get(depKey))
+          .filter((depId): depId is string => Boolean(depId));
+        nextOrdinal += 1;
+        const created = await tx.outcomeWorkItem.create({
+          data: {
+            outcomeId,
+            contractRevisionId: revision.id,
+            botId: task.botId,
+            executorType: "agent",
+            kind: "initial",
+            title: task.title,
+            instructions: task.instructions,
+            planKey: task.key,
+            dependsOn: depIds,
+            status: "queued",
+            ordinal: nextOrdinal,
+          },
+        });
+        itemIdByKey.set(task.key, created.id);
+        await appendOutcomeEvent(tx, "outcome.work_item.created", outcomeId, {
+          actor,
+          contractRevision: revision.revision,
+          workItemId: created.id,
+          idempotencyKey: `${clientRequestId}:${task.key}`,
+          payload: { workItemId: created.id, executorType: "agent", kind: "initial" },
+        });
+        await enqueueOutcomeTurn(tx, this.messaging, {
+          workItemId: created.id,
+          content: created.instructions,
+          reason: "start",
+          clientId: `outcome-run:${outcomeId}:${revision.revision}:${created.id}`,
+        });
+      }
+      await this.recomputeStatus(tx, outcomeId, actor);
+      return;
+    }
+
     const existing = await tx.outcomeWorkItem.findFirst({ where: { outcomeId, contractRevisionId: revision.id, executorType: "agent", kind: "initial" } });
     if (existing) return;
-    const last = await tx.outcomeWorkItem.findFirst({ where: { outcomeId }, orderBy: { ordinal: "desc" }, select: { ordinal: true } });
     const item = await tx.outcomeWorkItem.create({ data: {
       outcomeId, contractRevisionId: revision.id, botId: revision.executionBotId, executorType: "agent", kind: "initial",
       title: outcome.title, instructions: "Execute the approved Outcome contract. Return a complete final result and write deliverable files to the assigned Outcome output directory.",
-      status: "queued", ordinal: (last?.ordinal ?? 0) + 1,
+      status: "queued", ordinal: nextOrdinal + 1,
     } });
     await appendOutcomeEvent(tx, "outcome.work_item.created", outcomeId, {
       actor, contractRevision: revision.revision, workItemId: item.id, idempotencyKey: clientRequestId,
@@ -317,8 +384,13 @@ export class OutcomeService {
     serviceEffect(async () => {
       const result = await this.idempotent(`outcome-cancel:${outcomeId}`, input.clientRequestId, input, async tx => {
         const outcome = await this.lockOutcome(tx, outcomeId);
+        if (outcome.status === "cancelled") return this.detail(tx, outcomeId);
         this.assertOpen(outcome.status);
         await tx.outcome.update({ where: { id: outcomeId }, data: { cancelledAt: new Date() } });
+        await tx.outcomeThreadTurn.updateMany({
+          where: { thread: { outcomeId }, status: { in: ["queued", "running"] } },
+          data: { status: "failed", error: { code: "cancelled_by_user", message: "Goal ended by the user" } },
+        });
         if (this.onRevisionCreated) await this.onRevisionCreated(tx, outcomeId, actor);
         const unfinished = await tx.outcomeWorkItem.findMany({
           where: { outcomeId, status: { in: [...ACTIVE_AGENT_STATES, "waiting_decision", "waiting_human", ...ACTIVE_HUMAN_STATES] } }, select: { id: true },
@@ -330,12 +402,16 @@ export class OutcomeService {
         return this.detail(tx, outcomeId);
       });
       const items = await this.prisma.outcomeWorkItem.findMany({ where: { outcomeId, executorType: "agent", rootRunId: { not: null } }, select: { id: true } });
+      const stops: Array<Promise<unknown>> = [];
+      if (this.runService?.cancelOutcomeRoleRuns)
+        stops.push(stopRuns(this.runService.cancelOutcomeRoleRuns(outcomeId)));
       if (items.length) {
-        if (!this.runService?.cancelOutcomeWorkItems)
-          throw new ApiError(503, "outcome_stop_incomplete", "Outcome run-group cancellation is not configured", { retryable: true });
-        const stop = await Effect.runPromise(Effect.either(this.runService.cancelOutcomeWorkItems(items.map(item => item.id))));
-        if (stop._tag === "Left") throw stop.left;
+        stops.push(this.runService?.cancelOutcomeWorkItems
+          ? stopRuns(this.runService.cancelOutcomeWorkItems(items.map(item => item.id)))
+          : Promise.reject(new ApiError(503, "outcome_stop_incomplete", "Outcome run-group cancellation is not configured", { retryable: true })));
       }
+      const failed = (await Promise.allSettled(stops)).find(stop => stop.status === "rejected");
+      if (failed?.status === "rejected") throw failed.reason;
       return result;
     });
 
@@ -542,11 +618,11 @@ export class OutcomeService {
     }, { isolationLevel: "RepeatableRead" }));
 
   get = (outcomeId: string) =>
-    serviceEffect(async () => {
-      const row = await this.prisma.outcome.findUnique({ where: { id: outcomeId }, include: detailInclude });
+    serviceEffect(() => this.prisma.$transaction(async (tx) => {
+      const row = await tx.outcome.findUnique({ where: { id: outcomeId }, include: detailInclude });
       if (!row) throw outcomeApiError("outcome_not_found", "Outcome not found");
       return this.toDetail(row);
-    });
+    }, { isolationLevel: "RepeatableRead" }));
 
   getRevision = (outcomeId: string, revisionNumber: number) => serviceEffect(() =>
     this.prisma.$transaction(async tx => {
@@ -564,6 +640,7 @@ export class OutcomeService {
     serviceEffect(async (): Promise<OutcomeListPage> => {
       const rows = await this.prisma.outcome.findMany({
         where: {
+          ...(query.botId ? { botId: query.botId } : {}),
           ...(query.statuses.length ? { status: { in: query.statuses } } : {}),
           ...(query.query ? {
             AND: [{ OR: [
@@ -582,7 +659,19 @@ export class OutcomeService {
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,
-        include: { currentRevision: { select: { revision: true } } },
+        include: {
+          currentRevision: { select: { revision: true } },
+          threads: {
+            where: { role: "reviewer" },
+            select: {
+              turns: {
+                where: { purpose: "review", status: { in: ["queued", "running"] } },
+                select: { id: true },
+                take: 1,
+              },
+            },
+          },
+        },
       });
       const page = rows.slice(0, query.limit);
       const last = page.at(-1);
@@ -594,6 +683,7 @@ export class OutcomeService {
           botId: row.botId,
           currentRevision: row.currentRevision?.revision ?? null,
           updatedAt: row.updatedAt.toISOString(),
+          ...(row.threads.some((thread) => thread.turns.length > 0) ? { prereviewStatus: "pending" as const } : {}),
         })),
         nextCursor: rows.length > query.limit && last ? encodeOutcomeCursor(last.updatedAt.toISOString(), last.id) : null,
       };
@@ -756,6 +846,70 @@ export class OutcomeService {
   private toDetail(row: OutcomeRow): OutcomeDetail {
     const revision = row.currentRevision;
     const currentRevisionView = revision ? this.revisionView(revision, row.reviews) : null;
+    const plan = parseOutcomePlan(revision?.plan);
+    const planNatureByRevision = new Map<number, Map<string, "deliverable" | "action">>();
+    const natureForItem = (revNum: number, revPlan: Prisma.JsonValue | undefined, planKey: string | null | undefined) => {
+      if (!planKey) return null;
+      let byKey = planNatureByRevision.get(revNum);
+      if (!byKey) {
+        const parsed = parseOutcomePlan(revPlan);
+        byKey = new Map((parsed?.tasks ?? []).map((task) => [task.key, task.nature]));
+        planNatureByRevision.set(revNum, byKey);
+      }
+      return byKey.get(planKey) ?? null;
+    };
+    const reviewTurns = (row.threads ?? []).flatMap((thread) => thread.turns);
+    const taskReviewByItem = new Map<string, WorkItemReviewView>();
+    for (const turn of reviewTurns) {
+      if (turn.purpose !== "review_task" || !turn.workItemId || taskReviewByItem.has(turn.workItemId)) continue;
+      const res = turn.result && typeof turn.result === "object" && !Array.isArray(turn.result)
+        ? (turn.result as { verdict?: unknown; findings?: unknown; reworkWorkItemId?: unknown })
+        : null;
+      if (!res) continue;
+      if (res.verdict === "reject") {
+        taskReviewByItem.set(turn.workItemId, {
+          state: "rejected_once",
+          findings: Array.isArray(res.findings) ? (res.findings as TaskReviewFinding[]) : [],
+          reworkWorkItemId: typeof res.reworkWorkItemId === "string" ? res.reworkWorkItemId : null,
+        });
+      } else if (res.verdict === "pass") {
+        taskReviewByItem.set(turn.workItemId, { state: "passed", findings: [] });
+      } else if (res.verdict === "unreviewed") {
+        taskReviewByItem.set(turn.workItemId, { state: "unreviewed", findings: [] });
+      }
+    }
+    const holisticTurns = reviewTurns.filter((turn) => turn.purpose === "review");
+    const revisionItemIds = new Set(row.workItems.filter((item) => item.contractRevisionId === revision?.id).map((item) => item.id));
+    const batchKey = revision ? outcomeReviewBatchKey(
+      revision.id,
+      row.outputs.filter((output) => revisionItemIds.has(output.workItemId)),
+      row.evidence.filter((entry) => entry.contractRevisionId === revision.id && isReviewBatchEvidence(entry)),
+      (row.decisions ?? []).filter((decision) => decision.contractRevisionId === revision.id),
+    ) : null;
+    const batchTurn = holisticTurns.find((turn) => turn.clientRequestId === batchKey);
+    const prereviewTurn = batchTurn?.status === "completed" ? batchTurn : undefined;
+    const prereviewRaw = prereviewTurn?.result as {
+      revision: number;
+      summary: string;
+      attention?: OutcomePrereviewView["attention"];
+      results: OutcomePrereviewView["results"];
+      report?: OutcomePrereviewView["report"];
+    } | undefined;
+    const prereview: OutcomePrereviewView | null = prereviewTurn && prereviewRaw &&
+        prereviewRaw.revision === revision?.revision && typeof prereviewRaw.summary === "string" && Array.isArray(prereviewRaw.results)
+      ? {
+          turnId: prereviewTurn.id,
+          revision: prereviewRaw.revision,
+          summary: prereviewRaw.summary,
+          attention: Array.isArray(prereviewRaw.attention) ? prereviewRaw.attention : [],
+          results: prereviewRaw.results,
+          report: prereviewRaw.report,
+          createdAt: prereviewTurn.createdAt.toISOString(),
+        }
+      : null;
+    const prereviewStatus = prereview ? undefined
+      : batchTurn ? (["queued", "running"].includes(batchTurn.status) ? "pending" : "unreviewed")
+      : holisticTurns.length ? "stale" : undefined;
     return {
       id: row.id,
       sourceExploreId: row.sourceExploreId,
@@ -776,6 +930,7 @@ export class OutcomeService {
       workItems: row.workItems.map((item) => ({
         id: item.id,
         contractRevision: item.contractRevision.revision,
+        botId: item.botId,
         executorType: item.executorType,
         kind: item.kind,
         title: item.title,
@@ -783,6 +938,9 @@ export class OutcomeService {
         statusReason: item.statusReason,
         progress: parseOutcomeWorkItemProgress(item.progress),
         ordinal: item.ordinal,
+        planKey: item.planKey ?? null,
+        nature: natureForItem(item.contractRevision.revision, item.contractRevision.plan, item.planKey),
+        ...(taskReviewByItem.has(item.id) ? { review: taskReviewByItem.get(item.id) } : {}),
         dependsOn: asStringArray(item.dependsOn),
         rootRunId: item.rootRunId,
         runIds: item.runs.map((run) => run.id),
@@ -824,6 +982,9 @@ export class OutcomeService {
         reviewedBy: review.reviewedBy,
         reviewedAt: review.reviewedAt.toISOString(),
       })),
+      plan,
+      prereview,
+      ...(prereviewStatus ? { prereviewStatus } : {}),
     };
   }
 }

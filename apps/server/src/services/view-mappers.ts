@@ -1,5 +1,12 @@
 import type { ChannelMessageView } from "@outcomego/contracts";
-import { type BotView, type ChannelView, resolveBotAvatarMark } from "@outcomego/contracts";
+import {
+  type BotView,
+  type ChannelView,
+  type InferenceModelSelection,
+  normalizePiReasoningLevel,
+  resolveBotAvatarMark,
+  type ServerInferenceSettings,
+} from "@outcomego/contracts";
 import type { Prisma } from "@outcomego/db";
 
 export const serialize = <T>(value: T): T =>
@@ -44,12 +51,51 @@ export type BotWithConversation = Prisma.BotGetPayload<{
   };
 }>;
 
-export const toBotView = (bot: BotWithConversation): BotView => {
+export const botConfiguredModel = (bot: {
+  inferenceProvider?: string | null;
+  inferenceModel?: string | null;
+  inferenceReasoning?: string | null;
+}): InferenceModelSelection | null => {
+  if (!bot.inferenceProvider || !bot.inferenceModel) return null;
+  let reasoning: InferenceModelSelection["reasoning"];
+  if (bot.inferenceReasoning) {
+    try {
+      reasoning = normalizePiReasoningLevel(bot.inferenceReasoning);
+    } catch {
+      reasoning = undefined;
+    }
+  }
+  return {
+    providerId: bot.inferenceProvider,
+    modelId: bot.inferenceModel,
+    ...(reasoning !== undefined ? { reasoning } : {}),
+  };
+};
+
+export const botEffectiveModel = (
+  botModel: InferenceModelSelection | null,
+  globalInference?: ServerInferenceSettings | null
+): ServerInferenceSettings | null => {
+  if (!globalInference) return null;
+  if (!botModel) return globalInference;
+  return {
+    providerId: botModel.providerId,
+    modelId: botModel.modelId,
+    reasoning: botModel.reasoning ?? globalInference.reasoning,
+  };
+};
+
+export const toBotView = (
+  bot: BotWithConversation,
+  globalInference?: ServerInferenceSettings | null
+): BotView => {
   const avatar = resolveBotAvatarMark({
     agentId: bot.id,
     avatarShape: bot.icon,
     avatarColor: bot.color,
   });
+  const model = botConfiguredModel(bot);
+  const effectiveModel = botEffectiveModel(model, globalInference);
 
   return {
     id: bot.id,
@@ -76,6 +122,8 @@ export const toBotView = (bot: BotWithConversation): BotView => {
     conversationId: bot.conversation!.id,
     dmChannelId: bot.channelMemberships.find((membership) => membership.channel.kind === "bot_dm")!
       .channelId,
+    model,
+    ...(effectiveModel !== null ? { effectiveModel } : {}),
   };
 };
 
