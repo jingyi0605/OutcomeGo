@@ -398,7 +398,7 @@ export default function App() {
   useOutcomeThreadNotices();
   const outcomeBadges = useOutcomeActionCounts(outcomesEnabled);
   // The floating Bot capsule shows the same unread messages and waiting goals, per Bot.
-  useBotDockSync(snapshot, outcomeBadges.approvalByBot, outcomesEnabled);
+  useBotDockSync(snapshot, outcomeBadges.approvalByBot, outcomesEnabled, outcomeBadges);
 
   // Notify bot dock when files are being dragged in main window
   useEffect(() => {

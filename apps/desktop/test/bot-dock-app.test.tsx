@@ -74,6 +74,102 @@ describe("Bot dock capsule", () => {
     expect(render([bot("a", 1, 0)])).not.toContain("<img");
   });
 
+  test("goal management gets its own icon: yellow when goals wait on the owner, blue when results wait for review", () => {
+    const withOutcomes = (outcomes: { action: number; review: number }, bots: BotDockBotView[] = []) =>
+      renderToStaticMarkup(
+        <DockBots
+          state={{
+            bots,
+            labels: { ...labels, outcomes: "Outcomes", review: "Awaiting review" },
+            outcomes,
+          } as BotDockStateView}
+        />,
+      );
+    const both = withOutcomes({ action: 2, review: 120 });
+    // The entry shows even though no Bot has anything unread.
+    expect(both).toContain("data-dock-outcomes");
+    expect(both).toMatch(/data-dock-badge="outcome-action"[^>]*>2</);
+    expect(both).toMatch(/data-dock-badge="outcome-review"[^>]*>99\+</);
+    expect(both).toContain("dock-badge-review");
+    expect(both).toContain('aria-label="Outcomes, Pending action: 2, Awaiting review: 120"');
+    const onlyReview = withOutcomes({ action: 0, review: 1 });
+    expect(onlyReview).not.toContain("outcome-action");
+    expect(onlyReview).toContain("outcome-review");
+    const onlyAction = withOutcomes({ action: 3, review: 0 });
+    expect(onlyAction).toContain("outcome-action");
+    expect(onlyAction).not.toContain("outcome-review");
+    // Nothing waiting: no entry. Bots keep their own badges beside it.
+    expect(withOutcomes({ action: 0, review: 0 })).toBe("");
+    const beside = withOutcomes({ action: 1, review: 0 }, [bot("a", 2, 0)]);
+    expect(beside).toContain("data-dock-outcomes");
+    expect(beside).toContain('data-dock-bot="a"');
+  });
+
+  test("pressing the goal management entry opens the goals page", async () => {
+    const dom = parseHTML("<html><body></body></html>");
+    Object.assign(dom.document, { oninput: null });
+    const openGoals = mock(() => {});
+    const open = mock((_botId?: string) => {});
+    const state = {
+      bots: [],
+      roster: [],
+      labels: { ...labels, outcomes: "Outcomes", review: "Awaiting review" },
+      outcomes: { action: 1, review: 1 },
+    };
+    const bridge: Partial<BotDockBridge> = {
+      getState: async () => state,
+      onState: () => () => {},
+      onMessageArrival: () => () => {},
+      onDockSide: () => () => {},
+      onSurfaceVisible: () => () => {},
+      onComposerAnchor: () => () => {},
+      onDroppedFiles: () => () => {},
+      resize() {},
+      openGoals,
+      open,
+    };
+    Object.defineProperty(dom.window, "botdock", { configurable: true, value: bridge });
+    Object.defineProperty(dom.window.HTMLElement.prototype, "setPointerCapture", { configurable: true, value() {} });
+    const descriptors = new Map<string, PropertyDescriptor | undefined>();
+    for (const [key, value] of Object.entries({
+      window: dom.window,
+      document: dom.document,
+      IS_REACT_ACT_ENVIRONMENT: true,
+      matchMedia: () => ({ matches: true, addEventListener() {}, removeEventListener() {} }),
+      ResizeObserver: class {
+        observe() {}
+        disconnect() {}
+      },
+    })) {
+      descriptors.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+      Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    }
+    const { createRoot } = await import("react-dom/client");
+    const root = createRoot(dom.document.body);
+    try {
+      await act(async () => root.render(<BotDockApp />));
+      await act(async () => {});
+      const entry = dom.document.querySelector("[data-dock-outcomes]");
+      if (!entry) throw new Error("Missing goal management entry");
+      const press = (type: string) => {
+        const event = new dom.window.Event(type, { bubbles: true });
+        Object.assign(event, { button: 0, screenX: 5, screenY: 5, pointerId: 1 });
+        return act(async () => entry.dispatchEvent(event));
+      };
+      await press("pointerdown");
+      await press("pointerup");
+      expect(openGoals).toHaveBeenCalledTimes(1);
+      expect(open).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root.unmount());
+      Reflect.deleteProperty(dom.window, "botdock");
+      for (const [key, descriptor] of descriptors) {
+        if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+        else Reflect.deleteProperty(globalThis, key);
+      }
+    }
+  });
+
   test("keeps capsule layouts fixed during drag and animates only the visible composer", async () => {
     const dom = parseHTML("<html><body></body></html>");
     Object.assign(dom.document, { oninput: null });

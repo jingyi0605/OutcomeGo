@@ -24,6 +24,7 @@ export interface BotDockBridge {
   resize(width: number, height: number, layout: "compact" | "invitation" | "composer"): void;
   onSurfaceVisible(callback: (visible: boolean) => void): () => void;
   open(botId?: string): void;
+  openGoals(): void;
   attachDroppedFiles(files: DockFile[], rejected: boolean): void;
   onDroppedFiles(callback: (drop: { files: DockFile[]; rejected: boolean }) => void): () => void;
   setFileHover(active: boolean): void;

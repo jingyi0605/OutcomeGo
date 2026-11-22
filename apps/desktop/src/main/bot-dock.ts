@@ -225,6 +225,13 @@ export class DesktopBotDock {
       this.fromDock((_event, botId: unknown) => this.onOpen(botId))
     );
     listen(
+      "botdock:open-goals",
+      this.fromDock(() => {
+        this.closeComposer();
+        this.options.openGoals();
+      })
+    );
+    listen(
       "botdock:focus-app",
       this.fromDock(() => {
         this.closeComposer();

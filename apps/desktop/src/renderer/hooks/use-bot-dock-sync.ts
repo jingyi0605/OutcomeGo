@@ -23,7 +23,8 @@ const MAX_ROSTER = 100;
 export function useBotDockSync(
   snapshot: ClientSnapshot | null | undefined,
   goalsByBot: Readonly<Record<string, number>> | undefined,
-  outcomesEnabled = false
+  outcomesEnabled = false,
+  outcomeTotals?: { approval: number; review: number }
 ) {
   const bridge = typeof window === "undefined" ? undefined : window.outcomego?.botDock;
   const { t } = useI18n();
@@ -68,6 +69,8 @@ export function useBotDockSync(
     () => ({
       messages: t("Unread messages"),
       goals: t("Pending action"),
+      outcomes: t("Outcomes"),
+      review: t("Awaiting review"),
       open: t("Open OutcomeGo"),
       running: t("Bot activity in progress"),
       placeholder: t("Message the main Bot. Type @ to choose a Bot."),
@@ -93,6 +96,9 @@ export function useBotDockSync(
       theme,
       running: hasRunningBot(snapshot),
       outcomesEnabled,
+      ...(outcomesEnabled && outcomeTotals && outcomeTotals.approval + outcomeTotals.review > 0
+        ? { outcomes: { action: outcomeTotals.approval, review: outcomeTotals.review } }
+        : {}),
       roster: roster.map(({ hasAvatar, updatedAt, ...bot }) => {
         const avatar = hasAvatar ? avatars.get(`${bot.id}:${updatedAt}`) : undefined;
         return avatar ? { ...bot, avatarDataUrl: avatar } : bot;
@@ -106,7 +112,7 @@ export function useBotDockSync(
     if (serialized === lastPublished.current) return;
     lastPublished.current = serialized;
     bridge.publish(state);
-  }, [avatars, bridge, entries, labels, outcomesEnabled, roster, snapshot, theme]);
+  }, [avatars, bridge, entries, labels, outcomeTotals?.approval, outcomeTotals?.review, outcomesEnabled, roster, snapshot, theme]);
 
   // What is typed in the floating composer goes out like a message typed in the chat: through
   // the durable send path, so it shows up in the conversation at once and survives going offline.

@@ -48,6 +48,22 @@ describe("Bot dock state", () => {
     });
   });
 
+  test("carries the goal record counts, and drops them when nothing waits or the pair is invalid", () => {
+    expect(parseBotDockState({ bots: [], outcomes: { action: 2, review: 5 } })?.outcomes).toEqual({
+      action: 2,
+      review: 5,
+    });
+    const state = parseBotDockState({ bots: [], outcomes: { action: 1, review: 0 }, labels: { review: "Awaiting review" } });
+    expect(state?.outcomes).toEqual({ action: 1, review: 0 });
+    expect(state?.labels).toMatchObject({ outcomes: "Outcomes", review: "Awaiting review" });
+    // Nothing waiting, a negative or non-integer count, or a missing half: no goal entry, and the state still parses.
+    for (const outcomes of [{ action: 0, review: 0 }, { action: -1, review: 2 }, { action: 1.5, review: 0 }, { action: 1 }, "x"]) {
+      const parsed = parseBotDockState({ bots: [], outcomes });
+      expect(parsed).toBeTruthy();
+      expect(parsed && "outcomes" in parsed).toBe(false);
+    }
+  });
+
   test("null means nothing to show, and an invalid payload is rejected rather than blanking the dock", () => {
     expect(parseBotDockState(null)).toBeNull();
     expect(parseBotDockState("nope")).toBeUndefined();
