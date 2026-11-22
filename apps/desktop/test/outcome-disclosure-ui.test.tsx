@@ -1907,6 +1907,32 @@ test("summarizeOutputContent strips Markdown tables and code blocks into a reada
   expect(preview).toBe("Disk usage Share · Reclaimable cache · 120 GB");
 });
 
+test("the chat goal card shows the same plan text as the goal page, from the saved overview", async () => {
+  const pending = {
+    ...outcomeFixture,
+    status: "pending_approval",
+    currentRevisionView: { ...outcomeFixture.currentRevisionView!, status: "pending_approval", approvedAt: null, approvedBy: null },
+  } as DetailView;
+  const brief = semanticBrief(pending);
+  const render = async (inChat: boolean) => {
+    await mount(
+      <OutcomeDetail
+        outcomeId={pending.id}
+        initialOutcome={pending}
+        inChat={inChat}
+        client={{ ...client, get: async () => pending, brief: async () => brief }}
+      />
+    );
+    await act(async () => {});
+    return host.textContent ?? "";
+  };
+  const chat = await render(true);
+  expect(chat).toContain(brief.intent.title);
+  expect(chat).not.toContain("Check the proposed scope before execution starts.");
+  // The goal page reads the same overview, so both places say the same thing.
+  expect(await render(false)).toContain(brief.intent.title);
+});
+
 test("expanded chat goal card matches normal message bubble width, hides goal details, and opens them from top info button", async () => {
   const css = await Bun.file(
     new URL("../src/renderer/components/outcomego/outcomes/outcome-ui.css", import.meta.url)
@@ -1961,8 +1987,9 @@ test("expanded chat goal card matches normal message bubble width, hides goal de
   expect(host.textContent).toContain("Main cache 63%, array 34%.");
   expect(host.textContent).toContain("Current storage");
   expect(host.textContent).toContain("Use source A");
-  // Background, prerequisites, thread history, and thread composer are omitted inline.
-  expect(briefCalls).toBe(0);
+  // The card reads the goal overview once so its plan text matches the goal page, but background,
+  // prerequisites, thread history, and thread composer are omitted inline.
+  expect(briefCalls).toBe(1);
   expect(host.textContent).not.toContain("Background");
   expect(host.textContent).not.toContain("Prerequisites");
   expect(host.textContent).not.toContain("Conversation with the planner");

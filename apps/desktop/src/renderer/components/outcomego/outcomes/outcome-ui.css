@@ -2155,3 +2155,199 @@ button.outcome-chat-card-main:hover {
   --color-foreground-secondary: #fcfcfccc;
   --color-foreground-tertiary: #fcfcfcb3;
 }
+
+/*
+ * Visual hierarchy for goal decisions and reports. Each kind of content has one look, so the part that
+ * needs the owner (amber), the reviewer's own words (blue), the proposed plan (teal) and supporting
+ * evidence (muted, small) can be told apart at a glance.
+ */
+.outcome-brief,
+.outcome-chat-card {
+  --tone-action: light-dark(#966e2a, #d4b579);
+  --tone-review: light-dark(#3f6fb5, #8db4ee);
+  --tone-plan: light-dark(#2f7d73, #7cc4b9);
+  --tone-pass: light-dark(#377c56, #7bbb92);
+  --tone-fail: light-dark(#b24a4a, #e08a8a);
+}
+.outcome-now-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--eyebrow-tone, var(--brief-muted));
+}
+.outcome-now-eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--eyebrow-tone, currentColor);
+  opacity: 0.9;
+}
+.outcome-now-eyebrow[data-tone="action"] { --eyebrow-tone: var(--tone-action); }
+.outcome-now-eyebrow[data-tone="review"] { --eyebrow-tone: var(--tone-review); }
+.outcome-now-eyebrow[data-tone="muted"]::before { opacity: 0.45; }
+
+/* The question the owner must answer. */
+.outcome-now-item > h3,
+.outcome-now-line h3 {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.5;
+  color: var(--foreground);
+}
+
+/* The proposed plan the owner is asked to approve. */
+.outcome-plan-scope {
+  margin: 10px 0 4px;
+  padding: 10px 14px 11px;
+  border-left: 3px solid var(--tone-plan);
+  border-radius: 4px 10px 10px 4px;
+  background: color-mix(in srgb, var(--tone-plan) 9%, transparent);
+}
+.outcome-plan-scope-label {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--tone-plan);
+}
+.outcome-plan-scope > p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+.outcome-approval-comment {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--brief-muted, var(--foreground-secondary));
+}
+
+/* The reviewer's conclusion: the thing to read first. */
+.outcome-result-conclusion {
+  margin: 0 0 10px;
+  padding: 11px 14px;
+  border-left: 3px solid var(--tone-review);
+  border-radius: 4px 10px 10px 4px;
+  background: color-mix(in srgb, var(--tone-review) 9%, transparent);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.65;
+  color: var(--foreground);
+}
+.outcome-result-conclusion :is(p, ol, ul) {
+  margin: 0;
+}
+.outcome-result-conclusion :is(ol, ul) {
+  padding-left: 1.3em;
+}
+.outcome-result-conclusion li + li {
+  margin-top: 3px;
+}
+
+/* What the owner has to decide. */
+.outcome-result-attention {
+  margin-top: 10px;
+  padding: 10px 14px 11px;
+  border-left: 3px solid var(--tone-action);
+  border-radius: 4px 10px 10px 4px;
+  background: color-mix(in srgb, var(--tone-action) 10%, transparent);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.outcome-result-attention-title {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--tone-action);
+}
+.outcome-result-attention .outcome-brief-list > li + li {
+  margin-top: 6px;
+}
+
+/* Supporting detail stays quiet. */
+.outcome-result-report > details > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--brief-muted);
+}
+.outcome-source-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--brief-muted);
+}
+.outcome-result-report blockquote {
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Per-criterion preliminary review. */
+.outcome-prereview-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--brief-muted);
+  text-transform: none;
+}
+.outcome-criterion-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.55;
+  color: var(--foreground);
+}
+.outcome-brief-list > li > .outcome-prereview-note {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--brief-muted);
+}
+.outcome-prereview-badge {
+  display: inline-block;
+  margin-right: 7px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.7;
+  background: color-mix(in srgb, currentColor 13%, transparent);
+}
+.outcome-prereview-badge[data-suggestion="likely_pass"] { color: var(--tone-pass); }
+.outcome-prereview-badge[data-suggestion="likely_fail"] { color: var(--tone-fail); }
+.outcome-prereview-badge[data-suggestion="unclear"] { color: var(--tone-action); }
+
+/* Content of the dashboard's first-priority goal: the plan to approve or the conclusion to accept. */
+.outcome-dash-detail {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.outcome-dash-detail .outcome-plan-scope,
+.outcome-dash-detail .outcome-result-conclusion,
+.outcome-dash-detail .outcome-result-attention {
+  margin: 0;
+}
+.outcome-dash-criteria {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--foreground-secondary);
+}
+.outcome-dash-criteria-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.outcome-dash-criteria ul {
+  margin: 0;
+  padding-left: 1.2em;
+  list-style: disc;
+  color: var(--foreground);
+}

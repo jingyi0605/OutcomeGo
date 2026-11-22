@@ -36,6 +36,7 @@ import {
   waitingMinutes,
   type AttentionRow,
 } from "./dashboard-state";
+import { GoalFocusDetail, type GoalFocusClient } from "./goal-focus";
 import { QuickDecision } from "./quick-decision";
 
 interface Loaded {
@@ -113,11 +114,13 @@ function CategoryTag({ category }: { category: OutcomeInboxCategory }) {
 function FocusStep({
   row,
   inbox,
+  outcomes,
   onOpen,
   onResolved,
 }: {
   row: AttentionRow;
   inbox: Pick<InboxClient, "decision" | "resolve">;
+  outcomes: GoalFocusClient;
   onOpen: () => void;
   onResolved: () => void;
 }) {
@@ -127,6 +130,16 @@ function FocusStep({
     { text: row.next || row.completed, tone: undefined },
     { text: row.problem, tone: "problem" },
   ].filter((line) => line.text.trim());
+  const facts = lines.length > 0 && (
+    <div className="outcome-dash-facts">
+      {lines.map((line) => (
+        <p key={line.tone ?? "next"} data-tone={line.tone} title={line.text}>
+          {brief(line.text)}
+        </p>
+      ))}
+    </div>
+  );
+  const decision = Boolean(row.step?.decisionId && row.category === "decision_pending");
   return (
     <article className="outcome-dash-focus" data-category={row.category}>
       <div className="outcome-dash-focus-meta">
@@ -135,31 +148,20 @@ function FocusStep({
         <Waiting since={row.since} />
       </div>
       <h3 className="outcome-dash-focus-title">{row.title}</h3>
-      {lines.length > 0 && (
-        <div className="outcome-dash-facts">
-          {lines.map((line) => (
-            <p key={line.tone ?? "next"} data-tone={line.tone} title={line.text}>
-              {brief(line.text)}
-            </p>
-          ))}
-        </div>
+      {decision ? (
+        <>
+          {facts}
+          <div className="outcome-dash-focus-actions">
+            <QuickDecision decisionId={row.step!.decisionId!} client={inbox} onResolved={onResolved} />
+            <OutcomeButton variant="ghost" className="outcome-dash-details" onClick={onOpen}>
+              {t("View details")}
+              <ChevronRight aria-hidden="true" className="size-3.5" />
+            </OutcomeButton>
+          </div>
+        </>
+      ) : (
+        <GoalFocusDetail row={row} outcomes={outcomes} fallback={facts} onOpen={onOpen} onResolved={onResolved} />
       )}
-      <div className="outcome-dash-focus-actions">
-        {row.step?.decisionId && row.category === "decision_pending" ? (
-          <QuickDecision decisionId={row.step.decisionId} client={inbox} onResolved={onResolved} />
-        ) : (
-          <OutcomeButton variant="default" onClick={onOpen}>
-            {t(attentionVerbs[row.category])}
-            <ChevronRight aria-hidden="true" className="size-3.5" />
-          </OutcomeButton>
-        )}
-        {row.step?.decisionId && row.category === "decision_pending" && (
-          <OutcomeButton variant="ghost" className="outcome-dash-details" onClick={onOpen}>
-            {t("View details")}
-            <ChevronRight aria-hidden="true" className="size-3.5" />
-          </OutcomeButton>
-        )}
-      </div>
     </article>
   );
 }
@@ -201,7 +203,7 @@ export function OutcomeDashboard({
   onCreateIdea,
   refreshVersion = 0,
 }: {
-  outcomes: Pick<OutcomeClient, "list">;
+  outcomes: Pick<OutcomeClient, "list"> & GoalFocusClient;
   inbox: Pick<InboxClient, "list" | "decision" | "resolve">;
   bots: readonly OutcomeExecutionBot[];
   onSelectOutcome: (id: string) => void;
@@ -341,6 +343,7 @@ export function OutcomeDashboard({
             key={focus.key}
             row={focus}
             inbox={inbox}
+            outcomes={outcomes}
             onOpen={() => open(focus)}
             onResolved={() => void load()}
           />

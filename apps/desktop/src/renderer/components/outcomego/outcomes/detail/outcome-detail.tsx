@@ -594,7 +594,7 @@ export function OutcomeDetail({
             return (
               <section className="outcome-now" aria-label={translateCurrent("What needs you now")}>
                 {!inChat && (
-                  <p className="outcome-now-eyebrow">{translateCurrent("What needs you now")}</p>
+                  <p className="outcome-now-eyebrow" data-tone="action">{translateCurrent("What needs you now")}</p>
                 )}
                 {onAction && visibleActionItems.length > 0 && (
                   <OutcomeActionItems

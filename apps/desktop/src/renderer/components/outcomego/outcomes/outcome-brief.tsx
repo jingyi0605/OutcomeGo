@@ -90,10 +90,13 @@ export function OutcomeApprovalScope({
       ? `${intent.explanation}\n\n${intent.quote}`
       : undefined;
   return (
-    <p>
-      {intent?.title ?? t("Check the proposed scope before execution starts.")}
-      {source && <OutcomeSourceInfo text={source} name={t("Proposed plan")} />}
-    </p>
+    <div className="outcome-plan-scope">
+      <span className="outcome-plan-scope-label">{t("Proposed plan")}</span>
+      <p>
+        {intent?.title ?? revision?.goal[0] ?? t("Check the proposed scope before execution starts.")}
+        {source && <OutcomeSourceInfo text={source} name={t("Proposed plan")} />}
+      </p>
+    </div>
   );
 }
 function Status({ value }: { value: Readiness }) {
@@ -154,7 +157,7 @@ export function OutcomeBriefView({
   const [state, setState] = useState<{ key: string; brief?: OutcomeBrief; error?: boolean }>();
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (hideFacts || !client.brief) return;
+    if (!client.brief) return;
     let active = true;
     setState({ key: sourceKey });
     void client.brief(outcome.id).then(
@@ -176,15 +179,17 @@ export function OutcomeBriefView({
     return () => {
       active = false;
     };
-  }, [sourceKey, client.brief, hideFacts, retry]);
+  }, [sourceKey, client.brief, retry]);
+  const brief = state?.key === sourceKey ? state.brief : undefined;
+  // Compact hosts such as the chat card hide the fact list but still need the overview's plan text,
+  // so they read the same brief as the full goal page.
   if (hideFacts) {
     return (
       <section className="outcome-brief" aria-label={t("Goal overview")}>
-        {typeof children === "function" ? children(undefined) : children}
+        {typeof children === "function" ? children(brief) : children}
       </section>
     );
   }
-  const brief = state?.key === sourceKey ? state.brief : undefined;
   const loading = Boolean(
     client.brief && (state?.key !== sourceKey || (!state?.brief && !state?.error))
   );

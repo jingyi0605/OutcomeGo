@@ -124,13 +124,15 @@ export function OutcomeResultReportContent({ report }: { report: OutcomeResultSu
   const hasCharts = Boolean(report.charts?.length);
   return (
     <div className="outcome-result-report" data-has-charts={hasCharts ? "true" : undefined}>
-      <p className="outcome-now-eyebrow">{translateCurrent(report.reviewTurnId ? "Reviewer’s conclusion · advisory" : "Results summary · not reviewed")}</p>
+      <p className="outcome-now-eyebrow" data-tone={report.reviewTurnId ? "review" : "muted"}>{translateCurrent(report.reviewTurnId ? "Reviewer’s conclusion · advisory" : "Results summary · not reviewed")}</p>
       <div className={hasCharts ? "outcome-result-split" : undefined}>
         <div className="outcome-result-copy">
-          <MessageResponse textOnly>{report.summary}</MessageResponse>
+          <div className="outcome-result-conclusion">
+            <MessageResponse textOnly>{report.summary}</MessageResponse>
+          </div>
           {!!report.attention?.length && (
             <section aria-label={translateCurrent("Needs your attention")} className="outcome-result-attention">
-              <strong>{translateCurrent("Needs your attention")}</strong>
+              <strong className="outcome-result-attention-title">{translateCurrent("Needs your attention")}</strong>
               <ul className="outcome-brief-list">
                 {report.attention.map((question, index) => <li key={index}>{question}</li>)}
               </ul>
@@ -150,7 +152,7 @@ export function OutcomeResultReportContent({ report }: { report: OutcomeResultSu
           <ul className="outcome-brief-list">
             {report.sources.map(({ title, quote, credibility }, index) => (
               <li key={index}>
-                <strong>{translateCurrent(credibility ? sourceLabels[credibility] : title)}</strong>
+                <strong className="outcome-source-label">{translateCurrent(credibility ? sourceLabels[credibility] : title)}</strong>
                 <blockquote className="whitespace-pre-wrap">{quote}</blockquote>
               </li>
             ))}

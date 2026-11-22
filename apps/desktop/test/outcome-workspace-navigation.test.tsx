@@ -389,6 +389,32 @@ test("a goal waiting on the owner without an Inbox step still reaches the owner'
   expect(focus()?.querySelector(".outcome-dash-quick")).toBeNull();
 });
 
+test("the focus card shows the plan awaiting approval and approves it in place", async () => {
+  current = {
+    ...outcomeFixture,
+    id: "outcome-2",
+    title: "Prepare the delivery",
+    status: "pending_approval",
+    currentRevisionView: { ...outcomeFixture.currentRevisionView!, status: "pending_approval", approvedAt: null, approvedBy: null },
+  };
+  list = async () => ({
+    items: [{ ...outcomeFixture, id: "outcome-2", title: "Prepare the delivery", status: "pending_approval" }],
+    nextCursor: null,
+  });
+  inboxItems = [];
+  calls.length = 0;
+  await mount(page());
+  await settle();
+  const card = focus()!;
+  // The owner sees what is being approved, not only the goal's title.
+  expect(card.querySelector(".outcome-plan-scope")?.textContent).toContain("Recommend a plan");
+  expect(card.textContent).toContain("Compare costs");
+  await click("Yes, approve", card);
+  const approve = calls.find((call) => call.path.endsWith("/approve"));
+  expect(approve?.body).toMatchObject({ expectedRevision: 1 });
+  expect(approve?.path).toContain("/api/outcomes/outcome-2/");
+});
+
 test("the focus card answers an approval with one click and records the exact option", async () => {
   decisionView = {
     ...decisionFixture,

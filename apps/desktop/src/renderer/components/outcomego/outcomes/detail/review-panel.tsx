@@ -364,8 +364,13 @@ export function ReviewPanel({
     <ul className="outcome-brief-list">
       {items.map(({ criterion, result }) => (
         <li key={criterion.id}>
-          <strong>{criterion.statement}</strong>
-          <p>{translateCurrent(PREREVIEW_LABELS[result.suggestion])} · {result.reason}</p>
+          <strong className="outcome-criterion-title">{criterion.statement}</strong>
+          <p className="outcome-prereview-note">
+            <span className="outcome-prereview-badge" data-suggestion={result.suggestion}>
+              {translateCurrent(PREREVIEW_LABELS[result.suggestion])}
+            </span>
+            {result.reason}
+          </p>
         </li>
       ))}
     </ul>
@@ -393,7 +398,7 @@ export function ReviewPanel({
     >
       <div className="outcome-now">
         <div className="outcome-review-header">
-          <p className="outcome-now-eyebrow">{translateCurrent("Acceptance summary")}</p>
+          <p className="outcome-now-eyebrow" data-tone="action">{translateCurrent("Acceptance summary")}</p>
           {onClose && (
             <OutcomeButton variant="ghost" onClick={onClose}>
               {translateCurrent("Hide review")}
@@ -421,7 +426,7 @@ export function ReviewPanel({
             className="outcome-card mt-3 space-y-2"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-medium">
+              <p className="outcome-prereview-title">
                 {translateCurrent("Preliminary review (revision {revision})", {
                   revision: outcome.prereview.revision,
                 })}
@@ -449,7 +454,7 @@ export function ReviewPanel({
               </p>
             ) : (
               <>
-                {!currentReview?.report && <p className="whitespace-pre-wrap text-xs">{outcome.prereview.summary}</p>}
+                {!currentReview?.report && <p className="outcome-result-conclusion whitespace-pre-wrap">{outcome.prereview.summary}</p>}
                 {attentionResults.length > 0 && renderSuggestions(attentionResults)}
                 {otherSuggestions.length > 0 && (
                   <details className="outcome-technical">
@@ -458,11 +463,11 @@ export function ReviewPanel({
                   </details>
                 )}
                 {!currentReview?.report && outcome.prereview.attention.length > 0 && (
-                  <div className="space-y-1 text-xs">
-                    <p className="font-medium text-amber-700 dark:text-amber-300">
+                  <div className="outcome-result-attention">
+                    <strong className="outcome-result-attention-title">
                       {translateCurrent("Needs your attention")}
-                    </p>
-                    <ul className="list-disc space-y-1 pl-4">
+                    </strong>
+                    <ul className="outcome-brief-list">
                       {outcome.prereview.attention.map((item, idx) => (
                         <li key={`${item.criterionId ?? "item"}-${idx}`}>{item.question}</li>
                       ))}
