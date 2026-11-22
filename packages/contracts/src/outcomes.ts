@@ -267,7 +267,6 @@ export const PLAN_LIMITS = {
   instructionsChars: 8_000,
   notesChars: 2_000,
   environmentNoteChars: 8_000,
-  prereviewSummaryChars: 1_500,
   reasonChars: 1_000,
   noteChars: 2_000,
 } as const;
@@ -736,10 +735,16 @@ export interface OutcomeWorkThreadView {
   title: string;
   status: WorkItemStatus;
   completedAt: string | null;
+  /** Queued behind an earlier task of the same plan that has not completed: no run exists yet. */
+  waitingOnDependency?: boolean;
 }
 
 export const workThreadIsFinished = (status: WorkItemStatus) =>
   status === "completed" || status === "accepted" || status === "failed" || status === "cancelled";
+
+/** A task that is still waiting for an earlier one has no run to end; only the goal itself can be stopped. */
+export const workThreadCanStop = (thread: Pick<OutcomeWorkThreadView, "status" | "waitingOnDependency">) =>
+  !workThreadIsFinished(thread.status) && !thread.waitingOnDependency;
 
 export interface OutcomeWorkThreadPage {
   items: OutcomeWorkThreadView[];

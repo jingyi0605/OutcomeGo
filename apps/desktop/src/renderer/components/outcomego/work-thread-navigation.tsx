@@ -1,5 +1,5 @@
 import type { ChannelView } from "@outcomego/contracts";
-import { workThreadIsFinished, type OutcomeWorkThreadView } from "@outcomego/contracts/outcomes";
+import { workThreadCanStop, type OutcomeWorkThreadView } from "@outcomego/contracts/outcomes";
 import { Archive, ChevronRight, MessagesSquare, Square } from "lucide-react";
 import { outcomeErrorMessage } from "./outcomes/planning/outcome-client";
 import { type CSSProperties, useContext, useEffect, useState } from "react";
@@ -95,8 +95,8 @@ function ThreadList({ channelId, botId, archived, onSelect }: {
             const title = entry.kind === "chat" ? entry.branch.title.trim() || t("Chat branch") : entry.thread.title;
             const subtitle = entry.kind === "chat"
               ? `${t("Chat branch")} · ${new Date(entry.branch.updatedAt).toLocaleString(locale)}`
-              : `${entry.thread.outcomeTitle} · ${t(entry.thread.status)}`;
-            const canStop = entry.kind === "chat" ? entry.branch.running : !workThreadIsFinished(entry.thread.status) && Boolean(api.outcomes.stopWorkThread);
+              : `${entry.thread.outcomeTitle} · ${t(entry.thread.waitingOnDependency ? "Waiting for the previous task" : entry.thread.status)}`;
+            const canStop = entry.kind === "chat" ? entry.branch.running : workThreadCanStop(entry.thread) && Boolean(api.outcomes.stopWorkThread);
             return (
               <li key={entryKey(entry)} className="flex items-center gap-1">
                 <Button type="button" variant="ghost" className="h-auto min-w-0 flex-1 justify-start gap-2 px-2 py-1.5 text-left" onClick={() => onSelect(entry)}>

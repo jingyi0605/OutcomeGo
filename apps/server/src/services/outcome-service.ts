@@ -595,14 +595,29 @@ export class OutcomeService {
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: limit + 1,
         select: { id: true, outcomeId: true, outcome: { select: { title: true } }, botId: true,
-          title: true, status: true, completedAt: true, updatedAt: true },
+          title: true, status: true, completedAt: true, updatedAt: true, dependsOn: true },
       });
       const items = rows.slice(0, limit);
       const last = items.at(-1);
+      const dependencyIds = (value: unknown): string[] =>
+        Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+      const queuedDependencies = [...new Set(items.filter((row) => row.status === "queued").flatMap((row) => dependencyIds(row.dependsOn)))];
+      const dependencyStatus = new Map(
+        (queuedDependencies.length
+          ? await this.prisma.outcomeWorkItem.findMany({ where: { id: { in: queuedDependencies } }, select: { id: true, status: true } })
+          : []
+        ).map((row) => [row.id, row.status]),
+      );
+      const waitingOnDependency = (row: (typeof items)[number]) =>
+        row.status === "queued" && dependencyIds(row.dependsOn).some((id) => {
+          const status = dependencyStatus.get(id);
+          return status !== "completed" && status !== "accepted";
+        });
       return {
-        items: items.map(({ id, outcomeId, outcome, botId, title, status, completedAt }) => ({
-          id, outcomeId, outcomeTitle: outcome.title, botId, title, status,
-          completedAt: completedAt?.toISOString() ?? null,
+        items: items.map((row) => ({
+          id: row.id, outcomeId: row.outcomeId, outcomeTitle: row.outcome.title, botId: row.botId,
+          title: row.title, status: row.status, completedAt: row.completedAt?.toISOString() ?? null,
+          ...(waitingOnDependency(row) ? { waitingOnDependency: true } : {}),
         })),
         nextCursor: rows.length > limit && last ? encodeOutcomeCursor(last.updatedAt.toISOString(), last.id) : null,
       };

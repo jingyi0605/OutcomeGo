@@ -386,6 +386,7 @@ export const sourceTranslations: Record<string, string> = {
   "Send a text-only reply to the goal planner.": "请向目标的规划机器人发送纯文本回复。",
   "Conversation threads for {name}": "{name}的子对话",
   "Loading conversation threads…": "正在加载子对话…",
+  "Waiting for the previous task": "等待上一任务",
   "Could not load all conversation threads.": "部分子对话无法加载。",
   "No recent conversation threads": "暂无近期子对话",
   "Chat branch": "聊天分支",
