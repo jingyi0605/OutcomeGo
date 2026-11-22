@@ -1941,6 +1941,7 @@ export interface RunView {
   status: RunStatus;
   runtimeTurnId: string | null;
   origin: RunOrigin;
+  isFork?: boolean;
   channelId: string | null;
   deliveryId: string | null;
   error: unknown;
@@ -1958,6 +1959,7 @@ export interface SubagentActivityView {
   subagentId: string;
   parentBotId: string;
   parentRunId: string;
+  parentIsThread?: boolean;
   parentChannelId: string;
   parentToolCallId: string;
   currentRunId: string | null;

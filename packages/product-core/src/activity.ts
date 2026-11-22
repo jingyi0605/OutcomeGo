@@ -1,4 +1,5 @@
 import type { RunItemView, RunView, SubagentActivityView } from "@outcomego/contracts";
+import { isActiveRunStatus } from "./statuses";
 
 /** Attempts that can currently execute; parked children still retain ownership. */
 export const EXECUTING_ASYNC_TASK_STATUSES = new Set<SubagentActivityView["status"]>([
@@ -44,6 +45,31 @@ export const activeAsyncTaskChannelIds = (
       .filter((attempt) => EXECUTING_ASYNC_TASK_STATUSES.has(attempt.status))
       .map((attempt) => attempt.parentChannelId)
   );
+
+/**
+ * Channels with at least one running thread (an Outcome work-item turn or a
+ * branched chat reply, including executing child subagents spawned by one).
+ */
+export const activeThreadChannelIds = (
+  runs: readonly RunView[],
+  attempts: readonly SubagentActivityView[] = []
+): ReadonlySet<string> => {
+  const channels = new Set<string>();
+  const threadRunIds = new Set<string>();
+  for (const run of runs) {
+    if (!run.channelId) continue;
+    if (run.origin !== "outcome" && run.isFork !== true) continue;
+    threadRunIds.add(run.id);
+    if (isActiveRunStatus(run.status)) channels.add(run.channelId);
+  }
+  for (const attempt of attempts) {
+    if (!EXECUTING_ASYNC_TASK_STATUSES.has(attempt.status)) continue;
+    if (attempt.parentIsThread === true || threadRunIds.has(attempt.parentRunId)) {
+      channels.add(attempt.parentChannelId);
+    }
+  }
+  return channels;
+};
 
 export const asyncTaskElapsed = (task: SubagentActivityView, nowMs: number): string => {
   const startedAtMs = new Date(task.startedAt ?? task.createdAt).getTime();

@@ -24,11 +24,15 @@ type StoredAttempt = {
   };
 };
 
-export const subagentActivityView = (attempt: StoredAttempt): Snapshot["subagents"][number] => ({
+export const subagentActivityView = (
+  attempt: StoredAttempt,
+  threadRunIds?: ReadonlySet<string>
+): Snapshot["subagents"][number] => ({
   id: attempt.id,
   subagentId: attempt.subagent.id,
   parentBotId: attempt.subagent.parentBotId,
   parentRunId: attempt.parentRunId,
+  ...(threadRunIds?.has(attempt.parentRunId) ? { parentIsThread: true } : {}),
   parentChannelId: attempt.parentChannelId,
   parentToolCallId: attempt.parentToolCallId,
   currentRunId: attempt.childRunId,

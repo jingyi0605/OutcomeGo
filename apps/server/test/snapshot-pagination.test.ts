@@ -728,4 +728,113 @@ describe("snapshot pagination", () => {
     });
     expect(await service.eventWindowAfter(20n)).toMatchObject({ cursorAhead: false });
   });
+
+  test("projects isFork on active branched runs and parentIsThread on subagents", async () => {
+    const botId = "00000000-0000-0000-0000-000000000040";
+    const channelId = "00000000-0000-0000-0000-000000000041";
+    const forkRunId = "00000000-0000-0000-0000-000000000051";
+    const mainRunId = "00000000-0000-0000-0000-000000000052";
+    const completedOutcomeParentRunId = "00000000-0000-0000-0000-000000000053";
+    const now = new Date("2026-08-31T12:00:00.000Z");
+
+    const service = new SnapshotService(
+      {
+        notificationPresence: { findMany: async () => [] },
+        notificationPreferences: { findUnique: async () => null },
+        event: { findFirst: async () => ({ sequence: 10n }) },
+        bot: { findMany: async () => [] },
+        channel: {
+          findMany: async () => [
+            {
+              id: channelId,
+              kind: "bot_dm",
+              name: "Bot",
+              description: "",
+              avatarPath: null,
+              directKey: `bot:${botId}`,
+              workingDirectory: null,
+              members: [{ botId, ordinal: 0 }],
+              createdAt: now,
+              updatedAt: now,
+            },
+          ],
+        },
+        run: {
+          findMany: async (args: { where?: { id?: { in?: string[] } } }) => {
+            if (args?.where?.id?.in) {
+              return [{ id: completedOutcomeParentRunId, botId, origin: "outcome" }];
+            }
+            return [
+              {
+                id: forkRunId,
+                botId,
+                conversationId: "conv-1",
+                status: "running",
+                runtimeTurnId: null,
+                origin: "user",
+                channelId,
+                deliveryId: null,
+                error: null,
+                createdAt: now,
+                updatedAt: now,
+              },
+              {
+                id: mainRunId,
+                botId,
+                conversationId: "conv-1",
+                status: "running",
+                runtimeTurnId: null,
+                origin: "user",
+                channelId,
+                deliveryId: null,
+                error: null,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ];
+          },
+        },
+        inboxEvent: {
+          findMany: async () => [{ runId: forkRunId }],
+        },
+        channelRound: { findMany: async () => [] },
+        subagentAttempt: {
+          findMany: async () => [
+            {
+              id: "attempt-1",
+              parentRunId: completedOutcomeParentRunId,
+              parentChannelId: channelId,
+              parentToolCallId: "call-1",
+              childRunId: "child-run-1",
+              description: "Child task",
+              status: "running",
+              result: null,
+              error: null,
+              startedAt: now,
+              completedAt: null,
+              stoppedAt: null,
+              createdAt: now,
+              updatedAt: now,
+              subagent: {
+                id: "subagent-1",
+                parentBotId: botId,
+                subagentType: "executor",
+                status: "running",
+                currentRunId: "child-run-1",
+              },
+            },
+          ],
+        },
+        $queryRaw: async () => [],
+      } as never,
+      "/workspace",
+      "http://computer",
+      () => true
+    );
+
+    const bootstrap = await Effect.runPromise(service.bootstrap());
+    expect(bootstrap.activeRuns.find((r) => r.id === forkRunId)?.isFork).toBe(true);
+    expect(bootstrap.activeRuns.find((r) => r.id === mainRunId)?.isFork).toBeUndefined();
+    expect(bootstrap.subagents[0]?.parentIsThread).toBe(true);
+  });
 });
