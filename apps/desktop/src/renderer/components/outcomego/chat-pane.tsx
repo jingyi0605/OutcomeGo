@@ -59,6 +59,7 @@ import {
   MessageCircle,
   Reply,
   Smile,
+  Target,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -99,7 +100,7 @@ import {
   discardDesktopDeliveryStages,
   stageDesktopDeliveryFile,
 } from "../../lib/durable-sends";
-import { type MentionOption, mentionHandleFor } from "../../lib/mentions";
+import { GOAL_MODE_OPTION_ID, type MentionOption, mentionHandleFor } from "../../lib/mentions";
 import { formatIdleGapTimestamp, shouldShowIdleGapTimestamp } from "../../lib/message-timestamps";
 import { addContextGaps } from "../../lib/search-context";
 import { mergeThreadTrayPin, type ThreadTrayPin } from "../../lib/thread-pin";
@@ -161,9 +162,12 @@ type Mutate = <T>(operation: () => Promise<T>) => Promise<T>;
 
 interface ChatPaneProps {
   composerFocusRequest?: number;
+  goalModeRequest?: number;
+  onGoalModeRequestApplied?: () => void;
   incomingDraft?: PromptDraft | null;
   onDraftApplied?: () => void;
   active?: boolean;
+  goalsEnabled?: boolean;
   agentNameById: ReadonlyMap<string, string>;
   channel: ChannelView;
   capabilities: ClientCapabilities;
@@ -215,9 +219,12 @@ const runGroupsEqual = <T,>(
 
 const chatPanePropsEqual = (previous: ChatPaneProps, next: ChatPaneProps) =>
   previous.composerFocusRequest === next.composerFocusRequest &&
+  previous.goalModeRequest === next.goalModeRequest &&
+  previous.onGoalModeRequestApplied === next.onGoalModeRequestApplied &&
   previous.incomingDraft === next.incomingDraft &&
   previous.onDraftApplied === next.onDraftApplied &&
   previous.active === next.active &&
+  previous.goalsEnabled === next.goalsEnabled &&
   previous.channel === next.channel &&
   previous.capabilities === next.capabilities &&
   previous.agentNameById === next.agentNameById &&
@@ -771,6 +778,12 @@ const MessageRow = memo(function MessageRow({
               {t("From {platform}", { platform: externalPlatformLabel(externalSource, t) })}
             </div>
           ) : null}
+          {message.sender === "user" && messageMetadata(message).goalMode === true ? (
+            <div className="mr-2.5 mt-0.5 flex items-center gap-1 self-end text-[11px] text-emerald-700 dark:text-emerald-300" data-goal-mode-message="">
+              <Target aria-hidden="true" className="size-3 shrink-0" strokeWidth={1.8} />
+              <span>{t("Goal mode")}</span>
+            </div>
+          ) : null}
           {(reactionPills.length > 0 || userReactionSet.size > 0) && (
             <div
               className={`relative -mt-2 flex flex-row flex-wrap gap-1 ${
@@ -1087,9 +1100,12 @@ const VoiceConversationCard = memo(function VoiceConversationCard({
 
 export const ChatPane = memo(function ChatPane({
   composerFocusRequest,
+  goalModeRequest,
+  onGoalModeRequestApplied,
   incomingDraft,
   onDraftApplied,
   active = true,
+  goalsEnabled = false,
   agentNameById,
   channel,
   capabilities,
@@ -1163,6 +1179,33 @@ export const ChatPane = memo(function ChatPane({
     channelId: string;
     message: ChannelMessageView;
   } | null>(null);
+  const [goalModeChannelId, setGoalModeChannelId] = useState<string | null>(null);
+  const goalModeAvailable = goalsEnabled && channel.kind === "bot_dm" && selectedBot?.status === "active";
+  const goalMode = goalModeAvailable && goalModeChannelId === channel.id;
+  const setGoalMode = useCallback(
+    (enabled: boolean) => {
+      setGoalModeChannelId(enabled ? channel.id : null);
+    },
+    [channel.id]
+  );
+  const lastAppliedGoalModeRequest = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (
+      goalModeRequest === undefined ||
+      goalModeRequest === lastAppliedGoalModeRequest.current
+    ) {
+      return;
+    }
+    lastAppliedGoalModeRequest.current = goalModeRequest;
+    if (goalModeAvailable) {
+      setGoalModeChannelId(channel.id);
+      setReplyTarget((current) => {
+        if (current?.channelId !== channel.id) return current;
+        return messageMetadata(current.message).type === "outcome-card" ? null : current;
+      });
+    }
+    onGoalModeRequestApplied?.();
+  }, [channel.id, goalModeAvailable, goalModeRequest, onGoalModeRequestApplied]);
   const [pendingAttachmentCount, setPendingAttachmentCount] = useState(0);
   const [composerExpanded, setComposerExpanded] = useState(false);
   const fileDropTargetRef = useRef<HTMLDivElement>(null);
@@ -1460,7 +1503,7 @@ export const ChatPane = memo(function ChatPane({
     [onReactMessage]
   );
   const pluginMentions = usePluginMentions(selectedBot?.id ?? channel.members[0]?.botId, active);
-  const mentionOptions = useMemo<MentionOption[]>(() => {
+  const threadMentionOptions = useMemo<MentionOption[]>(() => {
     const bots =
       channel.kind === "group"
         ? channel.members.flatMap((member) => {
@@ -1492,6 +1535,19 @@ export const ChatPane = memo(function ChatPane({
       })),
     ];
   }, [botById, channel.kind, channel.members, selectedBot?.id, pluginMentions]);
+  const mentionOptions = useMemo<MentionOption[]>(() => {
+    if (!goalModeAvailable) return threadMentionOptions;
+    return [
+      {
+        id: GOAL_MODE_OPTION_ID,
+        label: t("Goal mode"),
+        handle: "goal-mode",
+        trigger: "/",
+        kind: "mode",
+      },
+      ...threadMentionOptions,
+    ];
+  }, [goalModeAvailable, t, threadMentionOptions]);
   const enqueueDurableSend = useCallback(
     (
       content: string,
@@ -1500,6 +1556,7 @@ export const ChatPane = memo(function ChatPane({
       options?: {
         richText?: string;
         isFork?: boolean;
+        goalMode?: boolean;
         stagedAttachments?: DurableSendPayload["stagedAttachments"];
       }
     ) =>
@@ -1518,6 +1575,7 @@ export const ChatPane = memo(function ChatPane({
           ...(replyToMessageId ? { replyToMessageId } : {}),
           ...(options?.richText ? { richText: options.richText } : {}),
           ...(options?.isFork !== undefined ? { isFork: options.isFork } : {}),
+          ...(options?.goalMode !== undefined ? { goalMode: options.goalMode } : {}),
         },
       }),
     [channel.id, channel.kind, selectedBot, sendController]
@@ -1551,11 +1609,19 @@ export const ChatPane = memo(function ChatPane({
         stagedAttachments?: DurableSendPayload["stagedAttachments"];
       }
     ) => {
-      const sent = enqueueDurableSend(content, attachments, replyingTo?.id, options);
+      const sentGoalMode = goalMode;
+      const sent = enqueueDurableSend(content, attachments, replyingTo?.id, {
+        ...options,
+        ...(sentGoalMode ? { goalMode: true } : {}),
+      });
+      if (sentGoalMode) {
+        setGoalMode(false);
+        void sent.catch(() => setGoalMode(true));
+      }
       revealSentMessage();
       return sent;
     },
-    [enqueueDurableSend, replyingTo?.id, revealSentMessage]
+    [enqueueDurableSend, goalMode, replyingTo?.id, revealSentMessage, setGoalMode]
   );
   const resendDurableSend = useCallback(
     async (nonce: string) => {
@@ -2074,15 +2140,24 @@ export const ChatPane = memo(function ChatPane({
             onSubmit={submit}
             onStage={stageDesktopDeliveryFile}
             onDiscardStages={discardDesktopDeliveryStages}
+            goalMode={goalMode}
+            onCancelGoalMode={() => setGoalMode(false)}
+            onSelectMode={(option) => {
+              if (option.id !== GOAL_MODE_OPTION_ID || !goalModeAvailable) return;
+              setGoalMode(true);
+              if (replyingTo && messageMetadata(replyingTo).type === "outcome-card") setReplyTarget(null);
+            }}
             mentionOptions={mentionOptions}
             placeholder={
-              selectedBot?.status === "provisioning"
-                ? t("Message {name} — it will be queued", { name: channel.name })
-                : runtime.inference !== "ready"
-                  ? channel.kind === "bot_dm"
+              goalMode
+                ? t("Describe the goal you want {name} to achieve…", { name: channel.name })
+                : selectedBot?.status === "provisioning"
+                  ? t("Message {name} — it will be queued", { name: channel.name })
+                  : runtime.inference !== "ready"
+                    ? channel.kind === "bot_dm"
                     ? t("Message {name} — it will be queued", { name: channel.name })
                     : t("Pi runtime is not ready")
-                  : t("Message {name}", { name: channel.name })
+                    : t("Message {name}", { name: channel.name })
             }
             reply={
               replyingTo
@@ -2106,7 +2181,7 @@ export const ChatPane = memo(function ChatPane({
           deliveries={channelSends}
           recoveries={channelRecoveries}
           focusMessageId={focusedThreadRootId && focusMessage ? focusMessage.messageId : null}
-          mentionOptions={mentionOptions}
+          mentionOptions={threadMentionOptions}
           onClose={closeThread}
           onCancelSend={(nonce) => sendController.cancelQueued(nonce)}
           onDeleteSend={(nonce) => sendController.deleteFailed(nonce)}

@@ -148,6 +148,7 @@ const QuickIdeaDialog = lazy(
 const OutcomeWorkThread = lazy(() =>
   import("./components/outcomego/outcomes/outcome-execution-card").then((module) => ({ default: module.OutcomeExecutionDialog }))
 );
+const ChatGoals = lazy(() => import("./components/outcomego/outcomes/chat-goals"));
 const OutcomeWorkspace = lazy(
   () => import("./components/outcomego/outcomes/inbox/outcome-workspace")
 );
@@ -339,6 +340,11 @@ export default function App() {
   const [composerFocus, setComposerFocus] = useState<{ channelId: string; nonce: number } | null>(
     null
   );
+  const [goalModeRequest, setGoalModeRequest] = useState<{ channelId: string; nonce: number } | null>(
+    null
+  );
+  const consumeGoalModeRequest = useCallback(() => setGoalModeRequest(null), []);
+  const composerFocusNonceRef = useRef(0);
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
   const readReceipts = useRef(createReadReceiptController());
@@ -439,11 +445,13 @@ export default function App() {
   const openWorkThread = useCallback((thread: OutcomeWorkThreadView) => {
     setOutcomeTarget(null);
     setNewBotPicker(false);
+    setChatGoalsBotId(null);
     setA2AExchange(null);
     a2aExchangeTrigger.current = null;
     restoreA2AFocusAfterClose.current = false;
     setWorkThread(thread);
   }, []);
+  const [chatGoalsBotId, setChatGoalsBotId] = useState<string | null>(null);
   const [quickIdeaOpen, setQuickIdeaOpen] = useState(false);
   const openQuickIdea = useCallback(() => setQuickIdeaOpen(true), []);
   const visibleChatId =
@@ -1574,6 +1582,32 @@ export default function App() {
             }
           />
 
+          {outcomesEnabled && selectedBot && selectedBot.id === chatGoalsBotId && (
+            <Suspense fallback={null}>
+              <ChatGoals
+                key={selectedBot.id}
+                bot={selectedBot}
+                bots={snapshot.bots}
+                onClose={() => setChatGoalsBotId(null)}
+                onNewGoal={() => {
+                  const dmChannelId =
+                    selected?.kind === "bot_dm" && selectedBot.id === chatGoalsBotId
+                      ? selected.id
+                      : visibleChannels.find(
+                          (candidate) =>
+                            candidate.kind === "bot_dm" &&
+                            candidate.members.some((member) => member.botId === selectedBot.id)
+                        )?.id;
+                  setChatGoalsBotId(null);
+                  if (dmChannelId) {
+                    const nonce = ++composerFocusNonceRef.current;
+                    setGoalModeRequest({ channelId: dmChannelId, nonce });
+                    setComposerFocus({ channelId: dmChannelId, nonce });
+                  }
+                }}
+              />
+            </Suspense>
+          )}
           {outcomesEnabled && quickIdeaOpen && (
             <Suspense fallback={null}>
               <QuickIdeaDialog
@@ -1629,6 +1663,7 @@ export default function App() {
                     if (open) setInspectorMode("summary");
                     setDetailsOpen(open);
                   }}
+                  onOpenChatGoals={outcomesEnabled && selectedBot?.status === "active" ? () => setChatGoalsBotId(selectedBot.id) : undefined}
                   onOpenGroupTasks={
                     selected?.kind === "group" ? () => setGroupTasksOpen(true) : undefined
                   }
@@ -1770,6 +1805,7 @@ export default function App() {
                               historyByChannel.get(channelId)?.threadContextTruncated ?? false
                             }
                             activeRun={index.activeRunByChannel.get(channelId)}
+                            goalsEnabled={outcomesEnabled}
                             agentNameById={index.agentNameById}
                             botById={index.botById}
                             channel={channel}
@@ -1778,6 +1814,12 @@ export default function App() {
                                 ? composerFocus.nonce
                                 : undefined
                             }
+                            goalModeRequest={
+                              goalModeRequest?.channelId === channelId
+                                ? goalModeRequest.nonce
+                                : undefined
+                            }
+                            onGoalModeRequestApplied={consumeGoalModeRequest}
                             incomingDraft={
                               transferredDraft?.channelId === channelId
                                 ? transferredDraft.draft
