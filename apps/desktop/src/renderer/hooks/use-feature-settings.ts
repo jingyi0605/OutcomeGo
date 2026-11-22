@@ -1,5 +1,6 @@
 import type { FeatureSettingsView, UpdateFeatureSettingsInput } from "@outcomego/contracts";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { AUTH_CREDENTIALS_CHANGED_EVENT } from "../client/auth";
 import { api } from "../client/outcomego-api";
 
 /** Optional modules are off until the owner enables them, so an unloaded setting reads as off. */
@@ -46,15 +47,35 @@ const publish = (next: FeatureSettingsView) => {
   for (const listener of listeners) listener();
 };
 
+const RETRY_BASE_MS = 1_000;
+const RETRY_MAX_MS = 30_000;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+let retryDelay = RETRY_BASE_MS;
+
+/** A failed read (server still starting, sign-in not ready) must not leave goals off for the whole session. */
+const scheduleRetry = () => {
+  if (retryTimer || listeners.size === 0) return;
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined;
+    if (listeners.size > 0 && !current.loaded) void load();
+  }, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+};
+
 const load = () => {
   loading ??= api
     .featureSettings()
-    .then(publish)
+    .then((settings) => {
+      retryDelay = RETRY_BASE_MS;
+      publish(settings);
+    })
     .catch(() => {
-      // Stay off, but say so: the settings row offers a retry.
-      if (current.failed) return;
-      current = { ...current, failed: true };
-      for (const listener of listeners) listener();
+      // Keep the last known value (off until one is known), say so for the settings row, and try again.
+      if (!current.failed) {
+        current = { ...current, failed: true };
+        for (const listener of listeners) listener();
+      }
+      scheduleRetry();
     })
     .finally(() => {
       loading = null;
@@ -71,6 +92,18 @@ export function useFeatureSettings() {
   const settings = useSyncExternalStore(subscribe, () => current, () => OFF);
   useEffect(() => {
     if (!current.loaded) void load();
+    // Signing in as another account, or coming back to the window, reads the setting again, so
+    // an earlier failure or a change made elsewhere never needs the settings page to be opened.
+    const reload = () => void load();
+    const onFocus = () => {
+      if (document.visibilityState === "visible" && (!current.loaded || current.failed)) reload();
+    };
+    window.addEventListener(AUTH_CREDENTIALS_CHANGED_EVENT, reload);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener(AUTH_CREDENTIALS_CHANGED_EVENT, reload);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
   const retry = useCallback(() => void load(), []);
   const update = useCallback(
