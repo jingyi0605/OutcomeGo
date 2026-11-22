@@ -123,8 +123,6 @@ const fixture = () => {
       },
       botConnectorState: { findMany: async () => [] },
       routine: { findMany: async () => [] },
-      // Goal management is an optional module, off until the owner turns it on.
-      featureSettings: { findUnique: async () => null },
     },
   });
 

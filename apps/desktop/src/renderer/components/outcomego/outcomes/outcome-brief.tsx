@@ -22,6 +22,7 @@ import type { OutcomeClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";
 import { OutcomeButton } from "./outcome-ui";
 import { OutcomeSourceInfo } from "./outcome-source-info";
+import { outcomeProgressSteps } from "./outcome-progress";
 
 type Readiness = "met" | "unmet" | "unknown";
 type Condition = { title: string; status: Readiness; explanation: string; quote?: string };
@@ -214,9 +215,7 @@ export function OutcomeBriefView({
     (item) => item.contractRevision === outcome.currentRevision
   );
   const dependencyIds = new Set(tasks.flatMap((item) => item.dependsOn));
-  const progressItem =
-    tasks.find((item) => item.status === "running" && item.progress?.tasks.length) ??
-    [...tasks].reverse().find((item) => item.progress?.tasks.length);
+  const progress = outcomeProgressSteps(outcome);
   // Checks the executing agent reported while working; the generated summary can only list them as unverified.
   const reportedItem = [...tasks].reverse().find((item) => item.progress?.prerequisites?.length);
   const reportedPrerequisites = reportedItem?.progress?.prerequisites ?? [];
@@ -248,14 +247,17 @@ export function OutcomeBriefView({
       conditions.push({ ...item, status: "unknown" });
   const notMet = conditions.filter((item) => item.status === "unmet").length;
   const unknown = conditions.filter((item) => item.status === "unknown").length;
-  const taskSteps = progressItem?.progress?.tasks ?? null;
-  const totalTasks = taskSteps ? taskSteps.length : tasks.length;
-  const completedTasks = taskSteps
-    ? taskSteps.filter((step) => step.status === "completed").length
+  const hasSteps = progress.steps.length > 0;
+  const totalTasks = hasSteps ? progress.steps.length : tasks.length;
+  const completedTasks = hasSteps
+    ? progress.done
     : tasks.filter((item) => item.status === "completed" || item.status === "accepted").length;
-  const runningTasks = taskSteps
-    ? taskSteps.filter((step) => step.status === "in_progress").length
+  const runningTasks = hasSteps
+    ? progress.running
     : tasks.filter((item) => item.status === "running" || item.status === "in_progress").length;
+  const stepGroups = tasks
+    .filter((item) => item.progress?.tasks.length)
+    .map((item) => ({ item, steps: item.progress!.tasks }));
   return (
     <section className="outcome-brief" aria-label={t("Goal overview")}>
       {typeof children === "function" ? children(brief) : children}
@@ -356,35 +358,46 @@ export function OutcomeBriefView({
             )
           }
         >
-          {taskSteps?.length ? (
-            <ol className="outcome-brief-list">
-              {taskSteps.map((step) => (
-                <li key={step.id}>
-                  <div className="outcome-item-heading">
-                    <strong>{step.title}</strong>
-                    <CompletionStatus status={step.status} />
-                  </div>
-                  <p>
-                    {step.summary ??
-                      (progressItem?.progress?.phase
-                        ? `${t("Current phase")}: ${progressItem.progress.phase}`
-                        : t("Status comes from the saved task record."))}
-                    <OutcomeSourceInfo
-                      name={step.title}
-                      text={[
-                        step.title,
-                        step.summary,
-                        progressItem?.progress?.phase && `Phase: ${progressItem.progress.phase}`,
-                        `Step ${step.id}`,
-                        progressItem && `WorkItem ${progressItem.id}`,
-                      ]
-                        .filter(Boolean)
-                        .join("\n")}
-                    />
-                  </p>
-                </li>
+          {hasSteps ? (
+            <div className="outcome-brief-groups">
+              {stepGroups.map(({ item, steps }) => (
+                <div key={item.id}>
+                  {stepGroups.length > 1 || item.progress?.phase ? (
+                    <div className="outcome-item-heading">
+                      <strong>{item.title}</strong>
+                      {item.progress?.phase && (
+                        <span>{`${t("Current phase")}: ${item.progress.phase}`}</span>
+                      )}
+                    </div>
+                  ) : null}
+                  <ol className="outcome-brief-list">
+                    {steps.map((step) => (
+                      <li key={`${item.id}:${step.id}`}>
+                        <div className="outcome-item-heading">
+                          <strong>{step.title}</strong>
+                          <CompletionStatus status={step.status} />
+                        </div>
+                        <p>
+                          {step.summary ?? t("Status comes from the saved task record.")}
+                          <OutcomeSourceInfo
+                            name={step.title}
+                            text={[
+                              step.title,
+                              step.summary,
+                              item.progress?.phase && `Phase: ${item.progress.phase}`,
+                              `Step ${step.id}`,
+                              `WorkItem ${item.id}`,
+                            ]
+                              .filter(Boolean)
+                              .join("\n")}
+                          />
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
               ))}
-            </ol>
+            </div>
           ) : tasks.length ? (
             <ol className="outcome-brief-list">
               {tasks.map((item) => (

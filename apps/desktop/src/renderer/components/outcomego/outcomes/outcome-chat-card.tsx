@@ -14,6 +14,7 @@ import {
 import { outcomeCardStage, type OutcomeChatCard } from "@outcomego/contracts/outcome-chat-card";
 import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { outcomeStageLabels, outcomeNextSteps } from "./outcome-presentation";
+import { outcomeProgressSteps } from "./outcome-progress";
 import type { OutcomeClient } from "../../../client/outcome-api";
 import "./outcome-ui.css";
 import type { InboxClient } from "./inbox/inbox-api";
@@ -46,17 +47,11 @@ const SETTLED_STAGES = ["accepted", "cancelled", "failed"];
 
 /** One-line progress: task steps reported by the executor, else work item counts. */
 export function outcomeProgressSummary(outcome: OutcomeDetail) {
-  const items = outcome.workItems.filter((item) => item.contractRevision === outcome.currentRevision);
-  const steps = items.flatMap((item) => item.progress?.tasks ?? []);
-  const active =
-    items.find((item) => item.status === "running" && item.progress) ??
-    [...items]
-      .filter((item) => item.progress)
-      .sort((a, b) => (b.progress!.updatedAt > a.progress!.updatedAt ? 1 : -1))[0];
+  const { items, steps, active, done } = outcomeProgressSteps(outcome);
   if (steps.length > 0)
     return {
       phase: active?.progress?.phase,
-      done: steps.filter((step) => step.status === "completed").length,
+      done,
       total: steps.length,
       unit: "steps" as const,
     };

@@ -391,6 +391,50 @@ test("running card shows only the executor's step progress on one line", async (
   expect(host.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("1");
   expect(host.textContent).not.toContain("Measure usage");
 });
+test("chat card and goal overview count steps across every work item of the revision", async () => {
+  const base = outcomeFixture.workItems[0]!;
+  const step = (id: string, status: "completed" | "in_progress" | "pending") => ({ id, title: `Step ${id}`, status });
+  const outcome = {
+    ...outcomeFixture,
+    status: "running" as const,
+    workItems: [
+      {
+        ...base,
+        id: "wi-done",
+        title: "Finished item",
+        status: "completed" as const,
+        progress: {
+          phase: "Done phase",
+          updatedAt: "2026-11-18T01:00:00Z",
+          tasks: ["a", "b", "c"].map((id) => step(id, "completed")),
+        },
+      },
+      {
+        ...base,
+        id: "wi-run",
+        title: "Running item",
+        status: "running" as const,
+        progress: {
+          phase: "Running phase",
+          updatedAt: "2026-11-18T02:00:00Z",
+          tasks: [step("d", "completed"), step("e", "in_progress"), step("f", "pending")],
+        },
+      },
+    ],
+  };
+  await mount(<OutcomeChatCardView card={card} client={{ ...client, get: async () => outcome }} />);
+  expect(host.querySelector(".outcome-chat-line")!.textContent).toBe("Running phase · 4/6 steps");
+  await mount(
+    <OutcomeBriefView outcome={outcome} client={{ brief: async () => semanticBrief(outcome) }}>
+      <p>Running</p>
+    </OutcomeBriefView>
+  );
+  expect(host.textContent).toContain("6 tasks · 4 completed · 1 in progress");
+  await expand("Tasks");
+  expect(host.textContent).toContain("Finished item");
+  expect(host.textContent).toContain("Running item");
+  expect(host.textContent).toContain("Current phase: Running phase");
+});
 test("approved goals show that execution is starting, never an extra start prompt", async () => {
   await mount(
     <OutcomeChatCardView
