@@ -214,6 +214,8 @@ export const sourceTranslations: Record<string, string> = {
   "Reviewer’s conclusion · advisory": "审核结论 · 供你参考",
   "Results summary · not reviewed": "成果汇总 · 未经审核",
   "The reviewer is checking the latest results.": "审核机器人正在核对最新成果。",
+  "Preliminary review in progress": "正在初审",
+  "Acceptance will open after the preliminary review finishes.": "初审完成后才会进入待验收。",
   "The reviewer did not finish. You can still review the results yourself.": "审核未完成，你仍可以查看成果并自行验收。",
   "The results changed. Suggestions from the previous review can no longer be adopted.": "成果已更新，不能再采纳上次审核的建议。",
   "Preliminary review summary": "初验摘要",

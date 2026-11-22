@@ -1,4 +1,4 @@
-import type { FeatureSettingsView } from "@outcomego/contracts";
+import type { FeatureSettingsView, UpdateFeatureSettingsInput } from "@outcomego/contracts";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { api } from "../client/outcomego-api";
 
@@ -9,17 +9,40 @@ interface FeatureState extends FeatureSettingsView {
   /** The last read failed (for example the server could not be reached), so "off" is only a default. */
   failed: boolean;
 }
-const OFF: FeatureState = { outcomesEnabled: false, streamBotReplies: false, loaded: false, failed: false };
+const OFF: FeatureState = {
+  outcomesEnabled: false,
+  streamBotReplies: false,
+  plannerBotId: null,
+  reviewerBotId: null,
+  plannerModel: null,
+  reviewerModel: null,
+  environmentNote: null,
+  updatedAt: null,
+  loaded: false,
+  failed: false,
+};
 
 let current: FeatureState = OFF;
 let loading: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
 const publish = (next: FeatureSettingsView) => {
-  const streamBotReplies = next.streamBotReplies === true;
-  if (current.loaded && !current.failed && next.outcomesEnabled === current.outcomesEnabled &&
-      streamBotReplies === current.streamBotReplies) return;
-  current = { outcomesEnabled: next.outcomesEnabled, streamBotReplies, loaded: true, failed: false };
+  const normalized: FeatureState = {
+    outcomesEnabled: next.outcomesEnabled,
+    streamBotReplies: next.streamBotReplies === true,
+    plannerBotId: next.plannerBotId ?? null,
+    reviewerBotId: next.reviewerBotId ?? null,
+    plannerModel: next.plannerModel ?? null,
+    reviewerModel: next.reviewerModel ?? null,
+    environmentNote: next.environmentNote ?? null,
+    updatedAt: next.updatedAt ?? null,
+    loaded: true,
+    failed: false,
+  };
+  if (current.loaded && !current.failed && JSON.stringify(normalized) === JSON.stringify(current)) {
+    return;
+  }
+  current = normalized;
   for (const listener of listeners) listener();
 };
 
@@ -51,7 +74,7 @@ export function useFeatureSettings() {
   }, []);
   const retry = useCallback(() => void load(), []);
   const update = useCallback(
-    async (input: Partial<FeatureSettingsView>) => publish(await api.updateFeatureSettings(input)),
+    async (input: UpdateFeatureSettingsInput) => publish(await api.updateFeatureSettings(input)),
     []
   );
   return { ...settings, update, retry };

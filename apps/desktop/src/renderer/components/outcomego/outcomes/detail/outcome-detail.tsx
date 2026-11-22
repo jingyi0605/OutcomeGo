@@ -369,12 +369,14 @@ export function OutcomeDetail({
     currentWorkItems.find((item) => item.status === "running" && item.progress)?.progress ??
     [...currentWorkItems].reverse().find((item) => item.progress)?.progress ??
     null;
+  const prereviewPending = !historicalReview && outcome.status === "review_pending" && outcome.prereviewStatus === "pending";
   const canRenderReview = Boolean(
     selectedReview &&
+      !prereviewPending &&
       (historicalReview || (selectedReview.status === "approved" && outcome.workItems.length > 0))
   );
-  const reviewOpen = sections.get("review") ??
-    (reviewRevision !== undefined || (outcome.status === "review_pending" && canRenderReview));
+  const reviewOpen = !prereviewPending && (sections.get("review") ??
+    (reviewRevision !== undefined || (outcome.status === "review_pending" && canRenderReview)));
   const goalDetailsOpen = !reviewOpen || sections.get("goal-details") === true;
   const receiptReview = outcome.workItems.some(
     (item) =>
@@ -402,7 +404,9 @@ export function OutcomeDetail({
         <div className="min-w-0">
           <h2 className={inChat ? "sr-only" : "text-[15px] font-medium tracking-[-0.015em]"}>{outcome.title}</h2>
           <p className={inChat ? "outcome-status" : "outcome-status mt-2"} data-outcome-status={outcome.status}>
-            {translateCurrent(outcomeStatusLabels[outcome.status])}
+            {translateCurrent(
+              prereviewPending ? "Preliminary review in progress" : outcomeStatusLabels[outcome.status]
+            )}
           </p>
           {outcome.trackingMode === "tracked" ? (
             <p className="mt-1 text-[12px] opacity-70" data-outcome-tracked={outcome.autoClosedAt ? "closed" : "open"}>
@@ -412,6 +416,11 @@ export function OutcomeDetail({
               {outcome.closeSummary ? ` · ${outcome.closeSummary}` : ""}
             </p>
           ) : null}
+          {prereviewPending && (
+            <p role="status" className="mt-2 text-[12px] text-foreground-secondary">
+              {translateCurrent("The reviewer is checking the latest results. Acceptance will open after the preliminary review finishes.")}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <OutcomeRefresh
@@ -652,6 +661,7 @@ export function OutcomeDetail({
               )}
               {(historicalReview ||
                 (outcome.status === "review_pending" &&
+                  !prereviewPending &&
                   !actionItems.some(
                     (item) =>
                       item.requiresAction &&
@@ -967,7 +977,7 @@ export function OutcomeDetail({
                 )}
               </details>
             )}
-            {(historicalReview || canRenderReview) && !reviewOpen && (
+            {(historicalReview || canRenderReview) && !reviewOpen && !prereviewPending && (
               <div className="outcome-disclosure flex items-center justify-between gap-3">
                 <div>
                   <span className="text-[13px] font-medium">

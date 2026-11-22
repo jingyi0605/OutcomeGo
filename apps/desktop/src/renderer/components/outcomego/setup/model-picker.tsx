@@ -81,6 +81,7 @@ export function ModelPicker({
   models,
   value,
   providerName,
+  ariaLabel,
   disabled = false,
   onChange,
   variant = "setup",
@@ -88,6 +89,7 @@ export function ModelPicker({
   models: InferenceModelView[];
   value: string;
   providerName: string;
+  ariaLabel?: string;
   disabled?: boolean;
   onChange: (modelId: string) => void;
   variant?: "setup" | "settings";
@@ -191,7 +193,7 @@ export function ModelPicker({
       aria-controls={open ? listId : undefined}
       aria-expanded={open}
       aria-haspopup="listbox"
-      aria-label={t("Model")}
+      aria-label={ariaLabel ?? t("Model")}
       className={variant === "setup" ? "setup-input setup-picker-trigger" : "setup-picker-trigger"}
       disabled={disabled}
       onClick={() => (open ? close() : openList())}

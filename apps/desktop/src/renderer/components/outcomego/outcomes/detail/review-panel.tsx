@@ -473,7 +473,7 @@ export function ReviewPanel({
             )}
           </section>
         )}
-        {!receiptReview && current && editable && outcome.status === "review_pending" && onApprove && onReject && (
+        {!receiptReview && reviewStatus !== "pending" && current && editable && outcome.status === "review_pending" && onApprove && onReject && (
           <section
             aria-label={translateCurrent("Result decision")}
             className="outcome-approval mt-4"

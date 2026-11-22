@@ -25,6 +25,7 @@ import { api } from "../../client/outcomego-api";
 import { botTemplateRecipe, downloadBotTemplate } from "../../lib/bot-template";
 import { useI18n } from "../../lib/i18n";
 import { BotAvatar } from "./avatar";
+import { ModelOverrideSelect } from "./settings/model-override-select";
 
 const AvatarPicker = lazy(() =>
   import("./avatar-picker").then((module) => ({ default: module.AvatarPicker }))
@@ -315,6 +316,33 @@ function BotSettings({
             placeholder={t("What this Bot is for")}
             value={draft.description}
           />
+          <p className="px-2 text-[11px] leading-4 text-muted-foreground">
+            {t("Describe what this bot specializes in so the Outcome planner assigns matching work.")}
+          </p>
+        </div>
+        <div className="grid gap-[4px] pt-1">
+          <Label className="pl-2 text-[12px] font-normal leading-[18px] text-muted-foreground">
+            {t("Model")}
+          </Label>
+          <div className="px-1">
+            <ModelOverrideSelect
+              ariaLabel={t("Bot model")}
+              defaultLabel={t("Use global model")}
+              value={bot.model ?? null}
+              effectiveModel={bot.effectiveModel ?? null}
+              fallbackWarning={
+                bot.inferenceFallback
+                  ? t("Configured model is unavailable; falling back cleanly.")
+                  : null
+              }
+              onChange={async (model) => {
+                await onUpdate({ model });
+              }}
+            />
+          </div>
+          <p className="px-2 text-[11px] leading-4 text-muted-foreground">
+            {t("Choose a dedicated model suited to this bot's role, or clear to follow global settings.")}
+          </p>
         </div>
         {saveState === "error" && (
           <p className="text-xs text-destructive">

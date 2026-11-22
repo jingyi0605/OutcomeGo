@@ -1,6 +1,8 @@
+import { toast } from "sonner";
 import { useDayClock } from "../../hooks/use-day-clock";
 import { useReplyPreview } from "../../hooks/use-reply-preview";
-import { isOutcomeUpdateCardMetadata } from "@outcomego/contracts/outcome-chat-card";
+import { isOutcomeUpdateCardMetadata, parseOutcomeChatCard } from "@outcomego/contracts/outcome-chat-card";
+import { OutcomeRequestIds } from "./outcomes/planning/outcome-client";
 import { ResourceActivityProvider } from "../../hooks/resource-activity";
 import { ThinkingCaption } from "./thinking-caption";
 import { thinkingActivity } from "../../lib/thinking-activity";
@@ -1464,6 +1466,11 @@ export const ChatPane = memo(function ChatPane({
     );
   }, [channel.kind, mainMessageRecords, visibleContextMessageIds]);
   const replyingTo = replyTarget?.channelId === channel.id ? replyTarget.message : null;
+  const replyMetadata = replyingTo ? messageMetadata(replyingTo) : null;
+  const goalReplyId = goalsEnabled && channel.kind === "bot_dm" && replyMetadata?.type === "outcome-card"
+    ? parseOutcomeChatCard(replyMetadata.outcomeCard)?.outcomeId
+    : undefined;
+  const goalReplyRequests = useRef(new OutcomeRequestIds());
   const replyToMessage = useCallback(
     (message: ChannelMessageView) => {
       setReplyTarget({ channelId: channel.id, message });
@@ -1609,6 +1616,17 @@ export const ChatPane = memo(function ChatPane({
         stagedAttachments?: DurableSendPayload["stagedAttachments"];
       }
     ) => {
+      if (goalReplyId && api.outcomes.sendThreadMessage && !goalMode) {
+        if (attachments.length || options?.stagedAttachments?.length)
+          return Promise.reject(new Error(t("Send a text-only reply to the goal planner.")));
+        const requestKey = `chat-planner:${goalReplyId}`;
+        return api.outcomes.sendThreadMessage(goalReplyId, {
+          text: content, clientRequestId: goalReplyRequests.current.for(requestKey, { text: content }),
+        }).then(() => {
+          goalReplyRequests.current.complete(requestKey);
+          toast.success(t("Sent to the goal planner"));
+        });
+      }
       const sentGoalMode = goalMode;
       const sent = enqueueDurableSend(content, attachments, replyingTo?.id, {
         ...options,
@@ -1621,7 +1639,7 @@ export const ChatPane = memo(function ChatPane({
       revealSentMessage();
       return sent;
     },
-    [enqueueDurableSend, goalMode, replyingTo?.id, revealSentMessage, setGoalMode]
+    [enqueueDurableSend, goalMode, goalReplyId, replyingTo?.id, revealSentMessage, setGoalMode, t]
   );
   const resendDurableSend = useCallback(
     async (nonce: string) => {
@@ -2145,19 +2163,21 @@ export const ChatPane = memo(function ChatPane({
             onSelectMode={(option) => {
               if (option.id !== GOAL_MODE_OPTION_ID || !goalModeAvailable) return;
               setGoalMode(true);
-              if (replyingTo && messageMetadata(replyingTo).type === "outcome-card") setReplyTarget(null);
+              if (replyMetadata?.type === "outcome-card") setReplyTarget(null);
             }}
             mentionOptions={mentionOptions}
             placeholder={
               goalMode
                 ? t("Describe the goal you want {name} to achieve…", { name: channel.name })
-                : selectedBot?.status === "provisioning"
-                  ? t("Message {name} — it will be queued", { name: channel.name })
-                  : runtime.inference !== "ready"
-                    ? channel.kind === "bot_dm"
+                : goalReplyId
+                  ? t("Reply to the goal planner")
+                  : selectedBot?.status === "provisioning"
                     ? t("Message {name} — it will be queued", { name: channel.name })
-                    : t("Pi runtime is not ready")
-                    : t("Message {name}", { name: channel.name })
+                    : runtime.inference !== "ready"
+                      ? channel.kind === "bot_dm"
+                        ? t("Message {name} — it will be queued", { name: channel.name })
+                        : t("Pi runtime is not ready")
+                      : t("Message {name}", { name: channel.name })
             }
             reply={
               replyingTo

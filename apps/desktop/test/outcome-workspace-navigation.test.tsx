@@ -9,7 +9,13 @@ let TooltipProvider: typeof import("../src/renderer/components/ui/tooltip").Tool
 let OutcomeNavigation: typeof import("../src/renderer/components/outcomego/outcomes/outcome-navigation").OutcomeNavigation;
 let OutcomeList: typeof import("../src/renderer/components/outcomego/outcomes/outcome-list").OutcomeList;
 import { outcomeFixture, planFixture } from "./outcome-fixture";
-import { decisionFixture, exploreFixture, inboxFixture } from "./outcome-client-fixtures";
+import type { DecisionView, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
+import {
+  decisionFixture,
+  decisionResolutionFixture,
+  exploreFixture,
+  inboxFixture,
+} from "./outcome-client-fixtures";
 
 const dom = parseHTML("<!doctype html><html><body></body></html>");
 const descriptors = new Map<string, PropertyDescriptor | undefined>();
@@ -59,8 +65,12 @@ const outcomes = createOutcomeApi(async <T,>(path: string, init?: RequestInit): 
 const api = {
   outcomes,
   outcomeInbox: {
-    list: async () => ({ items: [inboxFixture], nextCursor: null }),
-    decision: async () => decisionFixture,
+    list: async () => ({ items: inboxItems, nextCursor: null }),
+    decision: async () => decisionView,
+    resolve: async (id: string, input: Record<string, unknown>) => {
+      resolveCalls.push({ id, input });
+      return decisionResolutionFixture;
+    },
     humanItems: async () => [],
     forOutcome: async () => ({ items: [], nextCursor: null }),
   },
@@ -75,6 +85,9 @@ const api = {
   },
 };
 const readCalls: unknown[][] = [];
+let inboxItems: OutcomeInboxItemView[] = [inboxFixture];
+let decisionView: DecisionView = decisionFixture;
+const resolveCalls: Array<{ id: string; input: Record<string, unknown> }> = [];
 mock.module("../src/renderer/client/outcomego-api", () => ({ api }));
 let Workspace: typeof import("../src/renderer/components/outcomego/outcomes/inbox/outcome-workspace").default;
 let createRoot: typeof import("react-dom/client").createRoot;
@@ -168,6 +181,9 @@ beforeAll(async () => {
 beforeEach(() => {
   calls.length = 0;
   readCalls.length = 0;
+  resolveCalls.length = 0;
+  inboxItems = [inboxFixture];
+  decisionView = decisionFixture;
   current = {
     ...structuredClone(outcomeFixture),
     workItems: [],
@@ -229,6 +245,13 @@ async function click(text: string, scope: ParentNode = document.body) {
   expect(button).toBeDefined();
   await act(async () => {
     button!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+}
+async function showAllGoals() {
+  const tab = [...host.querySelectorAll<HTMLButtonElement>('nav[aria-label="Outcome sections"] button')]
+    .find((button) => button.textContent === "All goals")!;
+  await act(async () => {
+    tab.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
 }
 async function input(
@@ -311,8 +334,163 @@ test("quick idea capture is a separate square button beside the Outcomes entry",
   }
 });
 
+const option = (id: string, label: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  label,
+  consequence: `${label} consequence`,
+  resolutionEffect: "plan_only" as const,
+  source: "planner" as const,
+  ...extra,
+});
+const sectionTitles = () =>
+  [...host.querySelectorAll(".outcome-dash-section")].map((node) => node.textContent ?? "");
+const focus = () => host.querySelector<HTMLElement>(".outcome-dash-focus");
+const settle = () => act(async () => {});
+
+test("dashboard shows metrics, then whose turn it is: the owner first, then Bots, each goal once", async () => {
+  list = async () => ({
+    items: [
+      { ...outcomeFixture, status: "running" },
+      { ...outcomeFixture, id: "outcome-2", title: "Prepare the delivery", status: "decision_pending" },
+      { ...outcomeFixture, id: "outcome-3", title: "Paused goal", status: "paused" },
+      { ...outcomeFixture, id: "outcome-4", title: "Finished goal", status: "accepted" },
+    ],
+    nextCursor: null,
+  });
+  inboxItems = [{ ...inboxFixture, outcomeId: "outcome-2", title: "Choose delivery route" }];
+  await mount(page());
+  expect(
+    host.querySelector('nav[aria-label="Outcome sections"] button[aria-current="page"]')
+      ?.textContent
+  ).toBe("Dashboard");
+  expect(
+    [...host.querySelectorAll(".outcome-dash-metric")].map((node) => node.textContent)
+  ).toEqual(["3In progress", "1Needs your action", "1Accepted", "4All goals"]);
+  const [mine, progress] = sectionTitles();
+  expect(mine).toContain("Choose delivery route");
+  expect(mine).toContain("Choose a source");
+  expect(progress).toContain("Bots are working");
+  expect(progress).toContain("Backup comparison");
+  expect(progress).toContain("Paused or failed");
+  expect(progress).toContain("Paused goal");
+  // The goal behind the pending step is on the owner's list only.
+  expect(host.textContent).not.toContain("Prepare the delivery");
+});
+
+test("a goal waiting on the owner without an Inbox step still reaches the owner's list", async () => {
+  list = async () => ({
+    items: [{ ...outcomeFixture, id: "outcome-2", title: "Prepare the delivery", status: "review_pending" }],
+    nextCursor: null,
+  });
+  inboxItems = [];
+  await mount(page());
+  expect(focus()?.textContent).toContain("Prepare the delivery");
+  expect(focus()?.textContent).toContain("Review result");
+  expect(focus()?.querySelector(".outcome-dash-quick")).toBeNull();
+});
+
+test("the focus card answers an approval with one click and records the exact option", async () => {
+  decisionView = {
+    ...decisionFixture,
+    reasonCode: "plan_approval",
+    customEntryAllowed: false,
+    recommendation: { optionId: "yes", reason: "The plan is complete." },
+    options: [option("yes", "Approve"), option("no", "Reject")],
+  };
+  await mount(page());
+  await settle();
+  const buttons = [...focus()!.querySelectorAll(".outcome-dash-quick-buttons button")];
+  expect(buttons.map((button) => button.textContent)).toEqual(["Approve", "Reject"]);
+  await act(async () => {
+    buttons[0]!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(resolveCalls).toHaveLength(1);
+  expect(resolveCalls[0]!.id).toBe(decisionFixture.id);
+  expect(resolveCalls[0]!.input).toMatchObject({
+    optionId: "yes",
+    customText: null,
+    expectedContractRevision: 1,
+  });
+});
+
+test("a multi-option decision starts on the recommended option and needs one confirmation", async () => {
+  decisionView = {
+    ...decisionFixture,
+    reasonCode: "route_choice",
+    recommendation: { optionId: "b", reason: "Cheapest." },
+    options: [option("a", "Option A"), option("b", "Option B"), option("c", "Option C")],
+  };
+  await mount(page());
+  await settle();
+  const radios = [...focus()!.querySelectorAll<HTMLElement>('[role="radio"]')];
+  expect(radios.map((radio) => radio.getAttribute("aria-checked"))).toEqual(["false", "true", "false"]);
+  expect(radios[1]!.textContent).toContain("Recommended");
+  await act(async () => {
+    radios[2]!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(resolveCalls).toHaveLength(0);
+  await click("Confirm: Option C", focus()!);
+  expect(resolveCalls).toHaveLength(1);
+  expect(resolveCalls[0]!.input).toMatchObject({ optionId: "c" });
+});
+
+test("credential grants and contract changes are never answered from the dashboard", async () => {
+  decisionView = {
+    ...decisionFixture,
+    reasonCode: "credential_access_required",
+    options: [option("allow", "Allow"), option("deny", "Deny")],
+  };
+  await mount(page());
+  await settle();
+  expect(focus()?.querySelector(".outcome-dash-quick")).toBeNull();
+  expect(focus()?.querySelector(".outcome-dash-quick-buttons")).toBeNull();
+  expect(
+    [...focus()!.querySelectorAll("button")].some((button) => button.textContent === "View details")
+  ).toBe(true);
+  expect(resolveCalls).toHaveLength(0);
+});
+
+test("dashboard details button opens the decision in a dialog and keeps the dashboard behind it", async () => {
+  await mount(page());
+  await settle();
+  await click("View details", focus()!);
+  expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+  expect(
+    host.querySelector('nav[aria-label="Outcome sections"] button[aria-current="page"]')
+      ?.textContent
+  ).toBe("Dashboard");
+});
+
+test("dashboard section links switch to the full lists and Bot lanes show five goals", async () => {
+  list = async () => ({
+    items: Array.from({ length: 7 }, (_, index) => ({
+      ...outcomeFixture,
+      id: `outcome-${index}`,
+      title: `Goal ${index}`,
+      status: "running" as const,
+    })),
+    nextCursor: null,
+  });
+  await mount(page());
+  const progress = host.querySelectorAll<HTMLElement>(".outcome-dash-section")[1]!;
+  expect(progress.querySelectorAll(".outcome-row").length).toBe(5);
+  await click("View all", progress);
+  expect(
+    host.querySelector('nav[aria-label="Outcome sections"] button[aria-current="page"]')
+      ?.textContent
+  ).toBe("All goals");
+  expect(host.querySelectorAll(".outcome-row").length).toBe(7);
+});
+
+test("dashboard capture-an-idea button opens the quick idea dialog", async () => {
+  await mount(page());
+  await click("Capture an idea", host);
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("Capture an idea");
+});
+
 test("workspace opens a full page with all goals, Bot names and execution statuses", async () => {
   await mount(page());
+  await showAllGoals();
   expect(host.querySelector('[role="dialog"]')).toBeNull();
   expect(host.querySelector("h1")?.textContent).toBe("Outcomes");
   expect(host.textContent).toContain("Backup comparison");
@@ -328,8 +506,7 @@ test("workspace opens a full page with all goals, Bot names and execution status
   ).toBe("All goals");
 });
 
-test("goal rows open a read-only execution conversation without leaving or changing the list", async () => {
-  const paths: Array<{ path: string; method: string }> = [];
+test("goal rows open goal details without exposing execution transcript controls", async () => {
   list = async () => ({
     items: [
       { ...outcomeFixture, status: "running" },
@@ -337,56 +514,15 @@ test("goal rows open a read-only execution conversation without leaving or chang
     ],
     nextCursor: null,
   });
-  const client = createOutcomeApi(async <T,>(path: string, init?: RequestInit): Promise<T> => {
-    paths.push({ path, method: init?.method ?? "GET" });
-    if (path.endsWith("/transcript"))
-      return {
-        next_before: null,
-        rows: [
-          {
-            id: "m1",
-            at: planFixture.generatedAt,
-            role: "assistant",
-            status: "completed",
-            content: "Bot reply for the list entry",
-          },
-        ],
-      } as T;
-    if (path.startsWith("/api/outcomes?")) return (await list(path.split("?")[1] ?? "")) as T;
-    if (path === "/api/outcomes") return (await list("")) as T;
-    return {
-      ...current,
-      status: "running",
-      workItems: structuredClone(outcomeFixture.workItems),
-    } as T;
-  });
   let selected = "";
   await mount(
-    <OutcomeList
-      client={client}
-      bots={bots}
-      onSelect={(id) => {
-        selected = id;
-      }}
-      onCreate={() => {}}
-    />
+    <OutcomeList client={outcomes} bots={bots} onSelect={(id) => { selected = id; }} onCreate={() => {}} />
   );
-  // Goals that never reached execution have nothing to observe.
-  expect(host.querySelectorAll(".outcome-row-action")).toHaveLength(1);
+  expect(host.querySelector(".outcome-row-action")).toBeNull();
   await act(async () => {
-    host
-      .querySelector(".outcome-row-action")!
-      .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    host.querySelector(".outcome-row")!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
-  const dialog = document.body.querySelector(".outcome-execution-dialog")!;
-  expect(dialog.textContent).toContain("Bot reply for the list entry");
-  expect(dialog.textContent).toContain("Research Bot");
-  expect(dialog.textContent).toContain("This chat is view-only");
-  expect(dialog.querySelector("textarea,input")).toBeNull();
-  expect(selected).toBe("");
-  expect(paths.some((entry) => entry.path.endsWith("/transcript"))).toBe(true);
-  expect(paths.every((entry) => entry.method === "GET")).toBe(true);
-  await click("Close Chat");
+  expect(selected).toBe(outcomeFixture.id);
   expect(document.body.querySelector(".outcome-execution-dialog")).toBeNull();
 });
 
@@ -549,6 +685,7 @@ async function openFirstGoal() {
 
 test("goal list opens a floating dialog; outside click closes it and retains the status filter", async () => {
   await mount(page());
+  await showAllGoals();
   await input(host.querySelector("select")!, "running");
   const row = await openFirstGoal();
   expect(row.isConnected).toBe(true);
@@ -583,6 +720,7 @@ test("Escape closes a goal modal; inspecting the saved plan inside does not dism
     },
   };
   await mount(page());
+  await showAllGoals();
   await openFirstGoal();
   const info = document.querySelector<HTMLButtonElement>(
     'button[aria-label="Source for Proposed plan"]'

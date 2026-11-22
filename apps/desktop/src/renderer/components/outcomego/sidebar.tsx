@@ -19,6 +19,7 @@ import {
   ArrowDown,
   ArrowUp,
   BellDot,
+  BellOff,
   Check,
   ChevronDown,
   ChevronRight,
@@ -940,6 +941,13 @@ const ChannelRow = memo(function ChannelRow({
               />
             )}
           </span>
+          {channel.kind === "group" && channel.notificationsMuted === true ? (
+            <BellOff
+              aria-label={t("Do Not Disturb")}
+              className="size-3.5 shrink-0 text-foreground-tertiary"
+              role="img"
+            />
+          ) : null}
         </span>
         <span className="mt-px flex min-w-0 items-center gap-1.5">
           {needsAttention ? (

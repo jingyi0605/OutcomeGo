@@ -45,7 +45,7 @@ export function useOutcomeActionCounts(enabled: boolean): OutcomeActionCounts {
         .then(([approvalItems, reviewItems]) => {
           if (request !== generation) return;
           const approval = approvalItems.length;
-          const review = reviewItems.length;
+          const review = reviewItems.filter((item) => item.prereviewStatus !== "pending").length;
           const approvalByBot = countByBot(approvalItems);
           setCounts((current) =>
             current.approval === approval &&
