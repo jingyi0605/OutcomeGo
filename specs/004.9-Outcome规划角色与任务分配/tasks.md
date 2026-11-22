@@ -731,8 +731,16 @@
 ### 6.6 同轮初验与成果报告
 
 - [x] 复用 `review` 回合与 `SubmitPrereview`，一次保存用户结论、逐项建议、证据与可选图表；报告接口与验收界面共用已保存报告。对应需求 7.1、7.9、8.1、8.4；设计 §2.3.7、§2.3.8、§3.3.3、§3.3.5。
-- [x] 聚焦回归覆盖：同批只排一次；新成果使旧结论和采纳失效；初验待完成或已完成时不额外请求全局模型；不将 Bot 转述画为已核实数据；保留无审核角色的全局汇总。验证：`outcome-stage4-gating.test.ts`、`outcome-stage4-review.test.ts`、`outcome-brief.test.ts`、`outcome-stage6.test.tsx`。
+- [x] 聚焦回归覆盖：同批只排一次；新成果使旧结论和采纳失效；初验待完成或已完成时不额外请求全局模型；Bot 汇报来源的图表保留"仅供参考"标注；无审核报告时不再生成全局汇总（见 6.7）。验证：`outcome-stage4-gating.test.ts`、`outcome-stage4-review.test.ts`、`outcome-brief.test.ts`、`outcome-stage6.test.tsx`。
 - [ ] 同步远端 `computer` 的工具定义并用真实审核 Bot 验证待决策和待验收页面；按 5.2 先征得重建许可，不用重新执行原任务。
+
+### 6.7 审核流程只限定输入与输出
+
+- [x] 将 `SubmitPrereview.summary` 文本改为参数模式限定的 `conclusion: string[]`（单句 ≤50 字，或 2–5 项且每项 ≤30 字，编号由系统生成）；图表点可引用 `evidenceId` 或成果文件 `file`，并做机械的原文核对，核对失败时报错而不是静默丢弃。对应需求 7.9–7.12；设计 §3.3.3。
+- [x] 删除服务端对结论文字的规则判断：编号正则、必须出现已记录数字、与上一轮相同即拒绝、先 `GetOutcome` 才能提交；删除从结论文字中用正则推断图表（含存储专用关键词）的逻辑，以及用另一次推理生成的成果汇总。
+- [x] 审核提示词只描述要交付什么和输出格式，取证方式由 Pi agent 决定。验证：`outcome-stage4-review.test.ts`、`outcome-brief.test.ts`、`outcome-thread-tools.test.ts`。
+- [x] 审查回合（`review`、`review_task`）每次使用全新的上下文会话（以回合的 run ID 作为会话范围），不再复用同一目标线程的历史；规划线程仍沿用线程上下文。原因：复用历史时审查 Bot 会照抄自己上一轮的结论而不重新读取成果。验证：`context-routing.test.ts`。
+- [x] 已同步并重建远端 `computer`，用真实审核 Bot 重新生成当前目标的报告：审核 Bot 自行读取工作区报告，图表摘录核对失败时收到明确错误并自行改正后重新提交。审核批次版本升至 v11（审核契约变化后旧批次不再复用）。
 
 ---
 

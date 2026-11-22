@@ -133,7 +133,7 @@
 
 1. 已批准的目标在待验收或待决策、有成果且配置了可运行的审核角色时，沿用审查线程排队 `review` 回合。批次键由修订 ID、产出 ID、原始证据 ID 和相关决策记录及解决状态计算，排除初验证据、产出转录的派生证据及凭据决策；打开决策卡不换批次。任务结算按原路径触发，现有报告扫描器补排错过的批次，不新建执行流程。
 2. 审查角色读取已保存的契约、产出、证据、决策说明与任务审查结论，按 §3.3.6 逐项核对，不重新执行。决策说明是执行 Bot 的描述，不是独立证据。
-3. 审查角色只调用一次 `SubmitPrereview`，提交面向用户的结论、逐项建议、关注问题和可选图表。服务端把结论原文、证据引文、核对通过的图表和关注问题排成报告，保存到同一回合的 `result`，无需迁移或额外模型。回合完成且仍匹配当前批次才展示；旧记录没有批次键，只保留在历史中。审核未完成时不阻塞用户操作；没有可用审核报告时保留全局模型的汇总并注明未经审核（需求 7.9、8.4，任务 6.6）。
+3. 审查角色只调用一次 `SubmitPrereview`，提交面向用户的结论、逐项建议、关注问题和可选图表。服务端把结论、证据引文、核对通过的图表和关注问题排成报告，保存到同一回合的 `result`，无需迁移或额外模型。服务端不解析结论文字，也不从文字里推断数据或图表；`getResult` 只返回已保存的审核报告。回合完成且仍匹配当前批次才展示；旧记录没有批次键，只保留在历史中。审核未完成或没有审核角色时不阻塞用户操作，也不再用另一次推理生成汇总，用户直接查看已保存的成果（需求 7.9、7.10、8.4，任务 6.6、6.7）。
 4. 已设置审查角色时，`OutcomeEvidenceConsumer` 不再调用一次性 `prereview`（`outcome-evidence-consumer.ts:41-43`）。
 
 #### 2.3.8 用户决策
@@ -261,7 +261,7 @@
 | `packages/messaging/src/prompts/platform.json` 与 `platform-system-prompt.ts` | 新增规划、重规划、审查、提交目标、执行任务的运行说明 |
 | 桌面端目标详情与设置、Android、iOS | 见 §2.3.8 与需求 8 |
 
-保留不变：`TrackOutcome`、`CloseOutcome`、目标背景简报与未经审核的成果汇总兜底、`OutcomeReviewService.submit` 的验证规则。
+保留不变：`TrackOutcome`、`CloseOutcome`、目标背景简报、`OutcomeReviewService.submit` 的验证规则。
 
 ## 3. 组件和接口
 
@@ -363,9 +363,12 @@
 #### 3.3.3 线程工具 `SubmitPrereview`
 
 - 类型：动态工具（仅审查线程）
-- 输入：`{ expectedRevision, results: [{ criterionId, suggestion, reason, evidenceIds? }], summary, attention: [{ criterionId?, question }], charts?, clientRequestId }`。每个图表点引用一个 `evidenceId` 和包含标签、数值及单位的精确 `quote`。
-- 行为：保留 `ai_prereview` 证据和原建议；在同一事务中把结论、关注点及有效图表写入回合 `result.report`。缺原始来源、数值不一致或来自仅供参考的 Bot 陈述时，不纳入该图表；不写 `OutcomeReview`，不改变目标状态。
-- 校验：每条验收项恰好一个结果；`summary` 上限 1500 字；修订必须是当前修订；`likely_fail` 只允许用于必需验收项，非必需验收项只能是 `likely_pass` 或 `unclear`；`attention` 里每一项必须对应一个 `likely_fail` 或 `unclear` 的必需验收项，优化建议只能写在 `summary` 的备注段落，不能进入 `attention`。
+- 输入：`{ expectedRevision, results: [{ criterionId, suggestion, reason, evidenceIds? }], conclusion: string[], attention: [{ criterionId?, question }], charts?, clientRequestId }`。`conclusion` 由参数模式限定：只有一项时不超过 50 字；多于一项时最多 5 项，每项不超过 30 字。每个图表点引用一个 `evidenceId` 或本目标工作区内的成果文件 `file`（二选一），并带包含标签、数值及单位的精确 `quote`。
+- 行为：保留 `ai_prereview` 证据和原建议；服务端把 `conclusion` 排成 `summary`（单项原样，多项加 `1.`、`2.` 编号），在同一事务中把结论、关注点及图表写入回合 `result.report`。图表来源的可信度随来源保留：成果文件和执行 Bot 的记录标为 Bot 汇报，仅供参考；不写 `OutcomeReview`，不改变目标状态。
+- 机械核对：图表点的 `quote` 必须在所引记录或文件中原样出现，包含标签（热力图还包含行）和唯一一个符合单位的数值且与 `value` 相等；文件必须位于 `outcomes/<目标 ID>/` 下并可读。不通过时返回指明图表点与原因的 400 错误，审查角色改正后重新提交，不静默丢弃。
+- 上下文：审查回合每次使用全新的上下文会话，只依据已保存的契约、成果和证据判断，不继承同一目标上一轮审查的对话；规划线程保留线程上下文。
+- 不做的事：不用正则或关键词判断结论是否"合格"，不要求结论里出现某个数字，不比对上一轮结论，不要求本回合先调用 `GetOutcome`；取证方式由审查角色自行决定。
+- 校验：每条验收项恰好一个结果；修订必须是当前修订；`likely_fail` 只允许用于必需验收项，非必需验收项只能是 `likely_pass` 或 `unclear`；`attention` 里每一项必须对应一个 `likely_fail` 或 `unclear` 的必需验收项，优化建议写进对应验收项的理由，不能进入 `attention`。
 - 错误：`invalid_request`、`review_revision_conflict`、`prereview_incomplete`、`prereview_stale`（回合已结束或不再匹配批次）。
 
 #### 3.3.4 角色设置接口
