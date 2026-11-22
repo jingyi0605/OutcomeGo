@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type SyntheticEvent } from "react";
+import { useContext, useEffect, useId, useRef, useState, type SyntheticEvent } from "react";
 import type {
   OutcomeDetail as OutcomeDetailView,
   ContractRevisionView,
@@ -9,8 +9,9 @@ import {
   OutcomeRequestIds,
   outcomeErrorMessage,
 } from "../planning/outcome-client";
-import { MoreHorizontal } from "lucide-react";
-import { OutcomeThreadEntry } from "../thread/outcome-thread-panel";
+import { Info, MoreHorizontal } from "lucide-react";
+import { OutcomeThreadPanel } from "../thread/outcome-thread-panel";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../ui/dropdown-menu";
 import { OutcomeSourceInfo } from "../outcome-source-info";
 import { ContractEditor } from "./contract-editor";
 import { ReviewPanel } from "./review-panel";
@@ -28,7 +29,8 @@ import { OutcomeActionItems, OutcomeApprovalScope, OutcomeBriefView } from "../o
 import { DecisionCard } from "../inbox/decision-card";
 import type { InboxClient } from "../inbox/inbox-api";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
-import { OutcomeExecutionCard, type OutcomeExecutionBot } from "../outcome-execution-card";
+import type { OutcomeExecutionBot } from "../outcome-execution-card";
+import { WorkThreadNavigation } from "../../../../lib/work-thread-navigation";
 
 export const evidenceCredibilityLabels = {
   deterministic_check: "Deterministic check",
@@ -49,10 +51,20 @@ export function OutcomeDetail({
   inboxClient,
   bots = [],
   onReplanStarted,
+  onActionSubmitted,
+  onReady,
+  useCache = false,
+  inChat = false,
+  onOpenDetails,
 }: {
   bots?: OutcomeExecutionBot[];
   /** Called right after a Modify request is handed to the background, so the host can close its modal. */
   onReplanStarted?: () => void;
+  /** Called after an inline choice, approval, or acceptance submission completes. */
+  onActionSubmitted?: () => void;
+  /** Called once initial goal actions and any inline decision/report have finished loading. */
+  onReady?: () => void;
+  useCache?: boolean;
   outcomeId: string;
   client: OutcomeClient;
   inboxClient?: InboxClient;
@@ -62,16 +74,41 @@ export function OutcomeDetail({
   actionsError?: boolean;
   actionsLoading?: boolean;
   onAction?: (item: OutcomeInboxItemView) => void;
+  inChat?: boolean;
+  onOpenDetails?: () => void;
 }) {
   const { t: translateCurrent } = useI18n();
+  const sectionId = useId();
+  const openWorkThread = useContext(WorkThreadNavigation);
   const [outcome, setOutcome] = useState(initialOutcome ?? null);
+  const outcomeRef = useRef<OutcomeDetailView | null>(initialOutcome ?? null);
+  useEffect(() => {
+    if (!outcomeRef.current && initialOutcome && initialOutcome.id === outcomeId) {
+      outcomeRef.current = initialOutcome;
+      setOutcome(initialOutcome);
+    }
+  }, [initialOutcome, outcomeId]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comment, setComment] = useState("");
-  const [transcript, setTranscript] = useState<unknown>(null);
+  const [stopping, setStopping] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const requestIds = useRef(new OutcomeRequestIds());
   const generation = useRef(0);
+  const readyDecisionsRef = useRef<Set<string>>(new Set());
+  const reviewReadyRef = useRef(false);
+  const readyNotifiedRef = useRef(false);
+  useEffect(() => {
+    readyDecisionsRef.current.clear();
+    reviewReadyRef.current = false;
+    readyNotifiedRef.current = false;
+  }, [outcomeId]);
+  const decisionIdsKey = inboxClient
+    ? actionItems
+        .filter((item) => item.requiresAction && item.outcomeId === outcomeId && item.decisionId)
+        .map((item) => item.decisionId!)
+        .join(",")
+    : "";
   const [reviewView, setReviewView] = useState<ContractRevisionView | null>(null);
   const [reviewError, setReviewError] = useState(false);
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -82,7 +119,6 @@ export function OutcomeDetail({
     // New revisions cannot inherit comments or generated choices from the previous plan.
     setSections(new Map());
     setComment("");
-    setTranscript(null);
   }, [outcomeId, outcome?.currentRevisionView?.id]);
   const disclosure = (name: string) => ({
     open: sections.get(name) === true,
@@ -102,11 +138,55 @@ export function OutcomeDetail({
       return next;
     });
     window.requestAnimationFrame?.(() =>
-      document.getElementById(`outcome-${name}`)?.scrollIntoView?.({ block: "nearest" })
+      document.getElementById(name === "review" ? `${sectionId}-review` : `outcome-${name}`)?.scrollIntoView?.({ block: "nearest" })
     );
   }
   const historicalReview =
     reviewRevision !== undefined && outcome?.currentRevision !== reviewRevision;
+  const currentReviewRevision = outcome?.currentRevisionView;
+  const currentSelectedReview = historicalReview
+    ? reviewView?.revision === reviewRevision
+      ? reviewView
+      : null
+    : currentReviewRevision;
+  const canRenderCurrentReview = Boolean(
+    outcome &&
+      currentSelectedReview &&
+      (historicalReview ||
+        (currentSelectedReview.status === "approved" && outcome.workItems.length > 0))
+  );
+  const currentReviewOpen = Boolean(
+    outcome &&
+      (sections.get("review") ??
+        (reviewRevision !== undefined ||
+          (outcome.status === "review_pending" && canRenderCurrentReview)))
+  );
+  const currentPrereview =
+    outcome && currentSelectedReview && outcome.prereview?.revision === currentSelectedReview.revision
+      ? outcome.prereview
+      : undefined;
+  const currentReviewStatus =
+    outcome && currentSelectedReview?.revision === outcome.currentRevision
+      ? outcome.prereviewStatus
+      : undefined;
+  const needsReviewReportReady = Boolean(
+    outcome &&
+      currentReviewOpen &&
+      canRenderCurrentReview &&
+      currentSelectedReview &&
+      client.resultSummary &&
+      !currentPrereview &&
+      currentReviewStatus !== "pending"
+  );
+  useEffect(() => {
+    if (!onReady || readyNotifiedRef.current || !outcome || actionsLoading) return;
+    if (needsReviewReportReady && !reviewReadyRef.current) return;
+    const ids = decisionIdsKey ? decisionIdsKey.split(",") : [];
+    if (ids.every((id) => readyDecisionsRef.current.has(id))) {
+      readyNotifiedRef.current = true;
+      onReady();
+    }
+  }, [onReady, outcome, actionsLoading, decisionIdsKey, needsReviewReportReady]);
   useEffect(() => {
     if (!historicalReview || reviewRevision === undefined) return;
     let active = true;
@@ -143,8 +223,16 @@ export function OutcomeDetail({
     void client.get(outcomeId).then(
       (result) => {
         if (generation.current === request) {
+          const previous = outcomeRef.current;
+          outcomeRef.current = result;
           setOutcome(result);
-          setRefreshVersion((v) => v + 1);
+          if (
+            previous &&
+            (previous.currentRevision !== result.currentRevision ||
+              previous.status !== result.status)
+          ) {
+            setRefreshVersion((v) => v + 1);
+          }
         }
       },
       (e) => {
@@ -161,8 +249,16 @@ export function OutcomeDetail({
       void client.get(outcomeId).then(
         (result) => {
           if (generation.current === request) {
+            const previous = outcomeRef.current;
+            outcomeRef.current = result;
             setOutcome(result);
-            setRefreshVersion((v) => v + 1);
+            if (
+              previous &&
+              (previous.currentRevision !== result.currentRevision ||
+                previous.status !== result.status)
+            ) {
+              setRefreshVersion((v) => v + 1);
+            }
           }
         },
         () => {
@@ -200,9 +296,13 @@ export function OutcomeDetail({
     setError(null);
     try {
       const result = await operation(requestIds.current.for(`${action}:${outcomeId}`, input));
+      outcomeRef.current = result;
       setOutcome(result);
       setRefreshVersion((v) => v + 1);
       requestIds.current.complete(`${action}:${outcomeId}`);
+      if (["approve", "acceptance", "review", "rework", "adopt-prereview", "cancel"].includes(action)) {
+        onActionSubmitted?.();
+      }
     } catch (e) {
       setError(outcomeErrorMessage(e));
       if (responseStatus(e) === 409) {
@@ -233,6 +333,7 @@ export function OutcomeDetail({
       setComment("");
       setRefreshVersion((v) => v + 1);
       onReplanStarted?.();
+      onActionSubmitted?.();
     } catch (e) {
       setError(outcomeErrorMessage(e));
     } finally {
@@ -296,11 +397,11 @@ export function OutcomeDetail({
     );
   }
   return (
-    <article aria-label="Outcome details" aria-busy={busy} className="outcome-detail space-y-5">
+    <article aria-label="Outcome details" aria-busy={busy} className={inChat ? "outcome-detail space-y-2.5" : "outcome-detail space-y-5"}>
       <header className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-[15px] font-medium tracking-[-0.015em]">{outcome.title}</h2>
-          <p className="outcome-status mt-2" data-outcome-status={outcome.status}>
+        <div className="min-w-0">
+          <h2 className={inChat ? "sr-only" : "text-[15px] font-medium tracking-[-0.015em]"}>{outcome.title}</h2>
+          <p className={inChat ? "outcome-status" : "outcome-status mt-2"} data-outcome-status={outcome.status}>
             {translateCurrent(outcomeStatusLabels[outcome.status])}
           </p>
           {outcome.trackingMode === "tracked" ? (
@@ -320,24 +421,56 @@ export function OutcomeDetail({
           <OutcomeButton
             variant="ghost"
             iconOnly
-            aria-label={translateCurrent("More details")}
-            aria-expanded={sections.get("records") === true}
-            onClick={() =>
+            aria-label={translateCurrent(onOpenDetails ? "View goal details" : "More details")}
+            aria-expanded={onOpenDetails ? undefined : sections.get("records") === true}
+            aria-haspopup={onOpenDetails ? "dialog" : undefined}
+            title={translateCurrent(onOpenDetails ? "View goal details" : "More details")}
+            onClick={() => {
+              if (onOpenDetails) {
+                onOpenDetails();
+                return;
+              }
               setSections((previous) =>
-                new Map(previous)
-                  .set("goal-details", true)
-                  .set("records", previous.get("records") !== true)
-              )
-            }
+                new Map(previous).set("goal-details", true).set("records", previous.get("records") !== true)
+              );
+            }}
           >
-            <MoreHorizontal size={16} />
+            <Info size={16} aria-hidden="true" />
           </OutcomeButton>
+          {outcome.status !== "accepted" && typeof client.cancel === "function" && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="outcome-control" aria-label={translateCurrent("Goal actions")}>
+                  <MoreHorizontal size={16} aria-hidden="true" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem disabled={busy} className="text-destructive" onSelect={() => setStopping(true)}>
+                  {translateCurrent(outcome.status === "cancelled" ? "Retry stopping goal" : "End goal")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </header>
+      {stopping && (
+        <section className="space-y-2 border-b border-border pb-3" aria-label={translateCurrent("End goal")}>
+          <p>{translateCurrent("Stop this goal and its active tasks? Saved results will be kept.")}</p>
+          <div className="flex gap-2">
+            <OutcomeButton variant="secondary" disabled={busy} onClick={() => setStopping(false)}>{translateCurrent("Cancel")}</OutcomeButton>
+            <OutcomeButton disabled={busy} onClick={() => void mutate("cancel", {}, async (clientRequestId) => {
+              const result = await client.cancel(outcomeId, { clientRequestId });
+              setStopping(false);
+              return result;
+            })}>{translateCurrent("End goal")}</OutcomeButton>
+          </div>
+        </section>
+      )}
       {error && <p role="alert">{error}</p>}
       {(reviewOpen || sections.has("review")) && (historicalReview || canRenderReview) && (
         <section
-          id="outcome-review"
+          data-outcome-section="review"
+          id={`${sectionId}-review`}
           hidden={!reviewOpen}
           aria-label={translateCurrent("Acceptance review")}
           className="space-y-4"
@@ -379,10 +512,30 @@ export function OutcomeDetail({
               reviewRevisionView={selectedReview}
               receiptReview={receiptReview}
               loadResultSummary={client.resultSummary}
+              useCache={useCache}
+              onReady={() => {
+                reviewReadyRef.current = true;
+                if (!onReady || readyNotifiedRef.current || !outcome || actionsLoading) return;
+                const ids = decisionIdsKey ? decisionIdsKey.split(",") : [];
+                if (ids.every((id) => readyDecisionsRef.current.has(id))) {
+                  readyNotifiedRef.current = true;
+                  onReady();
+                }
+              }}
               busy={busy || reviewLoading}
               onClose={() => setSections((previous) => new Map(previous).set("review", false))}
               onApprove={client.decideAcceptance ? () => decideAcceptance("approve") : undefined}
               onReject={client.decideAcceptance ? (reason) => decideAcceptance("reject", reason) : undefined}
+              onAdoptPrereview={
+                client.adoptPrereview
+                  ? (turnId) => {
+                      const input = { expectedRevision: selectedReview.revision, turnId };
+                      void mutate("adopt-prereview", input, (clientRequestId) =>
+                        client.adoptPrereview!(outcomeId, { ...input, clientRequestId })
+                      );
+                    }
+                  : undefined
+              }
               onSubmit={(input) =>
                 void mutate("review", input, (clientRequestId) =>
                   client.review(outcomeId, { ...input, clientRequestId })
@@ -402,11 +555,11 @@ export function OutcomeDetail({
           )}
         </section>
       )}
-      {reviewOpen && (
+      {reviewOpen && !inChat && (
         <OutcomeButton
           variant="secondary"
           aria-expanded={goalDetailsOpen}
-          aria-controls="outcome-goal-details"
+          aria-controls={`${sectionId}-goal-details`}
           onClick={() =>
             setSections((previous) => new Map(previous).set("goal-details", !goalDetailsOpen))
           }
@@ -414,41 +567,62 @@ export function OutcomeDetail({
           {translateCurrent("Goal details")}
         </OutcomeButton>
       )}
-      <div id="outcome-goal-details" hidden={!goalDetailsOpen} className="space-y-5">
-        <OutcomeBriefView outcome={outcome} client={client}>
-          {(brief) => (
-            <section className="outcome-now" aria-label={translateCurrent("What needs you now")}>
-              <p className="outcome-now-eyebrow">{translateCurrent("What needs you now")}</p>
-              {onAction && (
-                <OutcomeActionItems
-                  items={actionItems.filter(
-                    (item) => item.outcomeId === outcomeId && !(inboxClient && item.decisionId)
-                  )}
-                  onSelect={(item) =>
-                    item.category === "acceptance_pending" &&
-                    selectedReview?.revision === item.contractRevision
-                      ? reveal("review")
-                      : onAction(item)
-                  }
-                />
-              )}
-              {inboxClient &&
-                actionItems
-                  .filter(
-                    (item) => item.requiresAction && item.outcomeId === outcomeId && item.decisionId
-                  )
-                  .map((item) => (
-                    <div className="outcome-now-item" key={item.decisionId}>
-                      <DecisionCard
-                        decisionId={item.decisionId!}
-                        client={inboxClient}
-                        outcomes={client}
-                        inline
-                        onOutcome={() => reveal("records")}
-                        onResolved={() => void mutate("refresh", {}, () => client.get(outcomeId))}
-                      />
-                    </div>
-                  ))}
+      <div data-outcome-section="goal-details" id={`${sectionId}-goal-details`} hidden={!goalDetailsOpen} className="space-y-5">
+        <OutcomeBriefView outcome={outcome} client={client} hideFacts={inChat}>
+          {(brief) => {
+            const decisionItems = inboxClient
+              ? actionItems.filter(
+                  (item) => item.requiresAction && item.outcomeId === outcomeId && item.decisionId
+                )
+              : [];
+            const visibleActionItems = actionItems.filter((item) => {
+              if (item.outcomeId !== outcomeId || (inboxClient && item.decisionId)) return false;
+              if (inChat && (item.category === "acceptance_pending" || decisionItems.length > 0)) {
+                return false;
+              }
+              return true;
+            });
+            return (
+              <section className="outcome-now" aria-label={translateCurrent("What needs you now")}>
+                {!inChat && (
+                  <p className="outcome-now-eyebrow">{translateCurrent("What needs you now")}</p>
+                )}
+                {onAction && visibleActionItems.length > 0 && (
+                  <OutcomeActionItems
+                    items={visibleActionItems}
+                    onSelect={(item) =>
+                      item.category === "acceptance_pending" &&
+                      selectedReview?.revision === item.contractRevision
+                        ? reveal("review")
+                        : onAction(item)
+                    }
+                  />
+                )}
+                {decisionItems.map((item) => (
+                  <div className="outcome-now-item" key={item.decisionId}>
+                    <DecisionCard
+                      decisionId={item.decisionId!}
+                      client={inboxClient!}
+                      outcomes={client}
+                      useCache={useCache}
+                      inline
+                      onOutcome={() => reveal("records")}
+                      onReady={() => {
+                        readyDecisionsRef.current.add(item.decisionId!);
+                        if (!onReady || readyNotifiedRef.current || !outcome || actionsLoading) return;
+                        const ids = decisionIdsKey ? decisionIdsKey.split(",") : [];
+                        if (ids.every((id) => readyDecisionsRef.current.has(id))) {
+                          readyNotifiedRef.current = true;
+                          onReady();
+                        }
+                      }}
+                      onResolved={() => {
+                        void mutate("refresh", {}, () => client.get(outcomeId));
+                        onActionSubmitted?.();
+                      }}
+                    />
+                  </div>
+                ))}
               {revision?.status === "pending_approval" && !historicalReview && (
                 <div className="outcome-now-item">
                   <h3>{translateCurrent("Approve this plan?")}</h3>
@@ -496,6 +670,7 @@ export function OutcomeDetail({
               {canStart && <p role="status">{translateCurrent("Starting execution…")}</p>}
               {!historicalReview &&
                 !canStart &&
+                !actionsLoading &&
                 revision?.status !== "pending_approval" &&
                 outcome.status !== "review_pending" &&
                 !actionItems.some((item) => item.requiresAction) && (
@@ -522,26 +697,87 @@ export function OutcomeDetail({
                 </p>
               )}
             </section>
-          )}
+            );
+          }}
         </OutcomeBriefView>
-        {!historicalReview && client.thread && (
-          <OutcomeThreadEntry
-            outcomeId={outcomeId}
-            client={client}
-            closed={terminal}
-            // The approval card's comment box already sends to the bot, so the thread below only shows history.
-            composer={revision?.status !== "pending_approval"}
-          />
+        {!inChat && sections.get("records") === true && outcome.plan && (
+          <details
+            className="outcome-disclosure"
+            {...disclosure("plan")}
+            open={sections.get("plan") ?? revision?.status === "pending_approval"}
+          >
+            <summary>
+              {translateCurrent("Task plan")}{" "}
+              <span>
+                {translateCurrent("{count} tasks", { count: outcome.plan.tasks.length })}
+              </span>
+            </summary>
+            <div className="mt-2 space-y-2">
+              {outcome.plan.notes && (
+                <p className="rounded-md bg-subtle px-2.5 py-2 text-xs whitespace-pre-wrap">
+                  {outcome.plan.notes}
+                </p>
+              )}
+              {outcome.plan.tasks.map((task) => {
+                const assignedBot = bots.find((b) => b.id === task.botId);
+                const linkedItem = outcome.workItems.find(
+                  (w) => w.contractRevision === revision?.revision && w.planKey === task.key
+                );
+                return (
+                  <div key={task.key} className="outcome-card space-y-1 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 font-medium">
+                      <span>{task.title}</span>
+                      <span className="rounded bg-subtle px-1.5 py-0.5 text-[11px]">
+                        {translateCurrent(task.nature === "deliverable" ? "Deliverable" : "Action")}
+                      </span>
+                      <span className="text-foreground-secondary">
+                        · {assignedBot?.name ?? task.botId}
+                      </span>
+                      {linkedItem && (
+                        <span className="text-foreground-secondary">· {translateCurrent(linkedItem.status)}</span>
+                      )}
+                      {linkedItem?.review?.state === "rejected_once" && (
+                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
+                          {translateCurrent("Rejected once by review")}
+                        </span>
+                      )}
+                      {linkedItem?.review?.state === "unreviewed" && (
+                        <span className="rounded bg-subtle px-1.5 py-0.5 text-[11px] text-foreground-secondary">
+                          {translateCurrent("Unreviewed")}
+                        </span>
+                      )}
+                      {linkedItem?.review?.state === "passed" && (
+                        <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+                          {translateCurrent("Passed task review")}
+                        </span>
+                      )}
+                    </div>
+                    {task.dependsOn && task.dependsOn.length > 0 && (
+                      <p className="text-foreground-secondary">
+                        {translateCurrent("Depends on")}: {task.dependsOn.join(", ")}
+                      </p>
+                    )}
+                    {linkedItem?.review && linkedItem.review.findings.length > 0 && (
+                      <ul className="list-disc space-y-0.5 pl-4 text-foreground-secondary">
+                        {linkedItem.review.findings.map((finding, idx) => (
+                          <li key={idx}>
+                            [{finding.kind}] {finding.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </details>
         )}
-        {!historicalReview && (
-          <OutcomeExecutionCard
-            key={`${outcome.id}:${outcome.currentRevision}`}
-            outcome={outcome}
-            bot={bots.find((bot) => bot.id === outcome.botId)}
-            client={client}
-          />
+        {!inChat && !outcome.plan && revision && ["draft", "pending_approval"].includes(revision.status) && outcome.status !== "planning" && (
+          <p className="text-xs text-foreground-secondary">
+            {translateCurrent("The planner role did not save a task plan; approving will fall back to default execution.")}
+          </p>
         )}
-        {sections.has("records") && (
+        {!inChat && sections.has("records") && (
           <section
             hidden={sections.get("records") !== true}
             aria-label={translateCurrent("Supporting records")}
@@ -578,12 +814,51 @@ export function OutcomeDetail({
                 </summary>
                 {sections.has("execution") && (
                   <section className="space-y-2">
-                    {outcome.workItems.map((item) => (
-                      <div key={item.id} className="outcome-card">
-                        <p>
-                          {item.title} · {translateCurrent(item.status)}
-                        </p>
-                        {item.statusReason && <p>{item.statusReason}</p>}
+                    {outcome.workItems.map((item) => {
+                      const assignedBot = item.botId ? bots.find((b) => b.id === item.botId) : undefined;
+                      return (
+                        <div key={item.id} className="outcome-card">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p>
+                              {item.title} · {translateCurrent(item.status)}
+                            </p>
+                            {item.nature && (
+                              <span className="rounded bg-subtle px-1.5 py-0.5 text-[11px]">
+                                {translateCurrent(item.nature === "deliverable" ? "Deliverable" : "Action")}
+                              </span>
+                            )}
+                            {assignedBot && (
+                              <span className="text-xs text-foreground-secondary">· {assignedBot.name}</span>
+                            )}
+                            {item.review?.state === "rejected_once" && (
+                              <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] text-amber-700 dark:text-amber-300">
+                                {translateCurrent("Rejected once by review")}
+                              </span>
+                            )}
+                            {item.review?.state === "unreviewed" && (
+                              <span className="rounded bg-subtle px-1.5 py-0.5 text-[11px] text-foreground-secondary">
+                                {translateCurrent("Unreviewed")}
+                              </span>
+                            )}
+                            {item.review?.state === "passed" && (
+                              <span className="rounded bg-emerald-500/15 px-1.5 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+                                {translateCurrent("Passed task review")}
+                              </span>
+                            )}
+                          </div>
+                          {item.statusReason && <p>{item.statusReason}</p>}
+                          {item.review && item.review.findings.length > 0 && (
+                            <details className="outcome-technical">
+                              <summary>{translateCurrent("Task review findings ({count})", { count: item.review.findings.length })}</summary>
+                              <ul className="list-disc space-y-1 pl-4 text-xs">
+                                {item.review.findings.map((finding, idx) => (
+                                  <li key={idx}>
+                                    [{finding.kind}] {finding.reason}
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
                         <details className="outcome-technical">
                           <summary>{translateCurrent("Execution IDs and provenance")}</summary>
                           <p>
@@ -601,32 +876,19 @@ export function OutcomeDetail({
                             <p className="break-all text-xs">Rework of {item.reworkOfWorkItemId}</p>
                           )}
                         </details>
-                        {item.executorType === "agent" && (
-                          <button
-                            disabled={busy}
-                            onClick={() => {
-                              setError(null);
-                              void client
-                                .transcript(outcomeId, item.id)
-                                .then(setTranscript, (e) => setError(outcomeErrorMessage(e)));
-                            }}
-                          >
-                            {translateCurrent("Show read-only transcript")}
-                          </button>
+                        {item.executorType === "agent" && item.botId && openWorkThread && (
+                          <OutcomeButton variant="ghost" onClick={() => openWorkThread({
+                            id: item.id, outcomeId, outcomeTitle: outcome.title, botId: item.botId!,
+                            title: item.title, status: item.status, completedAt: null,
+                          })}>
+                            {translateCurrent("Open in bot chat")}
+                          </OutcomeButton>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </section>
                 )}
-              </details>
-            )}
-            {transcript !== null && (
-              <details open>
-                <summary>Read-only transcript</summary>
-                <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words text-xs">
-                  {JSON.stringify(transcript, null, 2)}
-                </pre>
-                <button onClick={() => setTranscript(null)}>Close transcript</button>
               </details>
             )}
             {outcome.outputs.length > 0 && (
@@ -744,25 +1006,15 @@ export function OutcomeDetail({
               {sections.has("advanced") && (
                 <>
                   <RecoveryDiagnostics outcomeId={outcomeId} />
-                  {!terminal && (
-                    <button
-                      className="outcome-control"
-                      disabled={busy}
-                      onClick={() =>
-                        void mutate("cancel", {}, (clientRequestId) =>
-                          client.cancel(outcomeId, { clientRequestId })
-                        )
-                      }
-                    >
-                      {translateCurrent("Cancel Outcome")}
-                    </button>
-                  )}
                 </>
               )}
             </details>
           </section>
         )}
       </div>
+      {!historicalReview && !inChat && (
+        <OutcomeThreadPanel key={outcomeId} outcomeId={outcomeId} client={client} closed={terminal} compact />
+      )}
     </article>
   );
 }

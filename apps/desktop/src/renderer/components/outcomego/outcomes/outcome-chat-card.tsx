@@ -19,7 +19,10 @@ import "./outcome-ui.css";
 import type { InboxClient } from "./inbox/inbox-api";
 import type { OutcomeExecutionBot } from "./outcome-execution-card";
 
-// The full detail view is only needed once a card is opened; keep it out of the message list.
+import { OutcomeRouteView, type OutcomeDetailRoute } from "./inbox/outcome-route-view";
+import { prefetchOutcomeCardData } from "./inbox/outcome-card-cache";
+import { subscribeOutcomeRefresh } from "../../../lib/outcome-events";
+
 const OutcomeDetailModal = lazy(() => import("./inbox/outcome-detail-modal"));
 
 type CardClient = Pick<OutcomeClient, "get" | "brief"> & Partial<Pick<OutcomeClient, "transcript">>;
@@ -67,8 +70,7 @@ export function outcomeProgressSummary(outcome: OutcomeDetail) {
 }
 
 /**
- * Compact goal card: stage and one progress line only. Everything else lives in the detail
- * modal, which opens in place so the conversation is never replaced by the goals page.
+ * The card expands in the chat and uses the same action forms as the goal dashboard.
  */
 export function OutcomeChatCardView({
   card,
@@ -86,7 +88,17 @@ export function OutcomeChatCardView({
   const [unavailable, setUnavailable] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [stale, setStale] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
+  const [route, setRoute] = useState<OutcomeDetailRoute>();
+  const [wantExpanded, setWantExpanded] = useState(false);
+  const [hasOpened, setHasOpened] = useState(false);
+  const [contentReady, setContentReady] = useState(Boolean(client));
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const expanded = wantExpanded && contentReady;
+  const useCache = !client;
+  useEffect(() => {
+    if (!card.outcomeId) return;
+    return subscribeOutcomeRefresh(card.outcomeId, () => setRefresh((value) => value + 1));
+  }, [card.outcomeId]);
   const live = current?.id === card.outcomeId ? current : null;
   // The executor can mark tasks blocked while the goal stays running; that still needs the user.
   const blockedCount =
@@ -101,7 +113,25 @@ export function OutcomeChatCardView({
   useEffect(() => {
     setCurrent(null);
     setUnavailable(false);
-  }, [card.outcomeId]);
+    setRoute(undefined);
+    setWantExpanded(false);
+    setHasOpened(false);
+    setContentReady(Boolean(client));
+    setDetailsModalOpen(false);
+  }, [card.outcomeId, client]);
+  useEffect(() => {
+    if (!useCache || !card.outcomeId || settled) return;
+    const rev = live?.currentRevisionView;
+    void prefetchOutcomeCardData(card.outcomeId, {
+      force: refresh > 0,
+      revision: rev ? { id: rev.id, revision: rev.revision } : null,
+    });
+  }, [useCache, card.outcomeId, settled, refresh, live?.currentRevisionView]);
+  useEffect(() => {
+    if (!wantExpanded || contentReady) return;
+    const timer = setTimeout(() => setContentReady(true), 1200);
+    return () => clearTimeout(timer);
+  }, [wantExpanded, contentReady]);
   useEffect(() => {
     if (!card.outcomeId) return;
     let active = true;
@@ -176,6 +206,7 @@ export function OutcomeChatCardView({
       className="outcome-chat-card"
       aria-label={t("Goal progress")}
       data-stage={stage}
+      data-expanded={expanded ? "true" : undefined}
       data-settled={settled ? "true" : undefined}
       data-stale={stale || unavailable ? "true" : undefined}
     >
@@ -183,9 +214,35 @@ export function OutcomeChatCardView({
         <button
           type="button"
           className="outcome-chat-card-main"
-          aria-haspopup="dialog"
+          aria-expanded={expanded}
+          data-loading={wantExpanded && !contentReady ? "true" : undefined}
           aria-label={`${t("View goal details")}: ${live?.title ?? card.title}`}
-          onClick={() => setDetailOpen(true)}
+          onPointerEnter={() => {
+            if (useCache && card.outcomeId) {
+              const rev = live?.currentRevisionView;
+              void prefetchOutcomeCardData(card.outcomeId, {
+                revision: rev ? { id: rev.id, revision: rev.revision } : null,
+              });
+            }
+          }}
+          onFocus={() => {
+            if (useCache && card.outcomeId) {
+              const rev = live?.currentRevisionView;
+              void prefetchOutcomeCardData(card.outcomeId, {
+                revision: rev ? { id: rev.id, revision: rev.revision } : null,
+              });
+            }
+          }}
+          onClick={() => {
+            if (!card.outcomeId) return;
+            if (!wantExpanded) {
+              setHasOpened(true);
+              setRoute((currentRoute) => currentRoute ?? { kind: "outcome", id: card.outcomeId! });
+              setWantExpanded(true);
+            } else {
+              setWantExpanded(false);
+            }
+          }}
         >
           {body}
         </button>
@@ -232,12 +289,49 @@ export function OutcomeChatCardView({
           </button>
         </div>
       )}
-      {detailOpen && card.outcomeId && (
+      {hasOpened && route && card.outcomeId && (
+        <div
+          className="outcome-chat-expandable"
+          data-open={expanded ? "true" : "false"}
+          inert={!expanded}
+          aria-hidden={!expanded}
+        >
+          <div className="outcome-chat-expandable-inner">
+            <div className="outcome-chat-expanded min-w-0 border-t border-border" data-goal-chat-actions="">
+              {route.kind !== "outcome" && (
+                <button type="button" className="outcome-control mb-3" onClick={() => setRoute({ kind: "outcome", id: card.outcomeId! })}>
+                  {t("Back to goal")}
+                </button>
+              )}
+              <OutcomeRouteView
+                route={route}
+                bots={bot ? [bot] : []}
+                initialOutcome={live ?? undefined}
+                active={wantExpanded}
+                useCache={useCache}
+                onOpen={setRoute}
+                onReady={() => setContentReady(true)}
+                onSubmitted={() => {
+                  setWantExpanded(false);
+                  setRoute({ kind: "outcome", id: card.outcomeId! });
+                  setRefresh((value) => value + 1);
+                }}
+                inChat
+                onOpenDetails={() => setDetailsModalOpen(true)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      {detailsModalOpen && card.outcomeId && (
         <Suspense fallback={null}>
           <OutcomeDetailModal
             outcomeId={card.outcomeId}
             bots={bot ? [bot] : []}
-            onClose={() => setDetailOpen(false)}
+            onClose={() => {
+              setDetailsModalOpen(false);
+              setRefresh((value) => value + 1);
+            }}
           />
         </Suspense>
       )}

@@ -8,7 +8,6 @@ import {
   ListChecks,
   LoaderCircle,
   ShieldCheck,
-  Sparkles,
   Target,
 } from "lucide-react";
 import { outcomeBriefSource } from "@outcomego/contracts/outcome-view";
@@ -142,10 +141,12 @@ function BriefSection({
 export function OutcomeBriefView({
   outcome,
   client,
+  hideFacts = false,
   children,
 }: {
   outcome: OutcomeDetail;
   client: Pick<OutcomeClient, "brief">;
+  hideFacts?: boolean;
   children: ReactNode | ((brief: OutcomeBrief | undefined) => ReactNode);
 }) {
   const { t } = useI18n();
@@ -153,7 +154,7 @@ export function OutcomeBriefView({
   const [state, setState] = useState<{ key: string; brief?: OutcomeBrief; error?: boolean }>();
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!client.brief) return;
+    if (hideFacts || !client.brief) return;
     let active = true;
     setState({ key: sourceKey });
     void client.brief(outcome.id).then(
@@ -175,7 +176,14 @@ export function OutcomeBriefView({
     return () => {
       active = false;
     };
-  }, [sourceKey, client.brief, retry]);
+  }, [sourceKey, client.brief, hideFacts, retry]);
+  if (hideFacts) {
+    return (
+      <section className="outcome-brief" aria-label={t("Goal overview")}>
+        {typeof children === "function" ? children(undefined) : children}
+      </section>
+    );
+  }
   const brief = state?.key === sourceKey ? state.brief : undefined;
   const loading = Boolean(
     client.brief && (state?.key !== sourceKey || (!state?.brief && !state?.error))
@@ -421,12 +429,6 @@ export function OutcomeBriefView({
           {t("Short overview unavailable")}
           <button onClick={() => setRetry((value) => value + 1)}>{t("Retry summary")}</button>
         </div>
-      )}
-      {brief && (
-        <p className="outcome-brief-footnote">
-          <Sparkles size={10} aria-hidden="true" />
-          {t("Summary of saved records · use info icons to inspect sources")}
-        </p>
       )}
     </section>
   );
