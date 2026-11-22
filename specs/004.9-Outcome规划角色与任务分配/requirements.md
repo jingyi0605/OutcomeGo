@@ -164,7 +164,7 @@
 
 #### 验收标准
 
-1. WHEN 已设置审查角色，且目标进入 `review_pending` THEN System SHALL 排队一个审查角色的整体初验回合（`review`）；同一修订、同一批产出只排一次。
+1. WHEN 已设置审查角色，且已批准的目标有成果并进入 `review_pending` 或 `decision_pending` THEN System SHALL 排队整体初验回合（`review`）；同一修订、同一批成果只排一次。待决策时只核对现有记录，不阻塞或替代用户作决定。
 2. WHEN 整体初验回合运行 THEN System SHALL 只开放 `GetOutcome` 与 `SubmitPrereview` 两个目标管理工具，服务端按回合用途校验，越权调用被拒绝（设计 §3.3.9）；审查角色因此不能保存契约或计划，不能写验收结论，在该回合里不能驳回任务。审查角色仍保留与其他后台回合相同的通用工具，"只读已记录的产出、不重新执行"是提示词约束，不是技术限制。
 3. WHEN 审查角色调用 `SubmitPrereview` THEN System SHALL 对每条验收项记录 `likely_pass` / `likely_fail` / `unclear`、理由和引用的证据，并保存初验摘要与需用户关注的问题。
 4. WHEN 初验结果写入 THEN System SHALL 按现有格式记录为 `ai_prereview` 证据，不改变目标状态，不产生 `OutcomeReview`。
@@ -172,6 +172,7 @@
 6. WHEN 审查角色未设置 THEN System SHALL 保持现有后台一次性预审，且已设置审查角色的目标不再同时运行一次性预审。
 7. WHEN 审查提示词生成 THEN System SHALL 要求对照验收项和 `boundaries.excluded` 检查：产出是否真的满足验收项、是否超出边界或加入了没要求的功能、报告中的验证声明是否有证据支持。
 8. WHEN 整体初验生成 THEN System SHALL 同样约束：`likely_fail` 只能用于必需验收项没有满足；非必需验收项和优化建议只能写进摘要的备注部分，不得进入"需用户关注的问题"，不得折叠或抬高用户要处理的项数。
+9. WHEN 审查角色核对一批成果 THEN System SHALL 让它在同一轮逐项给建议、引用证据并写一段面向用户的结论；若有合适的已核实数字，同轮提交带原始引用的图表点。系统直接排版，不再用另一次推理写报告。无可用审核结论时，通用汇总必须标注未经审核（设计 §2.3.7、§3.3.3，任务 6.6）。
 
 ### 需求 8：用户只对初验结果做决策
 
@@ -182,7 +183,7 @@
 1. WHEN 目标有已完成的初验 THEN System SHALL 在验收界面首屏显示初验摘要、`likely_fail` 和 `unclear` 的验收项及其理由；`likely_pass` 的项默认折叠。
 2. WHEN 用户点击"采纳初验通过项" THEN System SHALL 对当前修订里所有 `likely_pass` 的验收项，以用户身份提交验收（`userConfirmed = true`），并复用现有验收校验。
 3. WHEN 用户对某项不同意初验 THEN System SHALL 允许单独把该项标为通过、不通过，或发起返工，操作与现有验收一致。
-4. WHEN 契约修订已变化，或初验对应的不是当前修订 THEN System SHALL 拒绝采纳并提示重新初验。
+4. WHEN 契约或成果批次变化 THEN System SHALL 不把旧结论或旧建议当成当前结果，且在服务端拒绝从旧初验采纳；新一批初验完成后，桌面端 Bot 对话和驾驶舱复用同一份报告（设计 §2.3.8、§3.3.5，任务 6.6）。
 5. WHEN 用户未点击采纳或验收 THEN System SHALL 不把目标标为已验收；审查角色的任何输出都不能使目标进入 `accepted`。
 6. WHEN 移动端打开有初验的目标 THEN System SHALL 显示同样的初验摘要并支持采纳。
 

@@ -131,14 +131,14 @@
 
 #### 2.3.7 初验
 
-1. 目标进入 `review_pending` 且已设置审查角色：排队审查线程（`role = reviewer`）的 `review` 回合，幂等键为 `(outcomeId, 修订号, 产出批次)`。触发点挂在现有的 `outcome.review.required` 事件上（`settleOutcomeWorkItem` 里按修订幂等发出，`outcome-threads.ts` 约 `:187-200`）。该事件的发出逻辑需要抽成共享函数：最后一个任务级审查通过时，任务早已结算，也要在审查结论写入后重新派生状态并发出该事件（§2.3.9）。
-2. 审查角色读取目标详情（契约、任务、产出、证据），按审查清单（§3.3.6）逐条检查。
-3. 审查角色调用 `SubmitPrereview` 一次，服务端写入 `ai_prereview` 证据（沿用 `outcome-review-service.ts:289-290` 的格式）、把摘要和关注点写入回合结果。
+1. 已批准的目标在待验收或待决策、有成果且配置了可运行的审核角色时，沿用审查线程排队 `review` 回合。批次键由修订 ID、产出 ID、原始证据 ID 和相关决策记录及解决状态计算，排除初验证据、产出转录的派生证据及凭据决策；打开决策卡不换批次。任务结算按原路径触发，现有报告扫描器补排错过的批次，不新建执行流程。
+2. 审查角色读取已保存的契约、产出、证据、决策说明与任务审查结论，按 §3.3.6 逐项核对，不重新执行。决策说明是执行 Bot 的描述，不是独立证据。
+3. 审查角色只调用一次 `SubmitPrereview`，提交面向用户的结论、逐项建议、关注问题和可选图表。服务端把结论原文、证据引文、核对通过的图表和关注问题排成报告，保存到同一回合的 `result`，无需迁移或额外模型。回合完成且仍匹配当前批次才展示；旧记录没有批次键，只保留在历史中。审核未完成时不阻塞用户操作；没有可用审核报告时保留全局模型的汇总并注明未经审核（需求 7.9、8.4，任务 6.6）。
 4. 已设置审查角色时，`OutcomeEvidenceConsumer` 不再调用一次性 `prereview`（`outcome-evidence-consumer.ts:41-43`）。
 
 #### 2.3.8 用户决策
 
-1. 验收界面首屏：初验摘要、`likely_fail` 与 `unclear` 项及理由；`likely_pass` 折叠。
+1. Bot 对话和驾驶舱共用报告：结论、需用户关注的问题、图表以及可展开的证据；验收首屏再显示有疑问的必需项及理由，通过建议默认不展开。待决策卡读取同一份报告，不改变原选项。
 2. "采纳初验通过项"调用采纳接口（§3.3.5），服务端把当前修订里 `likely_pass` 的项组装成用户验收，交给 `OutcomeReviewService.submit`，因此 `passIsSupported`（`packages/contracts/src/outcome-view.ts:60`）、修订冲突检查、证据检查全部沿用。
 3. 单项处理、返工与现有界面一致。
 
@@ -249,10 +249,10 @@
 | `packages/db/prisma/schema.prisma:332-333`（`Bot.inferenceProvider`、`Bot.inferenceModel`，现有未使用）与 `Bot` | 启用这两列，新增 `inferenceReasoning`；已有非空旧值核实后在迁移时清空 |
 | `apps/server/src/routes/conversation.ts:42`（`app.updateBot`）及对应服务、`packages/contracts` 的 bot 更新输入 | 新增 `model` 入参，仅用户身份可写，校验模型可用（§3.3.8） |
 | `packages/messaging/src/agent-data.ts:423`（`settingsDocument`）与文件导入（约 `:1221`） | 模型字段不进入 bot 可通过文件或 `UpdateProfile` 修改的范围 |
-| 桌面端 bot 设置界面（落地时核对，候选 `apps/desktop/src/renderer/components/outcomego/bot-screen.tsx`） | 新增模型选择（提供方、模型、推理强度），显示生效模型与不可用提示 |
+| 桌面端 bot 设置界面（已核实：`apps/desktop/src/renderer/components/outcomego/inspector.tsx:83-366` 的 `BotSettings`，非 `bot-screen.tsx`） | 新增模型选择（提供方、模型、推理强度），显示生效模型与不可用提示 |
 | `apps/worker/src/worker.ts:568-579`（记忆整理的一次性推理，用全局模型） | 不改：记忆整理仍用全局模型 |
-| `apps/worker/src/worker.ts:1921`（`credentialScopeId`）与 `apps/computer`（按 `providerId` 取凭据） | 核实：独立模型的提供方凭据能否按 `providerId` 取到、与全局提供方是否共用同一套配置（`tasks.md` 0.1 第 13 项） |
-| `apps/worker/src/worker.ts:632`（`OUTCOMEGO_WORKER_CONCURRENCY`，默认 8，全局 `bot-wake` 并发） | 评估是否需要随之调高，见 §8.1 |
+| `apps/worker/src/worker.ts:1921`（`credentialScopeId`，实际用于 Bitwarden 隔离）与 `apps/computer/src/runtime.ts:424`（`modelRuntime.checkAuth(providerId)`） | 已核实：模型提供方凭据由 `auth.json` / `models.json` 按 `providerId` 共享解析，支持按回合/按 bot 切换提供方 |
+| `apps/worker/src/worker.ts:632`（`OUTCOMEGO_WORKER_CONCURRENCY`，默认 8，全局 `bot-wake` 并发） | 已核实：`worker.ts:1417-1428` 对后台源使用 `concurrentAutomations` 异步池且不占 `bot-wake` 槽位；保持默认 8 不变 |
 | `apps/server/src/services/outcome-evidence-consumer.ts:41-43` | 已设置审查角色时跳过一次性预审 |
 | `apps/server/src/services/outcome-review-service.ts` | 新增采纳初验入口；一次性预审保持 |
 | `apps/server/src/services/outcome-chat-tools.ts` 与 `packages/contracts/src/outcome-chat.ts` | 新增 `SubmitOutcome`；已设置规划角色时，`CreateOutcome` 分支（`outcome-chat-tools.ts:168`）直接返回错误并提示改用 `SubmitOutcome`——控制点在服务端，工具列表仍是静态契约 |
@@ -261,7 +261,7 @@
 | `packages/messaging/src/prompts/platform.json` 与 `platform-system-prompt.ts` | 新增规划、重规划、审查、提交目标、执行任务的运行说明 |
 | 桌面端目标详情与设置、Android、iOS | 见 §2.3.8 与需求 8 |
 
-保留不变：`TrackOutcome`、`CloseOutcome`、成果简报与摘要的后台生成、`OutcomeReviewService.submit` 的验证规则。
+保留不变：`TrackOutcome`、`CloseOutcome`、目标背景简报与未经审核的成果汇总兜底、`OutcomeReviewService.submit` 的验证规则。
 
 ## 3. 组件和接口
 
@@ -320,6 +320,7 @@
 | `OutcomeThread` | 新增 `role`（`planner` / `reviewer`，默认 `planner`）；唯一约束由 `outcomeId` 改为 `(outcomeId, role)` | 允许一个目标有规划线程和审查线程 |
 | `OutcomeThreadTurnPurpose` | 新增 `replan`、`review`、`review_task` | 与 `plan`、`owner_message` 并列 |
 | `OutcomeThreadTurn` | 新增 `model Json?`（创建回合时记录的 `{ providerId, modelId, reasoning }`，空表示不覆盖，沿用 Bot 模型或全局模型）、`result Json?`、`workItemId String?` | `result` 保存初验摘要与关注点，或任务级审查结论（`verdict`、发现、备注、返工任务 ID）；`workItemId` 只用于 `review_task` 回合，指向被审查的任务 |
+| `Run` | 新增 `inferenceFallback Json?` | 当独立模型或 Bot 模型不可用发生回退时，记录原期望级别/模型、原因与实际回退目标（需求 1.10、13.5），不改变 `inferenceProvider/Model/Reasoning` 记录实际生效模型 |
 
 不新增 `OutcomeStatus` 或 `OutcomeWorkItemStatus` 值，也不新增驳回专用字段：驳回次数通过"该任务是否已有 `verdict = reject` 的审查回合"判断，返工任务沿用现有的 `kind = rework` 与 `reworkOfWorkItemId`。迁移通过 `db:push` 部署（沿用 004.2 父设计 §16）。
 
@@ -362,10 +363,10 @@
 #### 3.3.3 线程工具 `SubmitPrereview`
 
 - 类型：动态工具（仅审查线程）
-- 输入：`{ expectedRevision, results: [{ criterionId, suggestion, reason, evidenceIds? }], summary, attention: [{ criterionId?, question }], clientRequestId }`
-- 行为：为每个结果写一条 `ai_prereview` 证据（`sourceType = prereview`，`capturedBy = bot:<审查 bot>`）；摘要与关注点写入回合 `result`；不写 `OutcomeReview`，不改变目标状态。
+- 输入：`{ expectedRevision, results: [{ criterionId, suggestion, reason, evidenceIds? }], summary, attention: [{ criterionId?, question }], charts?, clientRequestId }`。每个图表点引用一个 `evidenceId` 和包含标签、数值及单位的精确 `quote`。
+- 行为：保留 `ai_prereview` 证据和原建议；在同一事务中把结论、关注点及有效图表写入回合 `result.report`。缺原始来源、数值不一致或来自仅供参考的 Bot 陈述时，不纳入该图表；不写 `OutcomeReview`，不改变目标状态。
 - 校验：每条验收项恰好一个结果；`summary` 上限 1500 字；修订必须是当前修订；`likely_fail` 只允许用于必需验收项，非必需验收项只能是 `likely_pass` 或 `unclear`；`attention` 里每一项必须对应一个 `likely_fail` 或 `unclear` 的必需验收项，优化建议只能写在 `summary` 的备注段落，不能进入 `attention`。
-- 错误：`invalid_request`、`review_revision_conflict`、`prereview_incomplete`。
+- 错误：`invalid_request`、`review_revision_conflict`、`prereview_incomplete`、`prereview_stale`（回合已结束或不再匹配批次）。
 
 #### 3.3.4 角色设置接口
 
@@ -380,7 +381,7 @@
 - 路径：`POST /api/outcomes/:id/reviews/adopt-prereview`
 - 输入：`{ expectedRevision, turnId, clientRequestId }`
 - 行为：读取该审查回合的 `result` 与对应 `ai_prereview` 证据，对 `likely_pass` 的验收项组装 `SubmitOutcomeReviewInput`（`userConfirmed = true`，`reviewedBy` 为用户），交给 `OutcomeReviewService.submit`。
-- 校验：开关开启；用户身份；修订与回合一致；该回合属于当前修订。
+- 校验：用户身份、目标待验收、修订与回合一致；在目标锁内重新核对成果批次键，不能采纳待决策或已过时的初验。
 - 错误：沿用 `review_revision_conflict`、`outcome_not_found`、`invalid_outcome_transition`，新增 `prereview_stale`。
 
 #### 3.3.6 提示词与上下文
@@ -446,13 +447,13 @@
 
 - 白名单只约束目标管理类工具。审查回合仍保留与其他后台回合相同的通用工具（Shell、发消息等）；"只读已记录的产出、不重新执行任务"是提示词约束，不是技术限制。（通用工具是否保留在目标线程回合里，由 `tasks.md` 0.1 第 12 项核实。）
 - 工作项回合（执行任务）调用目标线程工具现在就会被拒绝：它没有对应的线程回合（`outcome_thread_required`）。
-- 目标线程工具集里没有 Decision 与凭据类工具：`RequestOutcomeDecision`、`RequestHumanAction`、`RequestBitwardenReadApproval` 只在工作项回合注册（`apps/computer/src/runtime/tools.ts` 的 `OUTCOME_THREAD_TOOLS` 一带）。所以规划与审查不产生动作授权（属性 12），由工具集合断言测试保证。
+- 目标线程工具集里没有 Decision 与凭据类工具：`RequestOutcomeDecision`、`RequestHumanAction`、`RequestBitwardenReadApproval` 只在工作项回合注册（`apps/computer/src/runtime/tools.ts` 的 `OUTCOME_THREAD_TOOLS` 一带；阶段 0 核实发现 `tools.ts:2075` 构造 `bitwardenTools` 时未排除 `active.goalThread`，虽服务端 `internal-tool-service.ts:282-285` 已 403 拒绝，仍须在计算机侧补上 `!active.goalThread` 过滤）。所以规划与审查不产生动作授权（属性 12），由工具集合断言测试保证。
 
 #### 3.3.10 客户端读取契约
 
 覆盖需求：8.1、8.6、9.3、10.11
 
-- `OutcomeDetail`：新增 `plan`（`{ notes, tasks: [{ key, title, botId, dependsOn, covers, nature }] }`，当前修订；没有计划时为空）；任务视图新增 `planKey`、`nature`、`review`（`{ state: "none" | "passed" | "rejected_once" | "unreviewed", findings }`）；新增 `prereview`（当前修订的最新初验：`{ turnId, revision, summary, attention, results[] }`，没有时为空）。
+- `OutcomeDetail`：新增 `plan`（`{ notes, tasks: [{ key, title, botId, dependsOn, covers, nature }] }`，当前修订；没有计划时为空）；任务视图新增 `planKey`、`nature`、`review`（`{ state: "none" | "passed" | "rejected_once" | "unreviewed", findings }`）；新增 `prereview`（当前修订且当前成果批次的初验：`{ turnId, revision, summary, attention, results[], report }`，没有时为空）及可选 `prereviewStatus`（审核中、过期、未完成）。成果报告接口原样返回当前 `report`；没有审查角色或审核失败时，允许返回不含 `reviewTurnId` 的未审核汇总。
 - `GET /api/outcomes/:id/thread`：保留原有 `threadId`、`turns`（规划线程，旧客户端不受影响），新增 `reviewTurns`（审查线程的回合，每项含 `purpose`、`status`、`workItemId`、结果摘要、`model` 与回退标注）；`OutcomeThreadTurnView.purpose` 新增 `replan`、`review`、`review_task`。
 - 回合记录读取沿用 004.8 的 `GET /api/outcomes/:id/thread/turns/:turnId/transcript`。
 - 兼容：新增字段全部可选，旧客户端忽略；移动端只需读取 `prereview` 与 `plan`。
@@ -696,7 +697,7 @@
 ### 8.1 风险
 
 - **规划角色是瓶颈**：所有目标的规划与重规划都排到同一个 bot。已确认把规划类回合与审查类回合的并发上限各提到 5（执行任务仍为 2）。缓解：用户消息优先；规划回合只读事实并写结果；仍不够用再考虑多个规划 bot（本 Spec 不做）。
-- **全局 worker 并发可能先成为瓶颈**：`OUTCOMEGO_WORKER_CONCURRENCY` 默认 8（`apps/worker/src/worker.ts:632`）是所有 bot 的 `bot-wake` 总并发。规划 5 + 审查 5 + 若干执行任务会超过 8，超出部分在 worker 层排队，每个角色的"5"并不能全部同时跑满。缓解：落地前评估是否调高默认值或写进部署说明，由用户决定。
+- **全局 worker 并发默认值评估（0.1 已核实）**：`OUTCOMEGO_WORKER_CONCURRENCY` 默认 8（`apps/worker/src/worker.ts:632`）控制的是 `pg-boss` 的 `bot-wake` 作业并发。已核实 `worker.ts:1417-1428` 对 `routine`、`outcome`、`outcome_thread` 会把 `this.execute` 推入 `concurrentAutomations` 异步并发池，不占用 `bot-wake` 槽位等待执行结束；因此单个 bot 满载（5+5+2）不会被 8 卡死，只在同时有超过 8 个不同 bot 被唤醒或同步前台回合占满时才在队列层排队。建议保持默认值 8 不变。
 - **并发上限是新增而不是提高**：已核实线程回合的租约 scope 是 `outcome-thread:<id>`（`worker.ts:1647`），不被现有 `outcome:`、`automation:` 计数覆盖（`worker.ts:1447-1450`），所以线程回合目前没有按 bot 的并发上限；"5"是新增上限。风险：新增限流改动 worker 的领取逻辑，要有测试覆盖，且不能影响执行任务的 2。
 - **审查拖慢执行**：每个任务完成后多一轮审查，门控期间下游任务要等。缓解：审查回合只读已记录的产出和证据；独立任务并行审查；审查失败视为通过；只有严重错误和遗漏才驳回，不做优化类返工。
 - **审查过度**：审查 bot 倾向于挑毛病（尤其是强模型），把优化项说成必须项。服务端只能校验"形式"（依据必须是必需验收项或真实边界，必须写明理由，备注不外发，每任务至多一次，返工后不再审），不能判断"严重"本身。缓解：形式约束让"随便挑一条"不可行；提示词给出明确的"不是驳回理由"清单；每次驳回的发现与依据都展示在任务列表并保存，用户能看到，也能事后统计驳回率；用样例评估审查提示词（`tasks.md` 5.3）；上线后驳回率偏高再收紧。本 Spec 不做自动熔断。
