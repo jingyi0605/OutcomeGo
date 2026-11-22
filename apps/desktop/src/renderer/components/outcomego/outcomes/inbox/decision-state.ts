@@ -49,8 +49,22 @@ export class DecisionController {
   private ids = new OutcomeRequestIds();
   constructor(
     private client: Pick<InboxClient, "decision" | "resolve">,
-    readonly id: string
-  ) {}
+    readonly id: string,
+    initialDecision?: DecisionView
+  ) {
+    if (initialDecision && initialDecision.id === id) {
+      this.state = {
+        ...this.state,
+        decision: initialDecision,
+        phase:
+          initialDecision.status === "resolved"
+            ? "resolved"
+            : !canResolveDecision(initialDecision)
+              ? "expired"
+              : "ready",
+      };
+    }
+  }
   snapshot = () => this.state;
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -70,7 +84,10 @@ export class DecisionController {
   }
   async load(conflict = false) {
     const generation = ++this.generation;
-    this.update({ phase: "loading", error: null });
+    const hadDecision = Boolean(this.state.decision);
+    if (!hadDecision || conflict) {
+      this.update({ phase: "loading", error: null });
+    }
     try {
       const decision = await this.client.decision(this.id);
       if (generation !== this.generation) return;
@@ -82,9 +99,9 @@ export class DecisionController {
             : conflict
               ? "conflict"
               : "ready";
-      this.update({ decision, phase });
+      this.update({ decision, phase, error: null });
     } catch (error) {
-      if (generation === this.generation)
+      if (generation === this.generation && (!hadDecision || conflict))
         this.update({
           phase: "error",
           error:
