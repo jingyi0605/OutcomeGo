@@ -19,6 +19,13 @@ import type {
 } from "@outcomego/contracts";
 import { MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES, SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@outcomego/contracts";
 import { CLIENT_CAPABILITIES, formatPiModelRef, normalizePiReasoningLevel } from "@outcomego/contracts";
+import { checkComputerModelAvailable, resolveRunInference } from "./inference-selection";
+import {
+  canClaimThreadTurn,
+  countThreadLeasesByRole,
+  PLANNER_TURN_CONCURRENCY,
+  REVIEWER_TURN_CONCURRENCY,
+} from "./thread-concurrency";
 import { selectTaskConfiguration, parseTaskConfiguration, subagentUsesParentConnectors, type TaskConfiguration, type TaskCapabilities } from "@outcomego/contracts/task-configuration";
 import { finalizeInterruptedItems } from "./interrupted-progress";
 import { dispatchComputerTurn } from "./runtime-dispatch";
@@ -1447,7 +1454,29 @@ export class WakeWorker {
         const foregroundBusy = existingLeases.some(lease => lease.scope === "foreground");
         const automations = existingLeases.filter(lease => lease.scope.startsWith("automation:"));
         const outcomes = existingLeases.filter(lease => lease.scope.startsWith("outcome:"));
-        if (foregroundBusy && automations.length >= 4 && outcomes.length >= 2) return null;
+        const threadLeaseRunIds = existingLeases
+          .filter((lease) => lease.scope.startsWith("outcome-thread:"))
+          .map((lease) => lease.runId);
+        const threadTurnPurposes = threadLeaseRunIds.length
+          ? new Map(
+              (
+                await tx.outcomeThreadTurn.findMany({
+                  where: { runId: { in: threadLeaseRunIds } },
+                  select: { runId: true, purpose: true },
+                })
+              ).map((row) => [row.runId!, row.purpose] as const)
+            )
+          : new Map();
+        const threadCounts = countThreadLeasesByRole(threadLeaseRunIds, threadTurnPurposes);
+        if (
+          foregroundBusy &&
+          automations.length >= 4 &&
+          outcomes.length >= 2 &&
+          threadCounts.planner >= PLANNER_TURN_CONCURRENCY &&
+          threadCounts.reviewer >= REVIEWER_TURN_CONCURRENCY
+        ) {
+          return null;
+        }
         const pendingCandidates = await tx.inboxEvent.findMany({
           where: {
             botId,
@@ -1518,6 +1547,7 @@ export class WakeWorker {
               await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_thread_not_runnable" } } });
               continue;
             }
+            if (!canClaimThreadTurn(turn.purpose, threadCounts)) continue;
             inbox = candidate;
             break;
           }
@@ -1856,15 +1886,15 @@ export class WakeWorker {
         missedMessages.push({ id: `input:${payload.clientId}`, content: `[SAND_HIDDEN_PROMPT]Earlier user input whose delivery was interrupted:\n${payload.content}`, images: await this.messaging.assets.runtimeImages(assetRefs(payload.attachments), budget) });
       }
       const instructions = platformPrompt.instructions;
-      // A goal's own thread tells the computer which goal it works on, so only that thread's tools appear.
-      const goalThreadRow = claimed.outcomeThreadId
-        ? await this.prisma.outcomeThread.findUnique({
-            where: { id: claimed.outcomeThreadId },
-            select: { outcomeId: true, turns: { where: { status: { in: ["queued", "running"] } }, orderBy: { createdAt: "asc" }, take: 1, select: { purpose: true } } },
+      // A goal's own thread tells the computer which goal and turn purpose it works on, so only allowed tools appear.
+      const goalTurnRow = claimed.outcomeThreadId
+        ? await this.prisma.outcomeThreadTurn.findUnique({
+            where: { runId: claimed.runId },
+            select: { purpose: true, thread: { select: { outcomeId: true } } },
           })
         : null;
-      const goalThread = claimed.outcomeThreadId && goalThreadRow
-        ? { threadId: claimed.outcomeThreadId, outcomeId: goalThreadRow.outcomeId, purpose: goalThreadRow.turns[0]?.purpose ?? ("owner_message" as const) }
+      const goalThread = claimed.outcomeThreadId && goalTurnRow
+        ? { threadId: claimed.outcomeThreadId, outcomeId: goalTurnRow.thread.outcomeId, purpose: goalTurnRow.purpose }
         : null;
       // A room turn is woken by a synthetic clientId, so its spoken origin is the message that started the round.
       const triggeringMessage = claimed.deliveryId
@@ -1898,14 +1928,34 @@ export class WakeWorker {
         : null;
       // Subagents run on the parent run's recorded model and reasoning, so a
       // settings change mid-run never switches models inside one task tree.
-      const inferenceParent = claimed.inferenceParentRunId
-        ? await this.prisma.run.findUnique({ where: { id: claimed.inferenceParentRunId } })
-        : null;
-      const selectedInference = inferenceParent?.inferenceProvider && inferenceParent.inferenceModel
-        ? { providerId: inferenceParent.inferenceProvider, modelId: inferenceParent.inferenceModel,
-            reasoning: inferenceParent.inferenceReasoning
-              ? normalizePiReasoningLevel(inferenceParent.inferenceReasoning) : inference.reasoning }
-        : inference;
+      const [inferenceParent, botInferenceRow, activeThreadTurn] = await Promise.all([
+        claimed.inferenceParentRunId
+          ? this.prisma.run.findUnique({ where: { id: claimed.inferenceParentRunId } })
+          : null,
+        this.prisma.bot.findUnique({
+          where: { id: claimed.botId },
+          select: { inferenceProvider: true, inferenceModel: true, inferenceReasoning: true },
+        }),
+        claimed.outcomeThreadId
+          ? this.prisma.outcomeThreadTurn.findUnique({
+              where: { runId: claimed.runId },
+              select: { id: true, model: true },
+            })
+          : null,
+      ]);
+      const turnModel =
+        activeThreadTurn?.model && typeof activeThreadTurn.model === "object" && !Array.isArray(activeThreadTurn.model)
+          ? (activeThreadTurn.model as { providerId?: string | null; modelId?: string | null; reasoning?: string | null })
+          : null;
+      const resolvedInference = await resolveRunInference({
+        parentRun: inferenceParent,
+        turnModel,
+        botModel: botInferenceRow,
+        globalInference: inference,
+        checkAvailability: (candidate) =>
+          checkComputerModelAvailable(this.computerUrl, this.controlToken, candidate),
+      });
+      const selectedInference = resolvedInference.settings;
       await this.prisma.$transaction(async (tx) => {
         await lockWakeAttempt(tx, claimed);
         if (!(await ownsWakeAttempt(tx, claimed))) throw new Error("Wake attempt was superseded before dispatch");
@@ -1913,8 +1963,39 @@ export class WakeWorker {
           inferenceProvider: selectedInference.providerId,
           inferenceModel: selectedInference.modelId,
           inferenceReasoning: selectedInference.reasoning,
+          inferenceFallback: resolvedInference.fallback ? JSON.parse(JSON.stringify(resolvedInference.fallback)) : Prisma.DbNull,
           taskConfiguration: JSON.parse(JSON.stringify(taskConfiguration)),
         } });
+        if (resolvedInference.fallback) {
+          await tx.event.create({
+            data: {
+              topic: "run.inference_fallback",
+              entityId: claimed.runId,
+              payload: JSON.parse(
+                JSON.stringify({
+                  runId: claimed.runId,
+                  botId: claimed.botId,
+                  ...resolvedInference.fallback,
+                })
+              ),
+            },
+          });
+          if (activeThreadTurn && resolvedInference.fallback.fromLevel === "role") {
+            await tx.outcomeThreadTurn.update({
+              where: { id: activeThreadTurn.id },
+              data: {
+                model: JSON.parse(
+                  JSON.stringify({
+                    providerId: selectedInference.providerId,
+                    modelId: selectedInference.modelId,
+                    reasoning: selectedInference.reasoning,
+                    fallback: resolvedInference.fallback,
+                  })
+                ),
+              },
+            });
+          }
+        }
       });
       const turnRequest = {
         runId: claimed.runId,
@@ -2047,7 +2128,7 @@ export class WakeWorker {
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
       await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
-      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId);
+      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId, this.messaging);
       if (claimed.origin === "bootstrap") {
         const onboarding = await tx.bot.updateMany({
           where: { id: claimed.botId, onboardingStatus: "running" },
@@ -2386,7 +2467,7 @@ export class WakeWorker {
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
       await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
-      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId);
+      if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId, this.messaging);
       if (priorityInterrupted) await this.redriveSupersededWake(tx, claimed);
       if (claimed.origin === "bootstrap") {
         const onboarding = await tx.bot.updateMany({
