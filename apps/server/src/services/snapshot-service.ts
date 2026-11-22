@@ -3,6 +3,7 @@ import {
   ApiError,
   type ChannelClientState,
   type ChannelHistoryPage,
+  type ChatBranchPage,
   type ChannelMessageContextView,
   CLIENT_CAPABILITIES,
   type ClientBootstrapView,
@@ -422,6 +423,53 @@ export class SnapshotService {
         beforeSequence: messages[0]?.sequence.toString() ?? null,
         hasMore,
         revision: revision?.sequence.toString() ?? "0",
+      };
+    });
+
+  chatBranches = (channelId: string, archived: boolean, before: bigint | null) =>
+    serviceEffect(async (): Promise<ChatBranchPage> => {
+      const channel = await this.prisma.channel.findFirst({
+        where: { id: channelId, kind: "bot_dm", archivedAt: null, members: {
+          some: { bot: { status: { not: "archived" }, subagentIdentity: { is: null } } },
+        } },
+        select: { id: true },
+      });
+      if (!channel) throw new ApiError(404, "channel_not_found", "Channel not found");
+      const cutoff = new Date(Date.now() - 3 * 60 * 60_000);
+      const liveRun = archived ? Prisma.sql`NOT active.running AND` : Prisma.sql`active.running OR`;
+      const timeFilter = archived ? Prisma.sql`latest."createdAt" < ${cutoff}` : Prisma.sql`latest."createdAt" >= ${cutoff}`;
+      const cursor = before === null ? Prisma.empty : Prisma.sql`AND latest.sequence < ${before}`;
+      const rows = await this.prisma.$queryRaw<Array<{ id: string; messageId: string; title: string; updatedAt: Date; sequence: bigint; running: boolean }>>`
+        WITH latest AS (
+          SELECT DISTINCT ON (m.metadata->>'questionScopeId')
+            m.metadata->>'questionScopeId' AS "scope", m.id, m.sequence, m."createdAt"
+          FROM outcomego_channel_message m
+          WHERE m."channelId" = ${channelId}::uuid
+            AND m.metadata->'branched' = 'true'::jsonb
+            AND m.metadata->>'questionScopeId' IS NOT NULL
+          ORDER BY m.metadata->>'questionScopeId', m.sequence DESC
+        )
+        SELECT root.id, latest.id AS "messageId", left(root.content, 160) AS title,
+          latest."createdAt" AS "updatedAt", latest.sequence, active.running
+        FROM latest JOIN outcomego_channel_message root ON root.id = CASE
+          WHEN latest.scope ~ '^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$' THEN latest.scope::uuid END
+          AND root."channelId" = ${channelId}::uuid
+        CROSS JOIN LATERAL (
+          SELECT EXISTS (
+            SELECT 1 FROM outcomego_run r
+            JOIN outcomego_inbox_event i ON i."runId" = r.id
+            JOIN outcomego_channel_message m ON m."channelId" = r."channelId" AND m.id::text = i.payload->>'replyToMessageId'
+            WHERE r."channelId" = root."channelId" AND r.origin = 'user'
+              AND (r.status IN ('queued', 'running') OR (r."requestNextCheckAt" IS NOT NULL AND r."requestStoppedAt" IS NULL))
+              AND m.metadata->'branched' = 'true'::jsonb AND m.metadata->>'questionScopeId' = latest.scope
+          ) AS running
+        ) active
+        WHERE (${liveRun} ${timeFilter}) ${cursor}
+        ORDER BY latest.sequence DESC LIMIT 41`;
+      const page = rows.slice(0, 40);
+      return {
+        items: page.map(({ id, messageId, title, updatedAt, running }) => ({ id, messageId, title, updatedAt: updatedAt.toISOString(), ...(running ? { running } : {}) })),
+        nextBefore: rows.length > 40 ? page.at(-1)!.sequence.toString() : null,
       };
     });
 

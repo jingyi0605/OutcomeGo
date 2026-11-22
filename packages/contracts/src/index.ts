@@ -1833,6 +1833,11 @@ export interface MessageDeliveryStatusView {
 }
 
 /** A bounded, chronological window around or immediately beside one anchor message. */
+export interface ChatBranchPage {
+  items: Array<{ id: string; messageId: string; title: string; updatedAt: string; running?: boolean }>;
+  nextBefore: string | null;
+}
+
 export interface ChannelMessageContextView {
   channelId: string;
   targetMessageId: string;

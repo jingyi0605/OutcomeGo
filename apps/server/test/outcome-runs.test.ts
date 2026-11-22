@@ -14,6 +14,23 @@ const errorCode = async (effect: Effect.Effect<unknown, Error>) => {
   return result._tag === "Left" ? (result.left as { code?: string }).code : undefined;
 };
 
+test("work-thread stop validates membership and does not pass other work items to the runtime", async () => {
+  const stopped: string[][] = [];
+  const service = new OutcomeService({ outcomeWorkItem: {
+    findFirst: async ({ where }: { where: { id: string; outcomeId: string; executorType: string } }) => {
+      expect(where.executorType).toBe("agent");
+      return where.id === "item" && where.outcomeId === "goal" ? { id: "item" } : null;
+    },
+  } } as never, undefined, {
+    cancel: () => Effect.succeed({ ok: true, status: "cancelled" }),
+    cancelOutcomeWorkItems: (ids) => Effect.sync(() => { stopped.push([...ids]); return { ok: true }; }),
+  });
+  expect(await errorCode(service.stopWorkThread("other-goal", "item"))).toBe("work_item_not_found");
+  expect(stopped).toEqual([]);
+  expect(await Effect.runPromise(service.stopWorkThread("goal", "item"))).toEqual({ ok: true });
+  expect(stopped).toEqual([["item"]]);
+});
+
 describe.skipIf(!url)("Outcome execution service", () => {
   test("approved start is transactional, deduplicated, and D11 creates only one initial item", async () => {
     const h = await outcomeThreadFixture();

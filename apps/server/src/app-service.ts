@@ -876,6 +876,8 @@ export class AppService {
   clientBootstrap = forwardServiceMethod(() => this.snapshots.bootstrap);
 
   channelHistory = forwardServiceMethod(() => this.snapshots.history);
+  chatBranches = forwardServiceMethod(() => this.snapshots.chatBranches);
+  cancelChatBranch = forwardServiceMethod(() => this.runs.cancelChatBranch);
 
   channelMessageContext = forwardServiceMethod(() => this.snapshots.messageContext);
 

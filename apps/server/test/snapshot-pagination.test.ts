@@ -39,6 +39,34 @@ describe("snapshot pagination", () => {
     expect(normalizeMessageContextExtent(10_000)).toBe(100);
   });
 
+  test("lists private-chat branches with separate recent and archived pages", async () => {
+    const channelId = "00000000-0000-0000-0000-000000000020";
+    const rows = Array.from({ length: 41 }, (_, index) => ({
+      id: `branch-${index}`, messageId: `reply-${index}`, title: `Title ${index}`,
+      updatedAt: new Date(0), sequence: BigInt(100 - index),
+    }));
+    const queries: RawQuery[] = [];
+    const service = new SnapshotService({
+      channel: { findFirst: async ({ where }: any) => where.id === channelId && where.kind === "bot_dm" ? { id: channelId } : null },
+      $queryRaw: async (strings: readonly string[], ...values: unknown[]) => {
+        queries.push({ strings, values });
+        return rows;
+      },
+    } as never, "/workspace", "http://computer", () => true);
+    const recent = await Effect.runPromise(service.chatBranches(channelId, false, null));
+    expect(recent.items).toHaveLength(40);
+    expect(recent.items[0]).toEqual({ id: "branch-0", messageId: "reply-0", title: "Title 0", updatedAt: new Date(0).toISOString() });
+    expect(recent.nextBefore).toBe("61");
+    await Effect.runPromise(service.chatBranches(channelId, true, 61n));
+    expect(rawSql(queries[0]!)).toContain("DISTINCT ON (m.metadata->>'questionScopeId')");
+    expect(rawSql(queries[0]?.values?.[2] as RawQuery)).toContain("active.running OR");
+    expect(rawSql(queries[1]?.values?.[2] as RawQuery)).toContain("NOT active.running AND");
+    expect(rawSql(queries[0]?.values?.[3] as RawQuery)).toContain('latest."createdAt" >=');
+    expect(rawSql(queries[1]?.values?.[3] as RawQuery)).toContain('latest."createdAt" <');
+    expect((queries[1]?.values?.[4] as RawQuery).values).toEqual([61n]);
+    await expect(Effect.runPromise(service.chatBranches("another-channel", false, null))).rejects.toThrow("Channel not found");
+  });
+
   test("client state carries run items only for queued or running runs", async () => {
     const channelId = "00000000-0000-0000-0000-000000000020";
     const at = (seconds: number) => new Date(Date.UTC(2026, 9, 16, 12, 0, seconds));

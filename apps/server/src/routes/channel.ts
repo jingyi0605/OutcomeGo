@@ -43,6 +43,15 @@ export async function channelRoutes(context: RouteContext): Promise<Response | u
     });
   }
 
+  const branchStop = path.match(/^\/api\/channels\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})\/branches\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})\/stop$/i);
+  if (request.method === "POST" && branchStop?.[1] && branchStop[2]) {
+    return json(await run(app.cancelChatBranch(branchStop[1], branchStop[2])));
+  }
+  const branches = path.match(/^\/api\/channels\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})\/branches$/i);
+  if (request.method === "GET" && branches?.[1]) {
+    return json(await run(app.chatBranches(branches[1], url.searchParams.get("archived") === "true", historyCursor(url.searchParams.get("before")))), 200, { "cache-control": "no-store" });
+  }
+
   const channelHistoryMatch = path.match(/^\/api\/channels\/([^/]+)\/history$/);
   const libraryMatch = path.match(/^\/api\/channels\/([^/]+)\/library$/);
   if (request.method === "GET" && libraryMatch?.[1]) {

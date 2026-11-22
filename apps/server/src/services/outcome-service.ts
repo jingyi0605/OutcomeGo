@@ -14,6 +14,8 @@ import {
   hasBlockingConflict,
   type ListOutcomesQuery,
   OUTCOME_ERROR_CODES,
+  OUTCOME_WORK_THREAD_ARCHIVE_MS,
+  type OutcomeWorkThreadPage,
   type OutcomeBudget,
   type OutcomeDetail,
   OutcomeError,
@@ -49,6 +51,11 @@ export const outcomeApiError = (code: OutcomeErrorCode, message: string, details
 
 const fromOutcomeError = (error: unknown) =>
   error instanceof OutcomeError ? outcomeApiError(error.code, error.message, error.details) : error;
+
+const stopRuns = async (effect: Effect.Effect<unknown, Error>) => {
+  const result = await Effect.runPromise(Effect.either(effect));
+  if (result._tag === "Left") throw result.left;
+};
 
 const isUniqueViolation = (error: unknown) => (error as { code?: string })?.code === "P2002";
 
@@ -332,6 +339,15 @@ export class OutcomeService {
       return result;
     });
 
+  stopWorkThread = (outcomeId: string, workItemId: string) => serviceEffect(async () => {
+    const item = await this.prisma.outcomeWorkItem.findFirst({ where: { id: workItemId, outcomeId, executorType: "agent" }, select: { id: true } });
+    if (!item) throw outcomeApiError("work_item_not_found", "Work item not found");
+    if (!this.runService?.cancelOutcomeWorkItems)
+      throw new ApiError(503, "outcome_stop_incomplete", "Outcome run-group cancellation is not configured", { retryable: true });
+    await stopRuns(this.runService.cancelOutcomeWorkItems([item.id]));
+    return { ok: true };
+  });
+
   /**
    * Registers a Bot task-board item without a planning draft (specs/004.7). `ownerNeed` "approval" keeps the standard
    * owner-approval flow; otherwise the item is `tracked`: its contract is auto-approved by the system and nothing runs.
@@ -482,13 +498,47 @@ export class OutcomeService {
       })
     );
 
+  listWorkThreads = (botId: string, archived: boolean, cursor: ListOutcomesQuery["cursor"], now = Date.now()) =>
+    serviceEffect(async (): Promise<OutcomeWorkThreadPage> => {
+      const cutoff = new Date(now - OUTCOME_WORK_THREAD_ARCHIVE_MS);
+      const limit = 40;
+      const rows = await this.prisma.outcomeWorkItem.findMany({
+        where: {
+          botId,
+          executorType: "agent",
+          AND: [
+            archived ? { completedAt: { lt: cutoff } } : {
+              OR: [{ completedAt: null }, { completedAt: { gte: cutoff } }],
+            },
+            ...(cursor ? [{ OR: [
+              { updatedAt: { lt: new Date(cursor.updatedAt) } },
+              { updatedAt: new Date(cursor.updatedAt), id: { lt: cursor.id } },
+            ] }] : []),
+          ],
+        },
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: limit + 1,
+        select: { id: true, outcomeId: true, outcome: { select: { title: true } }, botId: true,
+          title: true, status: true, completedAt: true, updatedAt: true },
+      });
+      const items = rows.slice(0, limit);
+      const last = items.at(-1);
+      return {
+        items: items.map(({ id, outcomeId, outcome, botId, title, status, completedAt }) => ({
+          id, outcomeId, outcomeTitle: outcome.title, botId, title, status,
+          completedAt: completedAt?.toISOString() ?? null,
+        })),
+        nextCursor: rows.length > limit && last ? encodeOutcomeCursor(last.updatedAt.toISOString(), last.id) : null,
+      };
+    });
+
   transcript = (outcomeId: string, workItemId: string, query: { before?: number; limit?: number } = {}) =>
     serviceEffect(() => this.prisma.$transaction(async tx => {
       const outcome = await tx.outcome.findUnique({ where: { id: outcomeId }, select: { id: true } });
       if (!outcome) throw outcomeApiError("outcome_not_found", "Outcome not found");
-      const item = await tx.outcomeWorkItem.findFirst({ where: { id: workItemId, outcomeId, executorType: "agent" }, select: { id: true } });
+      const item = await tx.outcomeWorkItem.findFirst({ where: { id: workItemId, outcomeId, executorType: "agent" }, select: { id: true, status: true } });
       if (!item) throw outcomeApiError("work_item_not_found", "Outcome work item not found");
-      return readOutcomeTranscript(tx, item.id, query);
+      return { ...await readOutcomeTranscript(tx, item.id, query), workItemStatus: item.status };
     }, { isolationLevel: "RepeatableRead" }));
 
   get = (outcomeId: string) =>

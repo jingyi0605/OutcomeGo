@@ -2,8 +2,8 @@ import {
   ApiError,
 } from "@outcomego/contracts";
 import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
-import type { PrismaClient } from "@outcomego/db";
-import { lockAgentLifecycle, transitionWorkItem } from "@outcomego/messaging";
+import { Prisma, type PrismaClient } from "@outcomego/db";
+import { lockAgentLifecycle, stopRequestProgress, transitionWorkItem } from "@outcomego/messaging";
 import { Effect } from "effect";
 import { appendEvent, type ComputerFetch, serviceEffect } from "./service-utils";
 
@@ -36,6 +36,26 @@ export class RunService {
       }
     });
     const runs = await this.prisma.run.findMany({ where: { outcomeWorkItemId: { in: [...workItemIds] } } });
+    return this.cancelRunGroups(runs);
+  });
+
+  cancelChatBranch = (channelId: string, branchId: string) => serviceEffect(async () => {
+    const runs = await this.prisma.$transaction(async tx => {
+      const scoped = await tx.$queryRaw<Array<{ id: string; botId: string }>>(Prisma.sql`
+        SELECT DISTINCT r.id, r."botId" FROM outcomego_run r
+        JOIN outcomego_channel c ON c.id = r."channelId" AND c.kind = 'bot_dm' AND c."archivedAt" IS NULL
+        JOIN outcomego_inbox_event i ON i."runId" = r.id
+        JOIN outcomego_channel_message m ON m."channelId" = c.id AND m.id::text = i.payload->>'replyToMessageId'
+        WHERE c.id = ${channelId}::uuid AND r.origin = 'user' AND m.metadata->'branched' = 'true'::jsonb
+          AND m.metadata->>'questionScopeId' = ${branchId}
+        ORDER BY r."botId", r.id`);
+      for (const run of scoped) await stopRequestProgress(tx, run.botId, run.id);
+      return scoped;
+    });
+    return this.cancelRunGroups(runs);
+  });
+
+  private async cancelRunGroups(runs: readonly { id: string; botId: string }[]) {
     if (!runs.length) return { ok: true };
     const allRunIds = new Set(runs.map(run => run.id));
     const runIdsByBot = new Map<string, Set<string>>();
@@ -135,7 +155,7 @@ export class RunService {
       where: { runId: { in: [...allRunIds] }, run: { status: { in: ["completed", "failed", "cancelled", "interrupted"] } } },
     });
     return { ok: true };
-  });
+  }
 
   /** Stops one turn. The user's stop goes through SubagentService.stopRun, which also stops the subagents. */
   cancel = (runId: string) =>
