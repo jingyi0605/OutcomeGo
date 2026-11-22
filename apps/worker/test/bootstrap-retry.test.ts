@@ -222,6 +222,8 @@ describe("execute tells a computer outage from a reported failure", () => {
       inboxEvent: { findUnique: async () => ({ attempts: 1, runId: "run", botId: "bot", status: "processing" }) },
       botRunLease: { findUnique: async () => ({ ownerId: "owner" }) },
       subagent: { findUnique: async () => null },
+      // execute reads the bot's own model override before choosing the run's inference.
+      bot: { findUnique: async () => null },
       // execute looks up the triggering message to detect a realtime voice turn; none exists here.
       channelMessage: { findUnique: async () => null },
     };
