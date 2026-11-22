@@ -31,6 +31,10 @@ export interface BotDockLabelsView {
   open: string;
   running?: string;
   placeholder: string;
+  goalPlaceholder?: string;
+  chatMode?: string;
+  goalMode?: string;
+  switchMode?: string;
   send: string;
   to: string;
   failed: string;
@@ -45,6 +49,7 @@ export interface BotDockStateView {
   labels: BotDockLabelsView;
   theme?: "light" | "dark" | "system";
   running?: boolean;
+  outcomesEnabled?: boolean;
 }
 
 export const hasRunningBot = (snapshot: ClientSnapshot | null | undefined): boolean =>

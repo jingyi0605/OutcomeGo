@@ -349,6 +349,7 @@ contextBridge.exposeInMainWorld("outcomego", {
         botId: string;
         content: string;
         nonce: string;
+        goalMode?: boolean;
         staged: Array<{
           stagingId: string;
           fileName: string;
@@ -360,12 +361,13 @@ contextBridge.exposeInMainWorld("outcomego", {
       }) => Promise<void>
     ) => subscribe("botdock:deliver", (value) => {
         const request = record(value, "Bot dock delivery");
-        const { requestId, botId, content, nonce, staged } = request;
+        const { requestId, botId, content, nonce, goalMode, staged } = request;
         if (
           typeof requestId !== "string" ||
           typeof botId !== "string" ||
           typeof content !== "string" ||
           typeof nonce !== "string" ||
+          (goalMode !== undefined && typeof goalMode !== "boolean") ||
           !Array.isArray(staged) ||
           staged.length > 16
         )
@@ -390,6 +392,7 @@ contextBridge.exposeInMainWorld("outcomego", {
           botId,
           content,
           nonce,
+          ...(goalMode === true ? { goalMode: true } : {}),
           staged: files as unknown as Parameters<typeof handler>[0]["staged"],
         }).then(
           () => reply(true),

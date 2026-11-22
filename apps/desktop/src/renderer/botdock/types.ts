@@ -31,6 +31,7 @@ export interface BotDockBridge {
     botId: string;
     content: string;
     nonce: string;
+    goalMode?: boolean;
     attachments: Array<{
       bytes: Uint8Array;
       fileName: string;

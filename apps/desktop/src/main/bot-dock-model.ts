@@ -33,6 +33,10 @@ export interface BotDockLabels {
   running?: string;
   /** Composer copy. */
   placeholder: string;
+  goalPlaceholder?: string;
+  chatMode?: string;
+  goalMode?: string;
+  switchMode?: string;
   send: string;
   to: string;
   failed: string;
@@ -49,6 +53,7 @@ export interface BotDockState {
   labels: BotDockLabels;
   theme?: "light" | "dark" | "system";
   running?: boolean;
+  outcomesEnabled?: boolean;
 }
 
 export interface DockRect {
@@ -166,6 +171,12 @@ export const parseBotDockState = (value: unknown): BotDockState | null | undefin
       open: text(labels.open, 80) ?? "Open OutcomeGo",
       running: text(labels.running, 80) ?? "Bot activity in progress",
       placeholder: text(labels.placeholder, 160) ?? "Message the main Bot. Type @ to choose a Bot.",
+      ...(text(labels.goalPlaceholder, 160)
+        ? { goalPlaceholder: text(labels.goalPlaceholder, 160)! }
+        : {}),
+      ...(text(labels.chatMode, 40) ? { chatMode: text(labels.chatMode, 40)! } : {}),
+      ...(text(labels.goalMode, 40) ? { goalMode: text(labels.goalMode, 40)! } : {}),
+      ...(text(labels.switchMode, 40) ? { switchMode: text(labels.switchMode, 40)! } : {}),
       send: text(labels.send, 40) ?? "Send",
       to: text(labels.to, 40) ?? "To",
       failed: text(labels.failed, 160) ?? "Couldn’t send. Try again.",
@@ -175,6 +186,9 @@ export const parseBotDockState = (value: unknown): BotDockState | null | undefin
     },
     ...(theme ? { theme } : {}),
     ...(value.running === true ? { running: true } : {}),
+    ...(typeof value.outcomesEnabled === "boolean"
+      ? { outcomesEnabled: value.outcomesEnabled }
+      : {}),
   };
 };
 
@@ -367,6 +381,7 @@ export interface BotDockMessage {
   /** May be empty when files are attached. */
   content: string;
   nonce: string;
+  goalMode?: boolean;
   attachments: BotDockAttachment[];
 }
 
@@ -438,7 +453,13 @@ export const parseBotDockMessage = (value: unknown): BotDockMessage | null => {
     (!content && attachments.length === 0)
   )
     return null;
-  return { botId, content, nonce, attachments };
+  return {
+    botId,
+    content,
+    nonce,
+    ...(value.goalMode === true ? { goalMode: true } : {}),
+    attachments,
+  };
 };
 
 export const parseBotDockSettings = (value: unknown): BotDockSettings => {

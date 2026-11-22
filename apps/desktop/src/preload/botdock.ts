@@ -6,6 +6,7 @@ interface BotDockSendInput {
   botId: string;
   content: string;
   nonce: string;
+  goalMode?: boolean;
   attachments: Array<
     Pick<BotDockAttachment, "bytes" | "fileName" | "mimeType" | "width" | "height">
   >;

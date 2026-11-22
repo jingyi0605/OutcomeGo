@@ -22,7 +22,8 @@ const MAX_ROSTER = 100;
  */
 export function useBotDockSync(
   snapshot: ClientSnapshot | null | undefined,
-  goalsByBot: Readonly<Record<string, number>> | undefined
+  goalsByBot: Readonly<Record<string, number>> | undefined,
+  outcomesEnabled = false
 ) {
   const bridge = typeof window === "undefined" ? undefined : window.outcomego?.botDock;
   const { t } = useI18n();
@@ -70,6 +71,9 @@ export function useBotDockSync(
       open: t("Open OutcomeGo"),
       running: t("Bot activity in progress"),
       placeholder: t("Message the main Bot. Type @ to choose a Bot."),
+      goalPlaceholder: t("Goal mode: describe what to achieve. Type @ to choose a Bot."),
+      chatMode: t("Chat"),
+      goalMode: t("Goal"),
       send: t("Send"),
       to: t("To"),
       failed: t("Couldn’t send. Try again."),
@@ -88,6 +92,7 @@ export function useBotDockSync(
       labels,
       theme,
       running: hasRunningBot(snapshot),
+      outcomesEnabled,
       roster: roster.map(({ hasAvatar, updatedAt, ...bot }) => {
         const avatar = hasAvatar ? avatars.get(`${bot.id}:${updatedAt}`) : undefined;
         return avatar ? { ...bot, avatarDataUrl: avatar } : bot;
@@ -101,13 +106,13 @@ export function useBotDockSync(
     if (serialized === lastPublished.current) return;
     lastPublished.current = serialized;
     bridge.publish(state);
-  }, [avatars, bridge, entries, labels, roster, snapshot, theme]);
+  }, [avatars, bridge, entries, labels, outcomesEnabled, roster, snapshot, theme]);
 
   // What is typed in the floating composer goes out like a message typed in the chat: through
   // the durable send path, so it shows up in the conversation at once and survives going offline.
   useEffect(() => {
     if (!bridge) return;
-    return bridge.onDeliver(async ({ botId, content, nonce, staged }) => {
+    return bridge.onDeliver(async ({ botId, content, nonce, goalMode, staged }) => {
       // The same shape the chat composer stages: only an image gets a local preview.
       const stagedAttachments = staged.map((file, position) => {
         const kind = attachmentAssetKind({ fileName: file.fileName, mimeType: file.mimeType });
@@ -133,6 +138,7 @@ export function useBotDockSync(
           payload: {
             content,
             attachments: [],
+            ...(goalMode ? { goalMode: true } : {}),
             ...(stagedAttachments.length ? { stagedAttachments } : {}),
           },
         });

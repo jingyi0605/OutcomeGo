@@ -389,4 +389,28 @@ describe("Bot dock pasted images", () => {
     ).toBeNull();
     expect(parseBotDockMessage({ botId: "a", content: "x", nonce, attachments: "nope" })).toBeNull();
   });
+
+  test("preserves goalMode when explicitly enabled and parses outcomesEnabled + mode labels", () => {
+    expect(
+      parseBotDockMessage({ botId: "a", content: "Create a goal", nonce, goalMode: true })
+    ).toEqual({
+      botId: "a",
+      content: "Create a goal",
+      nonce,
+      goalMode: true,
+      attachments: [],
+    });
+    expect(
+      parseBotDockMessage({ botId: "a", content: "Normal", nonce, goalMode: "yes" })?.goalMode
+    ).toBeUndefined();
+    const state = parseBotDockState({
+      bots: [],
+      outcomesEnabled: true,
+      labels: { chatMode: "对话模式", goalMode: "目标模式", switchMode: "Tab 切换" },
+    });
+    expect(state?.outcomesEnabled).toBe(true);
+    expect(state?.labels.chatMode).toBe("对话模式");
+    expect(state?.labels.goalMode).toBe("目标模式");
+    expect(state?.labels.switchMode).toBe("Tab 切换");
+  });
 });

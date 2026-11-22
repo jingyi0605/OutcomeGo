@@ -467,6 +467,8 @@ export const sourceTranslations: Record<string, string> = {
   "The request failed. Try again.": "请求失败，请重试。",
   "Unread messages": "未读消息",
   "Message the main Bot. Type @ to choose a Bot.": "给主 Bot 发消息，输入 @ 选择其他 Bot。",
+  "Goal mode: describe what to achieve. Type @ to choose a Bot.": "目标模式：描述要实现的目标，输入 @ 选择其他 Bot。",
+  Chat: "对话",
   "Couldn’t send. Try again.": "发送失败，请重试。",
   "No Bot is available.": "没有可用的 Bot。",
   "That file can’t be attached.": "无法添加这个文件。",

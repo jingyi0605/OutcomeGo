@@ -875,6 +875,7 @@ export class DesktopBotDock {
       botId: message.botId,
       content: message.content,
       nonce: message.nonce,
+      ...(message.goalMode ? { goalMode: true } : {}),
       staged,
     });
     // Refused: nothing will upload the staged copies. Unanswered, the chat window may already
