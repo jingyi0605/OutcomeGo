@@ -2225,7 +2225,7 @@ test("inChat mode removes redundant top action banner, splits conclusion/charts 
     ...decisionItem,
     id: "inbox-accept",
     category: "acceptance_pending" as const,
-    decisionId: null,
+    decisionId: undefined,
     title: "Unraid 清理后容量复查",
     completed: "Cache checked",
     problem: "None",
