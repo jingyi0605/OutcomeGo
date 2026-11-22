@@ -1,4 +1,15 @@
-import { nextMessageAddress, lockGroupExecution, supersedeGroupUserTurns, toggleMessageReaction, lockQuestions, dismissQuestions, questionScopeForReply } from "@outcomego/messaging";
+import {
+  nextMessageAddress,
+  lockGroupExecution,
+  supersedeGroupUserTurns,
+  toggleMessageReaction,
+  lockQuestions,
+  dismissQuestions,
+  questionScopeForReply,
+  outcomeDispatchEnabled,
+  readOutcomesEnabled,
+  type ActorRef,
+} from "@outcomego/messaging";
 import {
   ApiError,
   type ChannelMessageView,
@@ -7,8 +18,10 @@ import {
   type RenameChannelInput,
   type SendMessageInput,
 } from "@outcomego/contracts";
+import { OUTCOME_THREAD_TEXT_CHARS, type CreateOutcomeThreadInput, type OutcomeThreadTurnView } from "@outcomego/contracts/outcome-thread";
+import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
-import type { PrismaClient } from "@outcomego/db";
+import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
   type AgentDataStore,
   type AgentMessaging,
@@ -22,8 +35,11 @@ import {
   formatDirectMentionContext,
   formatUserPrompt,
   formatUserReactionPrompt,
+  messageAddress,
+  replyGoalHint,
 } from "./channel/formatting";
 import { GroupAdministration } from "./channel/group-administration";
+import { outcomeApiError } from "./outcome-service";
 import {
   appendEvent,
   type ComputerFetch,
@@ -45,6 +61,12 @@ const recoveryShaped = (run: { origin: string; inboxEvents: Array<{ payload: unk
   return run.origin === "user" && !payload.attachments?.length && !payload.replyToMessageId && payload.isFork !== true;
 };
 
+export type CreateGoalThreadInTransaction = (
+  tx: Prisma.TransactionClient,
+  input: CreateOutcomeThreadInput & { titleText?: string },
+  actor: ActorRef
+) => Promise<{ outcome: OutcomeDetail; turn: OutcomeThreadTurnView }>;
+
 export class ChannelService {
   private readonly groups: GroupAdministration;
 
@@ -55,7 +77,8 @@ export class ChannelService {
     private readonly computerFetch: ComputerFetch,
     private readonly agentData?: AgentDataStore,
     private readonly assets?: AssetStore,
-    private readonly userLocations?: UserLocationService
+    private readonly userLocations?: UserLocationService,
+    private readonly createGoalThreadInTransaction?: CreateGoalThreadInTransaction
   ) {
     this.groups = new GroupAdministration(
       prisma,
@@ -234,6 +257,14 @@ export class ChannelService {
           await this.userLocations.record(tx, locationSessionId, input.location);
         }
         if (input.timeZone) await this.messaging.updateUserTimeZone(tx, { detected: input.timeZone });
+        if (input.goalMode && !outcomeDispatchEnabled()) {
+          throw new ApiError(
+            503,
+            "outcome_dispatch_disabled",
+            "New Outcome execution is temporarily disabled",
+            { retryable: true }
+          );
+        }
         const address = await nextMessageAddress(tx, channel.id, "user");
         const visibleMessage = await tx.channelMessage.create({
           data: {
@@ -251,9 +282,84 @@ export class ChannelService {
               ...(input.isFork ? { branched: true, questionScopeId } : {}),
               ...(input.timeZone ? { timeZone: input.timeZone } : {}),
               ...(input.voice ? { voice: input.voice } : {}),
+              ...(input.goalMode ? { goalMode: true } : {}),
             },
           },
         });
+        if (input.goalMode) {
+          if (!(await readOutcomesEnabled(tx))) {
+            throw new ApiError(
+              403,
+              "outcomes_disabled",
+              "Goal management is turned off. The user can enable it in Settings → General"
+            );
+          }
+          if (conversation.bot.status !== "active") {
+            throw outcomeApiError("bot_not_runnable", "Choose an existing, active Bot");
+          }
+          if (!this.createGoalThreadInTransaction) {
+            throw new ApiError(
+              503,
+              "outcome_thread_unavailable",
+              "Goal thread creation is not available"
+            );
+          }
+          let actor: ActorRef = "owner:local";
+          if (locationSessionId) {
+            const session = await tx.session.findUnique({
+              where: { id: locationSessionId },
+              select: { userId: true, expiresAt: true },
+            });
+            if (session && session.expiresAt > new Date()) actor = `user:${session.userId}`;
+          }
+          const titleText =
+            input.content.trim() ||
+            input.attachments?.map((attachment) => attachment.fileName).join(", ") ||
+            "New goal";
+          const plannerParts = [
+            ...(reply
+              ? [
+                  `[In reply to ${messageAddress(reply)}: ${JSON.stringify(reply.content)}${replyGoalHint(reply)}]`,
+                ]
+              : []),
+            titleText,
+            ...(input.attachments?.length
+              ? [
+                  `[Attachments: ${input.attachments.map((attachment) => `${attachment.fileName} (${attachment.mimeType})`).join(", ")}]`,
+                ]
+              : []),
+          ];
+          const plannerText = plannerParts.join("\n").slice(0, OUTCOME_THREAD_TEXT_CHARS);
+          const created = await this.createGoalThreadInTransaction(
+            tx,
+            {
+              text: plannerText,
+              titleText: titleText.slice(0, OUTCOME_THREAD_TEXT_CHARS),
+              botId: conversation.botId,
+              postToChat: true,
+              clientRequestId: input.clientId,
+            },
+            actor
+          );
+          const goalRun = created.turn.runId
+            ? await tx.run.findUnique({ where: { id: created.turn.runId } })
+            : null;
+          await this.messaging.scheduleTranscriptProjection(tx, [conversation.botId]);
+          await tx.channel.update({
+            where: { id: channel.id },
+            data: { updatedAt: new Date() },
+          });
+          const response = { message: visibleMessage, run: goalRun };
+          await tx.idempotencyRecord.update({
+            where: { scope_key: { scope, key: input.clientId } },
+            data: { status: "completed", response: toJson(response) },
+          });
+          return {
+            response: serialize(response),
+            bootstrapRunId,
+            interruptRunId: null,
+          };
+        }
         const delivery = await this.messaging.acceptDirectUserMessage(tx, {
           botId: conversation.botId,
           channelId: channel.id,

@@ -54,6 +54,7 @@ export interface DurableSendPayload {
   replyToMessageId?: string;
   richText?: string;
   isFork?: boolean;
+  goalMode?: boolean;
 }
 
 /** A crash-safe local file owned by the platform delivery adapter. */
@@ -324,7 +325,10 @@ const authoredAttachments = (
 
 /** Bind acknowledgement lineage to the complete authored send, including its destination/files. */
 export const durableSendPromptDigest = (
-  payload: Pick<DurableSendPayload, "content" | "richText" | "replyToMessageId" | "isFork"> &
+  payload: Pick<
+    DurableSendPayload,
+    "content" | "richText" | "replyToMessageId" | "isFork" | "goalMode"
+  > &
     Partial<Pick<DurableSendPayload, "attachments" | "stagedAttachments">>,
   target?: DurableSendTarget
 ): string =>
@@ -337,6 +341,7 @@ export const durableSendPromptDigest = (
       richText: payload.richText ?? null,
       replyToMessageId: payload.replyToMessageId ?? null,
       isFork: payload.isFork ?? false,
+      ...(payload.goalMode ? { goalMode: true } : {}),
       attachments: authoredAttachments({
         attachments: payload.attachments ?? [],
         stagedAttachments: payload.stagedAttachments,
@@ -359,6 +364,7 @@ const acceptedMessagePromptDigest = (
       ...(typeof metadata.richText === "string" ? { richText: metadata.richText } : {}),
       ...(typeof metadata.replyTo === "string" ? { replyToMessageId: metadata.replyTo } : {}),
       ...(metadata.branched === true ? { isFork: true } : {}),
+      ...(metadata.goalMode === true ? { goalMode: true } : {}),
     },
     target
   );
@@ -508,6 +514,7 @@ const parsePayload = (value: unknown): DurableSendPayload | null => {
     !optionalString(value.replyToMessageId) ||
     !optionalString(value.richText) ||
     (value.isFork !== undefined && typeof value.isFork !== "boolean") ||
+    (value.goalMode !== undefined && typeof value.goalMode !== "boolean") ||
     (value.consumedDraft !== undefined &&
       (!isRecord(value.consumedDraft) ||
         typeof value.consumedDraft.key !== "string" ||
@@ -549,6 +556,7 @@ const parsePayload = (value: unknown): DurableSendPayload | null => {
       : {}),
     ...(typeof value.richText === "string" ? { richText: value.richText } : {}),
     ...(typeof value.isFork === "boolean" ? { isFork: value.isFork } : {}),
+    ...(typeof value.goalMode === "boolean" ? { goalMode: value.goalMode } : {}),
   };
 };
 
@@ -735,6 +743,7 @@ export const durableSendMessage = (record: DurableSendRecord): ChannelMessageVie
       ...(record.payload.replyToMessageId ? { replyTo: record.payload.replyToMessageId } : {}),
       ...(record.payload.richText ? { richText: record.payload.richText } : {}),
       ...(record.payload.isFork ? { branched: true } : {}),
+      ...(record.payload.goalMode ? { goalMode: true } : {}),
     },
     createdAt: new Date(record.createdAtMs).toISOString(),
   };

@@ -319,6 +319,7 @@ export const SendMessageInput = Schema.Struct({
   replyToMessageId: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120))),
   richText: Schema.optional(Schema.String),
   isFork: Schema.optional(Schema.Boolean),
+  goalMode: Schema.optional(Schema.Boolean),
   attachments: Schema.optional(
     Schema.Array(AssetRef).pipe(
       Schema.maxItems(CLIENT_CAPABILITIES.uploads.maxAttachmentsPerMessage)

@@ -244,6 +244,21 @@ export class AppService {
       () => this.transcription.store.status(),
       authMode
     );
+    this.runs = new RunService(
+      this.prisma,
+      (path, init) => this.computerFetch(path, init)
+    );
+    const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
+    this.outcomeBriefs = new OutcomeBriefService(inferOutcome, prismaOutcomeBriefStore(this.prisma));
+    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions, (outcome) =>
+      this.outcomeBriefs.warm(outcome)
+    );
+    // Planning is the goal's own bot's work (specs/004.8). This retired service keeps only the cleanup of old
+    // planning drafts, and can no longer reach a model.
+    this.outcomePlanning = new OutcomePlanningService(this.prisma, async () => {
+      throw new Error("Goal planning is done by the goal's own bot in its thread");
+    });
+    this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging, this.outcomes);
     this.channels = new ChannelService(
       this.prisma,
       this.messaging,
@@ -251,7 +266,8 @@ export class AppService {
       (path, init) => this.computerFetch(path, init),
       this.agentData,
       this.assets,
-      this.userLocations
+      this.userLocations,
+      (tx, input, actor) => this.outcomeThreads.createInTransaction(tx, input, actor)
     );
     this.plugins = new PluginService(
       this.prisma,
@@ -268,21 +284,6 @@ export class AppService {
       this.bots,
       this.machines
     );
-    this.runs = new RunService(
-      this.prisma,
-      (path, init) => this.computerFetch(path, init)
-    );
-    const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
-    this.outcomeBriefs = new OutcomeBriefService(inferOutcome, prismaOutcomeBriefStore(this.prisma));
-    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions, (outcome) =>
-      this.outcomeBriefs.warm(outcome)
-    );
-    // Planning is the goal's own bot's work (specs/004.8). This retired service keeps only the cleanup of old
-    // planning drafts, and can no longer reach a model.
-    this.outcomePlanning = new OutcomePlanningService(this.prisma, async () => {
-      throw new Error("Goal planning is done by the goal's own bot in its thread");
-    });
-    this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging, this.outcomes);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);
     const humanServices = createHumanWorkServices(this.prisma, this.messaging, this.agentData, this.assets);

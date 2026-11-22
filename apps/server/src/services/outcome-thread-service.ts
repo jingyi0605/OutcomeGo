@@ -9,7 +9,7 @@ import {
 } from "@outcomego/contracts/outcome-thread";
 import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
-import { readOutcomesEnabled, recomputeOutcomeStatus, type ActorRef, type AgentMessaging } from "@outcomego/messaging";
+import { postOutcomeUpdateCard, readOutcomesEnabled, recomputeOutcomeStatus, type ActorRef, type AgentMessaging } from "@outcomego/messaging";
 import { outcomeApiError, type OutcomeService } from "./outcome-service";
 import { lockOutcome, outcomeWrite } from "./outcome-write";
 import { appendEvent } from "./service-utils";
@@ -63,24 +63,45 @@ export class OutcomeThreadService {
     const text = input.text;
     if (!text.trim() || text.length > OUTCOME_THREAD_TEXT_CHARS)
       throw new ApiError(400, "invalid_request", "Describe the goal in your own words");
-    return outcomeWrite(this.prisma, "outcome-thread-create", input.clientRequestId, input, async (tx) => {
-      const bot = await tx.bot.findUnique({ where: { id: input.botId }, select: { id: true, status: true } });
-      if (!bot || bot.status !== "active") throw outcomeApiError("bot_not_runnable", "Choose an existing, active Bot");
-      let sourceExploreId: string | null = null;
-      if (input.exploreIdeaId) {
-        const idea = await tx.exploreIdea.findUnique({ where: { id: input.exploreIdeaId } });
-        if (!idea) throw new ApiError(404, "explore_not_found", "Explore idea not found");
-        if (idea.status === "converted" || idea.status === "discarded")
-          throw new ApiError(409, "explore_read_only", "This idea can no longer be turned into a goal", { currentStatus: idea.status, retryable: false });
-        sourceExploreId = idea.id;
-      }
-      const outcomeId = await this.outcomes.createPlanningOutcome(
-        tx, { botId: bot.id, title: placeholderTitle(text), description: text.trim(), sourceExploreId }, actor, input.clientRequestId);
-      if (sourceExploreId) await tx.exploreIdea.update({ where: { id: sourceExploreId }, data: { status: "converted", proposedOutcomeId: outcomeId } });
-      const turn = await this.enqueue(tx, outcomeId, bot.id, "plan", text, actor, input.clientRequestId);
-      await this.recompute(tx, outcomeId, actor);
-      return { outcome: await this.detail(tx, outcomeId), turn };
+    return outcomeWrite(this.prisma, "outcome-thread-create", input.clientRequestId, input, async (tx) =>
+      this.createInTransaction(tx, input, actor)
+    );
+  }
+
+  /** Creates a planning goal and enqueues its initial planner turn inside the caller's transaction. */
+  async createInTransaction(
+    tx: Tx,
+    input: CreateOutcomeThreadInput & { titleText?: string },
+    actor: ActorRef
+  ): Promise<{ outcome: OutcomeDetail; turn: OutcomeThreadTurnView }> {
+    const text = input.text;
+    if (!text.trim() || text.length > OUTCOME_THREAD_TEXT_CHARS)
+      throw new ApiError(400, "invalid_request", "Describe the goal in your own words");
+    const bot = await tx.bot.findUnique({ where: { id: input.botId }, select: { id: true, status: true } });
+    if (!bot || bot.status !== "active") throw outcomeApiError("bot_not_runnable", "Choose an existing, active Bot");
+    let sourceExploreId: string | null = null;
+    if (input.exploreIdeaId) {
+      const idea = await tx.exploreIdea.findUnique({ where: { id: input.exploreIdeaId } });
+      if (!idea) throw new ApiError(404, "explore_not_found", "Explore idea not found");
+      if (idea.status === "converted" || idea.status === "discarded")
+        throw new ApiError(409, "explore_read_only", "This idea can no longer be turned into a goal", { currentStatus: idea.status, retryable: false });
+      sourceExploreId = idea.id;
+    }
+    const chat = input.postToChat ? await tx.channel.findFirst({
+      where: { kind: "bot_dm", archivedAt: null, members: { some: { botId: bot.id } } },
+      orderBy: { createdAt: "asc" }, select: { id: true },
+    }) : null;
+    if (input.postToChat && !chat) throw outcomeApiError("bot_not_runnable", "This Bot has no direct conversation");
+    const titleSource = input.titleText?.trim() ? input.titleText : text;
+    const outcomeId = await this.outcomes.createPlanningOutcome(
+      tx, { botId: bot.id, title: placeholderTitle(titleSource), description: titleSource.trim(), sourceExploreId }, actor, input.clientRequestId);
+    if (sourceExploreId) await tx.exploreIdea.update({ where: { id: sourceExploreId }, data: { status: "converted", proposedOutcomeId: outcomeId } });
+    const turn = await this.enqueue(tx, outcomeId, bot.id, "plan", text, actor, input.clientRequestId);
+    await this.recompute(tx, outcomeId, actor);
+    if (chat) await postOutcomeUpdateCard(tx, {
+      channelId: chat.id, outcomeId, factKey: `created:${outcomeId}`, contractRevision: 0, type: "outcome.created",
     });
+    return { outcome: await this.detail(tx, outcomeId), turn };
   }
 
   /** The owner's words, as sent, delivered to the goal's thread. Returns at once. */

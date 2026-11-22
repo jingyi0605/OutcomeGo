@@ -115,6 +115,7 @@ export interface OutcomeGoClientOptions extends UserLocationClientOptions {
 export interface SendMessageOptions {
   richText?: string;
   isFork?: boolean;
+  goalMode?: boolean;
   /** Stable idempotency nonce supplied by the durable client send journal. */
   clientId?: string;
 }
@@ -697,6 +698,7 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         replyToMessageId,
         ...(messageOptions?.richText ? { richText: messageOptions.richText } : {}),
         ...(messageOptions?.isFork !== undefined ? { isFork: messageOptions.isFork } : {}),
+        ...(messageOptions?.goalMode !== undefined ? { goalMode: messageOptions.goalMode } : {}),
         clientId: messageOptions?.clientId ?? createId(),
         timeZone: timeZone(),
       };
