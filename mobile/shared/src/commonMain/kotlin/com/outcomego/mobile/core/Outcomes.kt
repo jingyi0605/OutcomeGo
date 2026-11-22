@@ -36,6 +36,75 @@ data class OutcomeDetail(
     val outputs: List<OutcomeOutput> = emptyList(),
     val evidence: List<OutcomeEvidence> = emptyList(),
     val reviews: List<OutcomeReview> = emptyList(),
+    val plan: OutcomePlan? = null,
+    val prereview: OutcomePrereview? = null,
+)
+
+@Serializable
+data class OutcomePlanTask(
+    val key: String,
+    val title: String,
+    val instructions: String,
+    val botId: String,
+    val dependsOn: List<String> = emptyList(),
+    val covers: List<String> = emptyList(),
+    val nature: String,
+)
+
+@Serializable
+data class OutcomePlan(
+    val notes: String? = null,
+    val tasks: List<OutcomePlanTask> = emptyList(),
+)
+
+@Serializable
+data class OutcomeTaskReviewBoundary(
+    val side: String,
+    val index: Int,
+)
+
+@Serializable
+data class OutcomeTaskReviewBasis(
+    val criterionId: String? = null,
+    val boundary: OutcomeTaskReviewBoundary? = null,
+)
+
+@Serializable
+data class OutcomeTaskReviewFinding(
+    val kind: String,
+    val basis: OutcomeTaskReviewBasis,
+    val reason: String,
+)
+
+@Serializable
+data class OutcomeWorkItemReview(
+    val state: String,
+    val findings: List<OutcomeTaskReviewFinding> = emptyList(),
+    val reworkWorkItemId: String? = null,
+)
+
+@Serializable
+data class OutcomePrereviewAttention(
+    val criterionId: String? = null,
+    val question: String,
+)
+
+@Serializable
+data class OutcomePrereviewResult(
+    val criterionId: String,
+    val suggestion: String,
+    val reason: String,
+    val evidenceIds: List<String> = emptyList(),
+)
+
+@Serializable
+data class OutcomePrereview(
+    val turnId: String,
+    val revision: Int,
+    val summary: String,
+    val attention: List<OutcomePrereviewAttention> = emptyList(),
+    val results: List<OutcomePrereviewResult> = emptyList(),
+    val createdAt: String,
 )
 
 @Serializable
@@ -104,12 +173,16 @@ data class OutcomeCriterion(
 data class OutcomeWorkItem(
     val id: String,
     val contractRevision: Int,
+    val botId: String? = null,
     val executorType: String,
     val kind: String,
     val title: String,
     val status: String,
     val statusReason: String? = null,
     val ordinal: Int,
+    val planKey: String? = null,
+    val nature: String? = null,
+    val review: OutcomeWorkItemReview? = null,
     val dependsOn: List<String> = emptyList(),
 )
 
@@ -184,6 +257,7 @@ data class OutcomeThreadTurn(
     val reply: String? = null,
     val error: OutcomeThreadTurnError? = null,
     val runId: String? = null,
+    val workItemId: String? = null,
     val createdAt: String,
     val updatedAt: String,
 ) {
@@ -195,6 +269,8 @@ data class OutcomeThreadTurn(
 data class OutcomeThreadView(
     val threadId: String? = null,
     val turns: List<OutcomeThreadTurn> = emptyList(),
+    val reviewerThreadId: String? = null,
+    val reviewTurns: List<OutcomeThreadTurn> = emptyList(),
 )
 
 /** A new goal described in the owner's own words; the chosen bot plans it. */
@@ -294,6 +370,13 @@ data class OutcomeReworkRequest(
 )
 
 @Serializable
+data class AdoptPrereviewRequest(
+    val expectedRevision: Int,
+    val turnId: String,
+    val clientRequestId: String,
+)
+
+@Serializable
 data class OutcomeTranscriptRow(
     val id: String,
     val at: String,
@@ -335,6 +418,9 @@ class TransportOutcomeWriteApi(private val transport: OutcomeGoTransport) {
 
     suspend fun rework(server: String, token: String?, id: String, input: OutcomeReworkRequest): OutcomeDetail =
         decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, "${outcomeDetailPath(id)}/rework", body = mobileJson.encodeToString(input))))
+
+    suspend fun adoptPrereview(server: String, token: String?, id: String, input: AdoptPrereviewRequest): OutcomeDetail =
+        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, "${outcomeDetailPath(id)}/reviews/adopt-prereview", body = mobileJson.encodeToString(input))))
 
     suspend fun transcript(server: String, token: String?, outcomeId: String, workItemId: String, before: Int? = null): JsonElement =
         mobileJson.decodeFromString(

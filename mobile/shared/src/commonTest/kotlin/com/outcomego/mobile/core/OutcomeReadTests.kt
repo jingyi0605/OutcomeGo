@@ -22,6 +22,78 @@ class OutcomeReadTests {
     }
 
     @Test
+    fun decodesPlanTaskReviewAndPrereviewPayloads() {
+        val payload = """{
+          "id": "outcome-2",
+          "title": "Plan test",
+          "status": "review_pending",
+          "botId": "bot-planner",
+          "currentRevision": 1,
+          "updatedAt": "2026-11-22T00:00:00Z",
+          "description": "Goal description",
+          "plan": {
+            "notes": "Keep neutral task phrasing",
+            "tasks": [{
+              "key": "draft-doc",
+              "title": "Draft doc",
+              "instructions": "Write draft",
+              "botId": "bot-exec",
+              "dependsOn": [],
+              "covers": ["criterion-1"],
+              "nature": "deliverable"
+            }]
+          },
+          "workItems": [{
+            "id": "w-1",
+            "contractRevision": 1,
+            "botId": "bot-exec",
+            "executorType": "agent",
+            "kind": "execution",
+            "title": "Draft doc",
+            "status": "completed",
+            "ordinal": 1,
+            "planKey": "draft-doc",
+            "nature": "deliverable",
+            "review": {
+              "state": "rejected_once",
+              "findings": [{
+                "kind": "omission",
+                "basis": { "criterionId": "criterion-1" },
+                "reason": "Missing executive summary"
+              }],
+              "reworkWorkItemId": "w-2"
+            }
+          }],
+          "prereview": {
+            "turnId": "turn-1",
+            "revision": 1,
+            "summary": "1 likely pass, 1 needs attention",
+            "attention": [{ "criterionId": "criterion-1", "question": "Confirm tone" }],
+            "results": [{
+              "criterionId": "criterion-1",
+              "suggestion": "likely_pass",
+              "reason": "All sections covered",
+              "evidenceIds": ["ev-1"]
+            }],
+            "createdAt": "2026-11-22T00:00:00Z"
+          }
+        }"""
+        val decoded = mobileJson.decodeFromString<OutcomeDetail>(payload)
+        assertEquals("Keep neutral task phrasing", decoded.plan?.notes)
+        assertEquals("deliverable", decoded.plan?.tasks?.single()?.nature)
+        assertEquals("rejected_once", decoded.workItems.single().review?.state)
+        assertEquals("Missing executive summary", decoded.workItems.single().review?.findings?.single()?.reason)
+        assertEquals("turn-1", decoded.prereview?.turnId)
+        assertEquals("likely_pass", decoded.prereview?.results?.single()?.suggestion)
+
+        val thread = mobileJson.decodeFromString<OutcomeThreadView>(
+            """{"threadId":"th-1","turns":[],"reviewerThreadId":"th-rev","reviewTurns":[{"id":"rt-1","purpose":"review_task","trigger":"task","status":"completed","reply":"Passed","workItemId":"w-1","createdAt":"now","updatedAt":"now"}]}""",
+        )
+        assertEquals("th-rev", thread.reviewerThreadId)
+        assertEquals("w-1", thread.reviewTurns.single().workItemId)
+    }
+
+    @Test
     fun decodesBriefAndKeepsOlderDetailPayloadsWithoutConflictsOrDependencies() {
         val brief = mobileJson.decodeFromString<OutcomeBrief>(
             """{"outcomeId":"outcome-1","revisionId":null,"sourceKey":"k","futureField":1,
@@ -107,8 +179,9 @@ class OutcomeReadTests {
                     )
                     request.path.endsWith("/thread") -> MobileResponse(
                         200,
-                        body = """{"threadId":"th-1","turns":[{"id":"t-1","purpose":"plan","trigger":"goal","status":"completed","reply":"Done","createdAt":"now","updatedAt":"now"}]}""",
+                        body = """{"threadId":"th-1","turns":[{"id":"t-1","purpose":"plan","trigger":"goal","status":"completed","reply":"Done","createdAt":"now","updatedAt":"now"}],"reviewerThreadId":"th-rev-1","reviewTurns":[{"id":"rt-1","purpose":"review","trigger":"prereview","status":"completed","reply":"Summary","workItemId":null,"createdAt":"now","updatedAt":"now"}]}""",
                     )
+                    request.path.endsWith("/reviews/adopt-prereview") -> MobileResponse(200, body = DETAIL)
                     request.path.startsWith("/api/v0/explore?") && request.method == HttpMethod.GET -> MobileResponse(404)
                     else -> MobileResponse(
                         200,
@@ -139,6 +212,16 @@ class OutcomeReadTests {
         assertEquals("Done", thread.turns.single().reply)
         assertEquals(false, thread.turns.single().inProgress)
         assertEquals("/api/v0/outcomes/outcome-1/thread", outcomeThreadPath("outcome-1"))
+
+        val adopted = writeApi.adoptPrereview(
+            "https://fixture.invalid",
+            "tok",
+            "outcome-1",
+            AdoptPrereviewRequest(expectedRevision = 2, turnId = "turn-rev-1", clientRequestId = "req-adopt-1234"),
+        )
+        assertEquals("outcome-1", adopted.id)
+        assertEquals("/api/v0/outcomes/outcome-1/reviews/adopt-prereview", seen.last().path)
+        assertTrue(seen.last().body!!.contains("\"turnId\":\"turn-rev-1\""))
         val exploreApi = TransportExploreApi(transport)
         assertNull(exploreApi.list("https://fixture.invalid", "tok"))
         val createdIdea = exploreApi.create(

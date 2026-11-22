@@ -66,6 +66,7 @@ import com.outcomego.android.ui.designsystem.SpatialRadii
 import com.outcomego.android.ui.designsystem.SpatialSecondaryButton
 import com.outcomego.android.ui.designsystem.SpatialSpacing
 import com.outcomego.android.ui.designsystem.SpatialTheme
+import com.outcomego.mobile.core.AdoptPrereviewRequest
 import com.outcomego.mobile.core.ApproveContractRevisionRequest
 import com.outcomego.mobile.core.CancelOutcomeRequest
 import com.outcomego.mobile.core.CreateContractRevisionRequest
@@ -213,6 +214,7 @@ internal fun OutcomeDetailScreen(
     val noticeCancelledMsg = localizedText("Outcome cancelled.", "目标已取消。")
     val noticeRevisedMsg = localizedText("Revision created.", "已创建新修订。")
     val noticeReviewMsg = localizedText("Review submitted.", "验收评审已提交。")
+    val noticeAdoptPrereviewMsg = localizedText("Likely-pass prereview items adopted.", "已采纳初验初步通过项。")
     val noticeReworkMsg = localizedText("Rework requested.", "已退回返工。")
 
     fun syncDraftFields(value: OutcomeDetail) {
@@ -652,6 +654,48 @@ internal fun OutcomeDetailScreen(
                             }
                         }
 
+                        value.plan?.let { plan ->
+                            item {
+                                OutcomeCard {
+                                    Text(localizedText("Task Plan (${plan.tasks.size})", "任务计划 (${plan.tasks.size})"), style = MaterialTheme.typography.titleMedium, color = colors.textPrimary)
+                                    plan.notes?.takeIf { it.isNotBlank() }?.let { notes ->
+                                        Text(notes, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                                    }
+                                    plan.tasks.forEach { task ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
+                                        ) {
+                                            OutcomeBadgePill(
+                                                text = if (task.nature == "deliverable") localizedText("Deliverable", "成果类") else localizedText("Action", "操作类"),
+                                            )
+                                            Text(
+                                                "${task.title} (${task.key})",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = colors.textPrimary,
+                                                modifier = Modifier.weight(1f),
+                                            )
+                                        }
+                                        if (task.dependsOn.isNotEmpty() || task.covers.isNotEmpty()) {
+                                            Text(
+                                                buildString {
+                                                    if (task.covers.isNotEmpty()) append(localizedText("Covers ${task.covers.size}", "覆盖 ${task.covers.size} 项"))
+                                                    if (task.dependsOn.isNotEmpty()) {
+                                                        if (isNotEmpty()) append(" · ")
+                                                        append(localizedText("After: ", "依赖: "))
+                                                        append(task.dependsOn.joinToString(", "))
+                                                    }
+                                                },
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = colors.textSecondary,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         item {
                             OutcomeBriefSections(
                                 outcome = value,
@@ -663,7 +707,18 @@ internal fun OutcomeDetailScreen(
 
                     DetailSection.Tasks -> {
                         if (value.workItems.isEmpty()) {
-                            item { Text(localizedText("No work items yet.", "暂无工作项。"), color = colors.textSecondary) }
+                            val planTasks = value.plan?.tasks.orEmpty()
+                            if (planTasks.isNotEmpty()) {
+                                item {
+                                    Text(
+                                        localizedText("Planned tasks run after approval (${planTasks.size}).", "批准契约后将按计划创建 ${planTasks.size} 个任务。"),
+                                        color = colors.textSecondary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                }
+                            } else {
+                                item { Text(localizedText("No work items yet.", "暂无工作项。"), color = colors.textSecondary) }
+                            }
                         }
                         items(value.workItems.sortedBy { it.ordinal }, key = { it.id }) { work ->
                             OutcomeCard {
@@ -686,10 +741,38 @@ internal fun OutcomeDetailScreen(
                                         text = if (work.executorType == "human") localizedText("Human", "人工") else localizedText("Agent", "AI"),
                                         icon = if (work.executorType == "human") Icons.Outlined.Person else Icons.Outlined.SmartToy,
                                     )
+                                    work.nature?.let { nature ->
+                                        OutcomeBadgePill(
+                                            text = if (nature == "deliverable") localizedText("Deliverable", "成果类") else localizedText("Action", "操作类"),
+                                        )
+                                    }
                                     Spacer(Modifier.weight(1f))
                                     Text("v${work.contractRevision}", style = MaterialTheme.typography.labelSmall, color = colors.textTertiary)
                                 }
                                 Text(work.title, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
+                                work.planKey?.takeIf { it.isNotBlank() }?.let { key ->
+                                    Text(
+                                        localizedText("Plan key: $key", "计划键: $key"),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = colors.textSecondary,
+                                    )
+                                }
+                                work.review?.takeIf { it.state != "none" }?.let { taskReview ->
+                                    val reviewBadge = when (taskReview.state) {
+                                        "rejected_once" -> localizedText("Rejected once (rework queued)", "驳回返工一次") to colors.danger
+                                        "unreviewed" -> localizedText("Unreviewed", "未经审查") to colors.warning
+                                        "passed" -> localizedText("Task review passed", "任务审查通过") to colors.success
+                                        else -> taskReview.state to colors.textSecondary
+                                    }
+                                    OutcomeBadgePill(text = reviewBadge.first, tint = reviewBadge.second)
+                                    taskReview.findings.forEach { finding ->
+                                        Text(
+                                            "• [${finding.kind}] ${finding.reason}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = colors.textSecondary,
+                                        )
+                                    }
+                                }
                                 work.statusReason?.takeIf { it.isNotBlank() }?.let {
                                     Text(it, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
                                 }
@@ -744,6 +827,65 @@ internal fun OutcomeDetailScreen(
                     }
 
                     DetailSection.Review -> {
+                        value.prereview?.let { prereview ->
+                            val isCurrentRevision = prereview.revision == value.currentRevision
+                            val hasLikelyPass = prereview.results.any { it.suggestion == "likely_pass" }
+                            item {
+                                OutcomeCard {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(SpatialSpacing.xs),
+                                    ) {
+                                        Text(
+                                            localizedText("Preliminary Review (v${prereview.revision})", "整体初验 (v${prereview.revision})"),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = colors.textPrimary,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        if (!isCurrentRevision) {
+                                            OutcomeBadgePill(localizedText("Stale revision", "修订已变更"), tint = colors.warning)
+                                        }
+                                    }
+                                    Text(prereview.summary, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+                                    if (prereview.attention.isNotEmpty()) {
+                                        Text(
+                                            localizedText("Needs owner attention:", "需关注并亲自核对："),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = colors.warning,
+                                        )
+                                        prereview.attention.forEach { attn ->
+                                            Text("• ${attn.question}", style = MaterialTheme.typography.bodySmall, color = colors.textPrimary)
+                                        }
+                                    }
+                                    if (hasLikelyPass && value.status in setOf("review_pending", "needs_review", "completed")) {
+                                        SpatialPrimaryButton(
+                                            label = localizedText("Adopt likely-pass items", "一键采纳初步通过项"),
+                                            enabled = !mutating && isCurrentRevision,
+                                            loading = mutating,
+                                            onClick = {
+                                                scope.launch {
+                                                    mutating = true; actionError = null; actionNotice = null
+                                                    gateway.adoptOutcomePrereview(
+                                                        id,
+                                                        AdoptPrereviewRequest(
+                                                            expectedRevision = prereview.revision,
+                                                            turnId = prereview.turnId,
+                                                            clientRequestId = UUID.randomUUID().toString(),
+                                                        ),
+                                                    ).fold(
+                                                        onSuccess = { detail = it; actionNotice = noticeAdoptPrereviewMsg },
+                                                        onFailure = { actionError = it.message ?: "Adopt prereview failed" },
+                                                    )
+                                                    mutating = false
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         if (value.outputs.isNotEmpty()) {
                             item {
                                 Text(
@@ -784,6 +926,17 @@ internal fun OutcomeDetailScreen(
                                 ) {
                                     OutcomeStatusPill(criterion.latestResult)
                                     OutcomeBadgePill(if (criterion.required) localizedText("Required", "必需") else localizedText("Optional", "可选"))
+                                    value.prereview?.results?.firstOrNull { it.criterionId == criterion.id }?.let { pre ->
+                                        val (label, tint) = when (pre.suggestion) {
+                                            "likely_pass" -> localizedText("Likely pass", "初步通过") to colors.success
+                                            "likely_fail" -> localizedText("Likely fail", "疑有问题") to colors.danger
+                                            else -> localizedText("Unclear", "需核对") to colors.warning
+                                        }
+                                        OutcomeBadgePill(label, tint = tint)
+                                    }
+                                }
+                                value.prereview?.results?.firstOrNull { it.criterionId == criterion.id }?.let { pre ->
+                                    Text(pre.reason, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
                                 }
                                 Text(criterion.statement, style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
                                 value.reviews.filter { it.criterionId == criterion.id && it.contractRevision == value.currentRevision }

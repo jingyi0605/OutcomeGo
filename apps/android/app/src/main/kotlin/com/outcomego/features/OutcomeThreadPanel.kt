@@ -89,14 +89,19 @@ internal fun OutcomeThreadPanel(
 
     LaunchedEffect(gateway, outcomeId) { load() }
 
-    // While the bot is working, keep reading the thread; when it stops, the goal may have changed.
-    val working = view?.turns?.any { it.inProgress } == true
+    // While the bot (planner or reviewer) is working, keep reading the thread; when it stops, reload the goal.
+    val working = view?.let { v ->
+        v.turns.any { it.inProgress } || v.reviewTurns.any { it.inProgress }
+    } == true
     LaunchedEffect(gateway, outcomeId, working) {
         if (!working) return@LaunchedEffect
         while (true) {
             delay(THREAD_POLL_MS)
             load()
-            if (view?.turns?.any { it.inProgress } != true) {
+            val stillWorking = view?.let { v ->
+                v.turns.any { it.inProgress } || v.reviewTurns.any { it.inProgress }
+            } == true
+            if (!stillWorking) {
                 onChanged()
                 break
             }
@@ -108,6 +113,7 @@ internal fun OutcomeThreadPanel(
     }
 
     val turns = view?.turns.orEmpty()
+    val reviewTurns = view?.reviewTurns.orEmpty()
     val shown = if (showAll || turns.size <= THREAD_COLLAPSED_TURNS) turns else turns.takeLast(THREAD_COLLAPSED_TURNS)
 
     SpatialGlassSurface(Modifier.fillMaxWidth(), tier = GlassTier.Card, shape = RoundedCornerShape(SpatialRadii.lg)) {
@@ -138,6 +144,17 @@ internal fun OutcomeThreadPanel(
                 }
             }
             shown.forEach { turn -> ThreadTurnRows(turn) }
+            if (reviewTurns.isNotEmpty()) {
+                Text(
+                    localizedText("Reviewer turns (${reviewTurns.size})", "审查回合 (${reviewTurns.size})"),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colors.textSecondary,
+                    modifier = Modifier.padding(top = SpatialSpacing.xs),
+                )
+                reviewTurns.takeLast(THREAD_COLLAPSED_TURNS).forEach { turn ->
+                    ReviewerTurnRow(turn)
+                }
+            }
             if (view != null && turns.isEmpty()) {
                 Text(
                     localizedText("Nothing here yet. Tell the bot what to change, ask a question, or cancel.", "还没有对话。可以告诉机器人要改什么、提问或取消。"),
@@ -226,6 +243,42 @@ private fun ThreadTurnRows(turn: OutcomeThreadTurn) {
                     color = colors.textPrimary,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ReviewerTurnRow(turn: OutcomeThreadTurn) {
+    val colors = SpatialTheme.colors
+    val purposeLabel = when (turn.purpose) {
+        "review_task" -> localizedText("Task review", "任务审查")
+        "review" -> localizedText("Overall prereview", "整体初验")
+        else -> turn.purpose
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            "$purposeLabel · ${outcomeStatusLabel(turn.status)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = colors.textTertiary,
+        )
+        Text(turn.trigger, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary)
+        when {
+            turn.inProgress -> Text(
+                localizedText("Reviewer is working…", "审查处理中…"),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+            )
+            turn.status == "failed" -> Text(
+                turn.error?.message?.takeIf { it.isNotBlank() }
+                    ?: localizedText("Reviewer turn failed.", "审查回合失败。"),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.danger,
+            )
+            !turn.reply.isNullOrBlank() -> Text(
+                turn.reply.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textPrimary,
+            )
         }
     }
 }

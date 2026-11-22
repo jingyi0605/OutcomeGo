@@ -505,6 +505,8 @@ interface FeatureGateway {
         Result.failure(UnsupportedOperationException("Outcome cancellation is not available for this session."))
     suspend fun submitOutcomeReview(id: String, input: com.outcomego.mobile.core.SubmitOutcomeReviewRequest): Result<OutcomeDetail> =
         Result.failure(UnsupportedOperationException("Outcome review is not available for this session."))
+    suspend fun adoptOutcomePrereview(id: String, input: com.outcomego.mobile.core.AdoptPrereviewRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome prereview adoption is not available for this session."))
     suspend fun reworkOutcome(id: String, input: com.outcomego.mobile.core.OutcomeReworkRequest): Result<OutcomeDetail> =
         Result.failure(UnsupportedOperationException("Outcome rework is not available for this session."))
     suspend fun outcomeWorkItemTranscript(outcomeId: String, workItemId: String, before: Int? = null): Result<kotlinx.serialization.json.JsonElement> =
