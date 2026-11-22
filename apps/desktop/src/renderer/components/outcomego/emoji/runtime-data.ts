@@ -7,6 +7,28 @@ export type EmojiRuntimeSource = {
   unicode: string;
 };
 
+type PackedEmoji = readonly [
+  unicode: string,
+  label: string,
+  group: number,
+  tags?: string[] | null,
+  emoticon?: string | string[],
+];
+
+export function packEmojiPickerRuntimeEntries(source: readonly EmojiRuntimeSource[]): PackedEmoji[] {
+  return emojiPickerRuntimeEntries(source).map(({ unicode, label, group, tags, emoticon }) => {
+    if (emoticon) return [unicode, label, group!, tags ?? null, emoticon];
+    if (tags) return [unicode, label, group!, tags];
+    return [unicode, label, group!];
+  });
+}
+
+export function unpackEmojiPickerRuntimeEntry(entry: PackedEmoji | EmojiRuntimeSource): EmojiRuntimeSource {
+  if ("unicode" in entry) return entry;
+  const [unicode, label, group, tags, emoticon] = entry;
+  return { unicode, label, group, tags: tags ?? undefined, emoticon };
+}
+
 /** Omit exact repeated search words. Keep case here so the output preserves
  * runtime normalization even when the user's locale differs from the builder's. */
 export function emojiPickerRuntimeEntries(source: readonly EmojiRuntimeSource[]) {

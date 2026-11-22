@@ -739,13 +739,6 @@ export interface OutcomeWorkThreadView {
   waitingOnDependency?: boolean;
 }
 
-export const workThreadIsFinished = (status: WorkItemStatus) =>
-  status === "completed" || status === "accepted" || status === "failed" || status === "cancelled";
-
-/** A task that is still waiting for an earlier one has no run to end; only the goal itself can be stopped. */
-export const workThreadCanStop = (thread: Pick<OutcomeWorkThreadView, "status" | "waitingOnDependency">) =>
-  !workThreadIsFinished(thread.status) && !thread.waitingOnDependency;
-
 export interface OutcomeWorkThreadPage {
   items: OutcomeWorkThreadView[];
   nextCursor: string | null;

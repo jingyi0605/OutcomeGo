@@ -120,6 +120,14 @@ const request = <Args extends unknown[] = [], Result = unknown>(channel: string)
 const publish = <Args extends unknown[] = []>(channel: string) =>
   (...args: Args): void => ipcRenderer.send(`outcomego:${channel}`, ...args);
 
+const publishOutcomeNotifications = publish<[unknown[]]>("outcomes:notifications");
+const publishComputerClipboardActive = publish<[boolean]>("computer-clipboard-active");
+const publishNotificationSnapshot = publish<[unknown]>("notifications:sync");
+const publishVisibleChannel = publish<[string | null]>("notifications:visible-channel");
+const publishBotDockState = publish<[unknown]>("botdock:state");
+const publishBotDockDragHint = publish<[boolean]>("botdock:drag-hint");
+const publishBotDockDelivery = publish<[{ requestId: string; ok: boolean }]>("botdock:delivered");
+
 const subscribe = (channel: string, callback: (value: unknown) => void) =>
   listen(`outcomego:${channel}`, callback);
 
@@ -173,7 +181,7 @@ contextBridge.exposeInMainWorld("outcomego", {
     onTargetAvailable: (callback: () => void) => subscribe("outcomes:target-available", callback),
     syncNotifications: (notifications: unknown[]) => {
       if (!Array.isArray(notifications) || notifications.length > 100) throw new Error("Outcome notifications are invalid");
-      ipcRenderer.send("outcomego:outcomes:notifications", notifications);
+      publishOutcomeNotifications(notifications);
     },
   },
   platform: process.platform,
@@ -182,7 +190,7 @@ contextBridge.exposeInMainWorld("outcomego", {
     writeText: request<[string], void>("computer-clipboard-write"),
     setComputerActive: (active: boolean) => {
       if (typeof active === "boolean")
-        ipcRenderer.send("outcomego:computer-clipboard-active", active);
+        publishComputerClipboardActive(active);
     },
     onComputerAction: (callback: (action: "copy" | "cut" | "paste") => void) =>
       subscribe("computer-clipboard", (action) => {
@@ -300,7 +308,7 @@ contextBridge.exposeInMainWorld("outcomego", {
     activity: request("notifications:activity"),
     onActivityChange: (callback: () => void) => subscribe("notifications:activity-changed", () => callback()),
     sync: (snapshot: unknown) =>
-      ipcRenderer.send("outcomego:notifications:sync", notificationSnapshot(snapshot)),
+      publishNotificationSnapshot(notificationSnapshot(snapshot)),
     setVisibleChannel: (channelId: string | null) => {
       if (
         channelId !== null &&
@@ -308,7 +316,7 @@ contextBridge.exposeInMainWorld("outcomego", {
       ) {
         throw new Error("Visible notification channel is invalid");
       }
-      ipcRenderer.send("outcomego:notifications:visible-channel", channelId);
+      publishVisibleChannel(channelId);
     },
     status: request("notifications:status"),
     openSettings: request("notifications:open-settings"),
@@ -336,13 +344,10 @@ contextBridge.exposeInMainWorld("outcomego", {
     /** What the Bot floating window shows (Bots with unread messages or goals waiting), or
      * null when there is nothing to show (signed out). */
     publish: (state: unknown) =>
-      ipcRenderer.send(
-        "outcomego:botdock:state",
-        state === null ? null : record(state, "Bot dock state")
-      ),
+      publishBotDockState(state === null ? null : record(state, "Bot dock state")),
     /** Notify dock that a file drag started or ended in the main window. */
     notifyDrag: (active: boolean) =>
-      ipcRenderer.send("outcomego:botdock:drag-hint", active === true),
+      publishBotDockDragHint(active === true),
     /** A message typed into the floating window's composer, to be sent as this account. */
     onDeliver: (
       handler: (request: {
@@ -387,7 +392,7 @@ contextBridge.exposeInMainWorld("outcomego", {
         )
           return;
         const reply = (ok: boolean) =>
-          ipcRenderer.send("outcomego:botdock:delivered", { requestId, ok });
+          publishBotDockDelivery({ requestId, ok });
         handler({
           botId,
           content,

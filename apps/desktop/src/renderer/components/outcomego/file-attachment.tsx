@@ -7,7 +7,7 @@ import {
 import { clientErrorMessage } from "@outcomego/product-core/redaction";
 import { ChevronLeft, ChevronRight, Download, FileText, Maximize2, Music2, X } from "lucide-react";
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { authHeaders } from "../../client/auth";
 import { api } from "../../client/outcomego-api";
@@ -21,12 +21,13 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 import { LoadingOrb } from "../ui/loading-orb";
 import { FileGlyph, fileGlyphVariant, formatAttachmentSize } from "./attachment-visuals";
-import { AttachmentStage } from "./attachment-stage";
 import {
   renderSanitizedDocumentProgressively,
   sanitizePreviewDocument,
 } from "./document-preview/progressive-dom";
 import { parseDocumentPreview } from "./document-preview/worker-client";
+
+const AttachmentStage = lazy(() => import("./attachment-stage").then((module) => ({ default: module.AttachmentStage })));
 
 export const downloadAttachments = async (attachments: readonly AssetRef[]) => {
   const files = attachments.map((attachment) => ({
@@ -578,6 +579,7 @@ export function FileAttachmentPreview({
   }
   const kind = attachmentPreviewKind(attachment);
   return (
+    <Suspense fallback={null}>
     <AttachmentStage
       dark={kind === "video"}
       onOpenChange={onOpenChange}
@@ -602,6 +604,7 @@ export function FileAttachmentPreview({
         <LoadedDocumentPreview attachment={attachment} kind={kind} open={open} />
       </div>
     </AttachmentStage>
+    </Suspense>
   );
 }
 
