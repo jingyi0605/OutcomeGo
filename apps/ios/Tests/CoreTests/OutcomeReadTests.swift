@@ -117,5 +117,101 @@ final class OutcomeReadTests: XCTestCase, @unchecked Sendable {
     let createdObject = try XCTUnwrap(JSONSerialization.jsonObject(with: created) as? [String: String])
     XCTAssertEqual(createdObject["exploreIdeaId"], nil)
     XCTAssertEqual(API.outcomeThreadPath("a/b"), "/api/v0/outcomes/a%2Fb/thread")
+    XCTAssertEqual(API.outcomeAdoptPrereviewPath("a/b"), "/api/v0/outcomes/a%2Fb/reviews/adopt-prereview")
+  }
+
+  func testDecodesPlanTaskReviewPrereviewAndAdoptRequest() throws {
+    let data = Data(#"""
+    {
+      "id": "outcome-2",
+      "title": "Plan test",
+      "status": "review_pending",
+      "botId": "bot-planner",
+      "currentRevision": 1,
+      "updatedAt": "2026-11-22T00:00:00Z",
+      "description": "Goal description",
+      "plan": {
+        "notes": "Keep neutral task phrasing",
+        "tasks": [{
+          "key": "draft-doc",
+          "title": "Draft doc",
+          "instructions": "Write draft",
+          "botId": "bot-exec",
+          "dependsOn": [],
+          "covers": ["criterion-1"],
+          "nature": "deliverable"
+        }]
+      },
+      "workItems": [{
+        "id": "w-1",
+        "contractRevision": 1,
+        "botId": "bot-exec",
+        "executorType": "agent",
+        "kind": "execution",
+        "title": "Draft doc",
+        "status": "completed",
+        "ordinal": 1,
+        "planKey": "draft-doc",
+        "nature": "deliverable",
+        "review": {
+          "state": "rejected_once",
+          "findings": [{
+            "kind": "omission",
+            "basis": { "criterionId": "criterion-1" },
+            "reason": "Missing executive summary"
+          }],
+          "reworkWorkItemId": "w-2"
+        }
+      }],
+      "outputs": [],
+      "evidence": [],
+      "reviews": [],
+      "prereview": {
+        "turnId": "turn-1",
+        "revision": 1,
+        "summary": "1 likely pass, 1 needs attention",
+        "attention": [{ "criterionId": "criterion-1", "question": "Confirm tone" }],
+        "results": [{
+          "criterionId": "criterion-1",
+          "suggestion": "likely_pass",
+          "reason": "All sections covered",
+          "evidenceIds": ["ev-1"]
+        }],
+        "createdAt": "2026-11-22T00:00:00Z"
+      }
+    }
+    """#.utf8)
+    let decoded = try JSONDecoder().decode(OutcomeDetail.self, from: data)
+    XCTAssertEqual(decoded.plan?.tasks.first?.nature, "deliverable")
+    XCTAssertEqual(decoded.workItems.first?.review?.state, "rejected_once")
+    XCTAssertEqual(decoded.workItems.first?.review?.findings.first?.reason, "Missing executive summary")
+    XCTAssertEqual(decoded.prereview?.turnId, "turn-1")
+
+    let threadData = Data(#"""
+    {
+      "threadId": "th-1",
+      "turns": [],
+      "reviewerThreadId": "th-rev",
+      "reviewTurns": [{
+        "id": "rt-1",
+        "purpose": "review_task",
+        "trigger": "task",
+        "status": "completed",
+        "reply": "Passed",
+        "workItemId": "w-1",
+        "createdAt": "now",
+        "updatedAt": "now"
+      }]
+    }
+    """#.utf8)
+    let thread = try JSONDecoder().decode(OutcomeThreadView.self, from: threadData)
+    XCTAssertEqual(thread.reviewerThreadId, "th-rev")
+    XCTAssertEqual(thread.reviewTurns?.first?.workItemId, "w-1")
+
+    let req = AdoptPrereviewRequest(expectedRevision: 1, turnId: "turn-1", clientRequestId: "req-12345678")
+    let encoded = try JSONEncoder().encode(req)
+    let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    XCTAssertEqual(obj["turnId"] as? String, "turn-1")
+    XCTAssertEqual(obj["expectedRevision"] as? Int, 1)
   }
 }

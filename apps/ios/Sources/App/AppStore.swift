@@ -1887,6 +1887,11 @@ final class AppStore {
     try await fetch(API.outcomeThreadPath(id), as: OutcomeThreadView.self)
   }
 
+  func adoptOutcomePrereview(_ id: String, input: AdoptPrereviewRequest) async throws -> OutcomeDetail {
+    try await request(API.outcomeAdoptPrereviewPath(id), method: "POST", body: .encode(input))
+      .decode(OutcomeDetail.self)
+  }
+
   /// The owner's words go to the goal's bot unchanged; the call returns once the turn is queued.
   func sendOutcomeThreadMessage(_ id: String, input: SendOutcomeThreadMessage) async throws -> OutcomeThreadTurn {
     try await request("\(API.outcomeThreadPath(id))/messages", method: "POST", body: .encode(input))
