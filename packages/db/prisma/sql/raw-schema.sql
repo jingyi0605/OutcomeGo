@@ -96,7 +96,7 @@ AS $function$
 BEGIN
   -- The listener only needs a wakeup. An identical payload lets PostgreSQL
   -- coalesce many Event inserts from one transaction into one notification.
-  PERFORM pg_notify('aiteamos_events', '');
+  PERFORM pg_notify('outcomego_events', '');
   RETURN NEW;
 END;
 $function$

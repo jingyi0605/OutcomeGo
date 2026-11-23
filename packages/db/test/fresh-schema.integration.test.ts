@@ -68,7 +68,7 @@ test.skipIf(!url)("a fresh database receives the complete current schema and can
     const channel = await db.query<{ routine: string }>(`
       SELECT pg_get_functiondef('public.outcomego_notify_event()'::regprocedure) AS routine
     `);
-    expect(channel.rows[0]?.routine).toContain("aiteamos_events");
+    expect(channel.rows[0]?.routine).toContain("outcomego_events");
 
     const tablesBefore = await db.query<{ count: number }>(`
       SELECT count(*)::int AS count FROM information_schema.tables
