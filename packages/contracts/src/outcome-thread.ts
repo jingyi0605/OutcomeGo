@@ -14,7 +14,8 @@ import {
 
 /**
  * A goal's own Agent thread (specs/004.8, 004.9). The owner's words go to the bot as they are; the bot decides what
- * to do and writes facts through these tools. Nothing here can approve a contract or accept a result.
+ * to do and writes facts through these tools. Contracts are still never approved here; owner-initiated turns in
+ * review_pending may accept or request rework on delivered results.
  */
 export const OUTCOME_THREAD_ROLES = ["planner", "reviewer"] as const;
 export type OutcomeThreadRole = (typeof OUTCOME_THREAD_ROLES)[number];
@@ -175,6 +176,22 @@ const GoalThreadInputs = {
   }),
   GetOutcome: OUTCOME_CHAT_INPUTS.GetOutcome,
   ListOutcomes: OUTCOME_CHAT_INPUTS.ListOutcomes,
+  AcceptOutcome: Schema.Struct({
+    outcomeId: Uuid,
+    expectedRevision: RevisionNumber,
+    clientRequestId: ClientRequestId,
+  }),
+  RequestOutcomeRework: Schema.Struct({
+    outcomeId: Uuid,
+    expectedRevision: RevisionNumber,
+    reason: Schema.String.pipe(
+      Schema.maxLength(OUTCOME_LIMITS.commentChars),
+      Schema.filter((value) => value.trim().length > 0, {
+        message: () => "Rework feedback cannot be empty",
+      })
+    ),
+    clientRequestId: ClientRequestId,
+  }),
   CancelOutcome: OUTCOME_CHAT_INPUTS.CancelOutcome,
 } as const;
 
@@ -182,12 +199,22 @@ export type SaveOutcomeContractInput = typeof GoalThreadInputs.SaveOutcomeContra
 export type SavePlanInput = typeof GoalThreadInputs.SavePlan.Type;
 export type SubmitPrereviewInput = typeof GoalThreadInputs.SubmitPrereview.Type;
 export type ReviewTaskResultInput = typeof GoalThreadInputs.ReviewTaskResult.Type;
+export type AcceptOutcomeInput = typeof GoalThreadInputs.AcceptOutcome.Type;
+export type RequestOutcomeReworkInput = typeof GoalThreadInputs.RequestOutcomeRework.Type;
 export type OutcomeThreadToolName = keyof typeof GoalThreadInputs;
 export const OUTCOME_GOAL_THREAD_TOOL_NAMES = Object.keys(GoalThreadInputs) as OutcomeThreadToolName[];
 
 export const OUTCOME_THREAD_TOOLS_BY_PURPOSE: Record<OutcomeThreadPurpose, readonly OutcomeThreadToolName[]> = {
   plan: ["SaveOutcomeContract", "SavePlan", "CancelOutcome", "GetOutcome", "ListOutcomes"],
-  owner_message: ["SaveOutcomeContract", "SavePlan", "CancelOutcome", "GetOutcome", "ListOutcomes"],
+  owner_message: [
+    "SaveOutcomeContract",
+    "SavePlan",
+    "AcceptOutcome",
+    "RequestOutcomeRework",
+    "CancelOutcome",
+    "GetOutcome",
+    "ListOutcomes",
+  ],
   replan: ["SaveOutcomeContract", "SavePlan", "CancelOutcome", "GetOutcome", "ListOutcomes"],
   review: ["GetOutcome", "SubmitPrereview"],
   review_task: ["GetOutcome", "ReviewTaskResult"],
@@ -209,6 +236,10 @@ const descriptions: Record<OutcomeThreadToolName, string> = {
     "Read this goal's facts: current contract and revision, Work items, Outputs, Evidence and Reviews. Output contentRef paths point into /workspace. Use Read or a read-only Shell command to inspect referenced files before judging their contents. Use it before changing anything.",
   ListOutcomes:
     "Find native goals by text or status. Read-only.",
+  AcceptOutcome:
+    "Accept and complete this goal (status -> accepted) when it is in review_pending and the owner's words in this turn confirm acceptance or completion. Pass expectedRevision of the current approved contract. Only allowed in owner-initiated turns; refuses if required work, decisions, or human receipts remain open. Reuse clientRequestId for identical retries.",
+  RequestOutcomeRework:
+    "Send the delivered result back for rework under the unchanged approved contract when the goal is in review_pending and the owner's words in this turn ask to revise or fix the delivered result within existing scope. Pass expectedRevision and concrete rework instructions in reason. Only allowed in owner-initiated turns. Reuse clientRequestId for identical retries.",
   CancelOutcome:
     "Cancel this goal, keeping its history and stopping unfinished work. Only when the owner's words in this turn ask to cancel, stop or drop it; the server refuses otherwise. Reuse clientRequestId for identical retries.",
 };

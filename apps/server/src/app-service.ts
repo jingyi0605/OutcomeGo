@@ -421,7 +421,14 @@ export class AppService {
       },
       outcomeChatTools,
       this.userLocations,
-      new OutcomeThreadTools(this.prisma, this.outcomes, outcomeChatTools, this.outcomePlans, this.outcomeTaskReviews),
+      new OutcomeThreadTools(
+        this.prisma,
+        this.outcomes,
+        outcomeChatTools,
+        this.outcomePlans,
+        this.outcomeTaskReviews,
+        this.outcomeReviews
+      ),
       new GroupTaskTools(this.groupTasks),
       this.replyPreviews
     );

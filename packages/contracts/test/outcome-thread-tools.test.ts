@@ -7,8 +7,8 @@ import {
 } from "../src/outcome-thread";
 import { isOutcomeEventTopic, OUTCOME_EVENT_TOPICS } from "../src/outcomes";
 
-test("goal thread tools enforce purpose whitelists and exclude decision/credential/approval tools", () => {
-  for (const purpose of ["plan", "owner_message", "replan"] as const) {
+test("goal thread tools enforce purpose whitelists and exclude decision/credential/contract-approval tools", () => {
+  for (const purpose of ["plan", "replan"] as const) {
     expect(goalThreadToolsForPurpose(purpose)).toEqual([
       "SaveOutcomeContract",
       "SavePlan",
@@ -17,12 +17,55 @@ test("goal thread tools enforce purpose whitelists and exclude decision/credenti
       "ListOutcomes",
     ]);
   }
+  expect(goalThreadToolsForPurpose("owner_message")).toEqual([
+    "SaveOutcomeContract",
+    "SavePlan",
+    "AcceptOutcome",
+    "RequestOutcomeRework",
+    "CancelOutcome",
+    "GetOutcome",
+    "ListOutcomes",
+  ]);
   expect(goalThreadToolsForPurpose("review")).toEqual(["GetOutcome", "SubmitPrereview"]);
   expect(goalThreadToolsForPurpose("review_task")).toEqual(["GetOutcome", "ReviewTaskResult"]);
 
   for (const tool of OUTCOME_GOAL_THREAD_TOOLS) {
-    expect(tool.name).not.toMatch(/Approve|Accept|Decision|HumanAction|Bitwarden/i);
+    expect(tool.name).not.toMatch(/Approve|Decision|HumanAction|Bitwarden/i);
   }
+});
+
+test("AcceptOutcome and RequestOutcomeRework validate inputs", () => {
+  const outcomeId = crypto.randomUUID();
+  expect(
+    decodeOutcomeThreadInput("AcceptOutcome", {
+      outcomeId,
+      expectedRevision: 2,
+      clientRequestId: "accept:1",
+    })
+  ).toEqual({ outcomeId, expectedRevision: 2, clientRequestId: "accept:1" });
+
+  expect(
+    decodeOutcomeThreadInput("RequestOutcomeRework", {
+      outcomeId,
+      expectedRevision: 2,
+      reason: "Please verify the latest backup file.",
+      clientRequestId: "rework:1",
+    })
+  ).toEqual({
+    outcomeId,
+    expectedRevision: 2,
+    reason: "Please verify the latest backup file.",
+    clientRequestId: "rework:1",
+  });
+
+  expect(() =>
+    decodeOutcomeThreadInput("RequestOutcomeRework", {
+      outcomeId,
+      expectedRevision: 2,
+      reason: "   ",
+      clientRequestId: "rework:blank",
+    })
+  ).toThrow();
 });
 
 test("SavePlan requires nature on every task with no default and enforces task limits", () => {

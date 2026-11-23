@@ -147,7 +147,20 @@ function tools(options: { triggerBy?: string; botId?: string; enabled?: boolean;
           : null,
     },
   };
-  const service = new OutcomeThreadTools(prisma as never, outcomes as never, read as never);
+  const reviews = {
+    decide: (id: string, input: unknown, actor: string) => (
+      calls.push(["decide", { id, input, actor }]),
+      Effect.succeed({ id, status: (input as Row).decision === "approve" ? "accepted" : "running" })
+    ),
+  };
+  const service = new OutcomeThreadTools(
+    prisma as never,
+    outcomes as never,
+    read as never,
+    undefined,
+    undefined,
+    reviews as never
+  );
   const call = (tool: string, args: unknown, runId = "run-1") =>
     service.execute({ tool, arguments: args } as never, { runId, botId: "bot-1" } as never);
   return { call, calls };
@@ -175,6 +188,84 @@ test("a goal's thread cancels only its own goal, and only on the owner's words",
   expect(system.calls).toHaveLength(0);
   expect(triggeredByOwner("user:abc")).toBe(true);
   expect(triggeredByOwner("bot:abc")).toBe(false);
+});
+
+test("AcceptOutcome and RequestOutcomeRework only work for the goal's own owner_message turns", async () => {
+  const owner = tools();
+  await expect(
+    owner.call("AcceptOutcome", { outcomeId: GOAL, expectedRevision: 2, clientRequestId: "accept-key-1" })
+  ).resolves.toMatchObject({ outcome: { id: GOAL, status: "accepted" } });
+  expect(owner.calls[0]).toEqual([
+    "decide",
+    {
+      id: GOAL,
+      input: { decision: "approve", expectedRevision: 2, clientRequestId: "accept-key-1" },
+      actor: "bot:bot-1",
+    },
+  ]);
+
+  await expect(
+    owner.call("RequestOutcomeRework", {
+      outcomeId: GOAL,
+      expectedRevision: 2,
+      reason: "  Add integrity check summary  ",
+      clientRequestId: "rework-key-1",
+    })
+  ).resolves.toMatchObject({ outcome: { id: GOAL, status: "running" } });
+  expect(owner.calls[1]).toEqual([
+    "decide",
+    {
+      id: GOAL,
+      input: {
+        decision: "reject",
+        expectedRevision: 2,
+        reason: "Add integrity check summary",
+        clientRequestId: "rework-key-1",
+      },
+      actor: "bot:bot-1",
+    },
+  ]);
+
+  await expect(
+    owner.call("AcceptOutcome", { outcomeId: OTHER_GOAL, expectedRevision: 2, clientRequestId: "accept-key-2" })
+  ).rejects.toMatchObject({ code: "outcome_thread_scope" });
+  await expect(
+    owner.call("RequestOutcomeRework", {
+      outcomeId: OTHER_GOAL,
+      expectedRevision: 2,
+      reason: "Fix",
+      clientRequestId: "rework-key-2",
+    })
+  ).rejects.toMatchObject({ code: "outcome_thread_scope" });
+
+  const system = tools({ triggerBy: "system:outcome-thread" });
+  await expect(
+    system.call("AcceptOutcome", { outcomeId: GOAL, expectedRevision: 2, clientRequestId: "accept-key-3" })
+  ).rejects.toMatchObject({ code: "accept_requires_owner" });
+  await expect(
+    system.call("RequestOutcomeRework", {
+      outcomeId: GOAL,
+      expectedRevision: 2,
+      reason: "Fix",
+      clientRequestId: "rework-key-3",
+    })
+  ).rejects.toMatchObject({ code: "rework_requires_owner" });
+  expect(system.calls).toHaveLength(0);
+
+  for (const purpose of ["plan", "replan", "review", "review_task"] as const) {
+    const t = tools({ purpose });
+    await expect(
+      t.call("AcceptOutcome", { outcomeId: GOAL, expectedRevision: 2, clientRequestId: `accept-${purpose}` })
+    ).rejects.toMatchObject({ code: "outcome_thread_tool_forbidden" });
+    await expect(
+      t.call("RequestOutcomeRework", {
+        outcomeId: GOAL,
+        expectedRevision: 2,
+        reason: "Fix",
+        clientRequestId: `rework-${purpose}`,
+      })
+    ).rejects.toMatchObject({ code: "outcome_thread_tool_forbidden" });
+  }
 });
 
 test("there is no way to approve, accept or leave the goal's thread, and outside a thread nothing works", async () => {

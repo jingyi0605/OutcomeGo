@@ -12,6 +12,7 @@ import { outcomeReviewDecisionFilter, readOutcomesEnabled, type ToolContext } fr
 import { Cause, Effect, Exit } from "effect";
 import type { OutcomeChatTools } from "./outcome-chat-tools";
 import type { OutcomePlanService } from "./outcome-plan-service";
+import type { OutcomeReviewService } from "./outcome-review-service";
 import type { OutcomeService } from "./outcome-service";
 import type { OutcomeTaskReviewService } from "./outcome-task-review-service";
 
@@ -60,7 +61,8 @@ const inspectSavePlanPreDecodeError = (args: unknown): ApiError | null => {
 
 /**
  * Tools of a goal's own thread. The thread is bound to one goal: a tool can only touch that goal, and the
- * ones with consequences check who started the turn. Approving and accepting are not tools at all.
+ * ones with consequences check who started the turn. Contract approval still stays in the app; owner-initiated
+ * turns in review_pending may accept or request rework.
  */
 export class OutcomeThreadTools {
   constructor(
@@ -68,7 +70,8 @@ export class OutcomeThreadTools {
     private readonly outcomes: Pick<OutcomeService, "saveAgentContract" | "cancel" | "get">,
     private readonly readTools?: Pick<OutcomeChatTools, "execute">,
     private readonly plans?: Pick<OutcomePlanService, "savePlan">,
-    private readonly taskReviews?: Pick<OutcomeTaskReviewService, "submitPrereview" | "reviewTaskResult">
+    private readonly taskReviews?: Pick<OutcomeTaskReviewService, "submitPrereview" | "reviewTaskResult">,
+    private readonly reviews?: Pick<OutcomeReviewService, "decide">
   ) {}
 
   execute = async (
@@ -141,6 +144,57 @@ export class OutcomeThreadTools {
         return {
           outcome,
           nextStep: "Task review verdict recorded. Summarize the verdict concisely in your final message.",
+        };
+      }
+      case "AcceptOutcome": {
+        const input = decode("AcceptOutcome");
+        if (input.outcomeId !== outcomeId)
+          throw new ApiError(403, "outcome_thread_scope", "A goal's thread can only accept its own goal");
+        if (!triggeredByOwner(turn.triggerBy))
+          throw new ApiError(403, "accept_requires_owner", "Only the owner's words in this thread can accept the goal");
+        if (!this.reviews)
+          throw new ApiError(503, "outcome_acceptance_unavailable", "Outcome acceptance is not available");
+        const outcome = await run(
+          this.reviews.decide(
+            outcomeId,
+            {
+              decision: "approve",
+              expectedRevision: input.expectedRevision,
+              clientRequestId: input.clientRequestId,
+            },
+            actor
+          ),
+          signal
+        );
+        return {
+          outcome,
+          nextStep: "The goal is accepted and completed. Confirm this briefly to the owner in your final message.",
+        };
+      }
+      case "RequestOutcomeRework": {
+        const input = decode("RequestOutcomeRework");
+        if (input.outcomeId !== outcomeId)
+          throw new ApiError(403, "outcome_thread_scope", "A goal's thread can only request rework for its own goal");
+        if (!triggeredByOwner(turn.triggerBy))
+          throw new ApiError(403, "rework_requires_owner", "Only the owner's words in this thread can request rework from this turn");
+        if (!this.reviews)
+          throw new ApiError(503, "outcome_acceptance_unavailable", "Outcome rework is not available");
+        const outcome = await run(
+          this.reviews.decide(
+            outcomeId,
+            {
+              decision: "reject",
+              expectedRevision: input.expectedRevision,
+              reason: input.reason.trim(),
+              clientRequestId: input.clientRequestId,
+            },
+            actor
+          ),
+          signal
+        );
+        return {
+          outcome,
+          nextStep: "Rework has been queued under the current contract. Tell the owner what is being revised in your final message.",
         };
       }
       case "CancelOutcome": {

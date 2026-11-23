@@ -156,3 +156,27 @@ test("work-item outcomeRunContext never includes environmentNote and switches in
   const reworkCtx = await outcomeRunContext(db as never, "bot-exec", "wi-rework");
   expect(reworkCtx).toContain("ONLY the rework fixes");
 });
+
+test("owner_message turns in review_pending guide planner to accept, rework, replan, revise, cancel, or clarify", async () => {
+  const db = makeContextDb("owner_message", { withPlanNotes: true });
+  const baseFindFirst = db.outcomeThread.findFirst;
+  db.outcomeThread.findFirst = async () => {
+    const thread = await baseFindFirst();
+    return {
+      ...thread,
+      outcome: {
+        ...thread.outcome,
+        status: "review_pending",
+        currentRevision: { ...thread.outcome.currentRevision, status: "approved" },
+      },
+    };
+  };
+  const ctx = await outcomeThreadContext(db as never, "bot-role", "thread-1");
+  expect(ctx).toContain("Acceptance conversation (outcome is review_pending)");
+  expect(ctx).toContain("NEVER call AcceptOutcome yet");
+  expect(ctx).toContain("AcceptOutcome");
+  expect(ctx).toContain("RequestOutcomeRework");
+  expect(ctx).toContain("SavePlan");
+  expect(ctx).toContain("SaveOutcomeContract");
+  expect(ctx).toContain("CancelOutcome");
+});
