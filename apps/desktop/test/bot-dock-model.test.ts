@@ -12,6 +12,7 @@ import {
   defaultDockPosition,
   dockAnchorFor,
   isSnoozed,
+  parseBotDockDebugEntry,
   parseBotDockMessage,
   parseBotDockSettings,
   parseBotDockState,
@@ -428,5 +429,44 @@ describe("Bot dock pasted images", () => {
     expect(state?.labels.chatMode).toBe("对话模式");
     expect(state?.labels.goalMode).toBe("目标模式");
     expect(state?.labels.switchMode).toBe("Tab 切换");
+  });
+});
+
+describe("parseBotDockDebugEntry", () => {
+  test("keeps the formats and files a drag carried", () => {
+    expect(
+      parseBotDockDebugEntry({
+        event: "drop",
+        types: ["Files", "text/uri-list"],
+        items: [{ kind: "file", type: "image/png" }],
+        files: [{ name: "a.png", type: "image/png", size: 12 }],
+      })
+    ).toEqual({
+      event: "drop",
+      types: ["Files", "text/uri-list"],
+      items: [{ kind: "file", type: "image/png" }],
+      files: [{ name: "a.png", type: "image/png", size: 12 }],
+    });
+  });
+
+  test("bounds what a page can make the log hold", () => {
+    const entry = parseBotDockDebugEntry({
+      event: "x".repeat(100),
+      types: Array.from({ length: 50 }, () => "t".repeat(500)),
+      items: Array.from({ length: 50 }, () => ({ kind: "file", type: "y".repeat(500) })),
+      files: [{ name: "n".repeat(500), type: 7, size: Number.NaN }, "not a record"],
+    });
+    expect(entry?.event).toHaveLength(32);
+    expect(entry?.types).toHaveLength(20);
+    expect(entry?.types[0]).toHaveLength(80);
+    expect(entry?.items).toHaveLength(20);
+    expect(entry?.items[0]?.type).toHaveLength(80);
+    expect(entry?.files).toEqual([{ name: "n".repeat(120), type: "", size: 0 }]);
+  });
+
+  test("rejects a report without an event", () => {
+    expect(parseBotDockDebugEntry(null)).toBeNull();
+    expect(parseBotDockDebugEntry({ types: [] })).toBeNull();
+    expect(parseBotDockDebugEntry([])).toBeNull();
   });
 });

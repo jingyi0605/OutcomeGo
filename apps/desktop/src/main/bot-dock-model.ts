@@ -481,6 +481,37 @@ export const parseBotDockMessage = (value: unknown): BotDockMessage | null => {
   };
 };
 
+/** What a dock page reports about a drag over it while diagnostics are on: the formats it offers
+ * and, once dropped, the files the page could read. */
+export interface BotDockDebugEntry {
+  event: string;
+  types: string[];
+  items: Array<{ kind: string; type: string }>;
+  files: Array<{ name: string; type: string; size: number }>;
+}
+
+/** Bounded copy of a diagnostic report: the page is sandboxed, but the log is still ours to keep small. */
+export const parseBotDockDebugEntry = (value: unknown): BotDockDebugEntry | null => {
+  if (!isRecord(value) || typeof value.event !== "string") return null;
+  const clip = (input: unknown, max: number) =>
+    typeof input === "string" ? input.slice(0, max) : "";
+  const rows = (input: unknown) =>
+    Array.isArray(input) ? input.slice(0, 20).filter(isRecord) : [];
+  return {
+    event: clip(value.event, 32),
+    types: Array.isArray(value.types) ? value.types.slice(0, 20).map((type) => clip(type, 80)) : [],
+    items: rows(value.items).map((item) => ({
+      kind: clip(item.kind, 16),
+      type: clip(item.type, 80),
+    })),
+    files: rows(value.files).map((file) => ({
+      name: clip(file.name, 120),
+      type: clip(file.type, 80),
+      size: typeof file.size === "number" && Number.isFinite(file.size) ? file.size : 0,
+    })),
+  };
+};
+
 export const parseBotDockSettings = (value: unknown): BotDockSettings => {
   if (!isRecord(value)) return DEFAULT_BOT_DOCK_SETTINGS;
   const position = isRecord(value.position) ? value.position : null;

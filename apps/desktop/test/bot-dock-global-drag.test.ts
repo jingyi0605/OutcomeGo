@@ -94,6 +94,42 @@ while IFS= read -r line; do :; done
   }
 );
 
+unixOnly(
+  "asks the helper for diagnostics and hands over what it prints, only when a log is given",
+  async () => {
+    await withDirectory(async (directory) => {
+      const helper = join(directory, "helper");
+      const argsFile = join(directory, "args");
+      await writeFile(
+        helper,
+        `#!/bin/sh
+printf '%s\\n' "$@" > '${argsFile}'
+printf '%s\\n' 'pressed=true dragImage=true' >&2
+printf '%s\\n' 'ready drag'
+while IFS= read -r line; do :; done
+`,
+        { mode: 0o700 }
+      );
+      const lines: string[] = [];
+      const detector = new GlobalDragDetector(
+        helper,
+        () => {},
+        () => null,
+        { log: (line) => lines.push(line) }
+      );
+      try {
+        detector.start();
+        await waitFor(() => lines.length >= 2);
+        expect(lines.sort()).toEqual(["stderr: pressed=true dragImage=true", "stdout: ready drag"]);
+        const args = (await readFile(argsFile, "utf8")).trim().split("\n");
+        expect(args.at(-1)).toBe("--debug");
+      } finally {
+        detector.stop();
+      }
+    });
+  }
+);
+
 unixOnly("gives up on a helper that cannot watch file drags", async () => {
   await withDirectory(async (directory) => {
     const helper = join(directory, "helper");

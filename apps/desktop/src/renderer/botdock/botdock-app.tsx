@@ -10,6 +10,7 @@ import {
 import { BotAvatarGlyph } from "../components/outcomego/avatar-picker-icons";
 import type { BotDockBotView, BotDockStateView } from "../lib/bot-dock-state";
 import { forwardDockFiles } from "./dock-composer";
+import { watchDragDiagnostics } from "./drag-debug";
 import type { BotDockBridge, DockComposerAnchor, DockSide } from "./types";
 
 /** Avatars stacked in the capsule; the rest collapse into a "+N" chip. */
@@ -257,6 +258,8 @@ export function BotDockApp({ invitation = false }: { invitation?: boolean }) {
       window.removeEventListener("drop", onDrop);
     };
   }, [bridge]);
+
+  useEffect(() => watchDragDiagnostics(bridge), [bridge]);
 
   useLayoutEffect(() => bridge?.onDockSide(setDockSide), [bridge]);
 

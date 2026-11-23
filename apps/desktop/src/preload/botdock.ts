@@ -16,6 +16,10 @@ interface BotDockSendInput {
  * the page only reports its size and what the person clicked. */
 contextBridge.exposeInMainWorld("botdock", {
   platform: process.platform,
+  /** True when the app was started with OUTCOMEGO_DOCK_DEBUG=1: the page then reports what each
+   * drag carries, so a source the dock does not accept can be told apart by its formats. */
+  debug: process.argv.includes("--outcomego-dock-debug"),
+  debugLog: (entry: unknown) => ipcRenderer.send("botdock:debug", entry),
   getState: (): Promise<BotDockState | null> => ipcRenderer.invoke("botdock:get-state"),
   onState: (callback: (state: BotDockState | null) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, state: BotDockState | null) =>

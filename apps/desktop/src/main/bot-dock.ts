@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, rename, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import {
   BrowserWindow,
@@ -23,6 +23,7 @@ import {
   isRecord,
   isSnoozed,
   parseBotDockAttachments,
+  parseBotDockDebugEntry,
   parseBotDockMessage,
   parseBotDockSettings,
   parseBotDockState,
@@ -63,6 +64,9 @@ export interface DesktopBotDockOptions {
   preloadPath: string;
   /** Native helper that reports drags starting in other applications (macOS and Windows). */
   dragHelperPath: string | null;
+  /** When set, drag diagnostics (the helper's output, and what each dragged item carries as the
+   * dock pages see it) are appended here, one JSON object per line. */
+  debugLogPath?: string | null;
   /** JSON file holding whether the dock is on and where the person left it. */
   settingsPath: string;
   /** Loads the dock page: the Vite server in development, the bundle otherwise. */
@@ -157,6 +161,7 @@ export class DesktopBotDock {
       ? new GlobalDragDetector(
           options.dragHelperPath,
           (dragging) => {
+            this.debugLog({ source: "main", event: "global-drag", dragging });
             this.globalDragActive = dragging;
             if (!dragging) {
               this.mainWindowDragActive = false;
@@ -164,7 +169,10 @@ export class DesktopBotDock {
             }
             this.updateInvitation();
           },
-          (surface) => this.startNativeDrop(surface)
+          (surface) => this.startNativeDrop(surface),
+          options.debugLogPath
+            ? { log: (line) => this.debugLog({ source: "helper", line }) }
+            : undefined
         )
       : null;
 
@@ -242,6 +250,12 @@ export class DesktopBotDock {
     listen("botdock:drop", (event) => {
       if (this.ownsCapsuleSender(event)) this.onDrop();
     });
+    listen("botdock:debug", (event, entry: unknown) => {
+      if (!this.options.debugLogPath) return;
+      if (!this.ownsCapsuleSender(event) && !this.ownsSender(event, this.composerWindow)) return;
+      const parsed = parseBotDockDebugEntry(entry);
+      if (parsed) this.debugLog({ source: "page", ...parsed });
+    });
     listen("botdock:dropped-files", (event, files: unknown, rejected: unknown) => {
       if (!this.ownsCapsuleSender(event)) return;
       const parsed = parseBotDockAttachments(files);
@@ -299,6 +313,16 @@ export class DesktopBotDock {
       (process.platform !== "darwin" || systemPreferences.isTrustedAccessibilityClient(false));
     if (allowed) detector.start();
     else detector.stop();
+  }
+
+  private debugLog(entry: Record<string, unknown>) {
+    const path = this.options.debugLogPath;
+    if (!path) return;
+    const line = JSON.stringify({ time: new Date().toISOString(), ...entry });
+    console.info("OutcomeGo bot dock debug", line);
+    void mkdir(dirname(path), { recursive: true })
+      .then(() => appendFile(path, `${line}\n`, "utf8"))
+      .catch(() => undefined);
   }
 
   notifyMessageArrival() {
@@ -527,6 +551,8 @@ export class DesktopBotDock {
       title: surface === "composer" ? "OutcomeGo Bot Composer" : "OutcomeGo Bots",
       webPreferences: {
         preload: this.options.preloadPath,
+        // Tells the page's bridge to report what each drag carries (see `debugLogPath`).
+        additionalArguments: this.options.debugLogPath ? ["--outcomego-dock-debug"] : [],
         // Its own storage: it shows names and avatars only and holds no account.
         partition: "persist:botdock",
         contextIsolation: true,

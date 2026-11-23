@@ -43,3 +43,8 @@ test("relays dock side changes and removes the listener on cleanup", () => {
   ipcRenderer.emit("botdock:side", {}, "left");
   expect(onSide.mock.calls).toEqual([["left"], ["right"]]);
 });
+
+test("keeps diagnostics off unless main asked for them", () => {
+  send.mockClear();
+  expect(dockBridge.debug).toBe(false);
+});

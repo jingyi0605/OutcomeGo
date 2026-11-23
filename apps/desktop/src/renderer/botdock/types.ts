@@ -16,6 +16,9 @@ export interface DockFile {
 /** The bridge preload/botdock.ts exposes to this page. */
 export interface BotDockBridge {
   platform: string;
+  /** Drag diagnostics are on (OUTCOMEGO_DOCK_DEBUG=1). */
+  debug?: boolean;
+  debugLog?(entry: unknown): void;
   getState(): Promise<BotDockStateView | null>;
   onState(callback: (state: BotDockStateView | null) => void): () => void;
   onMessageArrival(callback: () => void): () => void;

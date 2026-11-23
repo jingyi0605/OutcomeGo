@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDockState } from "./botdock-app";
 import { DockComposer, useDockComposer } from "./dock-composer";
+import { watchDragDiagnostics } from "./drag-debug";
 
 export function DockComposerApp() {
   const bridge = window.botdock;
@@ -10,6 +11,8 @@ export function DockComposerApp() {
   const [visible, setVisible] = useState(false);
   const hasState = state !== null;
   const { addFiles } = model;
+
+  useEffect(() => watchDragDiagnostics(bridge), [bridge]);
 
   useLayoutEffect(() => {
     const frame = frameRef.current;

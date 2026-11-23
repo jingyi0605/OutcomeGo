@@ -58,6 +58,11 @@ async function readPromisedDrop(
   return { files: parsed ?? [], rejected: rejected || !parsed || files.length !== names.length };
 }
 
+export interface GlobalDragDetectorOptions {
+  /** Receives the helper's diagnostics. Giving it also asks the helper to report them. */
+  log?: (line: string) => void;
+}
+
 export class GlobalDragDetector {
   private child: ChildProcessWithoutNullStreams | null = null;
   private dragging = false;
@@ -66,7 +71,8 @@ export class GlobalDragDetector {
   constructor(
     private readonly helperPath: string,
     private readonly onDragChange: (dragging: boolean) => void,
-    private readonly onDrop: (surface: DropSurface) => FinishDrop | null
+    private readonly onDrop: (surface: DropSurface) => FinishDrop | null,
+    private readonly options: GlobalDragDetectorOptions = {}
   ) {}
 
   start() {
@@ -79,6 +85,8 @@ export class GlobalDragDetector {
     } catch (error) {
       console.warn("OutcomeGo could not create its file drop directory", error);
     }
+    const { log } = this.options;
+    if (log) args.push("--debug");
     // windowsHide: a console helper started from the app must not open a console window.
     const child = spawn(this.helperPath, args, {
       stdio: ["pipe", "pipe", "pipe"],
@@ -87,9 +95,11 @@ export class GlobalDragDetector {
     this.child = child;
     const pending = new Map<string, FinishDrop>();
     child.stdin.on("error", () => {});
-    child.stderr.resume();
+    if (log) createInterface({ input: child.stderr }).on("line", (line) => log(`stderr: ${line}`));
+    else child.stderr.resume();
     createInterface({ input: child.stdout }).on("line", (line) => {
       if (this.child !== child) return;
+      log?.(`stdout: ${line.length > 200 ? `${line.slice(0, 200)}…` : line}`);
       if (line.startsWith("ready ") && line !== "ready drag") {
         console.warn("OutcomeGo native helper does not support file drag detection");
         this.stop();

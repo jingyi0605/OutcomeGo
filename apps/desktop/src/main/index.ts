@@ -1321,6 +1321,11 @@ const { DesktopBotDock } = await import("./bot-dock");
 const botDock = new DesktopBotDock({
   preloadPath: join(import.meta.dirname, "botdock-preload.cjs"),
   dragHelperPath: dockDragHelperPath,
+  // OUTCOMEGO_DOCK_DEBUG=1 logs what dragged items carry, to find why a source is not accepted.
+  debugLogPath:
+    process.env.OUTCOMEGO_DOCK_DEBUG === "1"
+      ? join(app.getPath("userData"), "bot-dock-debug.log")
+      : null,
   settingsPath: join(app.getPath("userData"), "bot-dock-settings.json"),
   loadPage: async (window, surface) => {
     const rendererUrl = devRendererUrl();
