@@ -164,6 +164,14 @@ export type RuntimeRequestSource = typeof RuntimeRequestSource.Type;
 export const SEND_TO_USER_REPLY_NUDGE_PROMPT =
   "Your previous turn left the user without the result they're waiting on — you never called SendToUser that turn, or every SendToUser you tried failed to deliver. Either way they received nothing and are still waiting. Do not assume a send from an earlier turn covered it: an opening acknowledgement back then did not deliver this result (ack ≠ delivery). Deliver the result now by actually invoking the SendToUser tool — make a real tool/function call, not text you write. Plain assistant text is NEVER shown to the user; only a real SendToUser tool invocation reaches them, so if you don't call the tool they just keep seeing silence.";
 
+/**
+ * Sent once when a turn that already reached the user, or a background result wake, ends on plain
+ * assistant text. That text is never shown, so it was either meant for them and lost, or was never
+ * meant to be sent; the model decides which, so a result it judged stale can stay silent.
+ */
+export const SEND_TO_USER_UNSENT_TEXT_NUDGE_PROMPT =
+  "Your last message was plain assistant text. Plain assistant text is NEVER shown to the user; only a real SendToUser tool invocation reaches them. If that message holds something they have not been told yet — an answer, a result, a question — deliver it now by actually invoking the SendToUser tool, not by writing text. If everything they need has already gone out, or you meant to stay silent, send nothing and end the turn.";
+
 export const RunItemKind = Schema.Literal(
   "agent_message",
   "reasoning",

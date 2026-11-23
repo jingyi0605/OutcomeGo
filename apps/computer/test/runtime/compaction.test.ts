@@ -539,7 +539,8 @@ test.each([
         cwd: root,
         runtimeProfile: "agent",
         subagentType: null,
-        requestSource: "turn",
+        // Compaction is under test, not delivery: a wake that owes the user no reply is never nudged to send text.
+        requestSource: "agent",
         resetSelfSummaryCount: true,
         sentMessageCount: 1,
         assistantOrdinal: 0,

@@ -185,6 +185,15 @@ const toolCalls = (message: BotMessage) =>
       })
     : [];
 
+/**
+ * The model's final response is assistant text with no tool call. Outside direct text delivery the
+ * user never sees it, even after an acknowledgement went out earlier in the turn.
+ */
+export const endsWithUnsentText = (messages: readonly BotMessage[]): boolean => {
+  const last = messages.at(-1);
+  return last?.role === "assistant" && last.stopReason === "stop" && toolCalls(last).length === 0 && messageText(last).trim() !== "";
+};
+
 const sendToolNames = ["SendToUser", RICH_REPLY_TOOL, STREAM_REPLY_TOOL];
 
 const isTextSend = (call: ReturnType<typeof toolCalls>[number]) =>

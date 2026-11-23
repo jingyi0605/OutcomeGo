@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ComputerRuntime, MAX_REPLY_NUDGES, REPLY_NUDGE_PROMPT } from "../../src/runtime";
+import { ComputerRuntime, MAX_REPLY_NUDGES, REPLY_NUDGE_PROMPT, UNSENT_TEXT_NUDGE_PROMPT } from "../../src/runtime";
 import { routeEvent } from "../../src/runtime/events";
 import { RuntimeTools } from "../../src/runtime/tools";
 
@@ -9,6 +9,7 @@ const result = (id: string, isError = false) => ({ role: "toolResult", toolCallI
 const ack = [call("ack", "SendToUser", { content: "On it." }), result("ack")];
 const task = [call("task", "CallDynamicTool", { namespace: "cursor", toolName: "Task", arguments: { prompt: "x" } }), result("task")];
 const memory = [call("memory", "UpdateMemory", { action: "write", fact: "x" }), result("memory")];
+const closing = (text: string) => ({ role: "assistant", stopReason: "stop", content: [{ type: "text", text }] });
 
 function fixture(options: { sent?: number; endTurn?: boolean; requestSource?: string; messages: any[]; onPrompt?: (prompt: string, active: any) => void }) {
   const runtime = new ComputerRuntime() as any;
@@ -111,6 +112,45 @@ for (const [name, messages] of [
     expect(events.find((event) => event.type === "turn.completed")).toMatchObject({ status: "completed" });
   });
 }
+
+// An acknowledgement made sentMessageCount 1, so a final answer written as plain text was lost without a nudge.
+test("an acknowledged turn that ends on plain text is asked once whether to send it", async () => {
+  const { runtime, active, events, prompts } = fixture({ sent: 1, messages: [...ack, ...task, closing("Invoice 44,750 yuan is required.")] });
+  await runtime.execute(active, "fixture", []);
+  expect(prompts).toEqual(["turn", UNSENT_TEXT_NUDGE_PROMPT]);
+  expect(events.find((event) => event.type === "turn.completed")).toMatchObject({ status: "completed" });
+});
+
+test("a background result wake that ends on plain text is asked once, and one that ends silently is not", async () => {
+  const spoken = fixture({ requestSource: "background-revival", messages: [closing("The contract names a 6% invoice.")] });
+  await spoken.runtime.execute(spoken.active, "fixture", []);
+  expect(spoken.prompts).toEqual(["turn", UNSENT_TEXT_NUDGE_PROMPT]);
+
+  const silent = fixture({ requestSource: "background-revival", messages: [{ role: "assistant", stopReason: "stop", content: [] }] });
+  await silent.runtime.execute(silent.active, "fixture", []);
+  expect(silent.prompts).toEqual(["turn"]);
+});
+
+test("text that was already delivered or is the saved result gets no unsent-text nudge", async () => {
+  for (const variant of ["end_turn", "direct text", "automation", "agent", "tool call", "thinking only"] as const) {
+    const { runtime, active, prompts } = fixture({
+      requestSource: variant === "automation" || variant === "agent" ? variant : "turn",
+      sent: 1,
+      endTurn: variant === "end_turn" ? true : undefined,
+      messages: [
+        ...ack,
+        variant === "tool call"
+          ? { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "Sending." }, { type: "toolCall", id: "x", name: "SendToUser", arguments: {} }] }
+          : variant === "thinking only"
+            ? { role: "assistant", stopReason: "stop", content: [{ type: "thinking", thinking: "Draft answer." }] }
+            : closing("Done."),
+      ],
+    });
+    if (variant === "direct text") active.directTextReply = true;
+    await runtime.execute(active, "fixture", []);
+    expect(prompts).toEqual(["turn"]);
+  }
+});
 
 test("routine runs and cancelled turns get no nudge", async () => {
   for (const variant of ["automation", "cancelled"] as const) {

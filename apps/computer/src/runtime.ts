@@ -25,6 +25,7 @@ import {
   serverInferenceSettings,
   type PiReasoningLevel,
   SEND_TO_USER_REPLY_NUDGE_PROMPT,
+  SEND_TO_USER_UNSENT_TEXT_NUDGE_PROMPT,
   type ServerInferenceSettings,
 } from "@outcomego/contracts";
 import { mkdir, readFile, rm } from "node:fs/promises";
@@ -61,7 +62,7 @@ import { IdleProviderConnections, InferenceProviderConnections } from "./runtime
 import { untrustedResultsExtension } from "./runtime/untrusted-results";
 import { retryFirstOutputStalls, streamDeadlines, type StreamTimers } from "./runtime/stream-deadlines";
 import { directDynamicToolsExtension } from "./runtime/direct-dynamic-tools";
-import { enrichUserInfo, outputLimitReminder, owesOutputLimitReminder } from "./runtime/prompt-context";
+import { endsWithUnsentText, enrichUserInfo, outputLimitReminder, owesOutputLimitReminder } from "./runtime/prompt-context";
 import { endTurnHoldExtension } from "./runtime/end-turn-hold";
 import { backgroundWorkPending } from "./runtime/background-shells";
 import { VoiceNarrator, voiceNarrationExtension } from "./runtime/voice-narration";
@@ -81,6 +82,7 @@ import type { ActiveTurn, RuntimeImage, TurnStatus } from "./runtime/types";
 import { ScreenBroker } from "./screen-broker";
 
 export const REPLY_NUDGE_PROMPT = SEND_TO_USER_REPLY_NUDGE_PROMPT;
+export const UNSENT_TEXT_NUDGE_PROMPT = SEND_TO_USER_UNSENT_TEXT_NUDGE_PROMPT;
 
 /** Reply nudges a turn that delivered nothing gets before it settles anyway. */
 export const MAX_REPLY_NUDGES = 3;
@@ -998,6 +1000,15 @@ export class ComputerRuntime {
           });
           await active.directTextDelivery;
         }
+      }
+      // The loop above only catches a turn that sent nothing, so an acknowledgement hid a lost answer,
+      // and a background result wake is never owed a reply. Plain text is not shown to the user, so a
+      // turn that still ends on it gets one chance to send it; the model may decline when it is stale.
+      if ((isDeliveryOwed(active.requestSource) && active.sentMessageCount > 0 || active.requestSource === "background-revival") &&
+          !active.directTextReply && !active.directTextDeliveryUncertain && settledNormally() &&
+          endsWithUnsentText(session.messages as BotMessage[])) {
+        await session.prompt(UNSENT_TEXT_NUDGE_PROMPT, { source: "rpc", expandPromptTemplates: false });
+        await active.directTextDelivery;
       }
       if (!active.pluginAbortController?.signal.aborted && active.lastStopReason !== "aborted" && active.lastStopReason !== "error") {
         const adopted = await this.compaction.settleAtTurnEnd({
