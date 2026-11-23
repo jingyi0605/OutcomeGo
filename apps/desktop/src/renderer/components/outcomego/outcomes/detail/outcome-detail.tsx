@@ -20,6 +20,7 @@ import { RecoveryDiagnostics } from "../inbox/recovery-diagnostics";
 import { responseStatus } from "../inbox/decision-state";
 import { useI18n } from "../../../../lib/i18n";
 import { subscribeOutcomeRefresh } from "../../../../lib/outcome-events";
+import { useOutcomeThread } from "../../../../lib/outcome-thread";
 import { OutcomeAsset } from "../outcome-asset";
 import { OutcomeButton, OutcomeRefresh } from "../outcome-ui";
 import { outcomeCardStage } from "@outcomego/contracts/outcome-chat-card";
@@ -93,6 +94,8 @@ export function OutcomeDetail({
   const [comment, setComment] = useState("");
   const [stopping, setStopping] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const [sentApprovalTurnIds, setSentApprovalTurnIds] = useState<string[]>([]);
+  const { view: threadView, reload: reloadThread } = useOutcomeThread(outcomeId, client);
   const requestIds = useRef(new OutcomeRequestIds());
   const generation = useRef(0);
   const readyDecisionsRef = useRef<Set<string>>(new Set());
@@ -119,6 +122,7 @@ export function OutcomeDetail({
     // New revisions cannot inherit comments or generated choices from the previous plan.
     setSections(new Map());
     setComment("");
+    setSentApprovalTurnIds([]);
   }, [outcomeId, outcome?.currentRevisionView?.id]);
   const disclosure = (name: string) => ({
     open: sections.get(name) === true,
@@ -331,11 +335,34 @@ export function OutcomeDetail({
       });
       requestIds.current.complete(`message:${outcomeId}`);
       setComment("");
+      reloadThread();
       setRefreshVersion((v) => v + 1);
       onReplanStarted?.();
       onActionSubmitted?.();
     } catch (e) {
       setError(outcomeErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function sendApprovalMessage(text: string): Promise<boolean> {
+    const send = client.sendThreadMessage;
+    if (!send || busy || !outcome) return false;
+    setBusy(true);
+    setError(null);
+    try {
+      const turn = await send.call(client, outcomeId, {
+        text,
+        clientRequestId: requestIds.current.for(`acceptance-message:${outcomeId}`, { text }),
+      });
+      requestIds.current.complete(`acceptance-message:${outcomeId}`);
+      if (turn?.id) setSentApprovalTurnIds((prev) => (prev.includes(turn.id) ? prev : [...prev, turn.id]));
+      reloadThread();
+      onActionSubmitted?.();
+      return true;
+    } catch (e) {
+      setError(outcomeErrorMessage(e));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -384,6 +411,26 @@ export function OutcomeDetail({
       item.contractRevision === selectedReview?.revision &&
       ["submitted", "review_pending"].includes(item.status)
   );
+  const plannerTurns = threadView?.turns ?? [];
+  const plannerWaiting = plannerTurns.some(
+    (turn) => turn.status === "queued" || turn.status === "running"
+  );
+  const latestFinishedWorkUpdatedAt = currentWorkItems
+    .filter((item) => item.status === "completed" || item.status === "accepted")
+    .map((item) => Date.parse(item.updatedAt))
+    .filter((ts) => Number.isFinite(ts))
+    .reduce((max, ts) => Math.max(max, ts), 0);
+  const latestReviewPlannerTurn =
+    [...plannerTurns]
+      .reverse()
+      .find(
+        (turn) =>
+          turn.purpose === "owner_message" &&
+          (turn.status === "queued" ||
+            turn.status === "running" ||
+            sentApprovalTurnIds.includes(turn.id) ||
+            (latestFinishedWorkUpdatedAt > 0 && Date.parse(turn.createdAt) >= latestFinishedWorkUpdatedAt))
+      ) ?? null;
   function decideAcceptance(decision: "approve" | "reject", reason = "") {
     const decide = client.decideAcceptance;
     if (!selectedReview || !decide) return;
@@ -534,7 +581,10 @@ export function OutcomeDetail({
               busy={busy || reviewLoading}
               onClose={() => setSections((previous) => new Map(previous).set("review", false))}
               onApprove={client.decideAcceptance ? () => decideAcceptance("approve") : undefined}
-              onReject={client.decideAcceptance ? (reason) => decideAcceptance("reject", reason) : undefined}
+              onSendApprovalText={client.sendThreadMessage ? (text) => sendApprovalMessage(text) : undefined}
+              onReject={!client.sendThreadMessage && client.decideAcceptance ? (reason) => decideAcceptance("reject", reason) : undefined}
+              plannerWaiting={plannerWaiting}
+              latestPlannerTurn={latestReviewPlannerTurn}
               onAdoptPrereview={
                 client.adoptPrereview
                   ? (turnId) => {

@@ -16,6 +16,10 @@ import {
   OUTCOME_LIMITS,
   requiredCriteriaSatisfied,
 } from "@outcomego/contracts/outcome-view";
+import {
+  OUTCOME_THREAD_TEXT_CHARS,
+  type OutcomeThreadTurnView,
+} from "@outcomego/contracts/outcome-thread";
 import type {
   ContractRevisionView,
   EvidenceCredibility,
@@ -269,6 +273,9 @@ export function ReviewPanel({
   receiptReview = false,
   onApprove,
   onReject,
+  onSendApprovalText,
+  plannerWaiting = false,
+  latestPlannerTurn = null,
   useCache = false,
   onReady,
 }: {
@@ -283,6 +290,9 @@ export function ReviewPanel({
   receiptReview?: boolean;
   onApprove?: () => void;
   onReject?: (reason: string) => void;
+  onSendApprovalText?: (text: string) => Promise<boolean> | boolean | void;
+  plannerWaiting?: boolean;
+  latestPlannerTurn?: OutcomeThreadTurnView | null;
   useCache?: boolean;
   onReady?: () => void;
 }) {
@@ -294,6 +304,12 @@ export function ReviewPanel({
   const [reworkIds, setReworkIds] = useState<string[]>([]);
   const [feedback, setFeedback] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
+  const hasApprovalText = Boolean(rejectionReason.trim());
+  async function submitApprovalText() {
+    if (!onSendApprovalText || busy || !hasApprovalText) return;
+    const sent = await onSendApprovalText(rejectionReason);
+    if (sent !== false) setRejectionReason("");
+  }
   const criteria = revision?.criteria ?? [];
   const revisionWorkItems = outcome.workItems.filter(
     (item) => item.contractRevision === revision?.revision
@@ -478,36 +494,107 @@ export function ReviewPanel({
             )}
           </section>
         )}
-        {!receiptReview && reviewStatus !== "pending" && current && editable && outcome.status === "review_pending" && onApprove && onReject && (
-          <section
-            aria-label={translateCurrent("Result decision")}
-            className="outcome-approval mt-4"
-          >
-            <label className="outcome-approval-comment">
-              {translateCurrent("Rejection reason (required to reject)")}
-              <textarea
-                className="outcome-control"
-                placeholder={translateCurrent("Tell the bot what to fix.")}
-                maxLength={OUTCOME_LIMITS.commentChars}
-                rows={1}
-                value={rejectionReason}
-                disabled={busy}
-                onChange={(event) => setRejectionReason(event.target.value)}
-              />
-            </label>
-            <div className="outcome-direct-buttons">
-              <OutcomeButton variant="default" disabled={busy} onClick={onApprove}>
-                {translateCurrent("Approve")}
-              </OutcomeButton>
-              <OutcomeButton
-                disabled={busy || !rejectionReason.trim()}
-                onClick={() => onReject(rejectionReason.trim())}
-              >
-                {translateCurrent("Reject")}
-              </OutcomeButton>
-            </div>
-          </section>
-        )}
+        {!receiptReview &&
+          reviewStatus !== "pending" &&
+          current &&
+          editable &&
+          outcome.status === "review_pending" &&
+          (onApprove || onSendApprovalText || onReject) && (
+            <section
+              aria-label={translateCurrent("Result decision")}
+              className="outcome-approval mt-4"
+            >
+              <label className="outcome-approval-comment">
+                {translateCurrent(
+                  onSendApprovalText ? "Approval feedback" : "Rejection reason (required to reject)"
+                )}
+                <textarea
+                  aria-label={translateCurrent(
+                    onSendApprovalText ? "Approval feedback" : "Rejection reason (required to reject)"
+                  )}
+                  className="outcome-control"
+                  placeholder={translateCurrent(
+                    onSendApprovalText
+                      ? "Confirm completion or tell the planner what to fix, continue, or stop."
+                      : "Tell the bot what to fix."
+                  )}
+                  maxLength={onSendApprovalText ? OUTCOME_THREAD_TEXT_CHARS : OUTCOME_LIMITS.commentChars}
+                  rows={onSendApprovalText ? 2 : 1}
+                  value={rejectionReason}
+                  disabled={busy}
+                  onChange={(event) => setRejectionReason(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      onSendApprovalText &&
+                      event.key === "Enter" &&
+                      (event.metaKey || event.ctrlKey) &&
+                      rejectionReason.trim() &&
+                      !busy
+                    ) {
+                      event.preventDefault();
+                      void submitApprovalText();
+                    }
+                  }}
+                />
+              </label>
+              <div className="outcome-direct-buttons">
+                {onApprove && (
+                  <OutcomeButton
+                    variant={onSendApprovalText && hasApprovalText ? "secondary" : "default"}
+                    disabled={busy || plannerWaiting || (Boolean(onSendApprovalText) && hasApprovalText)}
+                    onClick={onApprove}
+                  >
+                    {translateCurrent("Approve")}
+                  </OutcomeButton>
+                )}
+                {onSendApprovalText ? (
+                  <OutcomeButton
+                    variant={hasApprovalText ? "default" : "secondary"}
+                    disabled={busy || !hasApprovalText}
+                    onClick={() => void submitApprovalText()}
+                  >
+                    {translateCurrent("Send to planner")}
+                  </OutcomeButton>
+                ) : onReject ? (
+                  <OutcomeButton
+                    disabled={busy || !hasApprovalText}
+                    onClick={() => onReject(rejectionReason.trim())}
+                  >
+                    {translateCurrent("Reject")}
+                  </OutcomeButton>
+                ) : null}
+              </div>
+              {onSendApprovalText && hasApprovalText && !plannerWaiting && (
+                <p className="outcome-approval-status">
+                  {translateCurrent(
+                    "Approval text will be sent to the planner to decide the next step. Clear the text to approve immediately."
+                  )}
+                </p>
+              )}
+              {plannerWaiting && (
+                <p role="status" className="outcome-approval-status">
+                  {translateCurrent("The planner is processing your approval feedback…")}
+                </p>
+              )}
+              {!plannerWaiting && latestPlannerTurn?.status === "completed" && latestPlannerTurn.reply && (
+                <div
+                  className="outcome-card mt-2 space-y-1 text-xs"
+                  aria-label={translateCurrent("Planner reply")}
+                >
+                  <p className="font-medium text-foreground-secondary">
+                    {translateCurrent("Planner reply")}
+                  </p>
+                  <p className="whitespace-pre-wrap">{latestPlannerTurn.reply}</p>
+                </div>
+              )}
+              {!plannerWaiting && latestPlannerTurn?.status === "failed" && (
+                <p role="alert" className="outcome-approval-status text-destructive">
+                  {latestPlannerTurn.error?.message ||
+                    translateCurrent("The planner could not process your message.")}
+                </p>
+              )}
+            </section>
+          )}
         {!receiptReview && outcome.status === "accepted" && (
           <p>{translateCurrent("You accepted the result. Its outputs remain available.")}</p>
         )}

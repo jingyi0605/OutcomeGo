@@ -229,6 +229,15 @@ export const sourceTranslations: Record<string, string> = {
   "Result decision": "成果验收决定",
   "Approve": "通过",
   "Reject": "拒绝",
+  "Approval feedback": "审批意见 / 验收回复",
+  "Confirm completion or tell the planner what to fix, continue, or stop.":
+    "确认核验无误可直接结束，或告诉规划 Agent 需要修改、继续推进或终止的内容。",
+  "Send to planner": "发送给规划 Agent",
+  "Approval text will be sent to the planner to decide the next step. Clear the text to approve immediately.":
+    "已填写审批文本，将交由规划 Agent 判断执行或结束；清空文本后可直接点击「通过」。",
+  "The planner is processing your approval feedback…": "规划 Agent 正在处理你的审批回复…",
+  "Planner reply": "规划 Agent 回复",
+  "The planner could not process your message.": "规划 Agent 未能处理你的消息。",
   "Rejection reason (required to reject)": "拒绝原因（拒绝时必填）",
   "Tell the bot what to fix.": "告诉 Bot 需要修改什么。",
   "Agent reports and AI prereviews are advisory. Required PASS needs independent evidence or your explicit confirmation.":

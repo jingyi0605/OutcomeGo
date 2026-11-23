@@ -23,6 +23,7 @@ import type { OutcomeClient } from "../src/renderer/client/outcome-api";
 import type { OutcomeThreadTurnView, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
 import { OUTCOMEGO_DEEP_LINK_EVENT } from "../src/renderer/lib/app-deep-links";
 import { OUTCOME_REFRESH_DEBOUNCE_MS, refreshOutcomeViews } from "../src/renderer/lib/outcome-events";
+import { handleOutcomeThreadEvent } from "../src/renderer/lib/outcome-thread";
 import { outcomeFixture, planFixture } from "./outcome-fixture";
 
 const dom = parseHTML("<!doctype html><html><body></body></html>");
@@ -1890,6 +1891,94 @@ test("approving a goal result takes one click and records acceptance", async () 
   expect(decisions).toBe(1);
   expect(host.textContent).toContain("You accepted the result.");
   expect(host.querySelector('[aria-label="Result decision"]')).toBeNull();
+});
+
+test("review_pending sends approval feedback directly to the planner thread, shows waiting state, and displays planner reply", async () => {
+  const sentMessages: SendOutcomeThreadMessageInput[] = [];
+  const turns: OutcomeThreadTurnView[] = [];
+  let decisions = 0;
+  const threadClient: OutcomeClient = {
+    ...client,
+    get: async () => outcomeFixture,
+    thread: async () => ({ threadId: "thread-1", turns: [...turns] }),
+    sendThreadMessage: async (_id, input) => {
+      sentMessages.push(input);
+      const turn: OutcomeThreadTurnView = {
+        id: `turn-${turns.length + 1}`,
+        purpose: "owner_message",
+        trigger: input.text,
+        status: "running",
+        reply: null,
+        error: null,
+        runId: `run-${turns.length + 1}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      turns.push(turn);
+      return turn;
+    },
+    decideAcceptance: async (_id, input) => {
+      decisions++;
+      expect(input).toMatchObject({ decision: "approve", expectedRevision: 1 });
+      return { ...outcomeFixture, status: "accepted" };
+    },
+  };
+
+  await mount(
+    <OutcomeDetail
+      outcomeId={outcomeFixture.id}
+      initialOutcome={outcomeFixture}
+      client={threadClient}
+    />
+  );
+
+  const review = host.querySelector('[data-outcome-section="review"] [aria-label="Review and rework"]')!;
+  const sendButton = [...review.querySelectorAll("button")].find((b) => b.textContent === "Send to planner")!;
+  const approveButton = [...review.querySelectorAll("button")].find((b) => b.textContent === "Approve")!;
+  expect(sendButton.hasAttribute("disabled")).toBe(true);
+  expect(approveButton.hasAttribute("disabled")).toBe(false);
+
+  const textarea = review.querySelector('textarea[aria-label="Approval feedback"]') as HTMLTextAreaElement;
+  expect(textarea).not.toBeNull();
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(Object.getPrototypeOf(textarea), "value")!.set!.call(
+      textarea,
+      "执行一次备份后，结束目标"
+    );
+    textarea.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    textarea.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  expect(sendButton.hasAttribute("disabled")).toBe(false);
+  expect(approveButton.hasAttribute("disabled")).toBe(true);
+  expect(host.textContent).toContain("Clear the text to approve immediately.");
+
+  await click("Send to planner");
+  expect(sentMessages).toHaveLength(1);
+  expect(sentMessages[0]!.text).toBe("执行一次备份后，结束目标");
+  expect(textarea.value).toBe("");
+  expect(host.textContent).toContain("The planner is processing your approval feedback…");
+  expect(approveButton.hasAttribute("disabled")).toBe(true);
+
+  turns[0] = {
+    ...turns[0]!,
+    status: "completed",
+    reply: "我还缺少一个定时备份开关的确认，请问是否需要开启每周自动备份？",
+  };
+  await act(async () => {
+    handleOutcomeThreadEvent({
+      topic: "goal.thread.updated",
+      entityId: outcomeFixture.id,
+      payload: { outcomeId: outcomeFixture.id, turnId: turns[0]!.id, status: "completed", title: outcomeFixture.title },
+      createdAt: new Date().toISOString(),
+    } as never);
+    await Promise.resolve();
+  });
+  expect(host.textContent).toContain("Planner reply");
+  expect(host.textContent).toContain("我还缺少一个定时备份开关的确认");
+  expect(approveButton.hasAttribute("disabled")).toBe(false);
+
+  await click("Approve");
+  expect(decisions).toBe(1);
 });
 
 test("marking a failed criterion for rework automatically expands the Rework section", async () => {
