@@ -6,7 +6,7 @@ export type ElectronAppPath = {
   setPath(name: "userData", value: string): void;
 };
 
-export const outcomeGoUserDataPath = (appDataPath: string): string => join(appDataPath, "aiTeamOS");
+export const outcomeGoUserDataPath = (appDataPath: string): string => join(appDataPath, "OutcomeGo");
 
 export const pinOutcomeGoUserDataPath = (electronApp: ElectronAppPath): string => {
   if (electronApp.isPackaged === false) return electronApp.getPath("userData");

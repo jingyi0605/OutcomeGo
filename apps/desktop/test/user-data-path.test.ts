@@ -16,12 +16,12 @@ describe("desktop user data path", () => {
     };
 
     expect(pinOutcomeGoUserDataPath(app)).toBe(
-      "/Users/tester/Library/Application Support/aiTeamOS"
+      "/Users/tester/Library/Application Support/OutcomeGo"
     );
-    expect(outcomeGoUserDataPath("/tmp/app-data")).toBe("/tmp/app-data/aiTeamOS");
+    expect(outcomeGoUserDataPath("/tmp/app-data")).toBe("/tmp/app-data/OutcomeGo");
     expect(calls).toEqual([
       "get:appData",
-      "set:userData:/Users/tester/Library/Application Support/aiTeamOS",
+      "set:userData:/Users/tester/Library/Application Support/OutcomeGo",
     ]);
   });
 

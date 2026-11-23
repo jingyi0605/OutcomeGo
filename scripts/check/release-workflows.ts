@@ -55,8 +55,11 @@ if (release.includes("aiteamos-") || release.includes("create-legacy-cli-aliases
   fail("the next release must not generate legacy aiteamos-* CLI assets");
 }
 requireText(release, "OutcomeGo-$VERSION-android.apk", "versioned Android release asset");
-requireText(release, "apps/desktop/release/aiTeamOS-*", "desktop release asset prefix retained for updater metadata");
-requireText(desktop, '"artifactName": "aiTeamOS-${version}-${os}-${arch}.${ext}"', "desktop artifact prefix retained for updater metadata");
+if (release.includes("aiTeamOS-") || desktop.includes("aiTeamOS-")) {
+  fail("desktop release artifacts must use the OutcomeGo- prefix, not legacy aiTeamOS-");
+}
+requireText(release, "apps/desktop/release/OutcomeGo-*", "OutcomeGo desktop release asset prefix");
+requireText(desktop, '"artifactName": "OutcomeGo-${version}-${os}-${arch}.${ext}"', "OutcomeGo desktop artifact prefix");
 
 const releaseJobs = release.slice(release.indexOf("jobs:"));
 const ciCall = releaseJobs.slice(releaseJobs.indexOf("  ci:"), releaseJobs.indexOf("  # ── Server images"));
@@ -83,5 +86,5 @@ if (/setup-qemu|type=oci|push: true/.test(imageVerification)) {
 
 console.log("Release workflow checks passed.");
 console.log("Release tags use native image builders or immutable digest reuse; Computer bases are built only on a recipe cache miss.");
-console.log("Desktop keeps its historical artifact prefix until a beta.13 updater fixture proves the renamed prefix resolves.");
+console.log("Desktop uses the OutcomeGo artifact prefix.");
 console.log("Versionless CLI binaries are stable download assets, not duplicate versioned application builds.");

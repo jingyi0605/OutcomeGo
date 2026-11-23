@@ -111,7 +111,7 @@
     "dmg": {
       "icon": "../../packages/design-tokens/assets/icon.icns"
     },
-    "artifactName": "aiTeamOS-${version}-${os}-${arch}.${ext}",
+    "artifactName": "OutcomeGo-${version}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
       "owner": "jingyi0605",

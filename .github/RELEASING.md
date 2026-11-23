@@ -2,7 +2,7 @@
 
 本地原生检查、GitHub 原生架构验证、Computer 预构建基础镜像、跨版本 digest 复用和旧 CLI 附件退出策略见 [20261116-发布镜像构建优化](20261116-发布镜像构建优化.md)。常规预检不再导出完整多架构 OCI archive。
 
-从下一版本开始，Release 只上传 `outcomego-*` CLI 资产，不再生成 `aiteamos-*` 兼容别名；历史 Release 的附件不变。安装器和本地命令入口仍按现有兼容策略运行。
+Release 只上传 `outcomego-*` CLI 资产，不再生成 `aiteamos-*` 兼容别名；安装器和本地命令入口统一使用 `outcomego`。
 
 Releases are built by `.github/workflows/release.yml`. Pushing a tag builds every artifact and
 publishes one GitHub Release. The workflow file must keep its name: the CLI only trusts
@@ -110,8 +110,8 @@ The workflow stamps `buildNumber` with the run number, so it never collides with
 ## Desktop notes
 
 The desktop app is `OutcomeGo` (bundle and app id `dev.outcomego.desktop`, executable `outcomego`, files named
-`aiTeamOS-<version>-<os>-<arch>.<ext>`). Keep this filename prefix until a v0.1.0-beta.13 updater fixture proves it resolves a renamed prefix. Icons come from `packages/design-tokens/assets/outcomego.icon`.
-The local server data folder is `.outcomego`; Desktop user data is pinned to its own `outcomego` directory.
+`OutcomeGo-<version>-<os>-<arch>.<ext>`). Icons come from `packages/design-tokens/assets/outcomego.icon`.
+The local server data folder is `.outcomego`; Desktop user data is pinned to its own `OutcomeGo` directory.
 
 Windows installers are unsigned until a code-signing certificate is added, so SmartScreen will
 warn. Published Windows releases now require `WINDOWS_CERTIFICATE_BASE64`,

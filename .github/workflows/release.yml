@@ -416,7 +416,7 @@ jobs:
         with:
           name: desktop-${{ runner.os }}
           path: |
-            apps/desktop/release/aiTeamOS-*
+            apps/desktop/release/OutcomeGo-*
             apps/desktop/release/latest*.yml
           if-no-files-found: error
 
@@ -472,12 +472,12 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: bun run package:mac-release
       - name: Verify the disk image
-        run: hdiutil verify apps/desktop/release/aiTeamOS-*-mac-arm64.dmg
+        run: hdiutil verify apps/desktop/release/OutcomeGo-*-mac-arm64.dmg
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-macOS
           path: |
-            apps/desktop/release/aiTeamOS-*
+            apps/desktop/release/OutcomeGo-*
             apps/desktop/release/latest*.yml
           if-no-files-found: error
 
@@ -668,7 +668,7 @@ jobs:
               exit 1
             }
           fi
-          desktop=(aiTeamOS-*-mac-* aiTeamOS-*-win-* aiTeamOS-*-linux-*)
+          desktop=(OutcomeGo-*-mac-* OutcomeGo-*-win-* OutcomeGo-*-linux-*)
           [ ${#desktop[@]} -gt 0 ] && sha256sum "${desktop[@]}" > DESKTOP_SHA256SUMS
           others=()
           for file in *; do
