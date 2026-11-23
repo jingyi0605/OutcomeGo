@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Streamdown } from "streamdown";
+import "./message-response/streamdown.css";
 import {
   messageComponents,
   messageRemarkPlugins,

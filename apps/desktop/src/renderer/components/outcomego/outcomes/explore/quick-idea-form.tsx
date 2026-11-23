@@ -3,7 +3,7 @@ import type { ExploreIdeaView } from "@outcomego/contracts/explore";
 import { mentionHandleFor, type MentionOption } from "../../../../lib/mentions";
 import { useI18n } from "../../../../lib/i18n";
 import { MentionEditor } from "../../mention-editor";
-import { OutcomeButton } from "../outcome-ui";
+import { OutcomeButton } from "../outcome-button";
 import { OutcomeRequestIds } from "../planning/outcome-client";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import type { ExploreClient } from "./explore-api";

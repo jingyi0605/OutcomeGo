@@ -1,4 +1,4 @@
-import type { CriterionReviewState, EvidenceCredibility, OutcomeDetail } from "./outcomes";
+import type { CriterionReviewState, EvidenceCredibility, OutcomeDetail, OutcomeWorkThreadView, WorkItemStatus } from "./outcomes";
 
 export const OUTCOME_LIMITS = {
   sourceTextChars: 8_000,
@@ -40,6 +40,12 @@ export const REVIEW_RESULTS = ["PASS", "FAIL", "UNVERIFIED", "WAIVED_BY_APPROVED
 export type ReviewResult = (typeof REVIEW_RESULTS)[number];
 
 export const ADVISORY_EVIDENCE_CREDIBILITY: readonly EvidenceCredibility[] = ["agent_report", "ai_prereview"];
+
+export const workThreadIsFinished = (status: WorkItemStatus) =>
+  status === "completed" || status === "accepted" || status === "failed" || status === "cancelled";
+
+export const workThreadCanStop = (thread: Pick<OutcomeWorkThreadView, "status" | "waitingOnDependency">) =>
+  !workThreadIsFinished(thread.status) && !thread.waitingOnDependency;
 
 export function outcomeBriefSource(outcome: OutcomeDetail): string {
   return JSON.stringify({

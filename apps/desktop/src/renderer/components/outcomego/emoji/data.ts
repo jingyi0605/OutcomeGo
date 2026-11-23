@@ -1,4 +1,5 @@
 import emojiData from "emojibase-data/en/compact.json";
+import { unpackEmojiPickerRuntimeEntry, type EmojiRuntimeSource } from "./runtime-data";
 
 const EMOJI_GROUP_SPECS = [
   { id: 0, label: "Smileys & emotion" },
@@ -12,11 +13,10 @@ const EMOJI_GROUP_SPECS = [
   { id: 9, label: "Flags" },
 ] as const;
 
-type EmojiEntry = (typeof emojiData)[number];
-
 const EMOJI_ENTRIES = emojiData
+  .map(unpackEmojiPickerRuntimeEntry)
   .filter(
-    (entry): entry is EmojiEntry & { group: number } =>
+    (entry): entry is EmojiRuntimeSource & { group: number } =>
       typeof entry.group === "number" && EMOJI_GROUP_SPECS.some(({ id }) => id === entry.group)
   )
   .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));

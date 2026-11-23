@@ -46,7 +46,10 @@ import { parseUserForm } from "@outcomego/contracts/user-forms";
 import { UserFormCard } from "./user-form-card";
 import { localizeComputerNetworkPolicyCard } from "../../lib/computer-network-policy-card";
 import { parseOutcomeChatCard } from "@outcomego/contracts/outcome-chat-card";
-import { OutcomeChatCardView } from "./outcomes/outcome-chat-card";
+
+const OutcomeChatCardView = lazy(() =>
+  import("./outcomes/outcome-chat-card").then((module) => ({ default: module.OutcomeChatCardView }))
+);
 
 const ExternalDraftCard = lazy(() =>
   import("./external-draft-card").then((module) => ({ default: module.ExternalDraftCard }))
@@ -702,7 +705,11 @@ export function RichMessage({ message, bot }: { message: ChannelMessageView; bot
   const metadata = record(message.metadata);
   if (metadata.type === "outcome-card") {
     const card = parseOutcomeChatCard(metadata.outcomeCard);
-    return card ? <OutcomeChatCardView card={card} bot={bot} /> : <p>{message.content}</p>;
+    return card ? (
+      <Suspense fallback={<p>{message.content}</p>}>
+        <OutcomeChatCardView card={card} bot={bot} />
+      </Suspense>
+    ) : <p>{message.content}</p>;
   }
   if (
     metadata.type === "bot-template" &&

@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { AttachmentStageChannel } from "../../hooks/attachment-stage-channel";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
 import { AttachmentComposer } from "./attachment-composer";
+import "./attachment-stage.css";
 
 const PreviewTools = createContext<HTMLDivElement | null>(null);
 export const AttachmentStageDismiss = createContext<() => void>(() => {});
