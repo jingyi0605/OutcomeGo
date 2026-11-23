@@ -80,6 +80,8 @@ class FakeDockWindow extends EventEmitter {
 }
 
 const checkAccessibility = mock(() => false);
+/** Only macOS asks for Accessibility permission before it watches drags in other apps. */
+const accessibilityChecks = process.platform === "darwin" ? 1 : 0;
 mock.module("electron", () => ({
   BrowserWindow: FakeDockWindow,
   Menu: {},
@@ -174,8 +176,8 @@ test("restores an opted-in dock and preserves its compact position through move,
       expect(composer.visible).toBe(false);
       optedIn.notifyMessageArrival();
       expect(window.sent.has("botdock:message-arrival")).toBe(true);
-      expect(checkAccessibility).toHaveBeenCalledTimes(1);
-      expect(checkAccessibility).toHaveBeenCalledWith(false);
+      expect(checkAccessibility).toHaveBeenCalledTimes(accessibilityChecks);
+      if (accessibilityChecks) expect(checkAccessibility).toHaveBeenCalledWith(false);
 
       cursor = { x: window.bounds.x + 48, y: window.bounds.y + 32 };
       ipc.emit("botdock:drag-start", event);
@@ -307,7 +309,7 @@ while IFS= read -r targets; do :; done
       expect(composer.destroyed).toBe(true);
       expect(invitation.destroyed).toBe(true);
       optedIn.refreshGlobalDrag();
-      expect(checkAccessibility).toHaveBeenCalledTimes(1);
+      expect(checkAccessibility).toHaveBeenCalledTimes(accessibilityChecks);
     } finally {
       optedIn.dispose();
     }
@@ -323,3 +325,83 @@ while IFS= read -r targets; do :; done
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test.skipIf(process.platform === "win32")(
+  "on Windows the helper starts without an Accessibility check and a drag from another app grows the dock",
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), "bot-dock-windows-drag-"));
+    const platform = Object.getOwnPropertyDescriptor(process, "platform");
+    const checksBefore = checkAccessibility.mock.calls.length;
+    const marker = join(directory, "drag-over");
+    const helperPath = join(directory, "drag-helper");
+    // Speaks the helper protocol: ready, a drag starts, and it ends once the marker file exists.
+    await writeFile(
+      helperPath,
+      `#!/bin/sh
+printf '%s\\n' 'ready drag' 'drag-start'
+while [ ! -e '${marker}' ]; do sleep 0.01; done
+printf '%s\\n' 'drag-end'
+while IFS= read -r line; do :; done
+`,
+      { mode: 0o700 }
+    );
+    await writeFile(join(directory, "bot-dock-settings.json"), JSON.stringify({ enabled: true }));
+    const mainWindow = { webContents: {} } as BrowserWindow;
+    const windows: FakeDockWindow[] = [];
+    Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+    const dock = new DesktopBotDock({
+      preloadPath: import.meta.path,
+      settingsPath: join(directory, "bot-dock-settings.json"),
+      dragHelperPath: helperPath,
+      loadPage: async (window: BrowserWindow) => {
+        windows.push(window as unknown as FakeDockWindow);
+      },
+      mainWindow: () => mainWindow,
+      focusMainWindow() {},
+      openChat() {},
+      openGoals() {},
+      async stageDelivery() {},
+      async discardDelivery() {},
+      locale: () => "en-US" as const,
+      onEnabledChange() {},
+    });
+    try {
+      ipc.emit(
+        "outcomego:botdock:state",
+        { sender: mainWindow.webContents },
+        { bots: [], roster: [{ id: "bot", name: "Bot", color: "blue", icon: "round" }] }
+      );
+      const [window] = windows;
+      if (!window) throw new Error("Dock window was not created");
+      const event = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+      // The other surfaces are created once the capsule has its size.
+      ipc.emit("botdock:resize", event, 96, 64, "compact");
+      const [, , invitation] = windows;
+      if (!invitation) throw new Error("Invitation surface was not created");
+      const invitationEvent = {
+        sender: invitation.webContents,
+        senderFrame: invitation.webContents.mainFrame,
+      };
+      expect(window.visible).toBe(true);
+      expect(invitation.visible).toBe(false);
+
+      // The pointer never enters the dock: only the helper says a drag began elsewhere.
+      for (let attempt = 0; attempt < 200 && !invitation.visible; attempt++) {
+        ipc.emit("botdock:resize", invitationEvent, 170, 98, "invitation");
+        await Bun.sleep(10);
+      }
+      expect(invitation.visible).toBe(true);
+      expect(window.visible).toBe(false);
+
+      await writeFile(marker, "");
+      for (let attempt = 0; attempt < 200 && invitation.visible; attempt++) await Bun.sleep(10);
+      expect(invitation.visible).toBe(false);
+      expect(window.visible).toBe(true);
+      expect(checkAccessibility.mock.calls.length).toBe(checksBefore);
+    } finally {
+      dock.dispose();
+      if (platform) Object.defineProperty(process, "platform", platform);
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+);

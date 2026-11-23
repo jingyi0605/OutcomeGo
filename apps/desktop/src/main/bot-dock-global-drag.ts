@@ -79,7 +79,11 @@ export class GlobalDragDetector {
     } catch (error) {
       console.warn("OutcomeGo could not create its file drop directory", error);
     }
-    const child = spawn(this.helperPath, args, { stdio: ["pipe", "pipe", "pipe"] });
+    // windowsHide: a console helper started from the app must not open a console window.
+    const child = spawn(this.helperPath, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true,
+    });
     this.child = child;
     const pending = new Map<string, FinishDrop>();
     child.stdin.on("error", () => {});

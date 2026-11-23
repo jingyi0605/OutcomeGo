@@ -61,6 +61,7 @@ const INITIAL_SIZE = { width: 96, height: 64 };
 
 export interface DesktopBotDockOptions {
   preloadPath: string;
+  /** Native helper that reports drags starting in other applications (macOS and Windows). */
   dragHelperPath: string | null;
   /** JSON file holding whether the dock is on and where the person left it. */
   settingsPath: string;
@@ -291,7 +292,12 @@ export class DesktopBotDock {
   refreshGlobalDrag(trusted?: boolean) {
     const detector = this.globalDragDetector;
     if (!detector || !this.compactBounds || !this.enabled) return;
-    if (trusted ?? systemPreferences.isTrustedAccessibilityClient(false)) detector.start();
+    // Only macOS asks for permission to watch drags (Accessibility); the Windows helper just reads
+    // the pointer button and the shell's drag image, and `systemPreferences` has no such call there.
+    const allowed =
+      trusted ??
+      (process.platform !== "darwin" || systemPreferences.isTrustedAccessibilityClient(false));
+    if (allowed) detector.start();
     else detector.stop();
   }
 

@@ -7,6 +7,7 @@ import { loadMachineIdentity } from "./host/machine-identity";
 import { DesktopMachineEnrollment } from "./host/machine-enrollment";
 import { MessagesAccess } from "./host/messages-access";
 import { nativeCommand } from "./host/native-command";
+import { existsSync } from "node:fs";
 import { mkdtemp, open, readFile, rename, rm, unlink } from "node:fs/promises";
 import { hostname, tmpdir } from "node:os";
 import { extname, join } from "node:path";
@@ -1300,17 +1301,26 @@ const screenbot = new DesktopScreenBot({
   discardDelivery: (stagingId) => discardDeliveryFiles(deliveryStageDirectory(), [stagingId]),
 });
 
-// The native helper runs from app.asar.unpacked in packaged builds.
+// The native helpers run from app.asar.unpacked in packaged builds.
+const nativeHelperDirectory = import.meta.dirname.replace(/app\.asar(?=[\\/]|$)/, "app.asar.unpacked");
 const screenBotHelperPath =
-  process.platform === "darwin"
-    ? join(import.meta.dirname.replace(/app\.asar(?=[\\/]|$)/, "app.asar.unpacked"), "screenbot-keys")
-    : null;
+  process.platform === "darwin" ? join(nativeHelperDirectory, "screenbot-keys") : null;
+
+// Tells the floating Bot window a drag began in another application, so it can grow before the
+// pointer reaches it. Windows builds it from native/windows-drag when Go is installed; without
+// the file the window simply reacts once a drag reaches it.
+const dockDragHelperPath = (() => {
+  if (process.platform === "darwin") return screenBotHelperPath;
+  if (process.platform !== "win32") return null;
+  const helper = join(nativeHelperDirectory, "dock-drag.exe");
+  return existsSync(helper) ? helper : null;
+})();
 
 // The floating Bot capsule: unread messages (red) and goals waiting on the owner (yellow).
 const { DesktopBotDock } = await import("./bot-dock");
 const botDock = new DesktopBotDock({
   preloadPath: join(import.meta.dirname, "botdock-preload.cjs"),
-  dragHelperPath: screenBotHelperPath,
+  dragHelperPath: dockDragHelperPath,
   settingsPath: join(app.getPath("userData"), "bot-dock-settings.json"),
   loadPage: async (window, surface) => {
     const rendererUrl = devRendererUrl();

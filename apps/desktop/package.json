@@ -67,7 +67,8 @@
     "asarUnpack": [
       "dist-electron/outcomego-cli.js",
       "dist-electron/outcomego-cli.js",
-      "dist-electron/screenbot-keys"
+      "dist-electron/screenbot-keys",
+      "dist-electron/dock-drag.exe"
     ],
     "npmRebuild": false,
     "directories": {
@@ -170,7 +171,7 @@
     "test:native:e2e": "bun test/host/fixtures/capability-integration.ts",
     "test:chat-transition-motion": "bun scripts/analyze-chat-transitions.ts",
     "test:browser-network": "bun scripts/test-browser-network.ts",
-    "build:native": "bun run scripts/build-screenbot-keys.ts",
+    "build:native": "bun run scripts/build-screenbot-keys.ts && bun run scripts/build-dock-drag-helper.ts",
     "test:chat-gradient": "bun scripts/test-chat-gradient.ts",
     "test:question-history:chaos": "bun scripts/test-question-history-chaos.ts",
     "test:activity-history": "bun scripts/test-activity-history.ts",
