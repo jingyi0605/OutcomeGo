@@ -10,7 +10,6 @@
   },
   "type": "module",
   "bin": {
-    "aiteamos": "dist/outcomego.js",
     "outcomego": "dist/outcomego.js"
   },
   "files": [

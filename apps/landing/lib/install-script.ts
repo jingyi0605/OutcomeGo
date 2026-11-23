@@ -107,19 +107,15 @@ user_home=$(printenv HOME 2>/dev/null || true)
 bin_directory=$(printenv OUTCOMEGO_BIN_DIR 2>/dev/null || printf '%s/.local/bin' "$user_home")
 mkdir -p "$bin_directory"
 installed_binary="$bin_directory/outcomego"
-installed_alias="$bin_directory/aiteamos"
 if command_exists install; then
   install -m 0755 "$binary_path" "$installed_binary"
-  install -m 0755 "$binary_path" "$installed_alias"
 else
   cp "$binary_path" "$installed_binary"
-  cp "$binary_path" "$installed_alias"
-  chmod +x "$installed_binary" "$installed_alias"
+  chmod +x "$installed_binary"
 fi
 
 step "$checkmark" "CLI installed" "$green"
 say "    $installed_binary"
-say "    $installed_alias"
 
 # Make outcomego available in new terminals. OUTCOMEGO_NO_MODIFY_PATH=1 leaves profiles alone.
 path_marker="# Added by the OutcomeGo installer"
@@ -235,7 +231,6 @@ $binaryPath = Join-Path $temporaryDirectory $assetName
 $checksumsPath = Join-Path $temporaryDirectory "SHA256SUMS"
 $binDirectory = if ($env:OUTCOMEGO_BIN_DIR) { $env:OUTCOMEGO_BIN_DIR } else { Join-Path $env:LOCALAPPDATA "OutcomeGo\bin" }
 $installedBinary = Join-Path $binDirectory "outcomego.exe"
-$installedAlias = Join-Path $binDirectory "aiteamos.exe"
 
 $installerProgressPreference = $ProgressPreference
 $ProgressPreference = "SilentlyContinue"
@@ -262,10 +257,8 @@ try {
   Write-Step ([char]0x2713) "Download verified" "Green"
   New-Item -ItemType Directory -Force -Path $binDirectory | Out-Null
   Copy-Item -Force $binaryPath $installedBinary
-  Copy-Item -Force $binaryPath $installedAlias
   Write-Step ([char]0x2713) "CLI installed" "Green"
   Write-Host "    $installedBinary"
-  Write-Host "    $installedAlias"
   if ($env:OUTCOMEGO_NO_MODIFY_PATH -ne "1") {
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if (-not $userPath) { $userPath = "" }

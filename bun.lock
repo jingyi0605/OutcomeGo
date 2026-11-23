@@ -15,7 +15,6 @@
       "name": "@outcomego/cli",
       "version": "0.1.0-beta.24",
       "bin": {
-        "aiteamos": "dist/outcomego.js",
         "outcomego": "dist/outcomego.js",
       },
       "dependencies": {

@@ -53,17 +53,11 @@ export const cliProgram = (
   const standalone =
     options.standalone ?? isStandaloneCliExecutable(options.argv ?? process.argv, running);
   if (!standalone) return "outcomego";
-  const executableName = executable
-    .split(/[\\/]/)
-    .at(-1)
-    ?.replace(/\.exe$/i, "")
-    .toLowerCase();
-const preferredName = executableName === "outcomego" ? "outcomego" : "outcomego";
-const names = platform === "win32" ? ["outcomego.exe", "aiteamos.exe"] : ["outcomego", "aiteamos"];
+  const names = platform === "win32" ? ["outcomego.exe"] : ["outcomego"];
   const onPath = (options.path ?? searchPath(platform))
     .split(platform === "win32" ? ";" : delimiter)
     .some((entry) => entry && names.some((name) => sameFile(join(entry, name), executable, platform)));
-  if (onPath) return preferredName;
+  if (onPath) return "outcomego";
   if (!/[^\w./:\\-]/.test(executable)) return executable;
   // PowerShell runs a quoted path only through its call operator.
   return `${platform === "win32" ? "& " : ""}${quoteArgument(executable, platform)}`;

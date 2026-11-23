@@ -30,7 +30,7 @@ describe("install script", () => {
     expect(installScript).toContain('asset_name="outcomego-$binary_os-$architecture"');
     expect(installScript).toContain("SHA256SUMS");
     expect(installScript).toContain('installed_binary="$bin_directory/outcomego"');
-    expect(installScript).toContain('installed_alias="$bin_directory/aiteamos"');
+    expect(installScript).not.toContain("aiteamos");
     expect(installScript).toContain('"$installed_binary" install "$@" </dev/tty');
   });
 
@@ -46,8 +46,8 @@ describe("install script", () => {
     expect(powerShellInstallScript).toContain('"outcomego-windows-x64.exe"');
     expect(powerShellInstallScript).toContain("Get-FileHash -Algorithm SHA256");
     expect(powerShellInstallScript).toContain('Join-Path $env:LOCALAPPDATA "OutcomeGo\\bin"');
-    expect(powerShellInstallScript).toContain('Join-Path $binDirectory "aiteamos.exe"');
-    expect(powerShellInstallScript).toContain("Copy-Item -Force $binaryPath $installedAlias");
+    expect(powerShellInstallScript).not.toContain("aiteamos");
+    expect(powerShellInstallScript).toContain("Copy-Item -Force $binaryPath $installedBinary");
     expect(powerShellInstallScript).toContain("& $installedBinary install @args");
   });
 
