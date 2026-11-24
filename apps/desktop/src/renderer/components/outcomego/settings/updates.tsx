@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useServerUpdate } from "../../../hooks/use-server-update";
 import { requestDesktopUpdateRestart } from "../../../lib/desktop-update";
 import { LoadingOrb } from "../../ui/loading-orb";
+import { ReleaseNotesButton } from "./release-notes-dialog";
 import { ServerUpdateSettings } from "./server-update";
 import { useI18n } from "../../../lib/i18n";
 import { localizeDesktopUpdateMessage } from "../../../lib/server-update-message";
@@ -193,25 +194,30 @@ export default function UpdatesSettings() {
           anchors={["update-status", "automatic-updates"]}
           control={
             clientNeedsUpdate ? (
-              <button
-                className={primaryButton}
-                disabled={clientUpdating}
-                onClick={() => void updateClient()}
-                type="button"
-              >
-                {clientUpdating ? (
-                  <LoadingOrb aria-hidden size={14} />
+              <div className="flex items-center gap-2">
+                {clientUpdate?.latestVersion ? (
+                  <ReleaseNotesButton version={clientUpdate.latestVersion} />
                 ) : null}
-                {clientUpdate?.status === "downloaded"
-                  ? t("Restart to update")
-                  : clientUpdate?.status === "downloading"
-                    ? t("Downloading {percent}%", {
-                        percent: Math.round(clientUpdate.progress ?? 0),
-                      })
-                    : clientUpdate?.status === "installing"
-                      ? t("Restarting…")
-                      : t("Update desktop")}
-              </button>
+                <button
+                  className={primaryButton}
+                  disabled={clientUpdating}
+                  onClick={() => void updateClient()}
+                  type="button"
+                >
+                  {clientUpdating ? (
+                    <LoadingOrb aria-hidden size={14} />
+                  ) : null}
+                  {clientUpdate?.status === "downloaded"
+                    ? t("Restart to update")
+                    : clientUpdate?.status === "downloading"
+                      ? t("Downloading {percent}%", {
+                          percent: Math.round(clientUpdate.progress ?? 0),
+                        })
+                      : clientUpdate?.status === "installing"
+                        ? t("Restarting…")
+                        : t("Update desktop")}
+                </button>
+              </div>
             ) : (
               <button
                 className={secondaryButton}

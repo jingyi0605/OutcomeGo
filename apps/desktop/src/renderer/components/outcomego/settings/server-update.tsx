@@ -14,6 +14,7 @@ import {
 } from "../../../lib/server-update-message";
 import { inSidebarOrder, useSidebarBotOrder } from "../../../lib/sidebar-bot-order";
 import { SectionLabel, SettingsGroup, settingsSecondaryButton } from "./ui";
+import { ReleaseNotesButton } from "./release-notes-dialog";
 import { ServerUpdateProgressPanel } from "./server-update-progress";
 
 const FAILED = "The server update failed. Try again.";
@@ -235,6 +236,9 @@ export function ServerUpdateSettings({
             </div>
             {state === "up-to-date" || state === "updating" ? null : (
               <div className="flex shrink-0 items-center gap-2">
+                {serverNeedsUpdate && serverTarget ? (
+                  <ReleaseNotesButton version={serverTarget} />
+                ) : null}
                 {stopTarget ? (
                   <ConfirmButton
                     key={stopTarget.botId}

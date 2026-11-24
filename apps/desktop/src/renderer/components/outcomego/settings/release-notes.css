@@ -1,0 +1,195 @@
+/* Release notes in the update dialog. Colors come from the theme variables, so light and dark
+   follow the app without a separate dark block. */
+.release-notes {
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+/* Blocks are spaced by `gap`, not margins: margin rules on individual elements (code blocks,
+   quotes, paragraphs) would otherwise out-rank a generic sibling margin and collapse the rhythm. */
+.release-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.release-notes > * {
+  margin: 0;
+}
+
+.release-notes [data-streamdown^="heading-"] {
+  color: var(--foreground);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* A heading starts a new section: extra space above, and it sits close to what it introduces. */
+.release-notes > [data-streamdown^="heading-"]:not(:first-child) {
+  margin-top: 12px;
+}
+
+.release-notes > [data-streamdown^="heading-"] {
+  margin-bottom: -2px;
+}
+
+.release-notes [data-streamdown="heading-1"],
+.release-notes [data-streamdown="heading-2"] {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.release-notes [data-streamdown="heading-3"] {
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.release-notes [data-streamdown="heading-4"],
+.release-notes [data-streamdown="heading-5"],
+.release-notes [data-streamdown="heading-6"] {
+  color: var(--foreground-secondary);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.release-notes [data-streamdown="strong"] {
+  font-weight: 620;
+}
+
+.release-notes [data-streamdown="unordered-list"],
+.release-notes [data-streamdown="ordered-list"] {
+  margin: 0;
+  padding-left: 20px;
+  list-style-position: outside;
+}
+
+.release-notes [data-streamdown="unordered-list"] {
+  list-style-type: disc;
+}
+
+.release-notes [data-streamdown="ordered-list"] {
+  list-style-type: decimal;
+}
+
+.release-notes [data-streamdown="list-item"] {
+  padding: 2px 0 2px 2px;
+}
+
+.release-notes [data-streamdown="list-item"]::marker {
+  color: var(--foreground-secondary);
+}
+
+.release-notes [data-streamdown="list-item"] > p {
+  display: inline;
+}
+
+.release-notes [data-streamdown="list-item"] > [data-streamdown="unordered-list"],
+.release-notes [data-streamdown="list-item"] > [data-streamdown="ordered-list"] {
+  margin-top: 2px;
+}
+
+.release-notes [data-streamdown="inline-code"] {
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  padding: 1px 5px;
+  color: var(--foreground);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.release-notes [data-streamdown="code-block"] {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  padding: 0;
+}
+
+.release-notes [data-streamdown="code-block-header"] {
+  height: auto;
+  padding: 7px 12px 0;
+  color: var(--foreground-secondary);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.release-notes [data-streamdown="code-block-body"] {
+  max-height: 320px !important;
+  scrollbar-width: thin;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 8px 12px 11px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.release-notes [data-streamdown="code-block-body"] pre {
+  margin: 0;
+  background: transparent;
+}
+
+.release-notes [data-streamdown="blockquote"] {
+  border-left: 3px solid color-mix(in srgb, var(--ring) 55%, transparent);
+  border-radius: 0 8px 8px 0;
+  background: color-mix(in srgb, var(--ring) 7%, transparent);
+  padding: 8px 12px;
+  color: var(--foreground-secondary);
+  font-style: normal;
+}
+
+.release-notes [data-streamdown="horizontal-rule"] {
+  margin: 4px 0;
+  border-color: var(--border);
+}
+
+.release-notes [data-streamdown="table-wrapper"] {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.release-notes [data-streamdown="table-wrapper"] > :has(> [data-streamdown="table"]) {
+  max-height: none !important;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+}
+
+.release-notes [data-streamdown="table"] {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.release-notes [data-streamdown="table-header"] {
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+
+.release-notes [data-streamdown="table-header-cell"],
+.release-notes [data-streamdown="table-cell"] {
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.release-notes [data-streamdown="table-header-cell"] {
+  font-weight: 600;
+}
+
+.release-notes-link {
+  color: var(--ring);
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+
+.release-notes-link:hover,
+.release-notes-link:focus-visible {
+  text-decoration: underline;
+}
