@@ -24,10 +24,25 @@ test("aggregates the latest active lease for every desktop and mobile platform",
 
   expect(routing).toEqual({
     smartEnabled: true,
+    botMessageLevel: "every_message",
     serverTime: 1_000,
     iosActiveUntil: 4_000,
     androidActiveUntil: 4_500,
     macActiveUntil: 2_000,
     windowsActiveUntil: 3_000,
   });
+});
+
+test("reports the stored Bot message alert level", async () => {
+  const routing = await notificationRouting(
+    {
+      notificationPreferences: {
+        findUnique: async () => ({ smartEnabled: true, botMessageLevel: "final_only" }),
+      },
+      notificationPresence: { findMany: async () => [] },
+    } as never,
+    "disabled",
+    new Date(1_000)
+  );
+  expect(routing.botMessageLevel).toBe("final_only");
 });

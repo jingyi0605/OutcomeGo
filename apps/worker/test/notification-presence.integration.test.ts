@@ -82,7 +82,7 @@ test.skipIf(!url)(
           authRequired: false,
         })),
       });
-      await Effect.runPromise(service.updatePreferences(true));
+      await Effect.runPromise(service.updatePreferences({ smartEnabled: true }));
       await presence(mac, 1, true);
       const first = await message();
       const published = await db.channelNotification.findUniqueOrThrow({ where: { key: `message:${first.id}` } });
@@ -157,7 +157,7 @@ test.skipIf(!url)(
       await drain();
       expect(firstPhone).toHaveLength(4);
       await presence(mac, 7, true);
-      await Effect.runPromise(service.updatePreferences(false));
+      await Effect.runPromise(service.updatePreferences({ smartEnabled: false }));
       await message();
       await drain();
       expect(firstPhone).toHaveLength(5);

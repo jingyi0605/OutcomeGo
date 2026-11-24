@@ -2160,7 +2160,17 @@ export const UpdateNotificationPresenceInput = Schema.Struct({
     Schema.Number.pipe(Schema.finite(), Schema.between(0, 2_147_483_647))
   ),
 });
-export const UpdateNotificationPreferencesInput = Schema.Struct({ smartEnabled: Schema.Boolean });
+/** Older clients send only `smartEnabled`; newer ones may send either field, but never neither. */
+export const UpdateNotificationPreferencesInput = Schema.Struct({
+  smartEnabled: Schema.optional(Schema.Boolean),
+  botMessageLevel: Schema.optional(Schema.Literal("every_message", "final_only")),
+}).pipe(
+  Schema.filter(
+    (input) =>
+      input.smartEnabled !== undefined || input.botMessageLevel !== undefined ||
+      "Provide smartEnabled or botMessageLevel"
+  )
+);
 
 /** Optional product modules, switched on in Settings → General. Every module is off by default. */
 export interface FeatureSettingsView {

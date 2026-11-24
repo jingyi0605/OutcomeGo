@@ -12,7 +12,7 @@ import {
   notificationRouting,
 } from "@outcomego/messaging";
 import { appendEvent, serviceEffect } from "./service-utils";
-import { notificationPresenceLifetime, type NotificationPresenceInput } from "@outcomego/contracts/notification-presence";
+import { notificationPresenceLifetime, type BotMessageNotifyLevel, type NotificationPresenceInput } from "@outcomego/contracts/notification-presence";
 
 const PUSH_DELIVERY_LOCK_TIMEOUT_MS = 20_000;
 
@@ -60,10 +60,15 @@ export class NotificationService {
 
   routing = () => serviceEffect(() => notificationRouting(this.prisma, this.authMode));
 
-  updatePreferences = (smartEnabled: boolean) => serviceEffect(() => this.prisma.$transaction(async tx => {
+  /** Only the fields present change; a client that sends just `smartEnabled` leaves the alert level alone. */
+  updatePreferences = (input: { smartEnabled?: boolean; botMessageLevel?: BotMessageNotifyLevel }) => serviceEffect(() => this.prisma.$transaction(async tx => {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(${PUSH_DELIVERY_ADVISORY_LOCK.namespace}, ${PUSH_DELIVERY_ADVISORY_LOCK.key})`;
+    const changes = {
+      ...(input.smartEnabled !== undefined ? { smartEnabled: input.smartEnabled } : {}),
+      ...(input.botMessageLevel !== undefined ? { botMessageLevel: input.botMessageLevel } : {}),
+    };
     await tx.notificationPreferences.upsert({ where: { id: "global" },
-      create: { id: "global", smartEnabled }, update: { smartEnabled } });
+      create: { id: "global", ...changes }, update: changes });
     await appendEvent(tx, "notification.presence.changed", null, {});
     return notificationRouting(tx, this.authMode);
   }, { maxWait: PUSH_DELIVERY_LOCK_TIMEOUT_MS, timeout: PUSH_DELIVERY_LOCK_TIMEOUT_MS }));

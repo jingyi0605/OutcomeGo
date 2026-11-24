@@ -1852,9 +1852,18 @@ model FeatureSettings {
   @@map("outcomego_feature_settings")
 }
 
+/// every_message: alert on each Bot message. final_only: alert only on a turn's settlement (the final summary) and on cards that wait for the owner.
+enum BotMessageNotifyLevel {
+  every_message
+  final_only
+
+  @@map("outcomego_bot_message_notify_level")
+}
+
 model NotificationPreferences {
   id String @id @default("global")
   smartEnabled Boolean @default(true)
+  botMessageLevel BotMessageNotifyLevel @default(every_message)
   @@map("outcomego_notification_preferences")
 }
 
