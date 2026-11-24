@@ -169,8 +169,11 @@
   - 对应需求：`requirements.md` 需求 C2 / 验收 C2.1 至 C2.4
   - 对应设计：`design.md` §5.10、§6.1
 
-- [ ] 1.2 展示状态推导与时间条目类型（纯函数）
-  - 状态：TODO
+- [x] 1.2 展示状态推导与时间条目类型（纯函数）
+  - 状态：DONE
+  - 完成记录（2026-11-24）：新增 `packages/contracts/src/task-overview.ts`（请求、目标任务、例程的展示状态推导，逾期叠加标记，所有者时区的本地日期，`TimeItem`/`ActivityItem` 类型）和 `packages/contracts/test/task-overview.test.ts`（31 个用例），并在 `packages/contracts/package.json` 登记 `./task-overview` 导出。`packages/contracts` 全量 295 通过，`tsc` 与 `check:architecture` 通过；场景词与数值字面量自查通过。阈值（`checkOverdueMinutes`、`recentCompletedHours`）全部由调用方传入，文件内没有业务数值。
+  - 对规格的补充解释（需所有者确认，已记入 docs）：①设计 §2.2 表里没有覆盖「已排期的时间已到、依赖仍未完成」的组合，按「等待依赖」处理；②例程最近一次执行为 `queued` 时按「运行中」处理；③例程的暂停不遮盖失败或运行中；④请求「核对中」按对账次数大于 0 判断，不写死 3 次的上限（上限只存在于 `request-progress.ts` 的运行时逻辑）。
+  - 范围说明：待办的展示状态按本任务「先不做什么」留到阶段 6，`DisplayState` 目前只含请求、目标任务和例程三类。
   - 这一步到底做什么：写一份被各视图共用的展示状态推导，以及 `TimeItem`、`ActivityItem` 类型。
   - 做完你能看到什么：一个只有纯函数的新文件，带完整单元测试。
   - 先依赖什么：无
