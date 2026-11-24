@@ -28,7 +28,7 @@ const run = async (command: string[]) => {
   if ((await child.exited) !== 0) throw new Error(`${command[0]} failed`);
 };
 const build = (arch: string, path: string) =>
-  run(["xcrun", "swiftc", releaseArch ? "-Osize" : "-O", "-target", `${arch}-apple-macos12.0`, source, "-o", path]);
+  run(["xcrun", "swiftc", "-Osize", "-target", `${arch}-apple-macos12.0`, source, "-o", path]);
 if (releaseArch) {
   await build(releaseArch === "x64" ? "x86_64" : releaseArch, output);
   await run(["xcrun", "strip", "-x", output]);
