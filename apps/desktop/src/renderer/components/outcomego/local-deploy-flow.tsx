@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../../lib/i18n";
 import { codes, type DeploymentResult, type DeployProgress } from "../../lib/local-deploy-contract";
-import { deployIssue, deployProgress, emptyProgress, engineOptions, type EngineKind, suggestedEngine } from "../../lib/local-deploy-flow";
+import { deployIssue, deployProgress, emptyProgress, engineAdvice, engineOptions, type EngineKind, suggestedEngine } from "../../lib/local-deploy-flow";
 import { EnginePicker, useEngineProbes } from "./local-deploy-engines";
+import { EngineGuideVisual } from "./local-deploy-guide";
 import { DeployProgressPanel } from "./local-deploy-progress";
+import { DeployShowcaseVisual } from "./local-deploy-showcase-visual";
 import { SetupLayout, SetupLink, SetupPrimary, useCopied } from "./setup/setup-layout";
 
 export default function LocalDeployFlow({ onBack, onConnect }: {
@@ -133,12 +135,18 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
   // Without a choice or a suggestion (nothing found, or the look failed), the command line decides.
   const requestEngine: "auto" | EngineKind = choosesEngine ? selected ?? "auto" : "auto";
   const canEnable = platform === "win32" && progress?.action?.kind === "elevate" && requestEngine !== "external";
+  // The right side explains the two choices while one is being made; while it deploys, the
+  // posters take over (local-deploy-showcase.tsx).
+  const guide = choosesEngine && !busy
+    ? <EngineGuideVisual advice={engineAdvice(options, resuming)} options={options} platform={platform} selected={selected} />
+    : undefined;
   const issueLabel = progress?.issue ? t(deployIssue(progress.issue.code)) : "";
   const issueDetail = progress?.issue?.message ?? progress?.action?.detail;
   return (
     <SetupLayout title={t("Deploy on this computer")} screenKey="local-deploy" stage={0}
       body={t(busy ? "You can cancel at any time." : "Your data stays on this computer.")}
       onBack={busy ? undefined : onBack} onSubmit={() => void start()}
+      visual={busy ? <DeployShowcaseVisual /> : guide} visualInteractive={busy}
       footer={busy ? <SetupLink onClick={() => {
         cancelPending.current = true;
         if (id.current) void window.outcomego?.localDeploy?.cancel(id.current).catch(() => undefined);

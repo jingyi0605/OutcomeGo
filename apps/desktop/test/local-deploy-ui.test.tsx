@@ -30,6 +30,9 @@ beforeAll(async () => {
     window: dom.window, document: dom.document, HTMLElement: dom.window.HTMLElement,
     HTMLInputElement: dom.window.HTMLInputElement, Event: dom.window.Event, MutationObserver: dom.window.MutationObserver,
     IS_REACT_ACT_ENVIRONMENT: true,
+    // The posters beside a running deployment draw robots, which ask for both.
+    matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
+    IntersectionObserver: class { observe() {} disconnect() {} },
   })) {
     globals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
@@ -287,4 +290,49 @@ test("with an engine of your own the images follow its settings and no mirror li
   await entry.publish({ ...envelope, type: "stage", stage: "pull", status: "started" });
   expect(document.querySelector(".deploy-sources")).toBeNull();
   expect(document.querySelector(".deploy-sources-note")!.textContent).toContain("OutcomeGo changes nothing in Docker");
+});
+
+const lane = (kind: "external" | "managed") => document.querySelector(`.deploy-lane[data-kind="${kind}"]`)!;
+
+test("beside the choice, a picture sets the two engines apart and follows what was found and picked", async () => {
+  await fixture({ platform: "darwin", probes: { external: probe("ready", { name: "Docker Engine", version: "27.3.1" }), managed: probe("needs-setup") } });
+  expect(document.querySelectorAll(".deploy-lane")).toHaveLength(2);
+  expect(lane("external").textContent).toContain("Docker Engine 27.3.1");
+  expect(lane("external").textContent).toContain("Ready to use");
+  expect(lane("external").textContent).toContain("Recommended");
+  expect(lane("managed").textContent).toContain("OutcomeGo virtual machine");
+  expect(lane("managed").textContent).toContain("Separate from your own Docker");
+  expect(lane("managed").textContent).not.toContain("Recommended");
+  expect(document.querySelector(".deploy-guide-advice")!.textContent).toContain("Use your existing engine");
+  expect([lane("external").hasAttribute("data-selected"), lane("managed").hasAttribute("data-selected")]).toEqual([true, false]);
+  await pick("managed");
+  expect([lane("external").hasAttribute("data-selected"), lane("managed").hasAttribute("data-selected")]).toEqual([false, true]);
+});
+
+test("on Windows the picture names the WSL 2 environment and why the OutcomeGo engine is advised", async () => {
+  await fixture({ platform: "win32", probes: { external: probe("needs-setup"), managed: probe("needs-setup", { code: "WSL_NOT_ENABLED" }) } });
+  expect(lane("managed").textContent).toContain("OutcomeGo WSL 2");
+  expect(lane("managed").textContent).toContain("Needs one-time setup");
+  expect(document.querySelector(".deploy-guide-advice")!.textContent).toContain("Use the OutcomeGo engine");
+  expect(document.querySelector(".deploy-guide-advice")!.textContent).toContain("turn on WSL");
+});
+
+test("the picture says when an engine of your own is stopped and nothing else can run", async () => {
+  await fixture({ platform: "darwin", probes: { external: probe("stopped", { name: "Docker Desktop" }), managed: probe("unsupported", { code: "MACOS_UNSUPPORTED" }) } });
+  expect(lane("external").textContent).toContain("Docker Desktop");
+  expect(document.querySelector(".deploy-guide-advice")!.textContent).toContain("Start your existing engine");
+});
+
+test("the picture leaves once the deployment starts, and is absent where no engine is chosen", async () => {
+  const entry = await fixture({ platform: "darwin", probes: { external: probe("ready"), managed: probe("needs-setup") } });
+  expect(document.querySelector(".deploy-guide")).not.toBeNull();
+  await credentials();
+  await submit();
+  await entry.publish({ ...envelope, type: "stage", stage: "pull", status: "started" });
+  expect(document.querySelector(".deploy-guide")).toBeNull();
+});
+
+test("no picture is drawn on a platform that never chooses an engine", async () => {
+  await fixture();
+  expect(document.querySelector(".deploy-guide")).toBeNull();
 });

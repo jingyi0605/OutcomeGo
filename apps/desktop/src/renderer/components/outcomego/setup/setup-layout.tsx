@@ -113,6 +113,7 @@ export function SetupLayout({
   children,
   footer,
   visual,
+  visualInteractive = false,
   celebrate = false,
   leaving = false,
   onSubmit,
@@ -129,6 +130,8 @@ export function SetupLayout({
   children?: ReactNode;
   footer?: ReactNode;
   visual?: ReactNode;
+  /** The picture has words and controls of its own, so it isn't hidden from screen readers. */
+  visualInteractive?: boolean;
   celebrate?: boolean;
   /** The content eases out before the app moves on (sign-in reloads into setup). */
   leaving?: boolean;
@@ -290,7 +293,11 @@ export function SetupLayout({
           {footer ? <div className="setup-footer">{footer}</div> : null}
         </form>
       </section>
-      <aside aria-hidden="true" className="setup-stage" data-celebrate={celebrate}>
+      <aside
+        aria-hidden={visualInteractive ? undefined : true}
+        className="setup-stage"
+        data-celebrate={celebrate}
+      >
         <StageBackdrop />
         {/* The payoff: a bloom that swells behind the card as the stage eases to its
             celebration look, then stays as a soft glow. */}

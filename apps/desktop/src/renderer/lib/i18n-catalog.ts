@@ -13,6 +13,36 @@ export type TranslationValues = Record<string, string | number | null | undefine
 export const sourceTranslations: Record<string, string> = {
   "Connect to an existing server": "连接已有服务器",
   "Deploy on this computer": "在这台电脑部署",
+  "Your container engine": "你的容器引擎",
+  "OutcomeGo engine": "OutcomeGo 引擎",
+  "OutcomeGo server and bots": "OutcomeGo 服务端与机器人",
+  "OutcomeGo virtual machine": "OutcomeGo 虚拟机",
+  "Docker-compatible engine": "兼容 Docker 的引擎",
+  "Separate from your own Docker": "与你自己的 Docker 相互独立",
+  "Runs next to your other containers": "与你的其他容器并行运行",
+  "Uses the engine you already have": "直接使用你已有的引擎",
+  "Images follow your engine's own settings": "镜像沿用你引擎自己的设置",
+  "Needs a running, compatible engine": "需要一个运行中的兼容引擎",
+  "Set up automatically on first deploy": "首次部署时自动配置",
+  "Tests image sources and picks the fastest": "自动测速并选用最快的镜像源",
+  "Takes its own memory and disk": "会占用自己的内存和磁盘",
+  "Checking this computer…": "正在检查这台电脑…",
+  "Looking for a container engine and what this computer supports.": "正在查找容器引擎，并确认这台电脑支持什么。",
+  "Use your existing engine": "使用你已有的引擎",
+  "It's running and compatible, so there's nothing extra to set up.": "它正在运行且兼容，无需额外配置。",
+  "Use the OutcomeGo engine": "使用 OutcomeGo 引擎",
+  "Windows asks for approval once to turn on WSL, and may restart.": "Windows 会请求一次授权来开启 WSL，并可能重启。",
+  "Your engine isn't running. OutcomeGo can set up its own, or start yours and check again.": "你的引擎没有运行。OutcomeGo 可以自带一个，你也可以先启动自己的引擎再重新检测。",
+  "Your engine can't run OutcomeGo, so OutcomeGo sets up its own.": "你的引擎无法运行 OutcomeGo，所以由 OutcomeGo 自带一个。",
+  "No container engine was found. OutcomeGo sets up its own on the first deploy.": "未找到容器引擎，首次部署时 OutcomeGo 会自带一个。",
+  "Nothing else to install: the OutcomeGo engine works on this computer.": "无需再安装别的：这台电脑可以使用 OutcomeGo 引擎。",
+  "Neither option can run here": "两种方式在这里都无法运行",
+  "Install a Docker-compatible engine, or connect to an existing server.": "请安装兼容 Docker 的引擎，或连接已有的服务器。",
+  "Start your existing engine": "先启动你已有的引擎",
+  "Install a container engine first": "请先安装容器引擎",
+  "This computer can't run the OutcomeGo engine. Install a Docker-compatible engine, then check again.": "这台电脑无法运行 OutcomeGo 引擎。请安装兼容 Docker 的引擎，然后重新检测。",
+  "OutcomeGo will choose for you": "将由 OutcomeGo 为你选择",
+  "It checks again when you deploy and uses whatever works.": "部署时会再检测一次，并使用可行的那个。",
   "Requires macOS 13.5 or later.": "需要 macOS 13.5 或更高版本。",
   "Requires 64-bit Windows 10 22H2 or Windows 11 23H2 or later.": "需要 64 位的 Windows 10 22H2 或 Windows 11 23H2 及更高版本。",
   "Turn on virtualization in your firmware first.": "请先在固件（BIOS/UEFI）中开启虚拟化。",
@@ -3385,6 +3415,11 @@ const interpolate = (text: string, values?: TranslationValues): string =>
 const catalogs: Record<Locale, Record<string, string>> = {
   "en-US": {},
   "zh-CN": { ...sourceTranslations, ...localServiceTranslations },
+};
+
+/** Adds the strings of a screen that loads on demand, so startup doesn't carry them. */
+export const registerTranslations = (locale: Locale, entries: Record<string, string>): void => {
+  Object.assign(catalogs[locale], entries);
 };
 
 /**

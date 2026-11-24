@@ -325,6 +325,9 @@ const lazyBudgets: Record<string, number> = {
   signIn: 71_000,
   // Spec 012: deploy form and progress share the setup layout; the local settings stay separate.
   localDeploy: 67_000,
+  // The posters beside a running deployment: pictures, their CSS and their translations (about
+  // 88 KB), plus the app icons shared with setup. Loads only once a deployment starts.
+  localDeployShowcase: 135_000,
   settingsServerLocation: 17_000,
   // 40,608 with Messages (#165); 62,814 with the shared Select (#187). Beta.19's
   // external messaging boundary changes the shared plugin graph to 167,241 bytes.

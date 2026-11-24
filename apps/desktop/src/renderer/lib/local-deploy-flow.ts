@@ -231,3 +231,47 @@ export const engineOptions = (probes: EngineProbes | null, platform: Platform, r
 
 /** The choice to start from: the suggested one. */
 export const suggestedEngine = (options: readonly EngineOption[]): EngineKind | null => options.find(option => option.recommended)?.kind ?? null;
+
+export type AdviceTone = "checking" | "good" | "info" | "blocked";
+export interface EngineAdvice {
+  tone: AdviceTone;
+  /** English copy; callers translate it. */
+  headline: string;
+  detail: string;
+}
+
+/**
+ * What to tell the person about the choice as a whole: which engine is suggested and why. The
+ * reason names what was found, so "use the OutcomeGo engine" never reads as arbitrary.
+ */
+export const engineAdvice = (options: readonly EngineOption[], resuming = false): EngineAdvice => {
+  const external = options.find(option => option.kind === "external");
+  const managed = options.find(option => option.kind === "managed");
+  const suggested = suggestedEngine(options);
+  if (options.some(option => option.tone === "checking")) {
+    return { tone: "checking", headline: "Checking this computer…", detail: "Looking for a container engine and what this computer supports." };
+  }
+  if (suggested === "external") {
+    // Also suggested when it is installed but stopped and the OutcomeGo engine can't run here.
+    return external?.tone === "ready"
+      ? { tone: "good", headline: "Use your existing engine", detail: "It's running and compatible, so there's nothing extra to set up." }
+      : { tone: "info", headline: "Start your existing engine", detail: "Start your container engine, then check again." };
+  }
+  if (suggested === "managed") {
+    const headline = "Use the OutcomeGo engine";
+    const detail = resuming ? "This deployment continues with the OutcomeGo engine."
+      : managed?.tone === "attention" ? "Windows asks for approval once to turn on WSL, and may restart."
+        : external?.tone === "attention" ? "Your engine isn't running. OutcomeGo can set up its own, or start yours and check again."
+          : external?.tone === "blocked" ? "Your engine can't run OutcomeGo, so OutcomeGo sets up its own."
+            : external?.tone === "setup" ? "No container engine was found. OutcomeGo sets up its own on the first deploy."
+              : "Nothing else to install: the OutcomeGo engine works on this computer.";
+    return { tone: "good", headline, detail };
+  }
+  if (options.every(option => !option.selectable)) {
+    return { tone: "blocked", headline: "Neither option can run here", detail: "Install a Docker-compatible engine, or connect to an existing server." };
+  }
+  if (managed?.tone === "blocked" && external?.tone === "setup") {
+    return { tone: "blocked", headline: "Install a container engine first", detail: "This computer can't run the OutcomeGo engine. Install a Docker-compatible engine, then check again." };
+  }
+  return { tone: "info", headline: "OutcomeGo will choose for you", detail: "It checks again when you deploy and uses whatever works." };
+};

@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { codes, type DeployProgress, type EngineProbe, stages } from "../src/renderer/lib/local-deploy-contract";
 import {
-  activeStage, deployFraction, deployIssue, deployProgress, emptyProgress, engineOptions, sourceOfLog, stageCopy,
-  stageWeights, stepState, suggestedEngine,
+  activeStage, deployFraction, deployIssue, deployProgress, emptyProgress, engineAdvice, engineOptions, sourceOfLog,
+  stageCopy, stageWeights, stepState, suggestedEngine,
 } from "../src/renderer/lib/local-deploy-flow";
 
 const envelope = { schemaVersion: 1, deployId: "test", ts: "2026-11-24T00:00:00Z" } as const;
@@ -162,4 +162,42 @@ test("when neither engine could be looked at, nothing is suggested and both stay
   const found = choose(probe("unknown"), probe("unknown"));
   expect(found.suggested).toBeNull();
   expect([found.external.selectable, found.managed.selectable]).toEqual([true, true]);
+});
+
+const adviceFor = (external: EngineProbe | null, managed: EngineProbe | null, platform = "darwin", resuming = false) =>
+  engineAdvice(engineOptions(external && managed ? { external, managed } : null, platform, resuming), resuming);
+
+test("the advice waits while the engines are being looked at", () => {
+  expect(adviceFor(null, null)).toMatchObject({ tone: "checking", headline: "Checking this computer…" });
+});
+
+test("the advice recommends a running engine of your own and says nothing needs setting up", () => {
+  expect(adviceFor(probe("ready"), probe("needs-setup"))).toMatchObject({ tone: "good", headline: "Use your existing engine" });
+});
+
+test("the advice names why the OutcomeGo engine is suggested", () => {
+  const detail = (external: EngineProbe, managed: EngineProbe, platform = "darwin", resuming = false) => {
+    const advice = adviceFor(external, managed, platform, resuming);
+    expect(advice).toMatchObject({ tone: "good", headline: "Use the OutcomeGo engine" });
+    return advice.detail;
+  };
+  expect(detail(probe("stopped"), probe("needs-setup"))).toContain("isn't running");
+  expect(detail(probe("unsupported", { reasons: ["Compose is too old."] }), probe("needs-setup"))).toContain("can't run OutcomeGo");
+  expect(detail(probe("needs-setup"), probe("needs-setup"))).toContain("No container engine was found");
+  expect(detail(probe("unknown"), probe("ready"))).toContain("Nothing else to install");
+  // Windows still has to switch WSL on, which matters more than why the OutcomeGo engine was picked.
+  expect(detail(probe("needs-setup"), probe("needs-setup", { code: "WSL_NOT_ENABLED" }), "win32")).toContain("turn on WSL");
+  expect(detail(probe("ready"), probe("needs-setup", { code: "REBOOT_REQUIRED" }), "win32", true)).toContain("continues");
+});
+
+test("the advice says to start a stopped engine when it is the only one that can run", () => {
+  const unsupported = probe("unsupported", { code: "MACOS_UNSUPPORTED" });
+  expect(adviceFor(probe("stopped"), unsupported)).toMatchObject({ tone: "info", headline: "Start your existing engine" });
+});
+
+test("the advice says what is missing when neither engine can run, and otherwise leaves the choice to the deploy", () => {
+  const unsupported = probe("unsupported", { code: "MACOS_UNSUPPORTED" });
+  expect(adviceFor(probe("unsupported"), unsupported)).toMatchObject({ tone: "blocked", headline: "Neither option can run here" });
+  expect(adviceFor(probe("needs-setup"), unsupported)).toMatchObject({ tone: "blocked", headline: "Install a container engine first" });
+  expect(adviceFor(probe("unknown"), probe("unknown"))).toMatchObject({ tone: "info", headline: "OutcomeGo will choose for you" });
 });

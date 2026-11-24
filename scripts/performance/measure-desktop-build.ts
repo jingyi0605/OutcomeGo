@@ -493,6 +493,7 @@ const readLazyClosures = async () => {
       onboarding: ["src/renderer/components/outcomego/onboarding.tsx"],
       signIn: ["src/renderer/components/outcomego/sign-in-flow.tsx"],
       localDeploy: ["src/renderer/components/outcomego/local-deploy-flow.tsx"],
+      localDeployShowcase: ["src/renderer/components/outcomego/local-deploy-showcase.tsx"],
       settingsServerLocation: ["src/renderer/components/outcomego/settings/server-location.tsx"],
       pluginSettings: ["src/renderer/components/outcomego/plugin-settings.tsx"],
       pluginManagement: ["src/renderer/components/outcomego/plugins/plugin-workspace.tsx"],
