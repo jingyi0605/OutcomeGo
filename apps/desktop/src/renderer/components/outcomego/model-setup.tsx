@@ -123,12 +123,18 @@ export function SignInProgress({
               onChange={(event) => setValue(event.target.value)}
               placeholder={
                 prompt.type === "secret"
-                  ? t("Paste your API key")
+                  ? (prompt.placeholder ? t(prompt.placeholder) : t("Paste your API key"))
                   : prompt.type === "manual_code"
                     ? t("Paste the address from your browser")
                     : (prompt.placeholder ?? prompt.message)
               }
-              type={prompt.type === "secret" ? "password" : "text"}
+              type={
+                prompt.type === "secret"
+                  ? session.providerId === "opencode" && (!value || "public".startsWith(value))
+                    ? "text"
+                    : "password"
+                  : "text"
+              }
               value={value}
             />
           )}

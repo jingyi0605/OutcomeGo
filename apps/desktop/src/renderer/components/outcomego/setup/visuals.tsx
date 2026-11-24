@@ -1,11 +1,10 @@
 import type { RobotAvatarShape } from "@outcomego/contracts/robot-avatar";
-import { CircleAlert, ExternalLink, Globe, KeyRound, Lock, Mic, Search } from "lucide-react";
+import { CircleAlert, ExternalLink, Globe, KeyRound, Lock, Mic, Search, Sparkles } from "lucide-react";
 import { type CSSProperties, useEffect, useState } from "react";
 import { useI18n } from "../../../lib/i18n";
 import { BotAvatarGlyph } from "../avatar-picker-icons";
-import { AppIcon, hasProviderIcon, ProviderIcon } from "./app-icons";
+import { AppIcon, CustomProviderIcon, hasProviderIcon, ProviderIcon } from "./app-icons";
 import { CrossFade } from "./cross-fade";
-import { ProviderTile } from "./provider-marks";
 import { SetupSuccessMark } from "./setup-layout";
 
 // Per-item index for staggered CSS entrances (see --i in setup.css).
@@ -42,7 +41,10 @@ export function ProvidersVisual({ focus }: { focus?: keyof typeof FOCUSED }) {
           <AppIcon app="claude" size={58} />
         </span>
         <span data-dim={shown ? true : undefined}>
-          <ProviderTile provider="openrouter" size={58} />
+          <CustomProviderIcon size={58} />
+        </span>
+        <span data-dim={shown ? true : undefined}>
+          <Sparkles aria-hidden="true" className="setup-free-glyph size-7" />
         </span>
       </div>
       <ChatVisual phase="idle" providerId={focused?.providerId} providerName={focused?.name} />

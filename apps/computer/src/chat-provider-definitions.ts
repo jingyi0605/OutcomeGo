@@ -27,4 +27,14 @@ export const CHAT_PROVIDER_DEFINITIONS: Readonly<
       "~google/gemini-pro-latest",
     ],
   },
+  opencode: {
+    name: "OpenCode Zen",
+    api: "openai-completions",
+    recommendedModels: [
+      "big-pickle",
+      "mimo-v2.6-flash-free",
+      "mimo-v2.5-free",
+      "deepseek-v4.1-flash-free",
+    ],
+  },
 };

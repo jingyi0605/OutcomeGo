@@ -23,6 +23,7 @@ import {
 } from "../../ui/select";
 import { ModelTestStatus, SignInProgress } from "../model-setup";
 import { ModelPicker } from "../setup/model-picker";
+import { OpenCodeFreeTermsDialog } from "../setup/opencode-terms-dialog";
 import { useI18n } from "../../../lib/i18n";
 import { ProviderRowMark } from "../setup/provider-icon";
 import {
@@ -60,6 +61,7 @@ export default function ModelSettings() {
   const working = Boolean(busy) || setup.test.status === "running";
   const signingIn = Boolean(setup.authSession);
   const [adding, setAdding] = useState(false);
+  const [confirmingOpenCodeTerms, setConfirmingOpenCodeTerms] = useState(false);
   const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null);
   const [listOpen, setListOpen] = useState(false);
   // A finished sign-in stays on screen as "Connected"; only a running one blocks adding.
@@ -177,7 +179,13 @@ export default function ModelSettings() {
                     className={settingsPrimaryButton}
                     disabled={working || signingIn}
                     key={method.type}
-                    onClick={() => void setup.connect(method.type)}
+                    onClick={() => {
+                      if (provider?.id === "opencode" && method.type === "api_key") {
+                        setConfirmingOpenCodeTerms(true);
+                      } else {
+                        void setup.connect(method.type);
+                      }
+                    }}
                     type="button"
                   >
                     {busy === "connect" ? <LoadingOrb aria-hidden size={14} /> : null}
@@ -354,6 +362,15 @@ export default function ModelSettings() {
           }}
           onOpenChange={setAdding}
           open
+        />
+      ) : null}
+      {confirmingOpenCodeTerms ? (
+        <OpenCodeFreeTermsDialog
+          onAccept={() => {
+            setConfirmingOpenCodeTerms(false);
+            void setup.connect("api_key");
+          }}
+          onClose={() => setConfirmingOpenCodeTerms(false)}
         />
       ) : null}
       {setup.error ? (

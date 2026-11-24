@@ -1,4 +1,5 @@
 import type { ClientSnapshot, CreateBotInput } from "@outcomego/contracts";
+import { findInferenceProviderPreset } from "@outcomego/contracts/inference-presets";
 import { BOT_AVATAR_COLORS } from "@outcomego/contracts/bot-avatar";
 import { ROBOT_AVATAR_SHAPES, type RobotAvatarShape } from "@outcomego/contracts/robot-avatar";
 import type { TranscriptionSettings } from "@outcomego/contracts/transcription";
@@ -7,8 +8,16 @@ import {
   SEARCH_PROVIDER_LIST,
   type WebProvidersView,
 } from "@outcomego/contracts/web-search";
-import { Check, ChevronsUpDown, CircleAlert, Copy, Ellipsis, Minus, Shuffle } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Check,
+  ChevronsUpDown,
+  CircleAlert,
+  Copy,
+  Minus,
+  Shuffle,
+  Sparkles,
+} from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../client/outcomego-api";
 import { changeServer } from "../../client/auth";
 import { useModelSetup } from "../../hooks/use-model-setup";
@@ -33,7 +42,8 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { LoadingOrb } from "../ui/loading-orb";
-import { AppIcon } from "./setup/app-icons";
+import { AppIcon, CustomProviderIcon } from "./setup/app-icons";
+import { FreeModelsDialog, type FreeModelOffer } from "./setup/free-models";
 import { ModelPicker, modelOption } from "./setup/model-picker";
 import { OpenAIMark, ProviderMark, ProviderTile } from "./setup/provider-marks";
 import { changeScreen } from "./setup/screen-transition";
@@ -59,6 +69,10 @@ import {
   SearchVisual,
   VoiceVisual,
 } from "./setup/visuals";
+
+const AddProviderDialog = lazy(() =>
+  import("./settings/add-provider-dialog").then((module) => ({ default: module.AddProviderDialog }))
+);
 
 type Runtime = ClientSnapshot["runtime"];
 type Bot = ClientSnapshot["bots"][number];
@@ -141,10 +155,11 @@ const PLANS = {
 type Plan = keyof typeof PLANS;
 
 // Where each key-based provider hands out keys, and how its keys start.
-const KEYS: Record<string, { keysUrl: string; prefix: string }> = {
+const KEYS: Record<string, { keysUrl: string; prefix: string; placeholder?: string }> = {
   openai: { keysUrl: "https://platform.openai.com/api-keys", prefix: "sk-" },
   anthropic: { keysUrl: "https://console.anthropic.com/settings/keys", prefix: "sk-ant-" },
   openrouter: { keysUrl: "https://openrouter.ai/keys", prefix: "sk-or-" },
+  opencode: { keysUrl: "https://opencode.ai/auth", prefix: "", placeholder: "public" },
 };
 
 // The names people know: plans by their apps, APIs by their makers.
@@ -154,6 +169,7 @@ const NAMES: Record<string, string> = {
   openai: "OpenAI",
   anthropic: "Anthropic",
   openrouter: "OpenRouter",
+  opencode: "OpenCode Zen",
 };
 
 const ROLES = [
@@ -263,6 +279,7 @@ export function Onboarding({
   const [history, setHistory] = useState<Screen[]>([]);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [providerChoice, setProviderChoice] = useState("openai-codex");
+  const [freeOffer, setFreeOffer] = useState<FreeModelOffer>();
   const [plan, setPlan] = useState<Plan>("chatgpt");
   // An OpenAI key can also turn on voice notes; it stays in memory for this run only.
   const openAIKey = useRef<string | null>(null);
@@ -316,8 +333,11 @@ export function Onboarding({
     go(searchConfigured ? (voiceConfigured ? "bot" : "voice") : "search", () =>
       setHistory((previous) => previous.filter((entry) => entry !== "key" && entry !== "method"))
     );
-  const connectWith = (providerId: string, authType: AuthType) =>
-    go(authType === "api_key" ? "key" : "connect", () => setProviderChoice(providerId));
+  const connectWith = (providerId: string, authType: AuthType, offer?: FreeModelOffer) =>
+    go(authType === "api_key" ? "key" : "connect", () => {
+      setProviderChoice(providerId);
+      setFreeOffer(offer);
+    });
 
   useSetupKeyboard(history.length ? back : undefined);
 
@@ -336,6 +356,7 @@ export function Onboarding({
         frame={frame}
         onChoose={connectWith}
         onChoosePlan={(next) => go("method", () => setPlan(next))}
+        onProviderAdded={() => go("test", () => setFreeOffer(undefined))}
         onKeep={afterModel}
         onSignInAgain={(providerId) => go("connect", () => setProviderChoice(providerId))}
         onSkip={onFinish}
@@ -360,6 +381,7 @@ export function Onboarding({
     return (
       <KeyScreen
         frame={frame}
+        freeOffer={freeOffer}
         onConnected={(key) => {
           openAIKey.current = providerChoice === "openai" ? key : null;
           go("test");
@@ -373,6 +395,7 @@ export function Onboarding({
     return (
       <TestScreen
         frame={frame}
+        freeOffer={freeOffer}
         onChooseAnother={() => go("model")}
         onContinue={afterModel}
         onSignInAgain={() => go("connect", () => setProviderChoice(setup.providerId))}
@@ -480,8 +503,6 @@ function HealthScreen({
   );
   const allReady = ready.every(Boolean);
   const done = allReady && revealed >= SERVER_CHECKS.length;
-  const continueRef = useRef(onContinue);
-  continueRef.current = onContinue;
 
   // Rows tick one after another so the check reads as work being done.
   useEffect(() => {
@@ -517,12 +538,6 @@ function HealthScreen({
   useEffect(() => {
     if (allReady) requestRuntimeRefresh();
   }, [allReady]);
-
-  useEffect(() => {
-    if (!done) return;
-    const timer = window.setTimeout(() => continueRef.current(), 1_000);
-    return () => window.clearTimeout(timer);
-  }, [done]);
 
   const failing = Boolean(problem) || (stuck && !allReady);
   const lost = failing && unreachable;
@@ -563,17 +578,21 @@ function HealthScreen({
               </SetupLink>
             ) : null}
           </>
+        ) : done ? (
+          <SetupPrimary>{t("Start exploring")}</SetupPrimary>
         ) : null
       }
       onSubmit={
-        !failing
-          ? undefined
-          : preview
-            ? onRetry
-            : () => {
-                setStuck(false);
-                setAttempt((count) => count + 1);
-              }
+        done
+          ? onContinue
+          : !failing
+            ? undefined
+            : preview
+              ? onRetry
+              : () => {
+                  setStuck(false);
+                  setAttempt((count) => count + 1);
+                }
       }
       title={
         done
@@ -617,20 +636,23 @@ function ModelScreen({
   setup,
   onChoose,
   onChoosePlan,
+  onProviderAdded,
   onKeep,
   onSignInAgain,
   onSkip,
 }: {
   frame: Frame;
   setup: ModelSetup;
-  onChoose: (providerId: string, authType: AuthType) => void;
+  onChoose: (providerId: string, authType: AuthType, offer?: FreeModelOffer) => void;
   onChoosePlan: (plan: Plan) => void;
+  onProviderAdded: () => void;
   onKeep: () => void;
   onSignInAgain: (providerId: string) => void;
   onSkip: () => void;
 }) {
   const { t } = useI18n();
   const [changing, setChanging] = useState(false);
+  const [dialog, setDialog] = useState<"custom" | "free" | null>(null);
   // A model picked here is saved and tested again before Keep it.
   const [picked, setPicked] = useState(false);
   const [retest, setRetest] = useState(false);
@@ -661,7 +683,9 @@ function ModelScreen({
     void setup.reload();
   }, [setup]);
 
-  const others = (setup.data?.providers ?? []).filter((provider) => !NAMES[provider.id]);
+  const others = (setup.data?.providers ?? []).filter(
+    (provider) => provider.id === "openrouter" || !NAMES[provider.id]
+  );
   // Asked for a different AI while the saved one works: Back (or Esc) keeps it after all.
   const keepSaved =
     saved && changing && setup.test.status === "passed" && !frame.onBack
@@ -806,7 +830,7 @@ function ModelScreen({
   return (
     <SetupLayout
       {...frame}
-      body={t("Sign in with a ChatGPT or Claude plan you already pay for, or use an API key.")}
+      body={t("Connect ChatGPT, Claude, or your own provider, or start with a free model.")}
       footer={
         keepSaved ? null : (
           <SetupLink onClick={onSkip}>
@@ -831,28 +855,25 @@ function ModelScreen({
         title="Claude"
       />
       <SetupOption
-        detail={t("One key, hundreds of models")}
-        icon={<ProviderTile provider="openrouter" size={40} />}
-        onClick={() => onChoose("openrouter", "api_key")}
-        title="OpenRouter"
+        detail={t("Connect your own API endpoint")}
+        icon={<CustomProviderIcon size={40} />}
+        onClick={() => setDialog("custom")}
+        title="Add a custom provider"
+      />
+      <SetupOption
+        detail={t("Explore free API tiers and their usage limits")}
+        icon={<Sparkles aria-hidden="true" className="setup-free-glyph size-5" />}
+        onClick={() => setDialog("free")}
+        title="Free and limited-use models"
       />
       {others.length ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="setup-option" type="button">
-              <span className="setup-option-icon">
-                <span className="setup-more-tile">
-                  <Ellipsis aria-hidden="true" className="size-5" strokeWidth={2.5} />
-                </span>
-              </span>
-              <span className="setup-option-text">
-                <strong>{t("More providers")}</strong>
-                <span>{t("OpenAI-compatible endpoints")}</span>
-              </span>
-              <ChevronsUpDown aria-hidden="true" className="size-4" />
+            <button className="setup-link inline-flex items-center gap-1 self-start" type="button">
+              {t("More providers")} <ChevronsUpDown aria-hidden="true" className="size-3" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+          <DropdownMenuContent align="start">
             {others.map((provider) => (
               <DropdownMenuItem
                 key={provider.id}
@@ -863,6 +884,30 @@ function ModelScreen({
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+      ) : null}
+      {dialog === "custom" ? (
+        <Suspense fallback={null}>
+          <AddProviderDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setDialog(null);
+            }}
+            onAdd={async (input, apiKey) => {
+              const result = await setup.addProvider(input, apiKey);
+              if ("providerId" in result) onProviderAdded();
+              return result;
+            }}
+          />
+        </Suspense>
+      ) : null}
+      {dialog === "free" ? (
+        <FreeModelsDialog
+          onChoose={(offer) => {
+            setDialog(null);
+            onChoose(offer.providerId, "api_key", offer);
+          }}
+          onClose={() => setDialog(null)}
+        />
       ) : null}
     </SetupLayout>
   );
@@ -1138,11 +1183,13 @@ function ConnectScreen({
 
 function KeyScreen({
   frame,
+  freeOffer,
   setup,
   providerId,
   onConnected,
 }: {
   frame: Frame;
+  freeOffer?: FreeModelOffer;
   setup: ModelSetup;
   providerId: string;
   onConnected: (key: string) => void;
@@ -1153,12 +1200,21 @@ function KeyScreen({
   const [request, setRequest] = useState<{ id: number; key: string } | null>(null);
   const [step, setStep] = useState<"connecting" | "checking" | "testing">("connecting");
   const [rejected, setRejected] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const requests = useRef(0);
   const answered = useRef<string | null>(null);
   const started = useRef<number | null>(null);
   const checked = useRef<number | null>(null);
-  const keyInfo = KEYS[providerId];
-  const label = providerTitle(providerId, setup);
+  const preset = freeOffer && findInferenceProviderPreset(providerId);
+  const keysUrl = preset?.keysUrl ?? KEYS[providerId]?.keysUrl;
+  const prefix = KEYS[providerId]?.prefix ?? "";
+  const keyPlaceholder = KEYS[providerId]?.placeholder;
+  const label = freeOffer ? t(freeOffer.name) : providerTitle(providerId, setup);
   const session = setup.authSession;
   const connectedRef = useRef(onConnected);
   connectedRef.current = onConnected;
@@ -1190,7 +1246,7 @@ function KeyScreen({
   useEffect(() => {
     if (!request || session?.status !== "connected" || checked.current === request.id) return;
     checked.current = request.id;
-    const current = () => requests.current === request.id;
+    const current = () => mounted.current && requests.current === request.id;
     const refuse = (message: string) => {
       setRejected(message);
       setRequest(null);
@@ -1200,6 +1256,7 @@ function KeyScreen({
       const loaded = await setup.loadProvider(providerId);
       if (!current()) return;
       if ("error" in loaded) return refuse(loaded.error);
+      if (freeOffer) return connectedRef.current(request.key);
       if (!loaded.data.models.length || !loaded.selection.modelId) {
         const row = loaded.data.providers.find((provider) => provider.id === providerId);
         // A key the provider refused isn't left saved on the server.
@@ -1210,6 +1267,7 @@ function KeyScreen({
       const outcome = await setup.apply(loaded.selection);
       if (!current()) return;
       if (outcome.status === "failed" && outcome.rejected) {
+        if (providerId === "opencode") void api.disconnectInferenceProvider(providerId).catch(() => {});
         return refuse(keyCheckMessage("401", label));
       }
       // Passed, or failed for a reason the next screen offers to try again.
@@ -1222,7 +1280,7 @@ function KeyScreen({
       ? keyCheckMessage(session.error ?? "", label)
       : (setup.error ?? null)
     : rejected;
-  const busy = Boolean(request) && !failure;
+  const busy = adding || (Boolean(request) && !failure);
   const progress =
     step === "connecting"
       ? t("Connecting to {provider}…", { provider: label })
@@ -1234,14 +1292,22 @@ function KeyScreen({
   return (
     <SetupLayout
       {...frame}
-      body={t("Your server checks it with {provider}, then keeps it there.", { provider: label })}
+      body={
+        freeOffer
+          ? t("Your server will test {model} with this key.", { model: t(freeOffer.model) })
+          : providerId === "opencode"
+            ? t(
+                "Enter public to use free models without an account, or paste your own OpenCode API key. Your server checks it with OpenCode Zen, then keeps it there."
+              )
+            : t("Your server checks it with {provider}, then keeps it there.", { provider: label })
+      }
       footer={
         <>
           <SetupPrimary busy={busy} disabled={!key.trim()}>
             {t("Connect")}
           </SetupPrimary>
-          {keyInfo ? (
-            <SetupLink onClick={() => openExternal(keyInfo.keysUrl)}>
+          {keysUrl ? (
+            <SetupLink onClick={() => openExternal(keysUrl)}>
               {t("Get a key from {provider}", { provider: label })}
             </SetupLink>
           ) : null}
@@ -1252,6 +1318,20 @@ function KeyScreen({
         if (!value || busy) return;
         answered.current = null;
         setRejected(null);
+        const baseUrl = preset?.endpoints["openai-completions"];
+        if (preset && baseUrl && !setup.data?.providers.some((provider) => provider.id === providerId)) {
+          setAdding(true);
+          void setup.addProvider(
+            { presetId: preset.id, name: preset.name, api: "openai-completions", baseUrl },
+            value
+          ).then((result) => {
+            if (!mounted.current) return;
+            setAdding(false);
+            if ("error" in result) setRejected(result.error);
+            else connectedRef.current(value);
+          });
+          return;
+        }
         // Stops any earlier attempt on the server; the server allows one per provider.
         void setup.cancelSignIn();
         requests.current += 1;
@@ -1260,9 +1340,11 @@ function KeyScreen({
       title={
         providerId === "openrouter"
           ? t("Paste your OpenRouter key")
-          : t("Paste your {provider} API key", { provider: label })
+          : providerId === "opencode"
+            ? t("Enter your OpenCode Zen key")
+            : t("Paste your {provider} API key", { provider: label })
       }
-      visual={<KeyVisual prefix={keyInfo?.prefix ?? ""} provider={label} providerId={providerId} />}
+      visual={<KeyVisual prefix={prefix} provider={label} providerId={providerId} />}
     >
       <input
         aria-invalid={Boolean(failure)}
@@ -1277,12 +1359,13 @@ function KeyScreen({
           requests.current += 1;
           setRequest(null);
         }}
-        placeholder={keyInfo ? `${keyInfo.prefix}…` : t("API key")}
+        placeholder={keyPlaceholder ?? (prefix ? `${prefix}…` : t("API key"))}
         readOnly={busy}
         spellCheck={false}
-        type="password"
+        type={providerId === "opencode" && (!key || "public".startsWith(key)) ? "text" : "password"}
         value={key}
       />
+      {freeOffer ? <p className="setup-note">{t(freeOffer.limits)}</p> : null}
       {failure ? (
         <p className="setup-note" data-tone="error" role="alert">
           {failure}
@@ -1301,39 +1384,53 @@ function KeyScreen({
 
 function TestScreen({
   frame,
+  freeOffer,
   setup,
   onContinue,
   onChooseAnother,
   onSignInAgain,
 }: {
   frame: Frame;
+  freeOffer?: FreeModelOffer;
   setup: ModelSetup;
   onContinue: () => void;
   onChooseAnother: () => void;
   onSignInAgain: () => void;
 }) {
   const { t } = useI18n();
+  const offeredModel =
+    freeOffer &&
+    setup.data?.models.find(
+      (model) => model.providerId === freeOffer.providerId && model.modelId === freeOffer.modelId
+    );
+  const modelId = freeOffer ? offeredModel?.modelId : setup.modelId;
   // A key arrives already tested (see KeyScreen); a sign-in still needs its test.
   const [pending, setPending] = useState(() => setup.test.status === "idle" || setup.changed);
 
   // Save the provider's default model and send the real test as soon as the screen
   // opens, and again whenever a different model is picked.
   useEffect(() => {
-    if (!pending || setup.busy || !setup.modelId) return;
+    if (!pending || setup.busy || !modelId) return;
     setPending(false);
-    void setup.apply();
-  }, [pending, setup]);
+    void setup.apply(offeredModel && {
+      providerId: offeredModel.providerId,
+      modelId: offeredModel.modelId,
+      reasoning: offeredModel.defaultReasoningLevel,
+    });
+  }, [modelId, offeredModel, pending, setup]);
 
   const test = setup.test;
   // Try again shows the test running at once, not the old failure until the save is done.
   const retrying = pending || setup.busy === "save";
   const slow = useTakingLong(test.status === "running" || retrying);
   // "OpenRouter: Auto Router" reads as "Auto Router"; the maker shows in the picker.
-  const modelName = setup.selectedModel ? modelOption(setup.selectedModel, "").name : setup.modelId;
-  const noModels = !setup.modelId && !setup.busy && Boolean(setup.data);
+  const modelName = freeOffer
+    ? t(freeOffer.model)
+    : setup.selectedModel ? modelOption(setup.selectedModel, "").name : setup.modelId;
+  const noModels = !modelId && !setup.busy && Boolean(setup.data);
   // Picking a model tests it; after a failed test, picking another is the usual fix.
   const picker =
-    setup.data && setup.data.models.length > 1 ? (
+    !freeOffer && setup.data && setup.data.models.length > 1 ? (
       <>
         <span className="setup-label">{t("Model")}</span>
         <ModelPicker
@@ -1356,11 +1453,11 @@ function TestScreen({
     const body =
       test.status === "failed"
         ? test.error
-        : rejected
-          ? t("{provider} didn't accept that. Check your key or sign in again.", {
-              provider: name,
-            })
-          : message || t("This account doesn't offer any chat models.");
+        : noModels && freeOffer
+          ? t("{model} isn't available on this account. Check the provider's dashboard or choose another model.", { model: modelName })
+          : rejected
+            ? t("{provider} didn't accept that. Check your key or sign in again.", { provider: name })
+            : message || t("This account doesn't offer any chat models.");
     // A plan sign-in can expire; signing in again is the usual fix.
     const signsIn =
       setup.provider?.authType !== "api_key" &&

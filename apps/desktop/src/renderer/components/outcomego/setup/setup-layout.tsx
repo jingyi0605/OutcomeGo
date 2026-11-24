@@ -322,6 +322,7 @@ export function useSetupKeyboard(onBack?: () => void) {
       if (event.defaultPrevented) return;
       const form = document.querySelector<HTMLFormElement>(".setup-content");
       const target = event.target as Element | null;
+      if (target?.closest?.("[role='dialog'], [role='alertdialog']")) return;
       if (
         form &&
         !document.querySelector("[role='listbox']") &&

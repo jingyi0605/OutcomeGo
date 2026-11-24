@@ -542,6 +542,7 @@ export const BUILTIN_PROVIDER_ICONS: Readonly<Record<string, string>> = {
   openai: "openai",
   anthropic: "anthropic",
   openrouter: "openrouter",
+  opencode: "opencode",
 };
 
 /** A custom endpoint with no vendor mark shows its protocol's generic one. */

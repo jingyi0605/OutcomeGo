@@ -1,4 +1,7 @@
-import type { AddInferenceProviderInput } from "../../../packages/contracts/src/inference-presets";
+import {
+  type AddInferenceProviderInput,
+  INFERENCE_PROVIDER_PRESETS,
+} from "../../../packages/contracts/src/inference-presets";
 import type {
   InferenceModelView,
   InferenceProviderAuthSessionView,
@@ -21,6 +24,7 @@ export class ServerSetupFixture {
     reasoning: "off",
   };
   largeModelCatalog = false;
+  extraModels: InferenceModelView[] = [];
   saves: ServerInferenceSettings[] = [];
   tests: ServerInferenceSettings[] = [];
   private openaiConnected = false;
@@ -53,7 +57,7 @@ export class ServerSetupFixture {
           };
         })
       : [];
-    return {
+    const view: ServerSettingsView = {
       inference: { ...this.inference },
       providers: [
         ...["openrouter", "openai"].map((id) => ({
@@ -143,6 +147,8 @@ export class ServerSetupFixture {
             : [],
       modelProviderId: provider,
     };
+    view.models.push(...this.extraModels.filter((model) => model.providerId === provider));
+    return view;
   }
 
   handle(path: string, method: string, input: unknown, url: URL): Response | undefined {
@@ -165,49 +171,46 @@ export class ServerSetupFixture {
       return Response.json(this.settings(chosen.providerId));
     }
     if (path === "/api/v0/server-settings/inference/test" && method === "POST") {
-      this.tests.push({ ...this.inference });
+      const selected = (input as Partial<ServerInferenceSettings>).modelId
+        ? input as ServerInferenceSettings
+        : this.inference;
+      this.tests.push({ ...selected });
       return Response.json({
         ok: true,
-        providerId: this.inference.providerId,
-        modelId: this.inference.modelId,
+        providerId: selected.providerId,
+        modelId: selected.modelId,
         latencyMs: 12,
       });
     }
+    if (this.modelSettings && path === "/api/v0/inference-providers/openrouter/auth-sessions" && method === "POST") {
+      this.session = {
+        id: "qa-openrouter",
+        providerId: "openrouter",
+        authType: "api_key",
+        status: "waiting",
+        prompt: { id: "qa-openrouter-key", type: "secret", message: "API key" },
+        authorizationUrl: null,
+        deviceCode: null,
+        messages: [],
+        error: null,
+      };
+      return Response.json(this.session);
+    }
+    if (this.session?.id === "qa-openrouter") {
+      const sessionPath = "/api/v0/inference-provider-auth-sessions/qa-openrouter";
+      if (path === sessionPath && method === "GET") return Response.json(this.session);
+      if (path === `${sessionPath}/respond` && method === "POST") {
+        const { value } = input as { value: string };
+        this.session = {
+          ...this.session,
+          status: value === "qa-good-key" ? "connected" : "failed",
+          prompt: null,
+        };
+        return Response.json(this.session);
+      }
+    }
     if (this.modelSettings && path === "/api/v0/inference-provider-presets" && method === "GET") {
-      return Response.json([
-        {
-          id: "deepseek-api",
-          name: "DeepSeek",
-          group: "vendor",
-          icon: "deepseek-color",
-          endpoints: {
-            "openai-completions": "https://api.deepseek.com/v1",
-            "anthropic-messages": "https://api.deepseek.com/anthropic",
-          },
-          keysUrl: "https://platform.deepseek.com/api_keys",
-        },
-        {
-          id: "magpie-local",
-          name: "magpie",
-          group: "local",
-          icon: "magpie",
-          endpoints: {
-            "openai-completions": "http://127.0.0.1:3425/v1",
-            "anthropic-messages": "http://127.0.0.1:3425",
-          },
-          keyOptional: true,
-          note: "Another computer's magpie: use its address and the gateway key.",
-        },
-        {
-          id: "ollama-local",
-          name: "Ollama",
-          group: "local",
-          icon: "ollama",
-          endpoints: { "openai-completions": "http://localhost:11434/v1" },
-          noKey: true,
-          note: "Reached from your server's computer.",
-        },
-      ]);
+      return Response.json(INFERENCE_PROVIDER_PRESETS);
     }
     if (this.modelSettings && path === "/api/v0/inference-providers" && method === "POST") {
       const body = input as AddInferenceProviderInput;
