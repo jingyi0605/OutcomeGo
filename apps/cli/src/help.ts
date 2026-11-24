@@ -21,10 +21,13 @@ Usage:
 Getting started:
   install       Install OutcomeGo and run guided setup
   setup         Set up or change the connection and account
+  bootstrap     Deploy on this computer using JSON input and progress
 
 Your installation:
   status        Show container health and server readiness
   health        Alias for status
+  engine        Inspect the container engine
+  resources     Change local computer memory limits
   doctor        Check for installation problems
   update        Install the latest OutcomeGo release
   start         Start OutcomeGo after account setup
@@ -45,6 +48,38 @@ ${directoryOption}
   --version, -v         Show the CLI version
 
 Run "outcomego <command> --help" for command options.`,
+
+  bootstrap: `${heading("outcomego bootstrap --json-progress [options]", "Deploy locally without prompts. Supply the versioned owner credentials JSON through stdin only.")}
+
+Options:
+  --engine <choice>     auto, external, or managed (when available)
+  --api-port <port>     API port (default: 8787)
+  --version <version>   Server release to deploy
+  --accept-low-memory   Continue after reviewing the low-memory warning
+${directoryOption}
+${helpHint}`,
+
+  "engine-status": `${heading("outcomego engine status [--json] [--engine auto|external|managed]", "Inspect the container engine without starting it.")}
+
+Options:
+  --json                Print a single JSON object
+${directoryOption}
+${helpHint}`,
+
+  "engine-start": heading("outcomego engine start [--dir <path>]", "Start the recorded managed engine."),
+  "engine-stop": heading("outcomego engine stop [--dir <path>]", "Stop the recorded managed engine without deleting its disk."),
+  "engine-upgrade": heading("outcomego engine upgrade --version <version> --yes [--dir <path>]", "Stop the local stack, back up its volumes and replace the managed engine."),
+  "engine-rollback": heading("outcomego engine rollback --yes [--dir <path>]", "Recover the previous engine after an interrupted upgrade."),
+  "engine-remove": heading("outcomego engine remove --purge-data [--dir <path>]", "Delete the recorded managed engine of an uninstalled stack."),
+  "engine-docker": heading("outcomego engine docker [--dir <path>] -- <args>", "Run the container CLI using the recorded engine."),
+  "engine-enable-wsl": heading("outcomego engine enable-wsl --yes [--dir <path>]", "Authorize enabling WSL for an expressly requested deployment."),
+
+  "resources-set": `${heading("outcomego resources set --computer-memory <size> --desktop-memory <size>", "Change memory limits and restart the computer services. Running tasks will be interrupted.")}
+
+Options:
+  --yes, -y             Confirm the restart without prompting
+${directoryOption}
+${helpHint}`,
 
   tailscale: `${heading("outcomego tailscale <enable|status|disable>", "Manage private HTTPS with Tailscale Serve on this server host.")}
 
@@ -151,10 +186,11 @@ ${helpHint}`,
 
   status: `${heading(
     "outcomego status [options]",
-    "Show container states, Docker health checks, and server readiness.\nAlias: outcomego health [options]. Both commands produce the same report.\nRead-only: does not start containers or send an AI request.\nExits 0 when services are ready; exits 2 when stopped, starting, unhealthy, or unable to check.\nUse outcomego doctor for deeper database, queue, storage, and model checks."
+    "Show container states, Docker health checks, and server readiness.\nAlias: outcomego health [options]. Both commands produce the same report.\nRead-only: does not start containers or send an AI request.\nText output exits 0 when ready and 2 otherwise; JSON exits 0 when a snapshot is returned.\nUse outcomego doctor for deeper database, queue, storage, and model checks."
   )}
 
 Options:
+  --json                Return a read-only engine and stack snapshot
 ${directoryOption}
 ${helpHint}`,
 
@@ -374,10 +410,13 @@ const simplifiedChinesePages: Record<HelpTopic, string> = {
 快速开始:
   install       安装 OutcomeGo 并运行引导式设置
   setup         设置或更改连接与账户
+  bootstrap     通过 JSON 输入和进度事件在本机部署
 
 你的安装:
   status        显示容器健康状态和服务器就绪状态
   health        status 的别名
+  engine        检查容器引擎
+  resources     调整本地电脑服务的内存上限
   doctor        检查安装问题
   update        安装最新的 OutcomeGo 版本
   start         账户设置后启动 OutcomeGo
@@ -398,6 +437,38 @@ ${zhDirectoryOption}
   --version, -v         显示 CLI 版本
 
 运行“outcomego <command> --help”查看命令选项。`,
+
+  bootstrap: `${zhHeading("outcomego bootstrap --json-progress [选项]", "无交互地在本机部署。只通过 stdin 提供带版本号的 owner 凭据 JSON。")}
+
+选项:
+  --engine <选择>       auto、external 或 managed（可用时）
+  --api-port <端口>     API 端口（默认 8787）
+  --version <版本>      要部署的服务器版本
+  --accept-low-memory   确认低内存警告后继续
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  "engine-status": `${zhHeading("outcomego engine status [--json] [--engine auto|external|managed]", "检查容器引擎，不启动引擎。")}
+
+选项:
+  --json                输出单行 JSON 对象
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  "engine-start": zhHeading("outcomego engine start [--dir <路径>]", "启动安装清单记录的托管引擎。"),
+  "engine-stop": zhHeading("outcomego engine stop [--dir <路径>]", "停止托管引擎，保留磁盘。"),
+  "engine-upgrade": zhHeading("outcomego engine upgrade --version <版本> --yes [--dir <路径>]", "停止本机栈，备份数据卷并更换托管引擎。"),
+  "engine-rollback": zhHeading("outcomego engine rollback --yes [--dir <路径>]", "升级中断后恢复原有引擎。"),
+  "engine-remove": zhHeading("outcomego engine remove --purge-data [--dir <路径>]", "删除已卸载服务的托管引擎。"),
+  "engine-docker": zhHeading("outcomego engine docker [--dir <路径>] -- <参数>", "通过安装清单记录的引擎运行容器命令。"),
+  "engine-enable-wsl": zhHeading("outcomego engine enable-wsl --yes [--dir <路径>]", "为明确请求的部署授权启用 WSL。"),
+
+  "resources-set": `${zhHeading("outcomego resources set --computer-memory <大小> --desktop-memory <大小>", "修改内存上限并重启电脑服务。进行中的任务将中断。")}
+
+选项:
+  --yes, -y             确认重启，不再询问
+${zhDirectoryOption}
+${zhHelpHint}`,
 
   tailscale: `${zhHeading("outcomego tailscale <enable|status|disable>", "在此服务器主机上使用 Tailscale Serve 管理私有 HTTPS。")}
 
@@ -504,10 +575,11 @@ ${zhHelpHint}`,
 
   status: `${zhHeading(
     "outcomego status [options]",
-    "显示容器状态、Docker 健康检查和服务器就绪状态。\n别名：outcomego health [options]。两个命令生成相同的报告。\n只读：不会启动容器，也不会发送 AI 请求。\n服务就绪时退出码为 0；已停止、正在启动、不健康或无法检查时退出码为 2。\n如需更深入地检查数据库、队列、存储和模型，请使用 outcomego doctor。"
+    "显示容器状态、Docker 健康检查和服务器就绪状态。\n别名：outcomego health [options]。两个命令生成相同的报告。\n只读：不会启动容器，也不会发送 AI 请求。\n文本输出在就绪时退出码为 0，否则为 2；JSON 成功返回快照时为 0。\n如需更深入地检查数据库、队列、存储和模型，请使用 outcomego doctor。"
   )}
 
 选项:
+  --json                返回只读引擎与服务栈快照
 ${zhDirectoryOption}
 ${zhHelpHint}`,
 

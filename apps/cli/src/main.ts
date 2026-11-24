@@ -11,6 +11,8 @@ import { renderHelp, renderCommandError } from "./command-ui";
 import { colorEnabled } from "./ui";
 import { resolve } from "node:path";
 import { parseArguments } from "./arguments";
+import { bootstrapCommand, watchBootstrapCancellation } from "./bootstrap";
+import { DESKTOP_CLI_PREPARE_ENV, DESKTOP_CLI_VERSION_ENV, prepareDesktopCli, verifyDesktopCliVersion } from "./cli-update";
 import {
   defaultInstallDirectory,
   installationExists,
@@ -18,6 +20,7 @@ import {
   readManifest,
 } from "./config";
 import { CLI_VERSION } from "./constants";
+import { requireComposeProject } from "./docker";
 import {
   durableUpdateCommand,
   reportActiveUpdate,
@@ -25,11 +28,21 @@ import {
   updateWorkerJobId,
 } from "./durable-update";
 import { CliError, errorMessage } from "./errors";
+import { engineStatus } from "./engine/status";
+import { managedEngine, recordedEngine, requireRecordedEngine } from "./engine/select";
+import { ManagedWslEngine } from "./engine/managed-wsl";
+import { ManagedEngine } from "./engine/managed";
+import { windowsLocalPath } from "./engine/managed-host";
+import { EngineError } from "./engine/types";
+import { assertNoEngineRecovery } from "./engine/upgrade-transaction";
+import { acquireUpdateLock } from "./update-safety";
 import { helpFor } from "./help";
+import { cliTranslate } from "./localization";
 import {
   doctorCommand,
   installCommand,
   logsCommand,
+  resourcesSetCommand,
   startCommand,
   statusCommand,
   stopCommand,
@@ -50,6 +63,7 @@ import { modelCommand } from "./model-command";
 import { notificationsCommand } from "./notifications";
 import { tailscaleCommand } from "./tailscale-command";
 import { setupCommand } from "./setup";
+import { statusJson } from "./status";
 
 const main = async (): Promise<void> => {
   const options = parseArguments(process.argv.slice(2));
@@ -59,16 +73,39 @@ const main = async (): Promise<void> => {
     return;
   }
   if (options.command === "version") {
-    console.log(CLI_VERSION);
+    const prepareVersion = process.env[DESKTOP_CLI_PREPARE_ENV];
+    if (prepareVersion !== undefined) {
+      delete process.env[DESKTOP_CLI_PREPARE_ENV];
+      verifyDesktopCliVersion(prepareVersion, CLI_VERSION);
+      console.log(JSON.stringify({ executable: await prepareDesktopCli({ version: CLI_VERSION }) }));
+    } else console.log(CLI_VERSION);
     return;
   }
   const directory = options.directory ? resolve(options.directory) : defaultInstallDirectory();
   const paths = installationPaths(directory);
+  if (options.command !== "engine-rollback" && !["bootstrap", "status", "engine-status", "doctor", "logs"].includes(options.command)) assertNoEngineRecovery(paths);
   if (process.env[UPDATE_AGENT_ENV] === "1") {
     await runUpdateAgent(paths);
     return;
   }
   const runner = new SystemCommandRunner();
+  const runLifecycle = async (action: () => void | Promise<void>) => {
+    const kind = recordedEngine(paths);
+    const unlock = kind && kind !== "external" ? acquireUpdateLock(paths) : undefined;
+    try { await action(); } finally { unlock?.(); }
+  };
+  const desktopVersion = process.env[DESKTOP_CLI_VERSION_ENV];
+  const defaultDirectory = defaultInstallDirectory();
+  const desktopDirectory = process.platform === "win32"
+    ? windowsLocalPath(paths.directory) === windowsLocalPath(defaultDirectory)
+    : paths.directory === defaultDirectory;
+  if (desktopVersion !== undefined && ["start", "stop", "uninstall", "resources-set"].includes(options.command)) {
+    verifyDesktopCliVersion(desktopVersion, CLI_VERSION);
+    const kind = recordedEngine(paths);
+    if (!desktopDirectory || !kind || (kind === "external" && !requireRecordedEngine(paths, runner, kind).isLocal())) {
+      throw new CliError("ENGINE_UNAVAILABLE", 2);
+    }
+  }
   switch (options.command) {
     case "tailscale-enable":
     case "tailscale-status":
@@ -78,6 +115,23 @@ const main = async (): Promise<void> => {
     case "install":
       await installCommand(paths, options, runner);
       break;
+    case "bootstrap": {
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      const marker = process.env.OUTCOMEGO_BOOTSTRAP_CANCEL_FILE;
+      delete process.env.OUTCOMEGO_BOOTSTRAP_CANCEL_FILE;
+      const close = watchBootstrapCancellation(marker, controller);
+      process.on("SIGINT", abort);
+      process.on("SIGTERM", abort);
+      try {
+        process.exitCode = await bootstrapCommand(paths, options, runner, { signal: controller.signal });
+      } finally {
+        close();
+        process.off("SIGINT", abort);
+        process.off("SIGTERM", abort);
+      }
+      break;
+    }
     case "setup":
       if (installationExists(paths))
         await setupCommand(paths, runner, { advanced: options.advanced });
@@ -87,8 +141,67 @@ const main = async (): Promise<void> => {
       await doctorCommand(paths, options, runner);
       break;
     case "status":
+      if (options.json) {
+        console.log(JSON.stringify(await statusJson(paths, runner)));
+        break;
+      }
       if (options.jsonProgress && reportActiveUpdate(paths, options)) break;
       await statusCommand(paths, runner);
+      break;
+    case "engine-status":
+      console.log(JSON.stringify(await engineStatus(runner, paths, options.engine), null, options.json ? undefined : 2));
+      break;
+    case "engine-docker": {
+      const manifest = readManifest(paths);
+      if (!manifest) throw new EngineError("ENGINE_UNAVAILABLE");
+      await runLifecycle(() => {
+        const [tool, ...args] = options.dockerArgs!;
+        const result = tool === "compose"
+          ? requireComposeProject(paths, runner, manifest.projectName).run(args, { inherit: true })
+          : requireRecordedEngine(paths, runner, manifest.engine.kind).docker(options.dockerArgs!, { inherit: true, timeoutMs: 0 });
+        process.exitCode = result.status;
+      });
+      break;
+    }
+    case "engine-start":
+    case "engine-stop":
+    case "engine-remove":
+    case "engine-enable-wsl": {
+      if (options.command === "engine-enable-wsl") {
+        if (!options.yes || (desktopVersion !== undefined && !desktopDirectory)) throw new EngineError("INVALID_INPUT");
+        if (desktopVersion !== undefined) verifyDesktopCliVersion(desktopVersion, CLI_VERSION);
+        const wsl = managedEngine(paths, runner);
+        if (!(wsl instanceof ManagedWslEngine) || recordedEngine(paths) === "external") throw new EngineError("WINDOWS_UNSUPPORTED");
+        const unlock = acquireUpdateLock(paths);
+        try { await wsl.enable(); } finally { unlock(); }
+        break;
+      }
+      const manifest = readManifest(paths);
+      if (!manifest || manifest.engine.kind === "external") throw new EngineError("ENGINE_UNAVAILABLE");
+      const engine = requireRecordedEngine(paths, runner);
+      if (!(engine instanceof ManagedEngine)) throw new EngineError("ENGINE_UNAVAILABLE");
+      const unlock = acquireUpdateLock(paths);
+      try {
+        if (options.command === "engine-start") await engine.ensureReady();
+        else if (options.command === "engine-stop") await engine.stop();
+        else {
+          if (!options.purge || !manifest.uninstalledAt) throw new EngineError("INVALID_INPUT");
+          await engine.remove({ purgeData: true });
+        }
+      } finally { unlock(); }
+      break;
+    }
+    case "engine-upgrade":
+    case "engine-rollback": {
+      const engine = requireRecordedEngine(paths, runner);
+      if (!(engine instanceof ManagedEngine) || desktopVersion !== undefined) throw new EngineError("ENGINE_UNAVAILABLE");
+      const { upgradeEngineCommand } = await import("./engine/upgrade");
+      const backup = await upgradeEngineCommand(paths, runner, engine, { yes: options.yes, version: options.version, rollback: options.command === "engine-rollback" });
+      console.log(cliTranslate("Engine operation completed. Recovery files were retained at {path}.", { path: backup }));
+      break;
+    }
+    case "resources-set":
+      await resourcesSetCommand(paths, options, runner);
       break;
     case "update":
       {
@@ -98,10 +211,10 @@ const main = async (): Promise<void> => {
       }
       break;
     case "stop":
-      stopCommand(paths, runner);
+      await runLifecycle(() => stopCommand(paths, runner));
       break;
     case "start":
-      await startCommand(paths, runner);
+      await runLifecycle(() => startCommand(paths, runner));
       break;
     case "logs":
       logsCommand(paths, runner, options);
@@ -142,7 +255,7 @@ const main = async (): Promise<void> => {
       });
       break;
     case "uninstall":
-      await uninstallCommand(paths, options, runner);
+      await runLifecycle(() => uninstallCommand(paths, options, runner, { preserveCli: desktopVersion !== undefined }));
       break;
   }
   if (["install", "setup", "start", "update"].includes(options.command)) ensureUpdateAgent(paths);

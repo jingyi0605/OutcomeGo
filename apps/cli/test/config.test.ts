@@ -10,11 +10,30 @@ import {
   normalizeRepository,
   normalizeVersion,
   parseEnvironment,
+  readManifest,
   replaceEnvironmentValue,
   writeFileAtomic,
+  writeManifest,
 } from "../src/config";
+import { requireComposeProject } from "../src/docker";
 
 const temporaryDirectories: string[] = [];
+
+const manifestFixture = () => {
+  const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-manifest-"));
+  temporaryDirectories.push(directory);
+  return {
+    paths: installationPaths(directory),
+    manifest: {
+      schemaVersion: 1 as const,
+      repository: "owner/repo",
+      version: "1.2.3",
+      composeUrl: "https://example.com/compose.yaml",
+      installedAt: "2026-11-23T00:00:00.000Z",
+      updatedAt: "2026-11-23T00:00:00.000Z",
+    },
+  };
+};
 
 afterEach(() => {
   for (const directory of temporaryDirectories.splice(0)) {
@@ -103,5 +122,42 @@ describe("installation configuration", () => {
     expect(normalizeRepository("https://github.com/owner/repo.git")).toBe("owner/repo");
     expect(() => normalizeVersion("latest")).toThrow("Invalid OutcomeGo version");
     expect(() => normalizeRepository("not-a-repository")).toThrow("Invalid GitHub repository");
+  });
+
+  test("reads legacy v1 manifests as external without rewriting them", () => {
+    const { paths, manifest } = manifestFixture();
+    const original = JSON.stringify(manifest);
+    writeFileAtomic(paths.manifest, original, 0o600);
+    expect(readManifest(paths)).toEqual({ ...manifest, engine: { kind: "external" } });
+    expect(readFileSync(paths.manifest, "utf8")).toBe(original);
+    expect(() => writeManifest(paths, { ...manifest, engine: { kind: "managed-wsl" } })).toThrow("ENGINE_UNAVAILABLE");
+    expect(readFileSync(paths.manifest, "utf8")).toBe(original);
+  });
+
+  test("records the external engine in new v1 manifests", () => {
+    const { paths, manifest } = manifestFixture();
+    writeManifest(paths, manifest);
+    expect(JSON.parse(readFileSync(paths.manifest, "utf8"))).toEqual({
+      ...manifest, engine: { kind: "external", createdAt: manifest.installedAt },
+    });
+  });
+
+  test("keeps a recorded engine across manifest updates and refuses another kind", () => {
+    const { paths, manifest } = manifestFixture();
+    const engine = { kind: "managed-lima" as const, name: "outcomego-engine", version: "1.0.0" };
+    writeManifest(paths, { ...manifest, engine });
+    writeManifest(paths, { ...manifest, version: "1.2.4" });
+    expect(readManifest(paths)).toEqual({ ...manifest, version: "1.2.4", engine });
+    expect(() => writeManifest(paths, { ...manifest, engine: { kind: "external" } })).toThrow("ENGINE_UNAVAILABLE");
+    expect(readManifest(paths)).toEqual({ ...manifest, version: "1.2.4", engine });
+    expect(() => requireComposeProject(paths, { run: () => { throw new Error("incorrect Docker invocation"); } })).toThrow("ENGINE_UNAVAILABLE");
+  });
+
+  test("rejects unrecognized or malformed engine records instead of falling back to Docker", () => {
+    const { paths, manifest } = manifestFixture();
+    for (const engine of [{ kind: "unknown" }, { kind: "external", version: 42 }, null]) {
+      writeFileAtomic(paths.manifest, JSON.stringify({ ...manifest, engine }), 0o600);
+      expect(() => readManifest(paths)).toThrow("unsupported manifest shape");
+    }
   });
 });

@@ -1,6 +1,8 @@
 import { readFileSync, statSync } from "node:fs";
 import { userInfo } from "node:os";
 import type { DoctorCheck } from "./doctor";
+import { externalEngineInstallAdvice, externalEngineStartAdvice } from "./engine/external-guidance";
+import { cliTranslate } from "./localization";
 import type { RunResult } from "./process";
 import { cleanTerminalText } from "./terminal";
 
@@ -104,20 +106,21 @@ export const dockerFailureCheck = (
       action: permission
         ? "Check the Docker executable's permissions or repair its installation, then run docker --version."
         : missing
-          ? platform === "linux"
-            ? "Install Docker Engine and the Compose plugin (https://docs.docker.com/engine/install/), then open a new terminal and run docker --version. If Docker is already installed, check PATH and the executable's permissions."
-            : "Install Docker Desktop from https://www.docker.com/products/docker-desktop/, then open a new terminal and run docker --version. If Docker is already installed, check that its command is on PATH and check the executable's permissions."
+          ? `${externalEngineInstallAdvice(platform)}. ${cliTranslate("Open a new terminal and run docker --version. If the engine is already installed, check that the docker command is on PATH and check the executable's permissions.")}`
           : "Run docker --version to inspect the error; repair or update the Docker CLI before retrying.",
     };
   }
 
   let detail = "Docker is installed, but OutcomeGo could not connect to its engine.";
+  const engineAdvice = externalEngineStartAdvice(raw);
   let action =
     platform === "darwin"
       ? "Start your Docker runtime. For Docker Desktop, run open -a Docker and finish any first-run setup. Wait for the engine to be ready, then run docker info. If it still fails, run docker context ls and check DOCKER_HOST and DOCKER_CONTEXT point to the intended engine."
-      : platform === "win32"
+      : platform === "win32" && /dockerDesktopLinuxEngine/i.test(raw)
         ? "Open Docker Desktop, finish any first-run setup, and wait for the Linux container engine to be ready. Run docker info. If it still fails, run docker context ls and check DOCKER_HOST and DOCKER_CONTEXT."
-        : "Start your Docker runtime (for a system Docker Engine: sudo systemctl start docker), then run docker info. If it still fails, run docker context ls and check DOCKER_HOST and DOCKER_CONTEXT.";
+        : platform === "linux"
+          ? "Start your Docker runtime (for a system Docker Engine: sudo systemctl start docker), then run docker info. If it still fails, run docker context ls and check DOCKER_HOST and DOCKER_CONTEXT."
+          : cliTranslate("Start your Docker-compatible engine and run docker info. Check the selected Docker context if it still fails.");
   if (/permission denied.*(?:publickey|password)|host key verification failed/i.test(raw)) {
     detail = "Docker could not sign in to the remote host over SSH.";
     action =
@@ -161,6 +164,8 @@ export const dockerFailureCheck = (
     )
   ) {
     // Desktop's local socket and Windows named pipe also appear inside HTTP error URLs.
+  } else if (engineAdvice) {
+    action = engineAdvice;
   } else if (/(?:tcp|ssh):\/\/|\b(?:Get|Post|Head|Put|Delete)\s+["']?https?:\/\//i.test(raw)) {
     action =
       "Run docker context ls and verify DOCKER_HOST and DOCKER_CONTEXT target the intended engine. Check that engine is running and its host is reachable, then run docker info.";

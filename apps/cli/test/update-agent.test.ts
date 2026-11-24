@@ -8,12 +8,14 @@ import { installationPaths, writeManifest } from "../src/config";
 import {
   UpdateAgent,
   updateAgentArguments,
+  updateAgentCommand,
   updateAgentExecutable,
   stableRuntimePath,
   UPDATE_AGENT_ENV,
   UPDATE_AGENT_CLI_ENV,
 } from "../src/update-agent";
 import { CLI_VERSION } from "../src/constants";
+import { desktopCliCarrierPath, verifyDesktopCliVersion } from "../src/cli-update";
 import { writeUpdateState } from "../src/update-safety";
 import { ServerUpdates } from "../../server/src/server-updates";
 
@@ -216,6 +218,29 @@ test("a staged CLI starts its daemon from the promoted installation, and private
   expect(updateAgentExecutable({ [UPDATE_AGENT_CLI_ENV]: target }, "/tmp/private-agent")).toBe(
     target
   );
+});
+
+test("desktop deployments and the host update agent use the same stable standalone carrier", () => {
+  const { paths } = fixture();
+  const home = "/Users/example";
+  const environment = { DOCKER_HOST: "unix:///tmp/docker.sock", DOCKER_CONTEXT: "desktop-linux", DOCKER_CONFIG: "/tmp/docker", PATH: "/usr/bin" };
+  const executable = desktopCliCarrierPath("darwin", environment, home);
+  expect(executable).toBe("/Users/example/.local/bin/outcomego");
+  expect(desktopCliCarrierPath("win32", { LOCALAPPDATA: "D:\\用户 空格\\Local" }, "D:\\用户 空格")).toBe("D:\\用户 空格\\Local\\OutcomeGo\\bin\\outcomego.exe");
+  const command = updateAgentCommand(paths, {
+    environment, desktopCarrier: executable,
+    argv: ["/Applications/OutcomeGo.app/Contents/MacOS/OutcomeGo", "/tmp/0.1.0/app.asar.unpacked/outcomego-cli.js"],
+  });
+  expect(command.executable).toBe(executable);
+  expect(command.args).toEqual(["status", "--dir", paths.directory]);
+  expect(JSON.stringify(command)).not.toContain("app.asar.unpacked");
+  expect(command.environment).toMatchObject(environment);
+});
+
+test("a desktop CLI version mismatch returns the stable error code", () => {
+  expect(() => verifyDesktopCliVersion(CLI_VERSION, `v${CLI_VERSION}`)).not.toThrow();
+  expect(() => verifyDesktopCliVersion(CLI_VERSION, "0.0.1")).toThrow("CLI_VERSION_MISMATCH");
+  expect(() => verifyDesktopCliVersion(CLI_VERSION, "not-a-version")).toThrow("CLI_VERSION_MISMATCH");
 });
 
 test("a Homebrew runtime starts the agent by a path that survives brew upgrade", () => {

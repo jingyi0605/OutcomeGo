@@ -1,4 +1,5 @@
 import { tailscaleStatus } from "./tailscale-command";
+import { installationCommand } from "./command-ui";
 import {
   accessSync,
   existsSync,
@@ -25,13 +26,9 @@ import {
   VIEWER_PORT_END,
   VIEWER_PORT_START,
 } from "./constants";
-import {
-  ComposeProject,
-  dockerDaemon,
-  dockerVersion,
-  probeCompose,
-  MINIMUM_COMPOSE_VERSION,
-} from "./docker";
+import { ComposeProject } from "./docker";
+import { MINIMUM_COMPOSE_VERSION } from "./engine/external";
+import { requireRecordedEngine } from "./engine/select";
 import { checkHealth, withExpectedVersion, type HealthResult } from "./health";
 import { cliTranslate } from "./localization";
 import { checkInferenceConnection } from "./inference-connection";
@@ -146,7 +143,35 @@ export const runDoctor = async (
     });
   }
 
-  const docker = dockerVersion(runner);
+  let manifest: ReturnType<typeof readManifest> = null;
+  let invalidManifest = false;
+  if (installed) {
+    try {
+      manifest = readManifest(paths);
+    } catch {
+      invalidManifest = true;
+    }
+  }
+  let engine;
+  try {
+    engine = requireRecordedEngine(paths, runner, invalidManifest ? "external" : manifest?.engine.kind);
+  } catch (error) {
+    checks.push({
+      level: "fail",
+      label: "Container engine",
+      detail: error instanceof Error ? error.message : String(error),
+    });
+    return { ok: false, installed, checks, elapsedMs: Date.now() - started, commandDirectory, platform: process.platform };
+  }
+  if (engine.kind !== "external") {
+    const detection = await engine.detect();
+    if (detection.state !== "ready") {
+      checks.push({ level: "fail", label: "Container engine", detail: detection.reasons.join(" ") || detection.state,
+        action: installationCommand(paths, "engine start") });
+      return { ok: false, installed, checks, elapsedMs: Date.now() - started, commandDirectory, platform: process.platform };
+    }
+  }
+  const docker = engine.version();
   checks.push(
     docker.status === 0
       ? {
@@ -158,7 +183,7 @@ export const runDoctor = async (
   );
   let daemonReady = false;
   if (docker.status === 0) {
-    const daemon = dockerDaemon(runner);
+    const daemon = engine.daemon();
     daemonReady = daemon.status === 0;
     checks.push(
       daemonReady
@@ -170,7 +195,7 @@ export const runDoctor = async (
         : dockerFailureCheck("daemon", daemon)
     );
   }
-  const composeProbe = docker.status === 0 ? probeCompose(runner) : null;
+  const composeProbe = docker.status === 0 ? engine.probeCompose() : null;
   const compose = composeProbe?.command;
   checks.push(
     docker.status !== 0
@@ -229,10 +254,7 @@ export const runDoctor = async (
     });
   } else {
     options.onProgress?.(cliTranslate("Checking configuration and services"));
-    let manifest;
-    try {
-      manifest = readManifest(paths);
-    } catch {
+    if (invalidManifest) {
       checks.push({
         level: "fail",
         label: "Installation",
@@ -261,7 +283,7 @@ export const runDoctor = async (
     });
     const project =
       compose?.supported && daemonReady
-        ? new ComposeProject(paths, compose, runner, manifest?.projectName || requestedProjectName)
+        ? new ComposeProject(paths, compose, runner, manifest?.projectName || requestedProjectName, engine)
         : null;
     let runningServices: Set<string> | null = null;
     let environmentValues: ReadonlyMap<string, string> | null = null;

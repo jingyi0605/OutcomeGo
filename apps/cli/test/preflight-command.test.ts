@@ -92,7 +92,7 @@ describe.skipIf(process.platform === "win32")("install and setup preflight", () 
             expect(output).toContain(
               process.platform === "linux"
                 ? "Install Docker Engine and the Compose plugin: https://docs.docker.com/engine/install/"
-                : "Install Docker Desktop: https://www.docker.com/products/docker-desktop/"
+                : "Install a Docker-compatible engine with Compose. Docker Desktop is one option: https://www.docker.com/products/docker-desktop/"
             );
             expect(output).toContain("Then run: outcomego setup --dir");
             expect(output).not.toContain("NEXT STEPS");

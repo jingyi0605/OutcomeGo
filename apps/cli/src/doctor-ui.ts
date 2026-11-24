@@ -1,6 +1,7 @@
 import { cliCommand } from "./command-ui";
 import type { DoctorCheck, DoctorResult } from "./doctor";
 import { MINIMUM_COMPOSE_VERSION } from "./docker";
+import { externalComposeAdvice } from "./engine/external-guidance";
 import { cliTranslate } from "./localization";
 import { colorEnabled } from "./ui";
 import {
@@ -47,10 +48,7 @@ const checkAction = (check: DoctorCheck): string | undefined => {
         "Start your Docker runtime and wait for its engine to be ready. Run docker info; if it fails, inspect docker context ls and any DOCKER_HOST or DOCKER_CONTEXT overrides."
       );
     case "Docker Compose":
-      return cliTranslate(
-        "Install or update Docker Desktop or the Compose plugin to {version} or newer. Verify with docker compose version (or docker-compose version).",
-        { version: MINIMUM_COMPOSE_VERSION }
-      );
+      return externalComposeAdvice(MINIMUM_COMPOSE_VERSION);
     case "Installation":
       return check.level === "fail"
         ? cliTranslate(

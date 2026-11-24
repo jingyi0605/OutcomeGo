@@ -18,7 +18,7 @@ import {
 } from "../src/config";
 
 const cases: Array<[string, string, boolean?]> = [
-  ["missing-cli", "Install Docker Desktop"],
+  ["missing-cli", "Install a Docker-compatible engine with Compose"],
   ["cli-permission", "executable's permissions"],
   ["cli-broken", "repair or update the Docker CLI"],
   ["daemon-stopped", "Start your Docker runtime"],

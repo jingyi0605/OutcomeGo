@@ -1,14 +1,25 @@
 import { CliError } from "./errors";
 import { normalizeLocale, type Locale } from "@outcomego/contracts/localization";
+import { cliTranslate } from "./localization";
 
 export type CommandName =
   | "tailscale-enable"
   | "tailscale-status"
   | "tailscale-disable"
   | "install"
+  | "bootstrap"
   | "setup"
   | "doctor"
   | "status"
+  | "engine-status"
+  | "engine-start"
+  | "engine-stop"
+  | "engine-upgrade"
+  | "engine-rollback"
+  | "engine-remove"
+  | "engine-docker"
+  | "engine-enable-wsl"
+  | "resources-set"
   | "update"
   | "stop"
   | "start"
@@ -80,16 +91,29 @@ export interface CliOptions {
   apnsKeyId?: string;
   apnsTeamId?: string;
   apnsTopic?: string;
+  computerMemory?: string;
+  desktopMemory?: string;
+  engine?: string;
+  apiPort?: string;
+  acceptLowMemory?: boolean;
+  dockerArgs?: string[];
 }
+
+const engineActions = ["status", "start", "stop", "upgrade", "rollback", "remove", "docker", "enable-wsl"] as const;
 
 const commands = new Set<CommandName>([
   "tailscale-enable",
   "tailscale-status",
   "tailscale-disable",
   "install",
+  "bootstrap",
   "setup",
   "doctor",
   "status",
+  "engine-status",
+  "engine-start", "engine-stop", "engine-remove", "engine-docker", "engine-enable-wsl",
+  "engine-upgrade", "engine-rollback",
+  "resources-set",
   "update",
   "stop",
   "start",
@@ -126,8 +150,18 @@ const commandFlags: Record<CommandName, ReadonlySet<string>> = {
     "--no-setup",
   ]),
   setup: new Set(["--advanced"]),
+  bootstrap: new Set(["--json-progress", "--engine", "--api-port", "--version", "--accept-low-memory"]),
   doctor: new Set(["--project-name"]),
-  status: new Set(["--json-progress"]),
+  status: new Set(["--json-progress", "--json"]),
+  "engine-status": new Set(["--json", "--engine"]),
+  "engine-start": new Set(),
+  "engine-stop": new Set(),
+  "engine-upgrade": new Set(["--version", "--yes"]),
+  "engine-rollback": new Set(["--yes"]),
+  "engine-remove": new Set(["--purge-data"]),
+  "engine-docker": new Set(),
+  "engine-enable-wsl": new Set(["--yes"]),
+  "resources-set": new Set(["--computer-memory", "--desktop-memory", "--yes", "-y"]),
   update: new Set([
     "--version",
     "--repository",
@@ -224,6 +258,8 @@ const helpTopicFromArguments = (parts: readonly string[]): HelpTopic => {
   const topic = rawTopic === "health" ? "status" : rawTopic;
   if (!topic || topic === "--help" || topic === "-h") return "global";
   if (extra.length > 0) throw new CliError(`Unknown help topic: ${parts.join(" ")}`);
+  if (topic === "engine" && (!action || engineActions.some(value => value === action))) return `engine-${action ?? "status"}` as HelpTopic;
+  if (topic === "resources" && (!action || action === "set")) return "resources-set";
   if (topic === "tailscale") {
     if (!action) return "tailscale";
     if (["enable", "status", "disable"].includes(action)) return `tailscale-${action}` as HelpTopic;
@@ -275,7 +311,15 @@ const valueFlags = new Map<
   | "apnsKeyId"
   | "apnsTeamId"
   | "apnsTopic"
+  | "computerMemory"
+  | "desktopMemory"
+  | "engine"
+  | "apiPort"
 >([
+  ["--engine", "engine"],
+  ["--api-port", "apiPort"],
+  ["--computer-memory", "computerMemory"],
+  ["--desktop-memory", "desktopMemory"],
   ["--https-port", "httpsPort"],
   ["--config", "apnsConfig"],
   ["--key-file", "apnsKeyFile"],
@@ -311,6 +355,16 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
   if (["version", "--version", "-v"].includes(rawCommand)) {
     return emptyOptions("version");
   }
+  const nestedEngine = rawCommand === "engine";
+  const nestedResources = rawCommand === "resources";
+  if (nestedResources && (!rawRest[0] || ["--help", "-h"].includes(rawRest[0])))
+    return emptyOptions("help", "resources-set");
+  if (nestedResources && rawRest[0] !== "set")
+    throw new CliError(cliTranslate("Unknown resources command; use set."), 2);
+  if (nestedEngine && (!rawRest[0] || ["--help", "-h"].includes(rawRest[0])))
+    return emptyOptions("help", "engine-status");
+  if (nestedEngine && !engineActions.some(action => action === rawRest[0]))
+    throw new CliError(cliTranslate("Unknown engine command; use status, start, stop, remove, or docker."));
   const tailscaleAction = rawCommand === "tailscale" ? rawRest[0] : undefined;
   if (rawCommand === "tailscale" && (!tailscaleAction || tailscaleAction.startsWith("-")))
     return emptyOptions("help", "tailscale");
@@ -346,7 +400,9 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
       `Unknown model command: ${modelAction}.${suggestion ? ` Did you mean "${suggestion}"?` : ""}`
     );
   }
-  const command = nestedTailscale
+  const command = nestedResources
+    ? "resources-set"
+    : nestedTailscale
     ? `tailscale-${tailscaleAction}`
     : nestedNotifications
       ? `notifications-${notificationAction}`
@@ -366,10 +422,14 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
                     ? "model-list"
                     : nestedModelUse
                       ? "model-use"
-                      : rawCommand === "health"
-                        ? "status"
-                        : rawCommand;
+                      : nestedEngine
+                        ? `engine-${rawRest[0]}`
+                        : rawCommand === "health"
+                          ? "status"
+                          : rawCommand;
   let rest =
+    nestedResources ||
+    nestedEngine ||
     nestedTailscale ||
     nestedNotifications ||
     nestedAccountUpdate ||
@@ -382,6 +442,9 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
     nestedModelUse
       ? rawRest.slice(1)
       : rawRest;
+  const separator = nestedEngine && command === "engine-docker" ? rest.indexOf("--") : -1;
+  const dockerArgs = separator === -1 ? undefined : rest.slice(separator + 1);
+  if (separator !== -1) rest = rest.slice(0, separator);
   if (rest.includes("--help") || rest.includes("-h")) {
     if (commands.has(command as CommandName)) {
       return emptyOptions("help", command as CommandName);
@@ -438,6 +501,10 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
   }
 
   const options = emptyOptions(command as CommandName);
+  if (command === "engine-docker") {
+    if (!dockerArgs?.length) throw new CliError(cliTranslate("Supply container CLI arguments after --."), 2);
+    options.dockerArgs = dockerArgs;
+  }
   const positional: string[] = [];
   while (rest[0] && !rest[0].startsWith("-")) {
     positional.push(rest[0]);
@@ -476,7 +543,7 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
       options.yes = true;
       continue;
     }
-    if (flag === "--purge") {
+    if (flag === "--purge" || flag === "--purge-data") {
       options.purge = true;
       continue;
     }
@@ -518,6 +585,10 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
     }
     if (flag === "--when-idle") {
       options.whenIdle = true;
+      continue;
+    }
+    if (flag === "--accept-low-memory") {
+      options.acceptLowMemory = true;
       continue;
     }
     if (flag === "--password") {

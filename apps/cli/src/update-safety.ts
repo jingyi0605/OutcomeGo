@@ -19,6 +19,7 @@ import { ensureDirectory, writeFileAtomic } from "./config";
 import { MINIMUM_UPDATE_DISK_BYTES } from "./constants";
 import type { ComposeProject } from "./docker";
 import { dockerDaemon } from "./docker";
+import { assertNoEngineRecovery } from "./engine/upgrade-transaction";
 import { CliError } from "./errors";
 import type { CommandRunner } from "./process";
 
@@ -134,7 +135,8 @@ export const activeUpdateProcess = (paths: InstallationPaths): number | null => 
     : null;
 };
 
-export const acquireUpdateLock = (paths: InstallationPaths): (() => void) => {
+export const acquireUpdateLock = (paths: InstallationPaths, allowEngineRecovery = false): (() => void) => {
+  if (!allowEngineRecovery) assertNoEngineRecovery(paths);
   ensureDirectory(paths.directory);
   const ownerPath = join(paths.updateLock, "owner.json");
   const claim = () => {
@@ -155,15 +157,19 @@ export const acquireUpdateLock = (paths: InstallationPaths): (() => void) => {
     } catch {
       owner = null;
     }
-    if (typeof owner?.pid === "number" && processIsAlive(owner.pid)) {
+    const publishing = typeof owner?.pid !== "number" && Date.now() - statSync(paths.updateLock).mtimeMs < 30_000;
+    if (publishing || (typeof owner?.pid === "number" && processIsAlive(owner.pid))) {
       throw new CliError(
-        `Another OutcomeGo setup or update is already running (process ${owner.pid}). Wait for it to finish, then try again.`
+        `Another OutcomeGo setup or update is already running${typeof owner?.pid === "number" ? ` (process ${owner.pid})` : ""}. Wait for it to finish, then try again.`
       );
     }
     rmSync(paths.updateLock, { recursive: true, force: true });
     claim();
   }
-  return () => rmSync(paths.updateLock, { recursive: true, force: true });
+  const release = () => rmSync(paths.updateLock, { recursive: true, force: true });
+  try { if (!allowEngineRecovery) assertNoEngineRecovery(paths); }
+  catch (error) { release(); throw error; }
+  return release;
 };
 
 export const assertUpdatePreflight = (

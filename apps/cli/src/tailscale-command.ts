@@ -146,6 +146,7 @@ export async function configureTailscale(
   const release = acquireUpdateLock(paths);
   try {
     const manifest = readManifest(paths)!;
+    if (manifest.engine.kind !== "external") throw new CliError(cliTranslate("Local deployment requires loopback bindings."), 2);
     if (!manifest.ownerUsername)
       throw new CliError("Finish account setup with outcomego setup before enabling remote access.");
     const previous = readFileSync(paths.environment, "utf8");

@@ -103,7 +103,7 @@ const dockerCases: Array<[string, string, "cli" | "daemon", RunResult, string, N
       "Docker is not installed (macOS)",
       "cli",
       failure("", "ENOENT"),
-      "Install Docker Desktop",
+      "Install a Docker-compatible engine with Compose",
     ],
     [
       "docker-missing-linux",
@@ -319,7 +319,7 @@ export const doctorScenarios: DoctorScenario[] = [
     "compose-old",
     "Compose version is unsupported",
     [issue("Docker Compose", "Docker Compose version v1.29.2; OutcomeGo requires 2.20.0+")],
-    "update Docker Desktop"
+    "Install or update Compose to 2.20.0 or newer"
   ),
   scenario(
     "platform-unsupported",

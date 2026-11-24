@@ -13,6 +13,7 @@ async function run(args: string[]) {
   const child = Bun.spawn(args, { cwd: root, stdout: "inherit", stderr: "inherit" });
   if ((await child.exited) !== 0) throw new Error(`${args[0]} failed`);
 }
+await run([process.execPath, "test", "apps/cli/test/managed-engine.test.ts", "apps/cli/test/bootstrap.test.ts", "apps/cli/test/process-streaming.test.ts"]);
 for (const [entry, name] of [
   ["src/main.ts", "outcomego-windows-x64.exe"],
   ["test/fixtures/setup-countdown.ts", "countdown.exe"],

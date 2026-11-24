@@ -19,7 +19,7 @@ import { type InstallationPaths, parseEnvironment, readManifest, writeFileAtomic
 import { updateWorkerArguments } from "./durable-update";
 import { healthUrl } from "./health";
 import { activeUpdateProcess, readUpdateState } from "./update-safety";
-import { isBunStandaloneExecutable, readCliPromotion } from "./cli-update";
+import { DESKTOP_CLI_VERSION_ENV, desktopCliCarrierPath, isBunStandaloneExecutable, readCliPromotion } from "./cli-update";
 import { CLI_VERSION } from "./constants";
 import {
   installUpdateAgentService,
@@ -73,6 +73,7 @@ const workerEnvironment = (): NodeJS.ProcessEnv => {
   for (const name of [
     UPDATE_AGENT_ENV,
     UPDATE_AGENT_CLI_ENV,
+    DESKTOP_CLI_VERSION_ENV,
     "OUTCOMEGO_UPDATE_WORKER_JOB",
     "OUTCOMEGO_CLI_UPDATE_SOURCE",
     "OUTCOMEGO_CLI_UPDATE_TARGET",
@@ -140,8 +141,20 @@ export const runningUpdateAgent = (paths: InstallationPaths): number | null => {
 };
 
 /** The command the service manager or the CLI runs to start this installation's agent. */
-export const updateAgentCommand = (paths: InstallationPaths): UpdateAgentCommand => {
-  const executable = updateAgentExecutable();
+const agentArguments = (args: string[], executable: string, argv: readonly string[] = process.argv): string[] =>
+  executable === runtimeExecutable() && !isBunStandaloneExecutable(argv)
+    ? updateWorkerArguments([...argv.slice(0, 2), ...args])
+    : args;
+
+export const updateAgentCommand = (
+  paths: InstallationPaths,
+  options: { environment?: NodeJS.ProcessEnv; desktopCarrier?: string; argv?: readonly string[] } = {}
+): UpdateAgentCommand => {
+  const inherited = options.environment ?? process.env;
+  const desktopCarrier = options.desktopCarrier ?? (inherited[DESKTOP_CLI_VERSION_ENV]
+    ? desktopCliCarrierPath(process.platform, inherited)
+    : undefined);
+  const executable = desktopCarrier ?? updateAgentExecutable(inherited);
   const environment: Record<string, string> = {
     [UPDATE_AGENT_ENV]: "1",
     [UPDATE_AGENT_CLI_ENV]: executable,
@@ -155,18 +168,12 @@ export const updateAgentCommand = (paths: InstallationPaths): UpdateAgentCommand
     "DOCKER_CERT_PATH",
     "DOCKER_TLS_VERIFY",
   ]) {
-    const value = process.env[name];
+    const value = inherited[name];
     if (value) environment[name] = value;
   }
   return {
     executable,
-    args: updateWorkerArguments([
-      process.argv[0]!,
-      process.argv[1]!,
-      "status",
-      "--dir",
-      paths.directory,
-    ]),
+    args: desktopCarrier ? ["status", "--dir", paths.directory] : agentArguments(["status", "--dir", paths.directory], executable, options.argv),
     environment,
   };
 };
@@ -268,9 +275,7 @@ export const updateAgentArguments = (
     (compareOutcomeGoVersions(version, current) ?? 0) <= 0
   )
     throw new Error("The server requested an invalid update version.");
-  return updateWorkerArguments([
-    process.argv[0]!,
-    process.argv[1]!,
+  return agentArguments([
     "update",
     "--dir",
     paths.directory,
@@ -278,7 +283,7 @@ export const updateAgentArguments = (
     version,
     ...(allowPrerelease && version.includes("-") ? ["--allow-prerelease"] : []),
     "--json-progress",
-  ]);
+  ], updateAgentExecutable());
 };
 
 interface AcceptedUpdate {

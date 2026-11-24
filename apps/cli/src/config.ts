@@ -24,6 +24,16 @@ import {
   UPDATE_STATE_FILENAME,
 } from "./constants";
 import { CliError } from "./errors";
+import { cliTranslate } from "./localization";
+import type { EngineKind } from "./engine/types";
+
+interface InstallationEngine {
+  kind: EngineKind;
+  name?: string;
+  version?: string;
+  assetVersion?: string;
+  createdAt?: string;
+}
 
 export interface InstallationManifest {
   schemaVersion: 1;
@@ -35,6 +45,7 @@ export interface InstallationManifest {
   uninstalledAt?: string;
   projectName?: string;
   ownerUsername?: string;
+  engine?: InstallationEngine;
 }
 
 export interface InstallationPaths {
@@ -103,10 +114,19 @@ export const normalizeRepository = (value = DEFAULT_REPOSITORY): string => {
 export const detectWorkerConcurrency = (parallelism = availableParallelism()): string =>
   String(Math.max(1, Math.min(8, Math.floor(parallelism))));
 
+export const resourceLimits = (guestMemoryBytes: number | null | undefined) => {
+  if (!guestMemoryBytes || guestMemoryBytes <= 0 || !Number.isSafeInteger(guestMemoryBytes)) return null;
+  const gib = 1024 ** 3;
+  const computerLimit = Math.min(12 * gib, Math.floor(guestMemoryBytes * 0.75));
+  if (computerLimit === 12 * gib) return null;
+  return { computerLimit, desktopLimit: Math.max(gib, computerLimit - gib) };
+};
+
 export const createEnvironment = (options: {
   version: string;
   imagePrefix?: string;
   workerConcurrency?: string;
+  guestMemoryBytes?: number | null;
 }): string => {
   const version = normalizeVersion(options.version);
   const imagePrefix = assertSingleLine(
@@ -124,6 +144,7 @@ export const createEnvironment = (options: {
   ) {
     throw new CliError("worker concurrency must be between 1 and 64");
   }
+  const limits = resourceLimits(options.guestMemoryBytes);
   return [
     `OUTCOMEGO_VERSION=${version}`,
     `OUTCOMEGO_IMAGE_PREFIX=${imagePrefix}`,
@@ -142,6 +163,10 @@ export const createEnvironment = (options: {
     `OUTCOMEGO_UPDATE_CHANNEL=${version.includes("-") ? "beta" : "stable"}`,
     "COMPOSE_PROFILES=direct",
     `OUTCOMEGO_WORKER_CONCURRENCY=${workerConcurrency}`,
+    ...(limits ? [
+      `OUTCOMEGO_COMPUTER_MEMORY_LIMIT=${limits.computerLimit}`,
+      `OUTCOMEGO_DESKTOP_MEMORY_LIMIT=${limits.desktopLimit}`,
+    ] : []),
     "",
   ].join("\n");
 };
@@ -206,7 +231,20 @@ export const writeFileAtomic = (path: string, contents: string, mode = 0o600): v
   }
 };
 
-export const readManifest = (paths: InstallationPaths): InstallationManifest | null => {
+const validEngine = (value: unknown): value is InstallationEngine => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const engine = value as Partial<InstallationEngine>;
+  return (
+    (engine.kind === "external" || engine.kind === "managed-wsl" || engine.kind === "managed-lima") &&
+    [engine.name, engine.version, engine.assetVersion, engine.createdAt].every(
+      (field) => field === undefined || typeof field === "string"
+    )
+  );
+};
+
+export const readManifest = (
+  paths: InstallationPaths
+): (InstallationManifest & { engine: InstallationEngine }) | null => {
   if (!existsSync(paths.manifest)) return null;
   try {
     const value = JSON.parse(readFileSync(paths.manifest, "utf8")) as InstallationManifest;
@@ -216,11 +254,12 @@ export const readManifest = (paths: InstallationPaths): InstallationManifest | n
       typeof value.version !== "string" ||
       typeof value.composeUrl !== "string" ||
       (value.projectName !== undefined && typeof value.projectName !== "string") ||
-      (value.ownerUsername !== undefined && typeof value.ownerUsername !== "string")
+      (value.ownerUsername !== undefined && typeof value.ownerUsername !== "string") ||
+      (value.engine !== undefined && !validEngine(value.engine))
     ) {
       throw new Error("unsupported manifest shape");
     }
-    return value;
+    return { ...value, engine: value.engine ?? { kind: "external" } };
   } catch (error) {
     throw new CliError(
       `Could not read ${paths.manifest}: ${error instanceof Error ? error.message : error}`
@@ -229,7 +268,13 @@ export const readManifest = (paths: InstallationPaths): InstallationManifest | n
 };
 
 export const writeManifest = (paths: InstallationPaths, manifest: InstallationManifest): void => {
-  writeFileAtomic(paths.manifest, `${JSON.stringify(manifest, null, 2)}\n`, 0o600);
+  const previous = readManifest(paths)?.engine;
+  const engine = manifest.engine ?? previous ?? { kind: "external", createdAt: manifest.installedAt };
+  if (!validEngine(engine)) throw new CliError("Invalid installation engine record.");
+  if (previous && previous.kind !== engine.kind) {
+    throw new CliError(`ENGINE_UNAVAILABLE: ${cliTranslate("The recorded engine of an existing installation cannot be changed.")}`, 2);
+  }
+  writeFileAtomic(paths.manifest, `${JSON.stringify({ ...manifest, engine }, null, 2)}\n`, 0o600);
 };
 
 export const installationExists = (paths: InstallationPaths): boolean =>

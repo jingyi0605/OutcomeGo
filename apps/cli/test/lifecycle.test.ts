@@ -682,6 +682,21 @@ describe("installed lifecycle", () => {
     temporaryDirectories.splice(temporaryDirectories.indexOf(directory), 1);
   });
 
+  test.each([false, true])("Windows desktop uninstall preserves its carrier (purge: %s)", async purge => {
+    const { directory, paths } = fixture();
+    const runner = new HealthyDockerRunner();
+    const carrier = join(directory, "bin", "outcomego.exe");
+    mkdirSync(join(directory, "bin"));
+    writeFileSync(carrier, "CLI fixture");
+    await uninstallCommand(paths, parseArguments(["uninstall", "--yes", ...(purge ? ["--purge"] : [])]), runner, {
+      preserveCli: true, platform: "win32", removeCli: () => { throw new Error("desktop attempted to remove the CLI"); },
+    });
+    expect(readFileSync(carrier, "utf8")).toBe("CLI fixture");
+    expect(existsSync(paths.environment)).toBe(!purge);
+    expect(existsSync(paths.manifest)).toBe(!purge);
+    expect(runner.calls.at(-1)?.args.includes("--volumes")).toBe(purge);
+  });
+
   test("updates the full Compose release and emits every desktop progress phase", async () => {
     const { paths } = fixture();
     const runner = new HealthyDockerRunner();
