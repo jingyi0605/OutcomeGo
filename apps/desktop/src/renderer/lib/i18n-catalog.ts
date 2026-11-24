@@ -3224,6 +3224,13 @@ export const sourceTranslations: Record<string, string> = {
   "Booked for": "预约于",
   Due: "截止",
   Overdue: "已逾期",
+  "Planned for": "计划时间",
+  Estimate: "估算",
+  "Estimate: {duration}": "估算：{duration}",
+  "Goal due {time}": "目标截止 {time}",
+  "{value} min": "{value} 分钟",
+  "{value} h": "{value} 小时",
+  "{value} d": "{value} 天",
 
   // Goal management settings page (specs/004.10)
   "Goal management":

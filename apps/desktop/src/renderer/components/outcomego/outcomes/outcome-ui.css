@@ -2375,8 +2375,22 @@ button.outcome-chat-card-main:hover {
   font-size: 0.75rem;
 }
 .outcome-timeline-label {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+.outcome-timeline-label-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Overdue is an icon plus words, never color alone. It only exists for a task that has a due time. */
+.outcome-timeline-overdue {
+  flex: none;
+  color: var(--tone-fail);
+  font-weight: 600;
   white-space: nowrap;
 }
 .outcome-timeline-track {
@@ -2467,6 +2481,70 @@ button.outcome-chat-card-main:hover {
 }
 .outcome-timeline-run {
   display: block;
+}
+/* Planned time (solid outline) and estimate (dashed outline): neither is an actual run, and neither is a forecast. */
+.outcome-timeline-plan {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 0.625rem;
+  margin-left: -0.3125rem;
+  box-sizing: border-box;
+  border: 1px solid var(--segment-tone, var(--foreground-secondary));
+  background: var(--background);
+  border-radius: 2px;
+}
+.outcome-timeline-plan[data-marker="diamond"] {
+  transform: rotate(45deg) scale(0.8);
+}
+.outcome-timeline-estimate {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  box-sizing: border-box;
+  border: 1px dashed var(--segment-tone, var(--foreground-secondary));
+  background: transparent;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.outcome-timeline-estimate-label {
+  padding: 0 0.25rem;
+  font-size: 0.625rem;
+  line-height: 0.75rem;
+  white-space: nowrap;
+  color: var(--segment-tone, var(--foreground-secondary));
+}
+.outcome-timeline-due-tick {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 0;
+  border-left: 2px solid var(--foreground-secondary);
+}
+.outcome-timeline-due-tick[data-overdue] {
+  border-left-color: var(--tone-fail);
+}
+.outcome-timeline-flag {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--foreground-secondary);
+}
+.outcome-timeline-flag-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dotted var(--foreground-secondary);
+}
+.outcome-timeline-flag-line[data-overdue] {
+  border-left-color: var(--tone-fail);
+}
+.outcome-timeline-goal-due {
+  margin: 0;
+  font-size: 0.75rem;
 }
 @media (prefers-reduced-motion: reduce) {
   .outcome-timeline,

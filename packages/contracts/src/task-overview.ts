@@ -134,15 +134,18 @@ const FINISHED_AGENT_STATUSES: readonly AgentWorkItemStatus[] = ["completed", "f
 /** Human work stops being overdue once a receipt is in, or the task is closed. */
 const FINISHED_HUMAN_STATUSES: readonly HumanWorkItemStatus[] = ["submitted", "review_pending", "accepted", "cancelled"];
 
+/** A task is finished for display when nothing more is expected of it: it ended, or the human's receipt is in. */
+export function isWorkItemFinished(input: { executorType: WorkItemExecutorType; status: WorkItemStatus }): boolean {
+  return input.executorType === "agent"
+    ? FINISHED_AGENT_STATUSES.includes(input.status as AgentWorkItemStatus)
+    : FINISHED_HUMAN_STATUSES.includes(input.status as HumanWorkItemStatus);
+}
+
 export function isWorkItemOverdue(
   input: { executorType: WorkItemExecutorType; status: WorkItemStatus; dueAt: Date | null },
   now: Date
 ): boolean {
-  const finished =
-    input.executorType === "agent"
-      ? FINISHED_AGENT_STATUSES.includes(input.status as AgentWorkItemStatus)
-      : FINISHED_HUMAN_STATUSES.includes(input.status as HumanWorkItemStatus);
-  return isOverdue(input.dueAt, now, finished);
+  return isOverdue(input.dueAt, now, isWorkItemFinished(input));
 }
 
 // ---------------------------------------------------------------------------

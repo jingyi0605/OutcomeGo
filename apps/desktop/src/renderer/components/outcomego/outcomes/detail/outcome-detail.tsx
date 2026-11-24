@@ -3,6 +3,7 @@ import type {
   OutcomeDetail as OutcomeDetailView,
   ContractRevisionView,
 } from "@outcomego/contracts/outcomes";
+import { OUTCOME_TERMINAL_STATUSES } from "@outcomego/contracts/outcomes";
 import { ContractConfirmation } from "../planning/contract-confirmation";
 import {
   type OutcomeClient,
@@ -870,6 +871,7 @@ export function OutcomeDetail({
                 workItems={outcome.workItems}
                 currentRevision={outcome.currentRevision}
                 botName={(botId) => (botId ? bots.find((b) => b.id === botId)?.name : undefined)}
+                goal={{ dueAt: outcome.dueAt, finished: OUTCOME_TERMINAL_STATUSES.includes(outcome.status) }}
               />
             )}
             {outcome.workItems.length > 0 && (
