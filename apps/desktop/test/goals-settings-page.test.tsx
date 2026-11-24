@@ -20,16 +20,17 @@ const features = (overrides: Partial<Features> = {}): Features => ({
 });
 const render = (value: Features) => renderToStaticMarkup(createElement(I18nProvider, { children: createElement(GoalsSettingsView, { features: value }) }));
 const schedule = TASK_POLICY_FIELDS.filter((entry) => entry.group === "schedule");
+const activityFields = TASK_POLICY_FIELDS.filter((entry) => entry.group === "activity");
 
 describe("goal management page", () => {
   test("shows the master switch, planning and review, and scheduling groups, each with its deep-link anchor", () => {
     const html = render(features());
-    for (const anchor of ["goal-management", "goal-roles", "goal-schedule"]) expect(html).toContain(`data-settings-anchor="${anchor}"`);
+    for (const anchor of ["goal-management", "goal-roles", "goal-schedule", "goal-activity"]) expect(html).toContain(`data-settings-anchor="${anchor}"`);
   });
 
   test("does not show groups whose feature does not exist yet: no empty shells", () => {
     const html = render(features());
-    for (const later of ["goal-activity", "goal-todo", "goal-auto-accept", "goal-calendar"]) expect(html).not.toContain(`data-settings-anchor="${later}"`);
+    for (const later of ["goal-todo", "goal-auto-accept", "goal-calendar"]) expect(html).not.toContain(`data-settings-anchor="${later}"`);
   });
 
   test("with goal management on, every other group is usable", () => {
@@ -55,6 +56,29 @@ describe("goal management page", () => {
       expect(html).toContain(`${entry.max}`);
       expect(html).toContain(`${entry.initial}`);
     }
+  });
+
+  // Specs/004.10 task 4.3 (requirement E2.4): the activity group appears by itself, drawn from the same metadata.
+  test("the activity view group lists every activity policy field, each from the metadata", () => {
+    const html = render(features());
+    expect(activityFields.map((entry) => entry.key).sort()).toEqual([
+      "activity.cardMaxItems", "activity.checkOverdueMinutes", "activity.dashboardLayout", "activity.recentCompletedHours",
+    ]);
+    for (const entry of activityFields) expect(html).toContain(`data-policy-key="${entry.key}"`);
+    for (const entry of activityFields.filter((field) => field.type === "integer")) {
+      expect(html).toContain(`${entry.min}`);
+      expect(html).toContain(`${entry.max}`);
+    }
+  });
+
+  test("how the dashboard is shown is a choice among exactly the three the metadata names, initially both", () => {
+    const layout = TASK_POLICY_FIELDS.find((entry) => entry.key === "activity.dashboardLayout")!;
+    expect(layout.options).toEqual(["both", "activity", "lanes"]);
+    expect(layout.initial).toBe("both");
+    const html = render(features());
+    const select = html.match(/<select[^>]*data-policy-input="activity\.dashboardLayout"[^>]*>([\s\S]*?)<\/select>/)!;
+    for (const option of layout.options!) expect(select[1]).toContain(`value="${option}"`);
+    expect(select[0]).toMatch(/value="both"[^>]*selected|<option value="both"[^>]*>/);
   });
 
   test("a field with nothing stored offers no restore; a field with a stored value does", () => {

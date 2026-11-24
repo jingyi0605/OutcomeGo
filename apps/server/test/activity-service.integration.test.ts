@@ -103,6 +103,14 @@ describe.skipIf(!url)("the owner's activity list (specs/004.10 task 4.1)", () =>
     });
   }
 
+  test("a request that has a channel links to that channel, which is what the owner opens to read it", async () => {
+    const t = await setup();
+    const run = await request(t.h);
+    await t.h.db.run.update({ where: { id: run.id }, data: { channelId: t.h.channel.id } });
+    const item = (await t.service.list({ botId: t.h.bot.id })).items.find((entry) => entry.id === `request:${run.id}`)!;
+    expect(item.link).toEqual({ type: "channel", id: t.h.channel.id });
+  });
+
   test("a long message is cut to the title limit, and the cut is marked", async () => {
     const t = await setup();
     const content = `${"word ".repeat(80)}END-OF-MESSAGE`;
@@ -251,12 +259,14 @@ let routineCounter = 0;
 /** A routine and its most recent execution, as the routine runtime leaves them. */
 async function routine(h: Fixture, options: {
   name?: string; last?: "queued" | "running" | "completed" | "failed" | "skipped" | "cancelled" | null;
-  error?: unknown; skipReason?: string; paused?: boolean; enabled?: boolean; deleted?: boolean; nextRunAt?: Date | null; executionAt?: Date;
+  error?: unknown; skipReason?: string; inChannel?: boolean; paused?: boolean; enabled?: boolean; deleted?: boolean; nextRunAt?: Date | null; executionAt?: Date;
 } = {}) {
   routineCounter += 1;
   const created = await h.db.routine.create({
     data: {
-      botId: h.bot.id, slug: `routine-${routineCounter}-${crypto.randomUUID().slice(0, 6)}`, name: options.name ?? `Routine ${routineCounter}`, prompt: "Do the thing",
+      // A routine belongs to a bot or to a channel, never both (a database constraint); a channel's routine runs on a bot.
+      ...(options.inChannel ? { channelId: h.channel.id, executorBotId: h.bot.id } : { botId: h.bot.id }),
+      slug: `routine-${routineCounter}-${crypto.randomUUID().slice(0, 6)}`, name: options.name ?? `Routine ${routineCounter}`, prompt: "Do the thing",
       scheduleText: "every day", scheduleKind: "interval", intervalSeconds: 86_400, timezone: "UTC", enabled: options.enabled ?? true,
       nextRunAt: options.nextRunAt === undefined ? hours(10) : options.nextRunAt,
       pausedAt: options.paused ? new Date() : null, deletedAt: options.deleted ? new Date() : null,
@@ -287,6 +297,14 @@ describe.skipIf(!url)("routines in the activity list", () => {
       expect(Math.abs(Date.parse(item.nextCheckAt!) - hours(nextRun).getTime())).toBeLessThan(5_000);
     });
   }
+
+  test("a routine that belongs to a channel links to it", async () => {
+    const t = await setup();
+    const failed = await routine(t.h, { last: "failed", error: { message: "boom" }, inChannel: true });
+    const item = (await t.service.list({ botId: t.h.bot.id })).items.find((entry) => entry.id === `routine:${failed.id}`)!;
+    // Asked for by the bot that runs it, shown under that bot, and opening the channel it belongs to.
+    expect(item).toMatchObject({ botId: t.h.bot.id, link: { type: "channel", id: t.h.channel.id } });
+  });
 
   test("running, queued and skipped runs show; a run that succeeded does not, and neither does one that was cancelled", async () => {
     const t = await setup();

@@ -1639,6 +1639,7 @@ export default function App() {
                   target={outcomeTarget}
                   bots={snapshot.bots}
                   onClose={() => setOutcomeTarget(null)}
+                  onOpenChannel={(channelId) => selectSidebarChannel(channelId)}
                 />
               </Suspense>
             )}

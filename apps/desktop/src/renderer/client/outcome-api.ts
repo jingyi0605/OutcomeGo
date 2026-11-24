@@ -1,3 +1,4 @@
+import type { ActivityResponse } from "@outcomego/contracts/task-overview";
 import type {
   PlanningDraftView,
   CreateOutcomePlanInput,
@@ -59,6 +60,8 @@ export interface OutcomeClient {
   setWorkItemSchedule?(id: string, workItemId: string, input: SetWorkItemScheduleInput): Promise<OutcomeDetail>;
   /** The owner sets or clears the goal's due date (specs/004.10). */
   setDue?(id: string, input: SetOutcomeDueInput): Promise<OutcomeDetail>;
+  /** What every bot is doing (specs/004.10). Absent on a server that has no such call. */
+  activity?(query?: { botId?: string; includeAll?: boolean; recentHours?: number }): Promise<ActivityResponse>;
   workThreads?(botId: string, query: { archived?: boolean; cursor?: string; signal?: AbortSignal }): Promise<OutcomeWorkThreadPage>;
   transcript(id: string, itemId: string, query?: { before?: number }): Promise<unknown>;
 }
@@ -96,6 +99,14 @@ export function createOutcomeApi(
     setWorkItemSchedule: (id, workItemId, input) =>
       outcomePut(`${outcomePath(id)}/work-items/${encodeURIComponent(workItemId)}/schedule`, input),
     setDue: (id, input) => outcomePut(`${outcomePath(id)}/due`, input),
+    activity: (query = {}) => {
+      const params = new URLSearchParams();
+      if (query.botId) params.set("botId", query.botId);
+      if (query.includeAll) params.set("includeAll", "true");
+      if (query.recentHours !== undefined) params.set("recentHours", String(query.recentHours));
+      const suffix = params.toString();
+      return request(`/api/activity${suffix ? `?${suffix}` : ""}`);
+    },
     workThreads: (botId, { archived, cursor, signal }) => {
       const query = new URLSearchParams();
       if (archived) query.set("archived", "true");

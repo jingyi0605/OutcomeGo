@@ -78,6 +78,8 @@ const api = {
     list: async () => ({ items: [exploreFixture], nextCursor: null }),
     get: async () => exploreFixture,
   },
+  // The workspace reads the owner's policy for the activity area; an empty answer means every initial value.
+  featureSettings: async () => ({}),
   outcomeRecovery: async () => ({ items: [], notificationFailures: [] }),
   outcomeAttention: async () => ({ recorded: true }),
   markChannelRead: async (...args: unknown[]) => {

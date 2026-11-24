@@ -13,6 +13,8 @@ import {
 import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-view";
 import type { OutcomeInboxCategory, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
+import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
+import type { ActivityItem } from "@outcomego/contracts/task-overview";
 import type { OutcomeClient } from "../../../../client/outcome-api";
 import { subscribeOutcomeListRefresh } from "../../../../lib/outcome-events";
 import { useI18n } from "../../../../lib/i18n";
@@ -36,6 +38,8 @@ import {
   waitingMinutes,
   type AttentionRow,
 } from "./dashboard-state";
+import { ActivitySection } from "./activity-section";
+import { dashboardSections } from "./activity-state";
 import { GoalFocusDetail, type GoalFocusClient } from "./goal-focus";
 import { QuickDecision } from "./quick-decision";
 
@@ -43,7 +47,12 @@ interface Loaded {
   outcomes: OutcomeSummary[];
   steps: OutcomeInboxItemView[];
   moreSteps: boolean;
+  /** Null when the area is not wanted or this server has no activity call: the area is then left out. */
+  activity: ActivityItem[] | null;
 }
+
+// The initial values come from the policy metadata, never from a number written here.
+const DEFAULT_POLICY = resolveTaskPolicy({});
 
 const categoryIcons: Record<OutcomeInboxCategory, LucideIcon> = {
   decision_pending: CircleHelp,
@@ -201,9 +210,11 @@ export function OutcomeDashboard({
   onShowGoals,
   onCreateGoal,
   onCreateIdea,
+  onOpenChannel,
+  activityPolicy,
   refreshVersion = 0,
 }: {
-  outcomes: Pick<OutcomeClient, "list"> & GoalFocusClient;
+  outcomes: Pick<OutcomeClient, "list" | "activity"> & GoalFocusClient;
   inbox: Pick<InboxClient, "list" | "decision" | "resolve">;
   bots: readonly OutcomeExecutionBot[];
   onSelectOutcome: (id: string) => void;
@@ -212,9 +223,16 @@ export function OutcomeDashboard({
   onShowGoals: () => void;
   onCreateGoal: () => void;
   onCreateIdea: () => void;
+  /** Opens a channel's conversation: where a request or a channel routine leads. Without it those rows are text only. */
+  onOpenChannel?: (channelId: string) => void;
+  /** The owner's choices for the activity area; each falls back to the policy's initial value. */
+  activityPolicy?: { cardMaxItems?: number | undefined; dashboardLayout?: string | undefined };
   refreshVersion?: number;
 }) {
   const { t } = useI18n();
+  const layout = dashboardSections(activityPolicy?.dashboardLayout ?? DEFAULT_POLICY["activity.dashboardLayout"]);
+  const cardMaxItems = activityPolicy?.cardMaxItems ?? (DEFAULT_POLICY["activity.cardMaxItems"] as number);
+  const [showAll, setShowAll] = useState(false);
   const [data, setData] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
@@ -224,13 +242,18 @@ export function OutcomeDashboard({
     setBusy(true);
     setError(false);
     try {
-      const [goals, steps] = await Promise.all([
+      const [goals, steps, activity] = await Promise.all([
         outcomes.list(new URLSearchParams({ limit: String(OUTCOME_LIMITS.listPageSizeMax) }).toString()),
         // An older server without the Inbox still gets a working dashboard, just without steps.
         inbox.list({ status: "pending" }).catch(() => ({ items: [], nextCursor: null })),
+        // The owner's activity is only asked for when it will be shown. A server without it, or one that fails, just
+        // leaves the area out: the goals and the owner's list do not depend on it.
+        layout.activity && outcomes.activity
+          ? outcomes.activity({ includeAll: showAll }).then((response) => response.items ?? null).catch(() => null)
+          : Promise.resolve(null),
       ]);
       if (generation.current !== request) return;
-      setData({ outcomes: goals.items, steps: steps.items, moreSteps: steps.nextCursor !== null });
+      setData({ outcomes: goals.items, steps: steps.items, moreSteps: steps.nextCursor !== null, activity });
     } catch {
       if (generation.current === request) setError(true);
     } finally {
@@ -251,7 +274,7 @@ export function OutcomeDashboard({
       window.clearInterval(interval);
       unsubscribe();
     };
-  }, [outcomes, inbox]);
+  }, [outcomes, inbox, showAll, layout.activity]);
   useEffect(() => {
     if (refreshVersion > 0) void load();
   }, [refreshVersion]);
@@ -267,6 +290,12 @@ export function OutcomeDashboard({
   const open = (row: AttentionRow) => (row.step ? onSelectStep(row.step) : onSelectOutcome(row.outcomeId));
   const botName = (outcome: OutcomeSummary) =>
     bots.find((bot) => bot.id === outcome.botId)?.name ?? t("Bot");
+  const canOpenActivity = (item: ActivityItem) =>
+    item.link.type === "outcome" || (item.link.type === "channel" && onOpenChannel !== undefined);
+  const openActivity = (item: ActivityItem) => {
+    if (item.link.type === "outcome") onSelectOutcome(item.link.id);
+    else if (item.link.type === "channel") onOpenChannel?.(item.link.id);
+  };
   const lane = (items: { rows: OutcomeSummary[]; total: number }) =>
     items.rows.length === 0 ? (
       <p className="outcome-dash-lane-empty">{t("Nothing here.")}</p>
@@ -376,6 +405,19 @@ export function OutcomeDashboard({
         )}
       </section>
 
+      {layout.activity && data?.activity != null && (
+        <ActivitySection
+          items={data.activity}
+          botName={(botId) => bots.find((bot) => bot.id === botId)?.name ?? t("Bot")}
+          cardMaxItems={cardMaxItems}
+          showAll={showAll}
+          onToggleAll={() => setShowAll((previous) => !previous)}
+          onOpen={openActivity}
+          canOpen={canOpenActivity}
+        />
+      )}
+
+      {layout.lanes && (
       <section aria-label={t("In progress")} className="outcome-dash-section">
         <SectionHeading
           title={t("In progress")}
@@ -402,6 +444,7 @@ export function OutcomeDashboard({
           </div>
         )}
       </section>
+      )}
     </section>
   );
 }

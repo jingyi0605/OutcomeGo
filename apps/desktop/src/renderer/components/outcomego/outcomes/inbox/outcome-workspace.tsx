@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Inbox, Lightbulb, LayoutDashboard, ListChecks, Plus, Target } from "lucide-react";
+import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import { api } from "../../../../client/outcomego-api";
+import { useFeatureSettings } from "../../../../hooks/use-feature-settings";
 import type { DesktopOutcomeTarget } from "../../../../lib/outcome-target";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeInbox } from "./outcome-inbox";
@@ -39,12 +41,17 @@ export default function OutcomeWorkspace({
   target,
   onClose,
   bots,
+  onOpenChannel,
 }: {
   target: DesktopOutcomeTarget;
   onClose: () => void;
   bots: OutcomeExecutionBot[];
+  /** Opens a channel's conversation, where a request or a channel routine in the activity area leads. */
+  onOpenChannel?: (channelId: string) => void;
 }) {
   const { t } = useI18n();
+  // The owner's choices for the activity area, each falling back to the policy's initial value.
+  const policy = resolveTaskPolicy(useFeatureSettings().taskPolicy);
   const [route, setRoute] = useState<Route>(() => routeFor(target));
   const workspace = useRef<HTMLElement>(null);
   const opener = useRef<HTMLElement | null>(null);
@@ -163,6 +170,11 @@ export default function OutcomeWorkspace({
               }}
               onCreateGoal={() => openRoute({ kind: "new" })}
               onCreateIdea={() => setIdeaOpen(true)}
+              onOpenChannel={onOpenChannel}
+              activityPolicy={{
+                cardMaxItems: policy["activity.cardMaxItems"] as number,
+                dashboardLayout: policy["activity.dashboardLayout"] as string,
+              }}
               refreshVersion={version}
             />
           )}

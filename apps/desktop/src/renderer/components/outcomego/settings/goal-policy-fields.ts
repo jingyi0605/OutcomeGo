@@ -80,7 +80,7 @@ export const GOAL_SETTINGS_GROUPS: readonly GoalSettingsGroup[] = [
   { id: "goal-management", title: "Goal management", available: true },
   { id: "goal-roles", title: "Planning and review", available: true },
   { id: "goal-schedule", title: "Scheduling and deferral", policyGroup: "schedule", available: true },
-  { id: "goal-activity", title: "Activity view", policyGroup: "activity", available: false },
+  { id: "goal-activity", title: "Activity view", policyGroup: "activity", available: true },
   { id: "goal-todo", title: "To-dos", policyGroup: "todo", available: false },
   { id: "goal-auto-accept", title: "Auto-accept rules", available: false },
   { id: "goal-calendar", title: "Calendar", available: false },

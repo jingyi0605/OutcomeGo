@@ -53,6 +53,7 @@ const requestRows = {
   id: true,
   botId: true,
   conversationId: true,
+  channelId: true,
   userMessageId: true,
   requestProgress: true,
   requestRevision: true,
@@ -174,7 +175,7 @@ export class ActivityService {
       orderBy: { updatedAt: "desc" },
       take: ROUTINE_SCAN_LIMIT,
       select: {
-        id: true, name: true, botId: true, executorBotId: true, nextRunAt: true, pausedAt: true, updatedAt: true,
+        id: true, name: true, botId: true, executorBotId: true, channelId: true, nextRunAt: true, pausedAt: true, updatedAt: true,
         executions: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, error: true, skipReason: true, updatedAt: true } },
       },
     });
@@ -200,7 +201,7 @@ export class ActivityService {
           lastActivityAt: (last?.updatedAt ?? routine.updatedAt).toISOString(),
           nextCheckAt: routine.nextRunAt?.toISOString() ?? null,
           needsOwner: false,
-          link: { type: "routine", id: routine.id },
+          link: routine.channelId ? { type: "channel", id: routine.channelId } : { type: "routine", id: routine.id },
         },
       ];
     });
@@ -297,7 +298,8 @@ export class ActivityService {
       lastActivityAt: row.updatedAt.toISOString(),
       nextCheckAt: row.requestNextCheckAt?.toISOString() ?? null,
       needsOwner: NEEDS_OWNER.includes(state),
-      link: { type: "conversation", id: row.conversationId },
+      // The channel is what the owner opens to read the conversation; without one, the conversation itself.
+      link: row.channelId ? { type: "channel", id: row.channelId } : { type: "conversation", id: row.conversationId },
     };
   }
 }
