@@ -685,8 +685,15 @@
 
 ## 阶段 4：活动视图与"需要我"
 
-- [ ] 4.1 请求进展的所有者视图与活动查询
-  - 状态：TODO
+- [x] 4.1 请求进展的所有者视图与活动查询
+  - 状态：DONE
+  - 完成记录（2026-11-25）：
+    - 契约：`RequestProgressView`、`RequestProgressDetailView`、`ActivityResponse`，以及两个格式与规模上限常量 `ACTIVITY_TITLE_LIMIT`（120）和 `ACTIVITY_LIST_LIMIT`（200）。
+    - 服务：`ActivityService.list` 返回所有 bot 的未结束请求，来源不在 `INDEPENDENT_RUN_ORIGINS`（从 `request-progress.ts` 导出，不再各处另写一份 `["routine","outcome"]`）、`requestStoppedAt` 为空、`requestProgress` 非空；标题取所有者原始消息的前 120 字符（沿用 `messagePreviewText`），标题一次查询批量取；展示状态直接用 1.2 的 `deriveRequestDisplayState`，`checkOverdueMinutes` 与 `recentCompletedHours` 都读策略设置，没有写死数值；已完成的请求只在"最近完成"窗口内显示，未完成的无论多久都显示，`includeAll` 取消窗口限制；最多 200 条，超出时 `truncated` 为真；按最近活动倒序。`requestDetail` 返回单个请求，才带 `evidence`、`toolError`。
+    - 接口：`GET /api/v0/activity`（`botId`、`includeAll`、`recentHours`，窗口范围取自策略元数据，不另写数值）、`GET /api/v0/activity/requests/:requestRunId`；都只读、仅已登录的所有者、`no-store`，不暴露给任何 bot 工具。
+    - 性能抽查：本机 Postgres（Docker，单连接）上，3 万行普通运行加 200 条未结束请求，查询中位数 11 毫秒（最差 16 毫秒）；15 万行时中位数 10.6 毫秒（最差 18.6 毫秒），指标是 p95 小于 500 毫秒。**没有加部分索引**：加了也只是 5 至 7 毫秒，却要给 `Run` 这张热表增加写入成本，而且迁移无法在 schema 里表达（仓库里也没有部分索引的先例）。
+  - 验证：server 新增 19 个测试（服务 14 个：标题截断、列表不含证据与工具错误、跨 bot、过滤已停止与独立来源、各展示状态、策略读取、最近完成窗口、排序、200 条上限；路由 5 个：鉴权、只认 GET、查询解析、详情 404 与 400）；**变异检查 4 个**（含已停止请求、含独立来源、列表泄露证据、最近完成窗口写死 24 小时），每个都有测试变红，已还原。
+  - 局限：去掉 `take` 上限的变异**没有**被测试发现（截断逻辑本身还会切片，行为一致，只是多读数据），所以 `take` 是性能边界而不是被测试固定的行为。性能数字来自本机一次测量，不是生产环境。
   - 这一步到底做什么：新增只读的所有者视图和全局活动查询，把所有 bot 的未结束请求按展示状态返回，列表不含证据。
   - 做完你能看到什么：一个接口返回所有 bot 当前在做的请求；详情接口才返回证据和工具错误。
   - 先依赖什么：0.4、1.2

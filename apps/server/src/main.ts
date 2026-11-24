@@ -21,6 +21,7 @@ import { conversationRoutes } from "./routes/conversation";
 import { eventRoutes } from "./routes/event";
 import { pluginMutationRoutes } from "./routes/plugin-mutation";
 import { pluginQueryRoutes } from "./routes/plugin-query";
+import { createActivityRoutes } from "./routes/activity";
 import { outcomeRoutes } from "./routes/outcome";
 import { exploreRoutes } from "./routes/explore";
 import { outcomeInboxRoutes } from "./routes/outcome-inbox";
@@ -365,6 +366,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         botRoutes,
         routineRoutes,
         outcomeRoutes,
+        createActivityRoutes(app.activity),
         (context: RouteContext) => exploreRoutes(context, app.explore),
         outcomeInboxRoutes,
         channelRoutes,

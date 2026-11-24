@@ -235,3 +235,45 @@ export interface ActivityItem {
   /** Executors summarised under a request. */
   workerCount?: number;
 }
+
+// ---------------------------------------------------------------------------
+// Owner views of request progress and the activity list (specs/004.10 design §3.2, §3.8)
+// ---------------------------------------------------------------------------
+
+/** Longest title of a request in the activity list: the start of the owner's own message. A format limit, not a policy value. */
+export const ACTIVITY_TITLE_LIMIT = 120;
+/** The most items one activity query returns. A scale limit: more than this comes back with `truncated`. */
+export const ACTIVITY_LIST_LIMIT = 200;
+
+/**
+ * What the owner sees of a request's progress. Everything in it was written by the bot, so clients show it as plain
+ * text and say so. It never carries `evidence` or `toolError`; those are only in the single-request detail.
+ */
+export interface RequestProgressView {
+  requestRunId: string;
+  botId: string;
+  state: RequestProgressState;
+  summary: string;
+  remaining: string[];
+  nextAction: string | null;
+  blockSource: RequestBlockSource | null;
+  checkAt: string | null;
+  deadline: string | null;
+  updatedAt: string;
+  revision: number;
+  reconciliations: number;
+}
+
+/** The detail of one request: the list view plus what the list leaves out. Owner only. */
+export interface RequestProgressDetailView extends RequestProgressView {
+  title: string;
+  displayState: DisplayState;
+  evidence: string[];
+  toolError: string | null;
+}
+
+export interface ActivityResponse {
+  items: ActivityItem[];
+  /** True when more than {@link ACTIVITY_LIST_LIMIT} items matched and the rest were left out. */
+  truncated: boolean;
+}
