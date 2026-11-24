@@ -180,3 +180,48 @@ test("owner_message turns in review_pending guide planner to accept, rework, rep
   expect(ctx).toContain("SaveOutcomeContract");
   expect(ctx).toContain("CancelOutcome");
 });
+
+// Specs/004.10 task 2.8: scheduling guidance for the planner. It lives in the planner thread's own prompt, not in the
+// shared base prompt every bot carries, so it costs the base prompt (and its cache) nothing.
+const SCHEDULING_MARKER = "Scheduling";
+const guidanceOf = (ctx: string) => ctx.split("\n").filter((line) => line.startsWith("- ") && line.includes(SCHEDULING_MARKER)).join("\n");
+
+test("planner turns are told when to give a start time, when to give an estimate, and to leave both out when unsure", async () => {
+  for (const purpose of ["plan", "replan", "owner_message"] as const) {
+    const ctx = await outcomeThreadContext(makeContextDb(purpose) as never, "bot-role", "thread-1");
+    const text = guidanceOf(ctx);
+    expect(text).not.toBe("");
+    expect(text).toContain("startAt");
+    expect(text).toContain("estimateMinutes");
+    expect(text).toMatch(/cannot or should not start earlier/i);
+    expect(text).toMatch(/only when you are (fairly )?sure/i);
+    expect(text).toMatch(/when unsure,? leave (it|them) out/i);
+  }
+});
+
+test("planner turns are told a deadline for the goal is only suggested in the plan notes, never set", async () => {
+  const text = guidanceOf(await outcomeThreadContext(makeContextDb("plan") as never, "bot-role", "thread-1"));
+  expect(text).toMatch(/goal.*deadline|deadline.*goal/i);
+  expect(text).toContain("notes");
+});
+
+test("the guidance is told that a start time in the past just means already due, so a replan can send tasks back unchanged", async () => {
+  const text = guidanceOf(await outcomeThreadContext(makeContextDb("replan") as never, "bot-role", "thread-1"));
+  expect(text).toMatch(/past/i);
+});
+
+test("the scheduling guidance is short and carries no business number or scenario word", async () => {
+  const text = guidanceOf(await outcomeThreadContext(makeContextDb("plan") as never, "bot-role", "thread-1"));
+  // A scale limit on the prompt, not a product value: the point is that it stays a few lines.
+  expect(text.length).toBeLessThan(1_200);
+  expect(text.replace(/ISO 8601|UTC/g, "")).not.toMatch(/\d/);
+  expect(text).not.toMatch(/mail|visit|inspect|customer|sender|invoice/i);
+});
+
+test("review turns and work-item runs carry no scheduling guidance", async () => {
+  for (const purpose of ["review", "review_task"] as const) {
+    const ctx = await outcomeThreadContext(makeContextDb(purpose, { withPlanNotes: true }) as never, "bot-role", "thread-1");
+    expect(guidanceOf(ctx)).toBe("");
+    expect(ctx).not.toContain("startAt");
+  }
+});

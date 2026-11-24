@@ -212,3 +212,18 @@ test("SavePlan accepts optional schedule fields per task and keeps plans without
   expect(() => decode({ estimateMinutes: 1.5 })).toThrow();
   expect(() => decode({ startAt: "x".repeat(200) })).toThrow();
 });
+
+test("the SavePlan tool the planner sees lists start, due and estimate as optional and says what they mean", () => {
+  const tool = OUTCOME_GOAL_THREAD_TOOLS.find((entry) => entry.name === "SavePlan")!;
+  const schema = JSON.stringify(tool.inputSchema);
+  for (const field of ["startAt", "dueAt", "estimateMinutes"]) expect(schema).toContain(field);
+  // Optional: not among a task's required fields.
+  const taskRequired = JSON.stringify(tool.inputSchema).match(/"required":\[([^\]]*)\]/g)?.join(" ") ?? "";
+  expect(taskRequired).not.toContain('"startAt"');
+  expect(taskRequired).not.toContain('"estimateMinutes"');
+  // The description carries the meaning, so the planner does not have to infer it from the field names.
+  expect(tool.description).toMatch(/startAt/);
+  expect(tool.description).toMatch(/not before|does not start earlier|earliest/i);
+  expect(tool.description).toMatch(/estimateMinutes/);
+  expect(tool.description.replace(/ISO 8601|UTC/g, "")).not.toMatch(/mail|visit|inspect|customer|sender/i);
+});
