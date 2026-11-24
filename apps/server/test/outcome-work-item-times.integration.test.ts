@@ -45,6 +45,37 @@ async function setup() {
   return { h, detail, addRun };
 }
 
+// Specs/004.10 task 2.1: the schedule columns and the goal deadline are readable from the detail.
+describe.skipIf(!url)("schedule columns in the Outcome detail (specs/004.10 task 2.1)", () => {
+  test("a task with no schedule reports empty schedule fields and a zero defer count", async () => {
+    const { h, detail } = await setup();
+    const item = await h.item(1);
+    const view = (await detail()).workItems.find((entry) => entry.id === item.id)!;
+    expect(view.scheduledAt).toBeNull();
+    expect(view.dueAt).toBeNull();
+    expect(view.estimateMinutes).toBeNull();
+    expect(view.deferCount).toBe(0);
+    expect((await detail()).dueAt).toBeNull();
+  });
+
+  test("stored schedule values are returned as ISO strings", async () => {
+    const { h, detail } = await setup();
+    const item = await h.item(1);
+    await h.db.outcomeWorkItem.update({
+      where: { id: item.id },
+      data: { scheduledAt: at(60), dueAt: at(120), estimateMinutes: 45, deferCount: 2 },
+    });
+    await h.db.outcome.update({ where: { id: h.outcome.id }, data: { dueAt: at(240) } });
+    const result = await detail();
+    const view = result.workItems.find((entry) => entry.id === item.id)!;
+    expect(view.scheduledAt).toBe(at(60).toISOString());
+    expect(view.dueAt).toBe(at(120).toISOString());
+    expect(view.estimateMinutes).toBe(45);
+    expect(view.deferCount).toBe(2);
+    expect(result.dueAt).toBe(at(240).toISOString());
+  });
+});
+
 describe.skipIf(!url)("work item times in the Outcome detail (specs/004.10 task 1.1)", () => {
   test("a task that never ran has no start, end or segments and does not borrow its creation time", async () => {
     const { h, detail } = await setup();

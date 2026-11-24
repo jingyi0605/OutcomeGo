@@ -21,6 +21,9 @@ import {
   type PlanningDimensionView,
   RUN_SEGMENT_LIMIT,
   buildRunSegments,
+  parseOutcomePlan,
+  validatePlanSchedule,
+  PLAN_ESTIMATE_MINUTES,
   requiredCriteriaSatisfied,
   resolvePlanningSelections,
   SubmitOutcomeReviewInput,
@@ -278,5 +281,67 @@ describe("run segments", () => {
     const snapshot = input.map((entry) => entry.id);
     expect(buildRunSegments(input).map((segment) => segment.id)).toEqual(["a", "b"]);
     expect(input.map((entry) => entry.id)).toEqual(snapshot);
+  });
+});
+
+describe("plan task schedule fields (specs/004.10 design §5.1)", () => {
+  const base = { key: "a", title: "T", instructions: "Do it", botId: BOT, covers: [], nature: "deliverable" };
+  const plan = (task: Record<string, unknown>) => parseOutcomePlan({ tasks: [{ ...base, ...task }] });
+
+  test("a plan saved before these fields existed still parses, with none of them", () => {
+    const parsed = plan({});
+    expect(parsed).not.toBeNull();
+    const task = parsed!.tasks[0]!;
+    expect(task.startAt).toBeUndefined();
+    expect(task.dueAt).toBeUndefined();
+    expect(task.estimateMinutes).toBeUndefined();
+  });
+
+  test("the three fields are kept when present", () => {
+    const task = plan({ startAt: "2026-12-01T09:00:00+08:00", dueAt: "2026-12-05T09:00:00+08:00", estimateMinutes: 90 })!.tasks[0]!;
+    expect(task).toMatchObject({ startAt: "2026-12-01T09:00:00+08:00", dueAt: "2026-12-05T09:00:00+08:00", estimateMinutes: 90 });
+  });
+
+  test("a malformed value in stored data is dropped rather than failing the whole plan", () => {
+    const task = plan({ startAt: "tomorrow", dueAt: 7, estimateMinutes: "long" })!.tasks[0]!;
+    expect(task.startAt).toBeUndefined();
+    expect(task.dueAt).toBeUndefined();
+    expect(task.estimateMinutes).toBeUndefined();
+  });
+
+  test("nothing to check is valid", () => {
+    expect(validatePlanSchedule({})).toEqual({ ok: true });
+  });
+
+  test("times must carry a UTC offset and be real dates", () => {
+    for (const bad of ["2026-12-01", "2026-12-01T09:00:00", "2026-13-01T09:00:00Z", "2026-02-30T09:00:00Z", "soon", ""])
+      expect(validatePlanSchedule({ startAt: bad }).ok).toBe(false);
+    for (const good of ["2026-12-01T09:00:00Z", "2026-12-01T09:00:00+08:00", "2026-12-01T09:00:00.500-05:00"])
+      expect(validatePlanSchedule({ startAt: good })).toEqual({ ok: true });
+  });
+
+  test("due may equal start but not precede it", () => {
+    expect(validatePlanSchedule({ startAt: "2026-12-01T09:00:00Z", dueAt: "2026-12-01T09:00:00Z" }).ok).toBe(true);
+    // The same instant written with different offsets is not earlier.
+    expect(validatePlanSchedule({ startAt: "2026-12-01T09:00:00+08:00", dueAt: "2026-12-01T01:00:00Z" }).ok).toBe(true);
+    const early = validatePlanSchedule({ startAt: "2026-12-01T09:00:00Z", dueAt: "2026-12-01T08:59:59Z" });
+    expect(early.ok).toBe(false);
+  });
+
+  test("a start in the past is accepted: it means already due, so a replan can send it back unchanged", () => {
+    expect(validatePlanSchedule({ startAt: "2001-01-01T00:00:00Z" })).toEqual({ ok: true });
+  });
+
+  test("the estimate is a whole number of minutes inside the allowed range", () => {
+    expect(validatePlanSchedule({ estimateMinutes: PLAN_ESTIMATE_MINUTES.min }).ok).toBe(true);
+    expect(validatePlanSchedule({ estimateMinutes: PLAN_ESTIMATE_MINUTES.max }).ok).toBe(true);
+    for (const bad of [PLAN_ESTIMATE_MINUTES.min - 1, PLAN_ESTIMATE_MINUTES.max + 1, 1.5, Number.NaN])
+      expect(validatePlanSchedule({ estimateMinutes: bad }).ok).toBe(false);
+  });
+
+  test("every problem is reported with a stable code, so the caller can answer invalid_schedule", () => {
+    const result = validatePlanSchedule({ startAt: "nope", estimateMinutes: 0 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.fields.sort()).toEqual(["estimateMinutes", "startAt"]);
   });
 });

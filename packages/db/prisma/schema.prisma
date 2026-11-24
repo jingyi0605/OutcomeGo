@@ -1848,6 +1848,8 @@ model FeatureSettings {
   plannerModel Json?
   reviewerModel Json?
   environmentNote String?
+  /// Owner-tunable business numbers (specs/004.10 design §2.6): only the keys the owner changed, stored flat.
+  taskPolicy Json?
   updatedAt DateTime @updatedAt
   @@map("outcomego_feature_settings")
 }
@@ -2030,6 +2032,8 @@ model Outcome {
   /// Set when a tracked Outcome was closed by its Bot without owner acceptance.
   autoClosedAt DateTime?
   closeSummary String?
+  /// Owner-set deadline (specs/004.10). Not part of the contract hash; it never triggers re-approval.
+  dueAt DateTime?
 
   @@index([status, updatedAt], map: "outcomego_outcome_status_updated_at_idx")
   @@index([updatedAt, id], map: "outcomego_outcome_updated_at_id_idx")
@@ -2250,10 +2254,19 @@ model OutcomeWorkItem {
   evidence           OutcomeEvidence[]
   startedAt DateTime?
   completedAt DateTime?
+  /// Specs/004.10: "not before" for a bot task (it does not start earlier); a booked time for a human task.
+  scheduledAt DateTime?
+  /// Desired finish time. Display and overdue marking only; it never stops execution.
+  dueAt DateTime?
+  /// Planner's duration estimate in minutes. Display only.
+  estimateMinutes Int?
+  /// How many times the agent deferred this task while it was running.
+  deferCount Int                         @default(0)
   createdAt DateTime                    @default(now())
   updatedAt DateTime                    @updatedAt
 
   @@unique([outcomeId, ordinal], map: "outcomego_outcome_work_item_outcome_id_ordinal_key")
+  @@index([status, scheduledAt], map: "outcomego_outcome_work_item_status_scheduled_at_idx")
   @@unique([contractRevisionId, planKey], map: "outcomego_outcome_work_item_revision_id_plan_key_key")
   @@index([outcomeId, status, createdAt], map: "outcomego_outcome_work_item_outcome_id_status_created_at_idx")
   @@index([botId, executorType, status], map: "outcomego_outcome_work_item_bot_id_executor_type_status_idx")

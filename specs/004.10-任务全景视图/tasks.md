@@ -272,8 +272,15 @@
 
 ## 阶段 2：排期数据与到点放行
 
-- [ ] 2.1 数据库列、策略设置通道与契约字段
-  - 状态：TODO
+- [x] 2.1 数据库列、策略设置通道与契约字段
+  - 状态：DONE
+  - 完成记录（2026-11-24）：
+    - 数据库：`Outcome.dueAt`；`OutcomeWorkItem.scheduledAt / dueAt / estimateMinutes / deferCount`；索引 `(status, scheduledAt)`；`FeatureSettings.taskPolicy`。迁移 `202611240002_add_outcome_schedule`，只加可空列、一个带默认值的列和一个索引。迁移测试 `packages/db/test/outcome-schedule-migration.integration.test.ts` 在本机一次性 Postgres 上执行通过：已有行不变、新列默认值与可空性正确、索引存在，另有静态断言迁移里没有 DROP/DELETE/UPDATE 等语句。
+    - 契约：新增 `task-policy.ts`（`TASK_POLICY_FIELDS` 元数据、`resolveTaskPolicy`、`validateTaskPolicyUpdate`、`mergeTaskPolicy`）；`PlanTask`/`PlanTaskInputSchema` 增加 `startAt / dueAt / estimateMinutes`；`validatePlanSchedule` 与 `parseOffsetTimestamp`；`WorkItemView`、`OutcomeDetail`、`FeatureSettingsView`、`UpdateFeatureSettingsInput` 增加对应可选字段。`parseOutcomePlan` 对旧数据照常解析。
+    - 设置通道：`updateFeatureSettings` 对 `taskPolicy` 在一条 SQL 里按键原子合并（`null` 删键即恢复初始值），校验失败整体拒绝并返回 `invalid_task_policy` 与每个出错键的允许范围；12 个并发更新两个键都保留。
+    - 验证：contracts 322、messaging 900、server 1686（19 跳过）、db 50，均 0 失败（有数据库）；根目录 `typecheck` 15/15、`check:architecture` 通过。
+  - 注意：①`validatePlanSchedule` 目前只被契约测试使用，`SavePlan` 的接线在任务 2.2，所以这个任务不改变任何运行行为。②测试库用 `db push` 建表，不走迁移文件；迁移文件本身由上面的迁移测试单独验证。③生产库升级前按全局约束先备份，这一步由部署方执行，我没有对任何真实库做迁移。
+  - 范围外的取舍：各字段的 `min`/`max` 规格没有给出，我取了宽松的格式上限（只挡明显错误输入），所有者可以调；`taskPolicy` 在存储中按点分键扁平保存。记入 `docs/20261124-实施偏差与待确认记录.md`。
   - 这一步到底做什么：新增任务和目标的日期列，给 `PlanTask` 加排期、截止、估时字段，并让旧数据照常解析；同时在现有设置表里加一个策略 JSON 列和读取函数，让业务数值由所有者配置。
   - 做完你能看到什么：数据结构和策略设置通道就绪，但行为还没变。
   - 先依赖什么：1.5

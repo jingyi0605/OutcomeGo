@@ -6,6 +6,7 @@ import {
   CreateContractRevisionInput,
   OUTCOME_LIMITS,
   OutcomeBudgetInput,
+  PLAN_ESTIMATE_MINUTES,
   PLAN_LIMITS,
   PLAN_TASK_NATURES,
   PREREVIEW_SUGGESTIONS,
@@ -80,6 +81,12 @@ export const PlanTaskInputSchema = Schema.Struct({
   ),
   covers: Schema.Array(Uuid).pipe(Schema.maxItems(20)),
   nature: Schema.Literal(...PLAN_TASK_NATURES),
+  // Shape only. Whether these are real offset timestamps, and due >= start, is validatePlanSchedule's job.
+  startAt: Schema.optional(Schema.String.pipe(Schema.maxLength(64))),
+  dueAt: Schema.optional(Schema.String.pipe(Schema.maxLength(64))),
+  estimateMinutes: Schema.optional(
+    Schema.Number.pipe(Schema.int(), Schema.between(PLAN_ESTIMATE_MINUTES.min, PLAN_ESTIMATE_MINUTES.max))
+  ),
 });
 
 export const TaskReviewFindingInputSchema = Schema.Struct({

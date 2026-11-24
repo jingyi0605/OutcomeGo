@@ -276,6 +276,9 @@ export const PLAN_LIMITS = {
 export const PLAN_TASK_NATURES = ["deliverable", "action"] as const;
 export type PlanTaskNature = (typeof PLAN_TASK_NATURES)[number];
 
+/** Scale limit for a planner's duration estimate, in minutes (one minute to one week). */
+export const PLAN_ESTIMATE_MINUTES = { min: 1, max: 10_080 } as const;
+
 export interface PlanTask {
   key: string;
   title: string;
@@ -284,6 +287,58 @@ export interface PlanTask {
   dependsOn?: string[];
   covers: string[];
   nature: PlanTaskNature;
+  /** ISO 8601 with a UTC offset: the task does not start earlier. May be in the past (already due). */
+  startAt?: string;
+  /** ISO 8601 with a UTC offset: desired finish. Display and overdue marking only. */
+  dueAt?: string;
+  /** Planner's estimate in minutes. Display only. */
+  estimateMinutes?: number;
+}
+
+const OFFSET_TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/;
+
+/** Parses an ISO 8601 timestamp that carries a UTC offset. Returns null for anything else, including impossible dates. */
+export function parseOffsetTimestamp(value: unknown): Date | null {
+  if (typeof value !== "string") return null;
+  const match = OFFSET_TIMESTAMP.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second] = match.map(Number) as number[];
+  if (month! < 1 || month! > 12 || day! < 1 || hour! > 23 || minute! > 59 || second! > 59) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  // Date accepts "02-30" and rolls it forward; reject it by checking the calendar day survived.
+  const daysInMonth = new Date(Date.UTC(year!, month!, 0)).getUTCDate();
+  return day! > daysInMonth ? null : parsed;
+}
+
+export type PlanScheduleValidation = { ok: true } | { ok: false; fields: Array<"startAt" | "dueAt" | "estimateMinutes"> };
+
+/**
+ * Format and range checks for a task's schedule fields. A start in the past is allowed (it means "already due")
+ * so a replan can send a task back unchanged. Due may equal start but not precede it.
+ */
+export function validatePlanSchedule(input: {
+  startAt?: unknown;
+  dueAt?: unknown;
+  estimateMinutes?: unknown;
+}): PlanScheduleValidation {
+  const fields: Array<"startAt" | "dueAt" | "estimateMinutes"> = [];
+  const start = input.startAt === undefined ? undefined : parseOffsetTimestamp(input.startAt);
+  const due = input.dueAt === undefined ? undefined : parseOffsetTimestamp(input.dueAt);
+  if (start === null) fields.push("startAt");
+  if (due === null) fields.push("dueAt");
+  if (start && due && due.getTime() < start.getTime()) fields.push("dueAt");
+  if (input.estimateMinutes !== undefined) {
+    const value = input.estimateMinutes;
+    if (
+      typeof value !== "number" ||
+      !Number.isInteger(value) ||
+      value < PLAN_ESTIMATE_MINUTES.min ||
+      value > PLAN_ESTIMATE_MINUTES.max
+    )
+      fields.push("estimateMinutes");
+  }
+  return fields.length ? { ok: false, fields: [...new Set(fields)] } : { ok: true };
 }
 
 export interface OutcomePlanView {
@@ -322,6 +377,12 @@ export function parseOutcomePlan(raw: unknown): OutcomePlanView | null {
       ...(dependsOn.length ? { dependsOn } : {}),
       covers,
       nature: task.nature as PlanTaskNature,
+      // Stored plans from before scheduling have none of these; a malformed one is dropped, not fatal.
+      ...(typeof task.startAt === "string" && parseOffsetTimestamp(task.startAt) ? { startAt: task.startAt } : {}),
+      ...(typeof task.dueAt === "string" && parseOffsetTimestamp(task.dueAt) ? { dueAt: task.dueAt } : {}),
+      ...(validatePlanSchedule({ estimateMinutes: task.estimateMinutes }).ok && task.estimateMinutes !== undefined
+        ? { estimateMinutes: task.estimateMinutes as number }
+        : {}),
     });
   }
   const notes = typeof obj.notes === "string" && obj.notes.trim() ? obj.notes.trim() : null;
@@ -800,6 +861,14 @@ export interface WorkItemView {
   completedAt?: string | null;
   /** Most recent runs, oldest first. Absent on payloads from older servers. */
   runSegments?: RunSegmentView[];
+  /** Bot task: not before this time. Human task: the booked time. Null when none; absent on older servers. */
+  scheduledAt?: string | null;
+  /** Desired finish. Display and overdue marking only. Null when none; absent on older servers. */
+  dueAt?: string | null;
+  /** Planner's estimate in minutes. Display only. Null when none; absent on older servers. */
+  estimateMinutes?: number | null;
+  /** How many times the agent deferred this task. Absent on older servers. */
+  deferCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -861,6 +930,8 @@ export interface OutcomeDetail extends OutcomeSummary {
   acceptedAt: string | null;
   /** Task-board items registered by a Bot; absent on payloads from older servers. */
   trackingMode?: OutcomeTrackingMode;
+  /** Owner-set deadline. Null when none; absent on payloads from older servers. */
+  dueAt?: string | null;
   /** Set when the Bot closed a tracked item without owner acceptance. */
   autoClosedAt?: string | null;
   closeSummary?: string | null;

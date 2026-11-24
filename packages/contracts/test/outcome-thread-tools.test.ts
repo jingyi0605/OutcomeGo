@@ -183,3 +183,32 @@ test("new outcome event topics are registered in OUTCOME_EVENT_TOPICS", () => {
     expect(isOutcomeEventTopic(topic)).toBe(true);
   }
 });
+
+test("SavePlan accepts optional schedule fields per task and keeps plans without them valid", () => {
+  const botId = crypto.randomUUID();
+  const task = { key: "t1", title: "Write doc", instructions: "Write it", botId, covers: [], nature: "deliverable" };
+  const decode = (extra: Record<string, unknown>) =>
+    decodeOutcomeThreadInput("SavePlan", {
+      expectedRevision: 1,
+      tasks: [{ ...task, ...extra }],
+      clientRequestId: "plan:schedule-1",
+    });
+
+  // Plans written before scheduling still decode, and carry none of the new fields.
+  expect(decode({}).tasks[0]).not.toHaveProperty("startAt");
+
+  const scheduled = decode({ startAt: "2026-12-01T09:00:00+08:00", dueAt: "2026-12-05T09:00:00+08:00", estimateMinutes: 90 });
+  expect(scheduled.tasks[0]).toMatchObject({
+    startAt: "2026-12-01T09:00:00+08:00",
+    dueAt: "2026-12-05T09:00:00+08:00",
+    estimateMinutes: 90,
+  });
+
+  // The schema only checks shape. Whether a string is a real offset timestamp, and whether due precedes start,
+  // is decided by validatePlanSchedule so the rule lives in one place (the server answers invalid_schedule).
+  expect(() => decode({ startAt: 5 })).toThrow();
+  expect(() => decode({ dueAt: ["x"] })).toThrow();
+  expect(() => decode({ estimateMinutes: "90" })).toThrow();
+  expect(() => decode({ estimateMinutes: 1.5 })).toThrow();
+  expect(() => decode({ startAt: "x".repeat(200) })).toThrow();
+});

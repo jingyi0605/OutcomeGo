@@ -2182,6 +2182,8 @@ export interface FeatureSettingsView {
   plannerModel?: InferenceModelSelection | null;
   reviewerModel?: InferenceModelSelection | null;
   environmentNote?: string | null;
+  /** Owner-tuned business numbers (specs/004.10): only the keys that were changed. A missing key uses its initial value. */
+  taskPolicy?: Record<string, number | boolean | string>;
   updatedAt?: string | null;
 }
 const OptionalFeatureUuid = Schema.optional(
@@ -2199,6 +2201,13 @@ export const UpdateFeatureSettingsInput = Schema.Struct({
   plannerModel: Schema.optional(Schema.NullOr(InferenceModelSelectionSchema)),
   reviewerModel: Schema.optional(Schema.NullOr(InferenceModelSelectionSchema)),
   environmentNote: Schema.optional(Schema.NullOr(Schema.String.pipe(Schema.maxLength(8_000)))),
+  // Keys and ranges are checked against TASK_POLICY_FIELDS (task-policy.ts); null restores the initial value.
+  taskPolicy: Schema.optional(
+    Schema.Record({
+      key: Schema.String.pipe(Schema.maxLength(80)),
+      value: Schema.NullOr(Schema.Union(Schema.Number, Schema.Boolean, Schema.String.pipe(Schema.maxLength(40)))),
+    })
+  ),
 });
 export type UpdateFeatureSettingsInput = typeof UpdateFeatureSettingsInput.Type;
 export * from "./reply-preview";
