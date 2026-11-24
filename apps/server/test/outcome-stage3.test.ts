@@ -282,3 +282,116 @@ test("post-approval SavePlan locks started/finished tasks and cleanly edits/remo
   expect(f.wakes[1]!.content).toBe("Run step 2 solo");
   expect(f.wakes[2]!.content).toBe("Substitute for step 1");
 });
+
+// Specs/004.10 task 2.2: schedule fields reach the work item rows and obey the post-approval rules.
+const approveHarness = async (plan: Row, id: string) => {
+  const f = makeStage3Harness(plan, "pending_approval");
+  await Effect.runPromise(
+    f.outcomes.approve(OUTCOME_ID, 1, { expectedRevision: 1, confirmationText: "Approve", clientRequestId: id }, "owner:local")
+  );
+  return f;
+};
+const step = (key: string, extra: Row = {}) => ({
+  key, title: `Step ${key}`, instructions: `Run ${key}`, botId: BOT_A, covers: [CRIT_1], nature: "deliverable", ...extra,
+});
+
+test("approval copies start, due and estimate from the plan task onto the work item", async () => {
+  const f = await approveHarness(
+    { tasks: [step("t1", { startAt: "2026-12-01T09:00:00+08:00", dueAt: "2026-12-05T09:00:00Z", estimateMinutes: 90 })] },
+    "approve-sched-1"
+  );
+  const row = f.workItems[0]!;
+  expect(row.scheduledAt).toEqual(new Date("2026-12-01T01:00:00.000Z"));
+  expect(row.dueAt).toEqual(new Date("2026-12-05T09:00:00.000Z"));
+  expect(row.estimateMinutes).toBe(90);
+});
+
+test("approval of a plan without schedule fields leaves the schedule columns empty", async () => {
+  const f = await approveHarness({ tasks: [step("t1")] }, "approve-sched-none");
+  const row = f.workItems[0]!;
+  expect(row.scheduledAt ?? null).toBeNull();
+  expect(row.dueAt ?? null).toBeNull();
+  expect(row.estimateMinutes ?? null).toBeNull();
+});
+
+test("a task added after approval also gets its schedule", async () => {
+  const f = await approveHarness({ tasks: [step("t1")] }, "approve-sched-2");
+  await f.plans.savePlan(OUTCOME_ID, {
+    expectedRevision: 1,
+    tasks: [step("t1"), step("t2", { dependsOn: ["t1"], startAt: "2026-12-10T00:00:00Z", estimateMinutes: 30 })] as never,
+    clientRequestId: "add-sched",
+  }, `bot:${BOT_A}`);
+  const added = f.workItems.find((item) => item.planKey === "t2")!;
+  expect(added.scheduledAt).toEqual(new Date("2026-12-10T00:00:00.000Z"));
+  expect(added.estimateMinutes).toBe(30);
+});
+
+test("changing the schedule of an unstarted task updates its row and re-queues it with a fresh record", async () => {
+  const f = await approveHarness(
+    { tasks: [step("t1"), step("t2", { dependsOn: ["t1"], startAt: "2026-12-10T00:00:00Z" })] },
+    "approve-sched-3"
+  );
+  const second = f.workItems.find((item) => item.planKey === "t2")!;
+  const oldKeys = [...f.idempotency.keys()].filter((key) => key.startsWith(`outcome-turn:${second.id}:`));
+  expect(oldKeys.length).toBe(1);
+
+  await f.plans.savePlan(OUTCOME_ID, {
+    expectedRevision: 1,
+    tasks: [step("t1"), step("t2", { dependsOn: ["t1"], startAt: "2026-12-20T00:00:00Z", dueAt: "2026-12-25T00:00:00Z", estimateMinutes: 45 })] as never,
+    clientRequestId: "reschedule",
+  }, `bot:${BOT_A}`);
+
+  expect(second.scheduledAt).toEqual(new Date("2026-12-20T00:00:00.000Z"));
+  expect(second.dueAt).toEqual(new Date("2026-12-25T00:00:00.000Z"));
+  expect(second.estimateMinutes).toBe(45);
+  const keys = [...f.idempotency.keys()].filter((key) => key.startsWith(`outcome-turn:${second.id}:`));
+  expect(keys.length).toBe(1);
+  expect(keys[0]).not.toBe(oldKeys[0]);
+  expect(keys[0]).toContain("reschedule");
+});
+
+test("clearing a schedule field on an unstarted task empties the column", async () => {
+  const f = await approveHarness(
+    { tasks: [step("t1"), step("t2", { dependsOn: ["t1"], startAt: "2026-12-10T00:00:00Z", dueAt: "2026-12-12T00:00:00Z", estimateMinutes: 20 })] },
+    "approve-sched-4"
+  );
+  const second = f.workItems.find((item) => item.planKey === "t2")!;
+  await f.plans.savePlan(OUTCOME_ID, { expectedRevision: 1, tasks: [step("t1"), step("t2", { dependsOn: ["t1"] })] as never, clientRequestId: "clear" }, `bot:${BOT_A}`);
+  expect(second.scheduledAt).toBeNull();
+  expect(second.dueAt).toBeNull();
+  expect(second.estimateMinutes).toBeNull();
+});
+
+test("a started task refuses a schedule change as a whole, and nothing is modified", async () => {
+  const f = await approveHarness(
+    { tasks: [step("t1", { startAt: "2026-12-01T00:00:00Z" }), step("t2", { dependsOn: ["t1"] })] },
+    "approve-sched-5"
+  );
+  const first = f.workItems.find((item) => item.planKey === "t1")!;
+  first.status = "running";
+  first.rootRunId = "run-started";
+  const before = JSON.stringify(f.workItems);
+  await expect(
+    f.plans.savePlan(OUTCOME_ID, {
+      expectedRevision: 1,
+      // t2 is unstarted and also changes; the locked task's change must still reject the whole request.
+      tasks: [step("t1", { startAt: "2026-12-09T00:00:00Z" }), step("t2", { dependsOn: ["t1"], startAt: "2026-12-30T00:00:00Z" })] as never,
+      clientRequestId: "locked-sched",
+    }, `bot:${BOT_A}`)
+  ).rejects.toMatchObject({ code: "plan_task_locked", details: { key: "t1" } });
+  expect(JSON.stringify(f.workItems)).toBe(before);
+});
+
+test("a started task may be sent back with its original schedule unchanged", async () => {
+  const f = await approveHarness({ tasks: [step("t1", { startAt: "2026-12-01T00:00:00+08:00" }), step("t2", { dependsOn: ["t1"] })] }, "approve-sched-6");
+  const first = f.workItems.find((item) => item.planKey === "t1")!;
+  first.status = "running";
+  first.rootRunId = "run-started";
+  // The same instant written in UTC, plus a real change to the unstarted task.
+  await f.plans.savePlan(OUTCOME_ID, {
+    expectedRevision: 1,
+    tasks: [step("t1", { startAt: "2026-11-30T16:00:00Z" }), step("t2", { dependsOn: ["t1"], estimateMinutes: 15 })] as never,
+    clientRequestId: "echo-sched",
+  }, `bot:${BOT_A}`);
+  expect(f.workItems.find((item) => item.planKey === "t2")!.estimateMinutes).toBe(15);
+});

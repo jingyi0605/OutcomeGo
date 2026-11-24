@@ -305,7 +305,17 @@
   - 对应设计：`design.md` §5.10、§2.6
 
 - [ ] 2.2 `SavePlan` 排期校验、物化与差异比对
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - **为什么不是 DONE：** 锁定任务的排期比较以任务行为准（见 `docs/20261124-实施偏差与待确认记录.md` D2-7）。在所有者还不能改期的现在，行和计划值总是一致，代码行为正确；但任务 2.6 让所有者可以改期之后，规划角色重规划时原样回传它读到的旧排期，会被 `plan_task_locked` 拒绝，而且它并没有改那个字段。这与需求 C3.4（过去的 `startAt` 可原样回传）的意图冲突，取决于设计 §10.2 第 14 项（改期是否回写计划）的结论，**需要所有者表态**。在 2.6 开工前必须解决，否则重规划会在所有者改期后卡住。
+  - 完成记录（2026-11-25）：
+    - 校验：`SavePlan` 对每个任务调用 `validatePlanSchedule`，失败整体拒绝并返回 400 `invalid_schedule`，`details` 含任务 key 和出错字段，计划和事件都不变；过去的 `startAt` 被接受；`dueAt` 可等于但不可早于 `startAt`。错误码已登记到 `OUTCOME_ERROR_CODES`。
+    - 保存：`normalizePlanTask` 保留三个字段；`plansEqual` 把它们纳入比较，且按时间点而不是按字符串比较（同一时刻不同偏移写法不算修改，只改排期也不再被判为 `plan_unchanged`）。
+    - 物化：批准时（`startApprovedRevision`）和批准后追加任务（`applyApprovedPlanChanges`）两处都通过共用函数 `workItemScheduleFromPlanTask` 写入 `scheduledAt / dueAt / estimateMinutes`。
+    - 批准后差异：未开始任务的排期改动更新任务行，并沿用「先删待处理排队记录再以新 clientId 重新入队」；已开始或已结束任务的排期被改则整体拒绝（`plan_task_locked`，任务行不变）；可原样回传。锁定任务的比较对象是任务行而不是计划 JSON，因为所有者之后可以改排期（任务 2.6）。
+    - 验证：`outcome-plan-service.test.ts` +8、`outcome-stage3.test.ts` +7，共 15 个；做过变异检查（关掉锁定任务的排期比较，对应测试立刻变红，已还原）。有数据库时 contracts 322、messaging 900、server 1701（19 跳过）均 0 失败；根目录 `typecheck` 15/15、`check:architecture` 通过。
+  - **风险（必须看）：2.2 不能单独发布，必须与 2.3 一起。** 消息层目前没有任何地方读取任务的 `scheduledAt`，所以在 2.3 的到点闸口实现之前，带未来 `startAt` 的计划被批准后任务仍会立刻执行，排期只是被保存下来。
+  - 未做（按任务边界）：规划角色并不知道要使用这三个字段。`SavePlan` 的工具描述和规划角色提示词的排期指导在任务 2.8；现在只是 schema 接受它们。
+  - 测试环境：server 整包运行时 `runtime-health.test.ts` 的 `attributes queue-timeout failures and bounds the response` 出现过 1 次失败（computer 状态 `unavailable`），单独重跑 5/5 通过、整包重跑 0 失败。它与本任务无交集，判断为并行负载下的偶发失败，**未在未改动的提交上验证**。
   - 这一步到底做什么：让规划角色能保存带排期的计划；批准后把日期复制到任务；批准后修改未开始任务的排期按既有规则处理。
   - 做完你能看到什么：带排期的计划能保存、批准，任务上有正确的日期；非法排期被整体拒绝。
   - 先依赖什么：2.1

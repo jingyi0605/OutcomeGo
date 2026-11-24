@@ -28,6 +28,7 @@ import {
   parseOutcomePlan,
   buildRunSegments,
   parseOutcomeWorkItemProgress,
+  workItemScheduleFromPlanTask,
   type PlanningConflict,
   type PlanningDraftView,
   type StartOutcomeRunInput,
@@ -343,6 +344,7 @@ export class OutcomeService {
             dependsOn: depIds,
             status: "queued",
             ordinal: nextOrdinal,
+            ...workItemScheduleFromPlanTask(task),
           },
         });
         itemIdByKey.set(task.key, created.id);

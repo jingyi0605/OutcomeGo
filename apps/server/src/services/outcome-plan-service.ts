@@ -7,6 +7,9 @@ import {
   type OutcomeDetail,
   type OutcomePlanView,
   type PlanTask,
+  parseOffsetTimestamp,
+  validatePlanSchedule,
+  workItemScheduleFromPlanTask,
 } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
@@ -64,6 +67,10 @@ const normalizePlanTask = (task: SavePlanInput["tasks"][number]): PlanTask => {
     ...(deps.length ? { dependsOn: deps } : {}),
     covers,
     nature: task.nature,
+    // Validated before this point (validatePlanSchedule); kept exactly as the planner wrote them.
+    ...(task.startAt !== undefined ? { startAt: task.startAt } : {}),
+    ...(task.dueAt !== undefined ? { dueAt: task.dueAt } : {}),
+    ...(task.estimateMinutes !== undefined ? { estimateMinutes: task.estimateMinutes } : {}),
   };
 };
 
@@ -101,6 +108,24 @@ const asStringList = (value: unknown): string[] =>
 const sameStringArray = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((val, index) => val === b[index]);
 
+/** The schedule a plan task asks for, as comparable instants. Absent fields are null. */
+const scheduleOfTask = (task: PlanTask) => ({
+  scheduledAt: instantOf(task.startAt),
+  dueAt: instantOf(task.dueAt),
+  estimateMinutes: task.estimateMinutes ?? null,
+});
+/** The schedule a stored work item carries, in the same comparable form. */
+const scheduleOfRow = (item: { scheduledAt: Date | null; dueAt: Date | null; estimateMinutes: number | null }) => ({
+  scheduledAt: item.scheduledAt?.getTime() ?? null,
+  dueAt: item.dueAt?.getTime() ?? null,
+  estimateMinutes: item.estimateMinutes ?? null,
+});
+const sameSchedule = (a: ReturnType<typeof scheduleOfTask>, b: ReturnType<typeof scheduleOfTask>) =>
+  a.scheduledAt === b.scheduledAt && a.dueAt === b.dueAt && a.estimateMinutes === b.estimateMinutes;
+
+const instantOf = (value: string | undefined): number | null =>
+  value === undefined ? null : (parseOffsetTimestamp(value)?.getTime() ?? null);
+
 const plansEqual = (a: OutcomePlanView | null, b: OutcomePlanView): boolean => {
   if (!a) return false;
   const norm = (p: OutcomePlanView) => ({
@@ -113,6 +138,10 @@ const plansEqual = (a: OutcomePlanView | null, b: OutcomePlanView): boolean => {
       dependsOn: task.dependsOn ?? [],
       covers: task.covers,
       nature: task.nature,
+      // Compared as instants, so the same moment written with another offset is not a change.
+      startAt: instantOf(task.startAt),
+      dueAt: instantOf(task.dueAt),
+      estimateMinutes: task.estimateMinutes ?? null,
     })),
   });
   return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
@@ -192,6 +221,10 @@ export class OutcomePlanService {
             field: "instructions",
             key,
           });
+        }
+        const schedule = validatePlanSchedule(rawTask);
+        if (!schedule.ok) {
+          throw outcomeApiError("invalid_schedule", `Task "${key}" has an invalid schedule`, { key, fields: schedule.fields });
         }
         const botId = rawTask.botId.trim();
         let runnable = checkedBots.get(botId);
@@ -351,7 +384,9 @@ export class OutcomePlanService {
         item.botId !== candidate.botId ||
         !sameStringArray(currentDepKeys, nextDepKeys) ||
         natureDiffers ||
-        coversDiffers
+        coversDiffers ||
+        // Compared with the stored row, which is the authority once the owner can reschedule it.
+        !sameSchedule(scheduleOfRow(item), scheduleOfTask(candidate))
       ) {
         throw outcomeApiError(
           "plan_task_locked",
@@ -411,6 +446,7 @@ export class OutcomePlanService {
             dependsOn: depIds,
             status: "queued",
             ordinal: nextOrdinal,
+            ...workItemScheduleFromPlanTask(task),
           },
         });
         itemIdByKey.set(task.key, created.id);
@@ -439,7 +475,8 @@ export class OutcomePlanService {
         existing.title !== task.title ||
         existing.instructions !== task.instructions ||
         existing.botId !== task.botId ||
-        !sameStringArray(currentDeps, depIds);
+        !sameStringArray(currentDeps, depIds) ||
+        !sameSchedule(scheduleOfRow(existing), scheduleOfTask(task));
       if (changed) {
         await tx.outcomeWorkItem.update({
           where: { id: existing.id },
@@ -448,6 +485,7 @@ export class OutcomePlanService {
             instructions: task.instructions,
             botId: task.botId,
             dependsOn: depIds,
+            ...workItemScheduleFromPlanTask(task),
           },
         });
         if (this.messaging) {

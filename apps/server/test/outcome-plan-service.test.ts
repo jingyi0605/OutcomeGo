@@ -295,3 +295,88 @@ test("OutcomeThreadTools rejects SavePlan missing nature with offending task key
     )
   ).rejects.toMatchObject({ code: "invalid_request", details: { field: "nature", key: "task-without-nature" } });
 });
+
+// Specs/004.10 task 2.2: schedule fields on plan tasks. Placeholders only.
+const planTask = (extra: Row = {}) => ({
+  key: "step-one",
+  title: "First step",
+  instructions: "Do the first step.",
+  botId: BOT_A,
+  covers: [CRIT_REQ],
+  nature: "deliverable" as const,
+  ...extra,
+});
+const save = (f: ReturnType<typeof makeFixture>, tasks: Row[], id: string) =>
+  f.service.savePlan(OUTCOME_ID, { expectedRevision: 1, tasks: tasks as never, clientRequestId: id }, `bot:${BOT_A}`);
+
+test("SavePlan keeps start, due and estimate on the saved plan task", async () => {
+  const f = makeFixture();
+  await save(f, [planTask({ startAt: "2026-12-01T09:00:00+08:00", dueAt: "2026-12-05T09:00:00+08:00", estimateMinutes: 90 })], "sched-1");
+  expect((f.revision.plan as Row).tasks[0]).toMatchObject({
+    startAt: "2026-12-01T09:00:00+08:00",
+    dueAt: "2026-12-05T09:00:00+08:00",
+    estimateMinutes: 90,
+  });
+});
+
+test("a plan without schedule fields saves exactly as before, with no schedule keys", async () => {
+  const f = makeFixture();
+  await save(f, [planTask()], "sched-none");
+  const saved = (f.revision.plan as Row).tasks[0];
+  for (const key of ["startAt", "dueAt", "estimateMinutes"]) expect(saved).not.toHaveProperty(key);
+});
+
+test("an invalid schedule is refused as invalid_schedule and nothing is saved", async () => {
+  const f = makeFixture();
+  await save(f, [planTask()], "sched-base");
+  const before = JSON.stringify(f.revision.plan);
+  const eventsBefore = f.events.length;
+  const bad: Row[] = [
+    { startAt: "not a time" },
+    { startAt: "2026-12-01T09:00:00" },
+    { startAt: "2026-12-05T09:00:00Z", dueAt: "2026-12-01T09:00:00Z" },
+    { estimateMinutes: 0 },
+    { estimateMinutes: 10_081 },
+  ];
+  for (const [index, extra] of bad.entries()) {
+    await expect(save(f, [planTask(extra)], `sched-bad-${index}`)).rejects.toMatchObject({ status: 400, code: "invalid_schedule" });
+  }
+  expect(JSON.stringify(f.revision.plan)).toBe(before);
+  expect(f.events.length).toBe(eventsBefore);
+});
+
+test("invalid_schedule names the task and the offending fields", async () => {
+  const f = makeFixture();
+  const error = await save(f, [planTask({ startAt: "nope", estimateMinutes: 0 })], "sched-detail").catch((e) => e);
+  expect(error.code).toBe("invalid_schedule");
+  expect(error.details).toMatchObject({ key: "step-one" });
+  expect([...error.details.fields].sort()).toEqual(["estimateMinutes", "startAt"]);
+});
+
+test("a start time in the past is accepted: it means already due, so a replan can send it back unchanged", async () => {
+  const f = makeFixture();
+  await save(f, [planTask({ startAt: "2001-01-01T00:00:00Z" })], "sched-past");
+  expect((f.revision.plan as Row).tasks[0].startAt).toBe("2001-01-01T00:00:00Z");
+});
+
+test("changing only a schedule field is a real change, not plan_unchanged", async () => {
+  const f = makeFixture();
+  await save(f, [planTask({ startAt: "2026-12-01T09:00:00Z" })], "sched-a");
+  await save(f, [planTask({ startAt: "2026-12-02T09:00:00Z" })], "sched-b");
+  expect((f.revision.plan as Row).tasks[0].startAt).toBe("2026-12-02T09:00:00Z");
+  await expect(save(f, [planTask({ startAt: "2026-12-02T09:00:00Z" })], "sched-c")).rejects.toMatchObject({ code: "plan_unchanged" });
+});
+
+test("removing a schedule field is also a change", async () => {
+  const f = makeFixture();
+  await save(f, [planTask({ estimateMinutes: 30 })], "sched-d");
+  await save(f, [planTask()], "sched-e");
+  expect((f.revision.plan as Row).tasks[0]).not.toHaveProperty("estimateMinutes");
+});
+
+test("two differently-worded but equivalent instants count as the same schedule", async () => {
+  const f = makeFixture();
+  await save(f, [planTask({ startAt: "2026-12-01T09:00:00+08:00" })], "sched-f");
+  // Same instant written in UTC: not a change, so the plan is reported unchanged rather than churning the task.
+  await expect(save(f, [planTask({ startAt: "2026-12-01T01:00:00Z" })], "sched-g")).rejects.toMatchObject({ code: "plan_unchanged" });
+});

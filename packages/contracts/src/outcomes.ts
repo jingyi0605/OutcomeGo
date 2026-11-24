@@ -311,6 +311,22 @@ export function parseOffsetTimestamp(value: unknown): Date | null {
   return day! > daysInMonth ? null : parsed;
 }
 
+/**
+ * The schedule columns a work item gets from its plan task. Both places that create tasks from a plan use this,
+ * so the three fields are always copied the same way. Absent fields become null.
+ */
+export function workItemScheduleFromPlanTask(task: Pick<PlanTask, "startAt" | "dueAt" | "estimateMinutes">): {
+  scheduledAt: Date | null;
+  dueAt: Date | null;
+  estimateMinutes: number | null;
+} {
+  return {
+    scheduledAt: task.startAt ? parseOffsetTimestamp(task.startAt) : null,
+    dueAt: task.dueAt ? parseOffsetTimestamp(task.dueAt) : null,
+    estimateMinutes: task.estimateMinutes ?? null,
+  };
+}
+
 export type PlanScheduleValidation = { ok: true } | { ok: false; fields: Array<"startAt" | "dueAt" | "estimateMinutes"> };
 
 /**
@@ -519,6 +535,7 @@ export const OUTCOME_ERROR_CODES = {
   review_task_stale: 409,
   outcome_thread_tool_forbidden: 403,
   model_unavailable: 400,
+  invalid_schedule: 400,
 } as const;
 export type OutcomeErrorCode = keyof typeof OUTCOME_ERROR_CODES;
 
