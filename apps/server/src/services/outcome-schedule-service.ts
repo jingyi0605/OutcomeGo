@@ -10,6 +10,7 @@ import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
   DEFERRED_BY_AGENT_REASON,
   appendOutcomeEvent,
+  publishGoalScheduleChanged,
   closeOutcomeDecision,
   enqueueOutcomeTurn,
   type ActorRef,
@@ -79,6 +80,7 @@ export class OutcomeScheduleService {
           ...(statusReason !== undefined ? { statusReason } : {}),
         },
       });
+      await publishGoalScheduleChanged(tx, outcomeId);
       await appendOutcomeEvent(tx, "outcome.schedule.changed", outcomeId, {
         actor,
         contractRevision: item.contractRevision.revision,
@@ -113,6 +115,7 @@ export class OutcomeScheduleService {
       const revision = outcome.currentRevisionId
         ? await tx.outcomeContractRevision.findUnique({ where: { id: outcome.currentRevisionId }, select: { revision: true } })
         : null;
+      await publishGoalScheduleChanged(tx, outcomeId);
       await appendOutcomeEvent(tx, "outcome.schedule.changed", outcomeId, {
         actor,
         ...(revision ? { contractRevision: revision.revision } : {}),

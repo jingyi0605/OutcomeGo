@@ -1,6 +1,10 @@
 import type { WorkItemView } from "@outcomego/contracts/outcomes";
+import { isWorkItemScheduleEditable } from "@outcomego/contracts/task-overview";
+import { Fragment, useState } from "react";
 import { useI18n } from "../../../../lib/i18n";
 import "../outcome-ui.css";
+import type { ScheduleChange } from "./schedule-edit";
+import { ScheduleEditor } from "./schedule-editor";
 import {
   buildTimelineLayout,
   formatEstimate,
@@ -23,6 +27,11 @@ export interface OutcomeTimelineProps {
   botName?: (botId: string | undefined) => string | undefined;
   /** The goal's own due time and whether it is finished, for the flag at the end of the timeline. */
   goal?: TimelineGoal;
+  /**
+   * When given, a task that has not started offers "Change schedule" in the list view, and this saves the change.
+   * It rejects with the server's error when the change is refused. Without it the timeline is read-only.
+   */
+  onChangeSchedule?: (workItemId: string, change: ScheduleChange) => Promise<void>;
   now?: Date;
 }
 
@@ -53,8 +62,9 @@ function StatusBadge({ row }: { row: TimelineRow }) {
   );
 }
 
-export function OutcomeTimeline({ workItems, currentRevision, botName, goal, now = new Date() }: OutcomeTimelineProps) {
+export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onChangeSchedule, now = new Date() }: OutcomeTimelineProps) {
   const { t } = useI18n();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const layout = buildTimelineLayout(workItems as readonly TimelineWorkItem[], now, currentRevision, goal);
   if (layout.rows.length === 0) return null;
   const { axis } = layout;
@@ -62,6 +72,8 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, now
   const when = (value: string) => new Date(value).toLocaleString();
   const todayAt = axis ? percent(now.toISOString(), axis) : null;
   const rowBot = (row: TimelineRow) => botName?.(row.botId);
+  const rowOwner = (row: TimelineRow) => (row.executorType === "human" ? t("You") : (rowBot(row) ?? t("Bot")));
+  const rowIndex = new Map(layout.rows.map((row, index) => [row.id, index] as const));
   const duration = (minutes: number) => {
     const { key, value } = formatEstimate(minutes);
     return t(key, { value });
@@ -91,9 +103,15 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, now
               </div>
             </div>
           )}
+          <div className="outcome-timeline-rows">
           {layout.rows.map((row) => (
             <div key={row.id} className="outcome-timeline-row" data-state={row.displayState}>
-              <span className="outcome-timeline-label">
+              <span
+                className="outcome-timeline-label"
+                data-tone={TIMELINE_STATUS[row.displayState].tone}
+                title={`${row.title} · ${rowOwner(row)} · ${t(TIMELINE_STATUS[row.displayState].label)}`}
+              >
+                <span aria-hidden="true" className="outcome-timeline-label-icon">{TIMELINE_STATUS[row.displayState].icon}</span>
                 <span className="outcome-timeline-label-text">{row.title}</span>
                 {row.overdue && <OverdueBadge />}
               </span>
@@ -146,6 +164,31 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, now
               </div>
             </div>
           ))}
+          {layout.links.length > 0 && (
+            <svg
+              className="outcome-timeline-links"
+              aria-hidden="true"
+              viewBox={`0 0 100 ${layout.rows.length}`}
+              preserveAspectRatio="none"
+            >
+              {layout.links.map((link) => {
+                const from = rowIndex.get(link.from);
+                const to = rowIndex.get(link.to);
+                if (from === undefined || to === undefined) return null;
+                const [x1, x2] = [percent(link.fromAt, axis), percent(link.toAt, axis)];
+                const middle = (x1 + x2) / 2;
+                const [y1, y2] = [from + 0.5, to + 0.5];
+                return (
+                  <polyline
+                    key={`${link.from}-${link.to}`}
+                    className="outcome-timeline-link"
+                    points={`${x1},${y1} ${middle},${y1} ${middle},${y2} ${x2},${y2}`}
+                  />
+                );
+              })}
+            </svg>
+          )}
+          </div>
           {todayAt !== null && (
             <div className="outcome-timeline-today-layer">
               <span className="outcome-timeline-today" style={{ left: `${todayAt}%` }} />
@@ -196,14 +239,17 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, now
             <th scope="col">{t("Estimate")}</th>
             <th scope="col">{t("Due")}</th>
             <th scope="col">{t("Depends on")}</th>
+            {onChangeSchedule && <th scope="col">{t("Schedule")}</th>}
           </tr>
         </thead>
         <tbody>
           {layout.rows.map((row) => {
             const source = workItems.find((item) => item.id === row.id)!;
             const dependencies = source.dependsOn.map((id) => layout.rows.find((candidate) => candidate.id === id)?.title ?? id);
+            const editable = isWorkItemScheduleEditable(source);
             return (
-              <tr key={row.id}>
+              <Fragment key={row.id}>
+              <tr>
                 <th scope="row">{row.title}</th>
                 <td>{row.executorType === "human" ? t("You") : (rowBot(row) ?? t("Bot"))}</td>
                 <td><StatusBadge row={row} />{row.deferredUntil && <span> · {t("Deferred until {time}", { time: when(row.deferredUntil) })}</span>}</td>
@@ -229,7 +275,40 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, now
                   {row.overdue && <> · <OverdueBadge /></>}
                 </td>
                 <td>{dependencies.length ? dependencies.join(", ") : "—"}</td>
+                {onChangeSchedule && (
+                  <td>
+                    {editable ? (
+                      <button
+                        type="button"
+                        className="outcome-control"
+                        aria-expanded={editingId === row.id}
+                        aria-label={t("Change schedule: {task}", { task: row.title })}
+                        onClick={() => setEditingId(editingId === row.id ? null : row.id)}
+                      >
+                        {t("Change schedule")}
+                      </button>
+                    ) : (
+                      <span className="outcome-timeline-locked">{t("Already started or finished")}</span>
+                    )}
+                  </td>
+                )}
               </tr>
+              {onChangeSchedule && editable && editingId === row.id && (
+                <tr className="outcome-timeline-editor-row">
+                  <td colSpan={9}>
+                    <ScheduleEditor
+                      title={row.title}
+                      initial={source}
+                      onSave={async (change) => {
+                        await onChangeSchedule(row.id, change);
+                        setEditingId(null);
+                      }}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>

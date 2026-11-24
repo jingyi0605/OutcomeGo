@@ -188,3 +188,62 @@ describe("honest time", () => {
     expect(missingKeys(keys)).toEqual([]);
   });
 });
+
+// Specs/004.10 task 3.3 (requirement C1.1): the drawing carries the dependency lines, and each row says who and what.
+describe("dependency lines are drawn", () => {
+  const seg = (id: string, from: number, to: number | null, status: "completed" | "running" = "completed") => ({
+    id, status, startedAt: at(from), completedAt: to === null ? null : at(to),
+  });
+  const points = (html: string) =>
+    [...html.matchAll(/<polyline[^>]*class="outcome-timeline-link"[^>]*points="([^"]+)"/g)].map((match) =>
+      match[1]!.split(" ").map((pair) => pair.split(",").map(Number) as [number, number])
+    );
+
+  test("a line leaves the predecessor's end and reaches the successor's start, on the right rows", () => {
+    const first = task({ title: "Earlier", status: "completed", startedAt: at(-30), completedAt: at(-20), runSegments: [seg("a", -30, -20)] });
+    const second = task({ title: "Later", status: "running", dependsOn: [first.id], startedAt: at(-15), runSegments: [seg("b", -15, null, "running")] });
+    const lines = points(render([first, second]));
+    expect(lines).toHaveLength(1);
+    const [start, ...rest] = lines[0]!;
+    const end = rest[rest.length - 1]!;
+    // The axis runs from 30 hours ago to now: 20 hours ago is a third of the way, 15 hours ago is half.
+    expect(start![0]).toBeCloseTo(100 / 3, 1);
+    expect(end[0]).toBeCloseTo(50, 1);
+    // Row 0 then row 1 of two, each a unit tall: the middle of the first row, then the middle of the second.
+    expect(start![1]).toBeCloseTo(0.5, 5);
+    expect(end[1]).toBeCloseTo(1.5, 5);
+  });
+
+  test("a task with several predecessors gets a line from each", () => {
+    const a = task({ status: "completed", startedAt: at(-30), completedAt: at(-25), runSegments: [seg("a", -30, -25)] });
+    const b = task({ status: "completed", startedAt: at(-28), completedAt: at(-22), runSegments: [seg("b", -28, -22)] });
+    const c = task({ status: "running", dependsOn: [a.id, b.id], startedAt: at(-10), runSegments: [seg("c", -10, null, "running")] });
+    expect(points(render([a, b, c]))).toHaveLength(2);
+  });
+
+  test("no line is drawn to a task with no time, or from a predecessor that is still running", () => {
+    const running = task({ status: "running", startedAt: at(-5), runSegments: [seg("a", -5, null, "running")] });
+    const waiting = task({ dependsOn: [running.id] });
+    expect(points(render([running, waiting]))).toHaveLength(0);
+  });
+
+  test("the lines are decoration: hidden from assistive technology like the rest of the drawing", () => {
+    const first = task({ status: "completed", startedAt: at(-30), completedAt: at(-20), runSegments: [seg("a", -30, -20)] });
+    const second = task({ status: "running", dependsOn: [first.id], startedAt: at(-15), runSegments: [seg("b", -15, null, "running")] });
+    expect(chartOf(render([first, second]))).toMatch(/<svg[^>]*aria-hidden="true"/);
+  });
+});
+
+describe("each row of the drawing says who and what", () => {
+  test("it carries a status icon and a tooltip naming the task, its owner and its state", () => {
+    const html = render([task({ title: "Some task", status: "running", startedAt: at(-2), runSegments: [{ id: "r", status: "running", startedAt: at(-2), completedAt: null }] })]);
+    const chart = chartOf(html);
+    expect(chart).toMatch(/class="outcome-timeline-label"[^>]*title="Some task · Bot · Running"/);
+    expect(chart).toContain("outcome-timeline-label-icon");
+  });
+
+  test("a person's task names its owner as 'You'", () => {
+    const html = render([task({ title: "By hand", executorType: "human", kind: "human_action", status: "ready", scheduledAt: at(5) })]);
+    expect(chartOf(html)).toMatch(/title="By hand · You · Ready"/);
+  });
+});

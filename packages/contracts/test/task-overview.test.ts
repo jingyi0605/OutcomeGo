@@ -11,7 +11,9 @@ import {
   hasUnfinishedDependency,
   isOverdue,
   isRecentlyCompleted,
+  isWorkItemFinished,
   isWorkItemOverdue,
+  isWorkItemScheduleEditable,
   localDateOf,
 } from "../src/task-overview";
 
@@ -185,6 +187,32 @@ describe("overdue is only an overlay on something with a due date", () => {
     const overdue = (status: WorkItemStatus) => isWorkItemOverdue({ executorType: "human", status, dueAt: minutes(-60) }, NOW);
     for (const status of ["pending", "ready", "in_progress", "paused", "rejected"] as const) expect(overdue(status)).toBe(true);
     for (const status of ["submitted", "review_pending", "accepted", "cancelled"] as const) expect(overdue(status)).toBe(false);
+  });
+});
+
+describe("which tasks the owner can still reschedule (a preview; the server decides)", () => {
+  const editable = (executorType: "agent" | "human", status: WorkItemStatus) => isWorkItemScheduleEditable({ executorType, status });
+
+  test("a bot task can be rescheduled only while it is waiting its turn", () => {
+    expect(editable("agent", "queued")).toBe(true);
+    for (const status of ["running", "waiting_decision", "waiting_human", "retry_pending", "needs_review", "completed", "failed", "cancelled"] as const)
+      expect(editable("agent", status)).toBe(false);
+  });
+
+  test("a person's task can be rescheduled until the receipt is in", () => {
+    for (const status of ["pending", "ready", "in_progress", "paused", "rejected"] as const) expect(editable("human", status)).toBe(true);
+    for (const status of ["submitted", "review_pending", "accepted", "cancelled"] as const) expect(editable("human", status)).toBe(false);
+  });
+
+  test("every status of both kinds is decided one way or the other, and a finished task is never editable", () => {
+    for (const status of AGENT_WORK_ITEM_STATUSES) {
+      expect(typeof editable("agent", status)).toBe("boolean");
+      if (isWorkItemFinished({ executorType: "agent", status })) expect(editable("agent", status)).toBe(false);
+    }
+    for (const status of HUMAN_WORK_ITEM_STATUSES) {
+      expect(typeof editable("human", status)).toBe("boolean");
+      if (isWorkItemFinished({ executorType: "human", status })) expect(editable("human", status)).toBe(false);
+    }
   });
 });
 

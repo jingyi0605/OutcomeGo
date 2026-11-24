@@ -16,6 +16,8 @@ import type {
   OutcomeBrief,
   OutcomeResultSummary,
   OutcomeWorkThreadPage,
+  SetOutcomeDueInput,
+  SetWorkItemScheduleInput,
 } from "@outcomego/contracts/outcomes";
 
 import type {
@@ -53,6 +55,10 @@ export interface OutcomeClient {
   rework(id: string, input: OutcomeReworkInput): Promise<OutcomeDetail>;
   cancel(id: string, input: CancelOutcomeInput): Promise<OutcomeDetail>;
   stopWorkThread?(id: string, itemId: string): Promise<{ ok: boolean }>;
+  /** The owner changes a not-yet-started task's schedule (specs/004.10). A field left out is unchanged; `null` clears it. */
+  setWorkItemSchedule?(id: string, workItemId: string, input: SetWorkItemScheduleInput): Promise<OutcomeDetail>;
+  /** The owner sets or clears the goal's due date (specs/004.10). */
+  setDue?(id: string, input: SetOutcomeDueInput): Promise<OutcomeDetail>;
   workThreads?(botId: string, query: { archived?: boolean; cursor?: string; signal?: AbortSignal }): Promise<OutcomeWorkThreadPage>;
   transcript(id: string, itemId: string, query?: { before?: number }): Promise<unknown>;
 }
@@ -63,6 +69,8 @@ export function createOutcomeApi(
   const outcomePath = (id: string) => `/api/outcomes/${encodeURIComponent(id)}`;
   const outcomePost = <T>(path: string, input: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(input) });
+  const outcomePut = <T>(path: string, input: unknown) =>
+    request<T>(path, { method: "PUT", body: JSON.stringify(input) });
   return {
     plan: (input) => outcomePost("/api/outcomes/plans", input),
     getPlan: (id) => request(`/api/outcomes/plans/${encodeURIComponent(id)}`),
@@ -85,6 +93,9 @@ export function createOutcomeApi(
     rework: (id, input) => outcomePost(`${outcomePath(id)}/rework`, input),
     cancel: (id, input) => outcomePost(`${outcomePath(id)}/cancel`, input),
     stopWorkThread: (id, itemId) => outcomePost(`${outcomePath(id)}/work-items/${encodeURIComponent(itemId)}/stop`, {}),
+    setWorkItemSchedule: (id, workItemId, input) =>
+      outcomePut(`${outcomePath(id)}/work-items/${encodeURIComponent(workItemId)}/schedule`, input),
+    setDue: (id, input) => outcomePut(`${outcomePath(id)}/due`, input),
     workThreads: (botId, { archived, cursor, signal }) => {
       const query = new URLSearchParams();
       if (archived) query.set("archived", "true");

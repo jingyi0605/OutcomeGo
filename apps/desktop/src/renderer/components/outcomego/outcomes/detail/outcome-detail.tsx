@@ -5,6 +5,8 @@ import type {
 } from "@outcomego/contracts/outcomes";
 import { OUTCOME_TERMINAL_STATUSES } from "@outcomego/contracts/outcomes";
 import { ContractConfirmation } from "../planning/contract-confirmation";
+import type { ScheduleChange } from "../timeline/schedule-edit";
+import { GoalDue } from "./goal-due";
 import {
   type OutcomeClient,
   OutcomeRequestIds,
@@ -323,6 +325,31 @@ export function OutcomeDetail({
       setBusy(false);
     }
   }
+  // The owner's date changes (specs/004.10). Unlike `mutate`, a refusal is handed back to the form that asked, so the
+  // reason shows next to what was typed; the page keeps working and a conflict refreshes the goal.
+  async function changeDates(
+    action: string,
+    input: unknown,
+    operation: (key: string) => Promise<OutcomeDetailView>
+  ): Promise<void> {
+    generation.current++;
+    const key = `${action}:${outcomeId}`;
+    try {
+      const result = await operation(requestIds.current.for(key, input));
+      outcomeRef.current = result;
+      setOutcome(result);
+      requestIds.current.complete(key);
+    } catch (e) {
+      if (responseStatus(e) === 409) {
+        try {
+          setOutcome(await client.get(outcomeId));
+        } catch {
+          /* The refusal is still shown; the next event or refresh brings the goal up to date. */
+        }
+      }
+      throw e;
+    }
+  }
   // The owner's words go to the goal's thread as written. The bot decides what to do with them (change the
   // plan, cancel, ask back), so the host modal can close at once; its answer is in the goal's thread.
   async function requestChanges(text: string) {
@@ -465,6 +492,18 @@ export function OutcomeDetail({
               {outcome.closeSummary ? ` · ${outcome.closeSummary}` : ""}
             </p>
           ) : null}
+          {!inChat && typeof client.setDue === "function" && (
+            <GoalDue
+              title={outcome.title}
+              dueAt={outcome.dueAt}
+              editable={!terminal}
+              onSave={(change) =>
+                changeDates("due", change, (clientRequestId) =>
+                  client.setDue!(outcomeId, { dueAt: change.dueAt ?? null, clientRequestId })
+                )
+              }
+            />
+          )}
           {prereviewPending && (
             <p role="status" className="mt-2 text-[12px] text-foreground-secondary">
               {translateCurrent("The reviewer is checking the latest results. Acceptance will open after the preliminary review finishes.")}
@@ -872,6 +911,14 @@ export function OutcomeDetail({
                 currentRevision={outcome.currentRevision}
                 botName={(botId) => (botId ? bots.find((b) => b.id === botId)?.name : undefined)}
                 goal={{ dueAt: outcome.dueAt, finished: OUTCOME_TERMINAL_STATUSES.includes(outcome.status) }}
+                onChangeSchedule={
+                  !terminal && typeof client.setWorkItemSchedule === "function"
+                    ? (workItemId: string, change: ScheduleChange) =>
+                        changeDates("schedule", { workItemId, ...change }, (clientRequestId) =>
+                          client.setWorkItemSchedule!(outcomeId, workItemId, { ...change, clientRequestId })
+                        )
+                    : undefined
+                }
               />
             )}
             {outcome.workItems.length > 0 && (

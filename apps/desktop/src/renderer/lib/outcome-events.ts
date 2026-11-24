@@ -77,6 +77,11 @@ export const refreshOutcomeViews = (event?: ProductEvent) => {
   if (event.topic === "goal.thread.updated" && event.entityId && listeners.has(event.entityId)) {
     notifySoon(event.entityId);
   }
+  // A task's schedule or the goal's due date changed (the owner's change, or a bot deferring its own task). The
+  // client stream carries no `outcome.*` topics, so this goal-level signal is what refreshes the open timeline.
+  if (event.topic === "goal.schedule.changed" && event.entityId && listeners.has(event.entityId)) {
+    notifySoon(event.entityId);
+  }
   // Progress reports arrive with this dedicated, already-lightweight signal.
   if (event.topic === "goal.progress.updated") {
     if (event.entityId) notify(event.entityId);

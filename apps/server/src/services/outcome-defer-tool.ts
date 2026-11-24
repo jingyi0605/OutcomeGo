@@ -8,6 +8,7 @@ import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import type { PrismaClient } from "@outcomego/db";
 import {
   appendOutcomeEvent,
+  publishGoalScheduleChanged,
   enqueueOutcomeTurn,
   readFeatureSettings,
   transitionWorkItem,
@@ -110,6 +111,7 @@ export const createDeferWorkItemTool = (prisma: PrismaClient, messaging: AgentMe
           reason: "resume_scheduled",
           clientId: `defer:${item.id}:${deferCount}`,
         });
+        await publishGoalScheduleChanged(tx, item.outcomeId);
         await appendOutcomeEvent(tx, "outcome.schedule.changed", item.outcomeId, {
           actor,
           contractRevision: item.contractRevision.revision,

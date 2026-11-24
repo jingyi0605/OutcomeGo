@@ -49,6 +49,19 @@ async function runningTask() {
 }
 
 describe.skipIf(!url)("DeferWorkItem tool (specs/004.10 task 2.5)", () => {
+  // Specs/004.10 task 3.2: clients never receive `outcome.*` events, so an open goal learns of a deferral from this one.
+  test("a deferral announces itself to the open goal with one goal.schedule.changed event, and a refused one announces nothing", async () => {
+    const t = await runningTask();
+    const signals = () => t.h.db.event.findMany({ where: { topic: "goal.schedule.changed", entityId: t.h.outcome.id } });
+    await t.failure(t.call({ resumeAt: "not a time" }));
+    expect(await signals()).toHaveLength(0);
+    await t.call({ resumeAt: later(120), note: "Continue." });
+    const events = await signals();
+    expect(events).toHaveLength(1);
+    // Only identity: the client reloads the goal, so no times, titles or notes ride along.
+    expect(events[0]!.payload).toEqual({ outcomeId: t.h.outcome.id });
+  });
+
   test("defers a running task: queued, due at the chosen time, counted, with the note held as its next instructions", async () => {
     const t = await runningTask();
     const resumeAt = later(120);

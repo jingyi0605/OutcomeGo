@@ -25,7 +25,7 @@ export { taskScopeContext, taskScopeUpdates } from "./task-progress";
 export { readTranscript } from "./read-transcript";
 export { readOutcomeTranscript } from "./outcome-transcript";
 export { isReviewBatchEvidence, outcomeReviewBatchKey, readOutcomeReviewBatch, outcomeReviewDecisionFilter } from "./outcome-review-batch";
-export { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
+export { appendOutcomeEvent, GOAL_SCHEDULE_CHANGED_TOPIC, publishGoalScheduleChanged, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
 export { startOutcomeThreadTurn, settleOutcomeThreadTurn, settleFinishedOutcomeThreadTurns, outcomeThreadContext, OUTCOME_THREAD_EVENT_TOPIC } from "./outcome-threads";
 export { enqueueOutcomeTurn, settleOutcomeWorkItem, emitReviewRequiredIfNeeded, enqueueOutcomePrereviewIfNeeded, dispatchQueuedOutcomeWorkItems, dispatchDueScheduledWorkItems, releaseHeldOutcomeTurn, DEFERRED_BY_AGENT_REASON, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
 export { recoverOutcomeWorkItem, recoverOutcomeWorkItems, routeOutcomeNextStep, OUTCOME_RECOVERY_PROMPT, type OutcomeRecoveryRuntime, type OutcomeNextFact } from "./outcome-recovery";

@@ -137,6 +137,23 @@ describe.skipIf(!url)("owner changes a task's schedule (specs/004.10 task 2.6)",
     expect((await t.failure(t.reschedule(foreign.id, { scheduledAt: at(60) }))).code).toBe("work_item_not_found");
   });
 
+  // Specs/004.10 task 3.2: clients never receive `outcome.*` events, so an open goal learns of a change from this one.
+  test("a change announces itself to the open goal once; a replay, a no-op and a refusal announce nothing", async () => {
+    const t = await setup();
+    const signals = () => t.h.db.event.findMany({ where: { topic: "goal.schedule.changed", entityId: t.h.outcome.id } });
+    const item = await t.heldTask();
+    const when = at(300);
+    const id = requestId();
+    await t.reschedule(item.id, { scheduledAt: when }, id);
+    expect(await signals()).toHaveLength(1);
+    await t.reschedule(item.id, { scheduledAt: when }, id);
+    await t.reschedule(item.id, { scheduledAt: when });
+    expect(await signals()).toHaveLength(1);
+    await t.failure(t.reschedule(item.id, { scheduledAt: "not a time" }));
+    expect(await signals()).toHaveLength(1);
+    expect((await signals())[0]!.payload).toEqual({ outcomeId: t.h.outcome.id });
+  });
+
   test("the same request again replays and writes nothing more; the same id for another change is refused", async () => {
     const t = await setup();
     const item = await t.heldTask();
@@ -272,6 +289,18 @@ describe.skipIf(!url)("owner changes a task's schedule (specs/004.10 task 2.6)",
 describe.skipIf(!url)("owner sets the goal's deadline (specs/004.10 task 2.6)", () => {
   const due = (t: Awaited<ReturnType<typeof setup>>, dueAt: string | null, id = requestId()) =>
     t.service.setOutcomeDue(t.h.outcome.id, { clientRequestId: id, dueAt } as never, owner);
+
+  test("each real change of the deadline announces itself to the open goal; setting the same value again does not", async () => {
+    const t = await setup();
+    const signals = () => t.h.db.event.count({ where: { topic: "goal.schedule.changed", entityId: t.h.outcome.id } });
+    const when = at(2000);
+    await due(t, when);
+    expect(await signals()).toBe(1);
+    await due(t, when);
+    expect(await signals()).toBe(1);
+    await due(t, null);
+    expect(await signals()).toBe(2);
+  });
 
   test("sets and clears the deadline, with an audit event holding the old value, without touching the contract", async () => {
     const t = await setup();

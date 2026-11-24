@@ -3231,6 +3231,22 @@ export const sourceTranslations: Record<string, string> = {
   "{value} min": "{value} 分钟",
   "{value} h": "{value} 小时",
   "{value} d": "{value} 天",
+  "This task has already started or finished, so its schedule can no longer change":
+    "这个任务已经开始或已经结束，不能再改期。",
+  "The schedule is not valid. Check the dates and the estimate.":
+    "这个排期无效，请检查日期和估算。",
+  "This goal is finished, so its dates can no longer change":
+    "这个目标已经结束，不能再修改日期。",
+  "That task no longer exists. Refresh the goal and try again.":
+    "这个任务已经不存在，请刷新目标后再试。",
+  "Change schedule": "改期",
+  "Change schedule: {task}": "改期：{task}",
+  "Estimate (minutes)": "估算（分钟）",
+  "Leave a box empty to clear it.": "留空表示清除。",
+  "Already started or finished": "已开始或已结束，不能改期",
+  "Due date": "截止日",
+  "Set due date": "设置截止日",
+  "Change due date": "修改截止日",
 
   // Goal management settings page (specs/004.10)
   "Goal management":

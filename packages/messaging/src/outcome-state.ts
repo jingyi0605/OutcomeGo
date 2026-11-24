@@ -232,6 +232,18 @@ function blockedByFailedDependencies(
   return blocked;
 }
 
+/** The topic an open client hears when a task's schedule or the goal's due date changes. */
+export const GOAL_SCHEDULE_CHANGED_TOPIC = "goal.schedule.changed";
+
+/**
+ * Tells open clients that a task's schedule or the goal's due date changed (specs/004.10). Clients never receive
+ * `outcome.*` events, so this goal-level signal is what makes an open timeline reload. It carries identity only:
+ * the client reads the new times from the goal itself.
+ */
+export async function publishGoalScheduleChanged(tx: Prisma.TransactionClient, outcomeId: string): Promise<void> {
+  await tx.event.create({ data: { topic: GOAL_SCHEDULE_CHANGED_TOPIC, entityId: outcomeId, payload: { outcomeId } } });
+}
+
 /**
  * Derives the Outcome status from its facts in the priority order of specs/004 design §42.3 and 004.9 §4.2.
  */

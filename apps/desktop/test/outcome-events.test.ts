@@ -28,6 +28,19 @@ test("progress reports refresh the matching goal immediately", () => {
   expect([a(), b()]).toEqual([1, 0]);
 });
 
+// Specs/004.10 task 3.2: the client stream carries no `outcome.*` topics, so a schedule change (the owner's, or a bot
+// deferring its own task) reaches an open goal through this dedicated goal signal.
+test("a schedule change refreshes the matching open goal once per burst, and not another goal or the list", async () => {
+  const a = watch("a");
+  const b = watch("b");
+  let listReloads = 0;
+  cleanups.push(subscribeOutcomeListRefresh(() => listReloads++));
+  for (let i = 0; i < 3; i++) refreshOutcomeViews(event("goal.schedule.changed", "a"));
+  expect(a()).toBe(0);
+  await wait(OUTCOME_REFRESH_DEBOUNCE_MS + 80);
+  expect([a(), b(), listReloads]).toEqual([1, 0, 0]);
+});
+
 test("thread completion, work item, status and decision events refresh the open goal once per burst", async () => {
   const a = watch("a");
   const b = watch("b");

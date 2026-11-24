@@ -141,6 +141,15 @@ export function isWorkItemFinished(input: { executorType: WorkItemExecutorType; 
     : FINISHED_HUMAN_STATUSES.includes(input.status as HumanWorkItemStatus);
 }
 
+/**
+ * Whether the owner can still change a task's schedule: a bot task that is waiting its turn, or a person's task until
+ * the receipt is in. A preview for deciding whether to offer the control; the server decides and answers 409
+ * `schedule_not_editable` (for example when a queued task's turn is already running).
+ */
+export function isWorkItemScheduleEditable(input: { executorType: WorkItemExecutorType; status: WorkItemStatus }): boolean {
+  return input.executorType === "agent" ? input.status === "queued" : !isWorkItemFinished(input);
+}
+
 export function isWorkItemOverdue(
   input: { executorType: WorkItemExecutorType; status: WorkItemStatus; dueAt: Date | null },
   now: Date
