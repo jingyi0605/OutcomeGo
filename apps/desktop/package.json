@@ -65,8 +65,6 @@
     "executableName": "outcomego",
     "asar": true,
     "asarUnpack": [
-      "dist-electron/outcomego-cli.js",
-      "dist-electron/outcomego-cli.js",
       "dist-electron/screenbot-keys",
       "dist-electron/dock-drag.exe"
     ],

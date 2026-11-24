@@ -257,7 +257,7 @@ const scheduleDesktopUpdateChecks = () => {
 };
 
 const bundledCliPath = app.isPackaged
-  ? join(process.resourcesPath, "app.asar.unpacked", "dist-electron", "outcomego-cli.js")
+  ? join(app.getAppPath(), "dist-electron", "outcomego-cli.js")
   : join(import.meta.dirname, "outcomego-cli.js");
 const tailscaleManager = new TailscaleManager({
   cliPath: bundledCliPath,
