@@ -144,7 +144,10 @@
 ## 阶段 1：目标详情时间线 v1（只用已有数据）
 
 - [ ] 1.1 暴露任务实际时间与运行分段
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 当前进展（2026-11-24）：契约（`RunSegmentView`、`RUN_SEGMENT_LIMIT`、`buildRunSegments`、`WorkItemView` 三个可选字段）和服务端详情组装已实现；契约单元测试 5 个新增用例通过，`packages/contracts` 全量 264 通过，contracts 与 server 的 `tsc` 通过，`check:architecture` 通过。
+  - 未验证：服务端详情集成测试 `apps/server/test/outcome-work-item-times.integration.test.ts`（5 个用例）已写好并通过 `tsc`，但需要一次性 PostgreSQL 库（`OUTCOMEGO_TEST_DATABASE_URL`），尚未取得所有者指定的库，目前只验证了「无库时干净跳过」，没有真正执行过。取得库并跑通后才能改为 DONE。
+  - 实现取舍：运行分段只收 `startedAt` 非空的运行（排队中、未开始的运行不算一段，也不用创建时间代替）；按开始时间升序，同一时刻按运行 ID 排序，保证稳定；取最近 20 段。首次开始时间沿用 `OutcomeWorkItem.startedAt`（`transitionWorkItem` 已保证只在首次进入运行状态时写入）。
   - 这一步到底做什么：在目标详情里补上每个任务的首次开始、结束，以及最近 20 段运行的起止和状态。
   - 做完你能看到什么：客户端能拿到任务真实的开始和结束时间；事件被清理后仍然有。
   - 先依赖什么：无

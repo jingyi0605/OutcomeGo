@@ -1,5 +1,7 @@
 import { JSONSchema, Schema } from "effect";
 import { OUTCOME_LIMITS, OUTCOME_STATUSES, REVIEW_RESULTS, type OutcomeStatus, type ReviewResult } from "./outcome-view";
+// Type-only: erased at build time, so it does not create a runtime cycle with index.ts (which re-exports this file).
+import type { RunStatus } from "./index";
 
 export * from "./outcome-view";
 
@@ -744,6 +746,36 @@ export interface OutcomeWorkThreadPage {
   nextCursor: string | null;
 }
 
+/** One run of a task. Time between two segments is not run time (a deferred task resumes later). */
+export interface RunSegmentView {
+  id: string;
+  status: RunStatus;
+  startedAt: string;
+  /** Null while the run is still going, or when the run ended without recording a completion time. */
+  completedAt: string | null;
+}
+
+/** Scale limit on how many recent runs a work item view carries. */
+export const RUN_SEGMENT_LIMIT = 20;
+
+/**
+ * Builds the run segments of a task from its run rows: only runs that actually started, oldest first,
+ * the most recent {@link RUN_SEGMENT_LIMIT} kept. Creation time is never used in place of a start time.
+ */
+export function buildRunSegments(
+  runs: ReadonlyArray<{ id: string; status: RunStatus; startedAt: Date | null; completedAt: Date | null }>,
+  limit: number = RUN_SEGMENT_LIMIT
+): RunSegmentView[] {
+  const started = runs.flatMap((run) => (run.startedAt ? [{ ...run, startedAt: run.startedAt }] : []));
+  started.sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return started.slice(-limit).map((run) => ({
+    id: run.id,
+    status: run.status,
+    startedAt: run.startedAt.toISOString(),
+    completedAt: run.completedAt?.toISOString() ?? null,
+  }));
+}
+
 export interface WorkItemView {
   id: string;
   contractRevision: number;
@@ -762,6 +794,12 @@ export interface WorkItemView {
   rootRunId: string | null;
   runIds: string[];
   reworkOfWorkItemId: string | null;
+  /** First time the task started. Null when it never ran; absent on payloads from older servers. */
+  startedAt?: string | null;
+  /** When the task reached a terminal state. Null otherwise; absent on payloads from older servers. */
+  completedAt?: string | null;
+  /** Most recent runs, oldest first. Absent on payloads from older servers. */
+  runSegments?: RunSegmentView[];
   createdAt: string;
   updatedAt: string;
 }

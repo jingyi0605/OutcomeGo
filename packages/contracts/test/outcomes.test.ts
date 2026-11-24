@@ -19,6 +19,8 @@ import {
   parseListOutcomesQuery,
   planningOptionId,
   type PlanningDimensionView,
+  RUN_SEGMENT_LIMIT,
+  buildRunSegments,
   requiredCriteriaSatisfied,
   resolvePlanningSelections,
   SubmitOutcomeReviewInput,
@@ -226,5 +228,55 @@ describe("list query", () => {
     expectOutcomeError(() => parseListOutcomesQuery(new URLSearchParams({ status: "done" })), "invalid_outcome_query");
     expectOutcomeError(() => decodeOutcomeCursor("not-a-cursor"), "invalid_outcome_query");
     expectOutcomeError(() => parseListOutcomesQuery(new URLSearchParams({ limit: "0" })), "invalid_outcome_query");
+  });
+});
+
+describe("run segments", () => {
+  const at = (minute: number) => new Date(Date.UTC(2026, 10, 24, 0, minute, 0));
+  const run = (id: string, startMinute: number | null, endMinute: number | null, status: "queued" | "running" | "completed" | "failed" | "cancelled" | "interrupted" = "completed") => ({
+    id,
+    status,
+    startedAt: startMinute === null ? null : at(startMinute),
+    completedAt: endMinute === null ? null : at(endMinute),
+  });
+
+  test("a task that never ran has no segments and nothing is invented from creation time", () => {
+    expect(buildRunSegments([])).toEqual([]);
+    // A queued run has not started: it is not a segment.
+    expect(buildRunSegments([run("r1", null, null, "queued")])).toEqual([]);
+  });
+
+  test("segments are ordered by start time ascending and keep status and ISO times", () => {
+    const segments = buildRunSegments([run("late", 30, 40), run("early", 0, 10, "failed")]);
+    expect(segments.map((segment) => segment.id)).toEqual(["early", "late"]);
+    expect(segments[0]).toEqual({
+      id: "early",
+      status: "failed",
+      startedAt: "2026-11-24T00:00:00.000Z",
+      completedAt: "2026-11-24T00:10:00.000Z",
+    });
+  });
+
+  test("a running segment has no end and the gap between two segments is not part of either", () => {
+    const segments = buildRunSegments([run("a", 0, 10), run("b", 50, null, "running")]);
+    expect(segments[1]!.completedAt).toBeNull();
+    expect(segments[0]!.completedAt).toBe("2026-11-24T00:10:00.000Z");
+    expect(segments[1]!.startedAt).toBe("2026-11-24T00:50:00.000Z");
+  });
+
+  test("only the most recent segments are kept, still in ascending order", () => {
+    expect(RUN_SEGMENT_LIMIT).toBe(20);
+    const runs = Array.from({ length: RUN_SEGMENT_LIMIT + 5 }, (_, index) => run(`r${index}`, index, index));
+    const segments = buildRunSegments(runs);
+    expect(segments).toHaveLength(RUN_SEGMENT_LIMIT);
+    expect(segments[0]!.id).toBe("r5");
+    expect(segments.at(-1)!.id).toBe(`r${RUN_SEGMENT_LIMIT + 4}`);
+  });
+
+  test("segments with the same start time keep a deterministic order and the input is not mutated", () => {
+    const input = [run("b", 5, 6), run("a", 5, 6)];
+    const snapshot = input.map((entry) => entry.id);
+    expect(buildRunSegments(input).map((segment) => segment.id)).toEqual(["a", "b"]);
+    expect(input.map((entry) => entry.id)).toEqual(snapshot);
   });
 });
