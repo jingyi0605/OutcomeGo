@@ -78,8 +78,11 @@ import { bindWindowActivity, windowIsActive, windowIsVisible } from "./window-ac
 import {
   classifyDesktopUpdateError,
   type DesktopUpdateSnapshot,
+  type DesktopReleaseNotes,
   hasDesktopUpdateFeed,
   parseDesktopReleaseManifest,
+  parseDesktopReleaseNotes,
+  releaseTagForVersion,
 } from "./update-status";
 import { isTrustedAssetDownloadUrl } from "./download-assets";
 import { pinOutcomeGoUserDataPath } from "./user-data-path";
@@ -139,6 +142,7 @@ const messagesAccess =
 let enrollmentServerUrl: string | null = null;
 const windowBackground = () => (nativeTheme.shouldUseDarkColors ? "#080808" : "#fbfbfb");
 const releasePage = "https://github.com/jingyi0605/OutcomeGo/releases/latest";
+const releaseApiBase = "https://api.github.com/repos/jingyi0605/OutcomeGo/releases";
 // Builds without an update feed check the latest release and link to its download instead.
 const desktopSelfUpdates = app.isPackaged && hasDesktopUpdateFeed(process.resourcesPath);
 
@@ -860,6 +864,28 @@ ipcMain.handle("outcomego:updates:open-download", async (event) => {
     return;
   }
   await shell.openExternal(desktopUpdateSnapshot.downloadUrl || releasePage);
+});
+
+const releaseNotesCache = new Map<string, DesktopReleaseNotes>();
+
+// The updater feed carries release notes as HTML, so read the Markdown source from the release itself.
+ipcMain.handle("outcomego:updates:release-notes", async (event, version: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    throw new Error("Update status is unavailable");
+  }
+  const tag = releaseTagForVersion(version);
+  if (!tag) throw new Error("Invalid release version");
+  const cached = releaseNotesCache.get(tag);
+  if (cached) return cached;
+  const response = await net.fetch(`${releaseApiBase}/tags/${tag}`, {
+    headers: { accept: "application/vnd.github+json", "user-agent": "OutcomeGo-Desktop" },
+  });
+  // A release without a published page has no notes to show; do not cache it in case it appears later.
+  if (response.status === 404) return { version: tag.slice(1), markdown: null, url: releasePage };
+  if (!response.ok) throw new Error(`Update service returned ${response.status}`);
+  const notes = parseDesktopReleaseNotes(await response.json(), tag.slice(1), releasePage);
+  releaseNotesCache.set(tag, notes);
+  return notes;
 });
 
 ipcMain.handle("outcomego:updates:install-client", async (event) => {

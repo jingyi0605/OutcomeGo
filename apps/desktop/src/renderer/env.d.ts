@@ -187,6 +187,7 @@ interface Window {
       status: () => Promise<OutcomeGoUpdateStatus>;
       check: () => Promise<OutcomeGoUpdateStatus>;
       openDownload: () => Promise<void>;
+      releaseNotes: (version: string) => Promise<OutcomeGoReleaseNotes>;
       installClient: () => Promise<void>;
       onClientProgress: (listener: (status: OutcomeGoUpdateStatus) => void) => () => void;
       getChannel: () => Promise<"stable" | "beta">;
@@ -262,6 +263,12 @@ interface OutcomeGoMessagesPermissions {
   fullDiskAccess: boolean;
   automation: "granted" | "denied" | "notAsked" | "unknown";
   contacts: "granted" | "denied" | "notAsked" | "unknown";
+}
+
+interface OutcomeGoReleaseNotes {
+  version: string;
+  markdown: string | null;
+  url: string;
 }
 
 interface OutcomeGoUpdateStatus {

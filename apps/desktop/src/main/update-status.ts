@@ -1,6 +1,9 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { isOutcomeGoVersion } from "@outcomego/contracts/version-compatibility";
+import {
+  isOutcomeGoVersion,
+  normalizeOutcomeGoVersion,
+} from "@outcomego/contracts/version-compatibility";
 import { safeErrorMessage } from "@outcomego/product-core/redaction";
 
 export type DesktopUpdateFailureKind =
@@ -107,6 +110,40 @@ export const classifyDesktopUpdateError = (
     };
   }
   return { failureKind: "unknown", message: "The desktop update failed. Try again." };
+};
+
+export interface DesktopReleaseNotes {
+  version: string;
+  /** Markdown exactly as published on the release, or null when the release has no notes. */
+  markdown: string | null;
+  url: string;
+}
+
+// A release body is user-authored text; cap it so a pathological release can't stall the renderer.
+const MAX_RELEASE_NOTES_LENGTH = 64_000;
+
+/** The release tag for a version, or null when the value is not a release version. */
+export const releaseTagForVersion = (version: unknown): string | null => {
+  const normalized = typeof version === "string" ? normalizeOutcomeGoVersion(version) : null;
+  return normalized ? `v${normalized}` : null;
+};
+
+export const parseDesktopReleaseNotes = (
+  value: unknown,
+  version: string,
+  fallbackUrl: string
+): DesktopReleaseNotes => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Update service returned a malformed release manifest");
+  }
+  const record = value as Record<string, unknown>;
+  const body = typeof record.body === "string" ? record.body.replace(/\r\n?/g, "\n").trim() : "";
+  const url = typeof record.html_url === "string" ? record.html_url : fallbackUrl;
+  return {
+    version,
+    markdown: body ? body.slice(0, MAX_RELEASE_NOTES_LENGTH) : null,
+    url: url.startsWith("https://") ? url : fallbackUrl,
+  };
 };
 
 export const parseDesktopReleaseManifest = (

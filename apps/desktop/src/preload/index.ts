@@ -287,6 +287,7 @@ contextBridge.exposeInMainWorld("outcomego", {
     status: request("updates:status"),
     check: request("updates:check"),
     openDownload: request("updates:open-download"),
+    releaseNotes: request<[version: string]>("updates:release-notes"),
     installClient: request("updates:install-client"),
     getChannel: request("updates:get-channel"),
     setChannel: (channel: string) => {
