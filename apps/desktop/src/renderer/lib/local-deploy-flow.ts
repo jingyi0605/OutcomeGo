@@ -1,4 +1,4 @@
-import type { Action, Code, DeployProgress, EngineProbe, EngineProbes, Stage } from "./local-deploy-contract";
+import { type Action, type Code, type DeployProgress, type EngineProbe, type EngineProbes, type Stage, stages } from "./local-deploy-contract";
 
 const issues: Record<Code, string> = {
   INVALID_INPUT: "The deployment input is invalid.",
@@ -38,6 +38,61 @@ export const deployStage: Record<Stage, string> = {
   owner: "Setting up the owner account",
 };
 
+export type EngineKind = "external" | "managed";
+type Platform = string | undefined;
+
+/** A stage's title and plain-language introduction; callers translate both. */
+export const stageCopy = (stage: Stage, platform: Platform, engine: EngineKind | "auto"): { title: string; note: string } => {
+  const title = stage === "engine" && platform === "darwin" && engine !== "external" ? "Preparing the virtual machine" : deployStage[stage];
+  switch (stage) {
+    case "detect":
+      return { title, note: "Checking the system version, memory, disk space and free ports." };
+    case "engine":
+      return { title, note: engine === "external"
+        ? "Connecting to your container engine and checking it can run OutcomeGo."
+        : platform === "darwin" ? "Starting OutcomeGo's own small virtual machine to host your bots."
+          : platform === "win32" ? "Setting up OutcomeGo's own WSL 2 environment to host your bots."
+            : "Getting a container engine ready to host your bots." };
+    case "release":
+      return { title, note: "Downloading the server release and verifying it before installing." };
+    case "configure":
+      return { title, note: "Writing the port and access settings. Your data stays on this computer." };
+    case "pull":
+      return { title, note: "Downloading the images for your server, database and bots. Usually the longest step." };
+    case "start":
+      return { title, note: "Starting the database, task queue, server and bot computer." };
+    case "health":
+      return { title, note: "Waiting for every service to answer. The first start can take a minute or two." };
+    case "owner":
+      return { title, note: "Creating the account you just chose, then signing you in." };
+  }
+};
+
+/** Where an image can come from, by the registry host the CLI reports. */
+const IMAGE_SOURCES = {
+  "ghcr.io": "official",
+  "registry-1.docker.io": "official",
+  "ghcr.nju.edu.cn": "nju",
+  "docker.nju.edu.cn": "nju",
+  "m.daocloud.io": "daocloud",
+} as const;
+export type ImageSource = (typeof IMAGE_SOURCES)[keyof typeof IMAGE_SOURCES];
+export const imageSources: readonly { id: ImageSource; name: string; detail: string }[] = [
+  { id: "official", name: "Official source", detail: "GitHub, Docker Hub" },
+  { id: "nju", name: "Nanjing University", detail: "Mainland China mirror" },
+  { id: "daocloud", name: "DaoCloud", detail: "Mainland China mirror" },
+];
+// A whole host name: not the tail of a longer one ("evil.ghcr.io") or the head of one ("ghcr.io.evil.example"),
+// though a full stop that ends the sentence is fine.
+const registryHost = /(?<![\w.-])(registry-1\.docker\.io|docker\.nju\.edu\.cn|ghcr\.nju\.edu\.cn|m\.daocloud\.io|ghcr\.io)(?![\w-]|\.[\w-])/;
+
+/** The image source a CLI log line names ("Pulling server from ghcr.nju.edu.cn."), or null. */
+export const sourceOfLog = (message: string | undefined): ImageSource | null => {
+  const host = message ? registryHost.exec(message)?.[1] : undefined;
+  return host ? IMAGE_SOURCES[host as keyof typeof IMAGE_SOURCES] : null;
+};
+
+type StageDone = "completed" | "skipped";
 interface Progress {
   stage: Stage;
   busy: boolean;
@@ -45,20 +100,61 @@ interface Progress {
   action?: Action;
   current?: number;
   total?: number;
+  /** Stages that finished, or were already satisfied. */
+  done: Partial<Record<Stage, StageDone>>;
+  /** Image sources in the order they were used; the last one is downloading now. */
+  sources: ImageSource[];
 }
 
-export const emptyProgress = (): Progress => ({ stage: "detect", busy: true, issue: null });
+export type DeployProgressState = Progress;
+export const emptyProgress = (): Progress => ({ stage: "detect", busy: true, issue: null, done: {}, sources: [] });
 export const deployProgress = (state: Progress, event: DeployProgress): Progress => {
   switch (event.type) {
-    case "stage": return { ...state, stage: event.stage, current: event.current, total: event.total };
+    case "stage": return {
+      ...state, stage: event.stage, current: event.current, total: event.total,
+      done: event.status === "completed" || event.status === "skipped" ? { ...state.done, [event.stage]: event.status } : state.done,
+    };
+    case "log": {
+      const source = sourceOfLog(event.message);
+      return source && state.sources.at(-1) !== source ? { ...state, sources: [...state.sources, source].slice(-8) } : state;
+    }
     case "action-required": return { ...state, action: event.action };
     case "error": return { ...state, busy: false, issue: event, action: event.action ?? state.action };
     default: return state;
   }
 };
 
-export type EngineKind = "external" | "managed";
-type Platform = string | undefined;
+/** How heavy each stage is for the overall bar; the image download is by far the longest. */
+export const stageWeights: Readonly<Record<Stage, number>> = { detect: 4, engine: 16, release: 6, configure: 3, pull: 42, start: 14, health: 10, owner: 5 };
+const WEIGHT_TOTAL = stages.reduce((sum, stage) => sum + stageWeights[stage], 0);
+
+/** The stage being worked on: the reported one, or the next unfinished one right after it completes. */
+export const activeStage = (progress: Pick<Progress, "stage" | "done">): Stage =>
+  progress.done[progress.stage] ? stages.find(stage => !progress.done[stage]) ?? progress.stage : progress.stage;
+
+/** A stage that is working shows at least this much, so the bar visibly starts it. */
+const WORKING_FILL = 0.08;
+
+/**
+ * How full one stage's segment is: finished, working (by its own count when it has one, never
+ * less than a sliver), or not started. A count only grows, so the fill never goes backwards.
+ */
+export const stageFill = (progress: Pick<Progress, "stage" | "done" | "current" | "total">, stage: Stage): number => {
+  if (progress.done[stage]) return 1;
+  if (stage !== activeStage(progress)) return 0;
+  return Math.max(WORKING_FILL, progress.total ? Math.min(1, (progress.current ?? 0) / progress.total) : 0);
+};
+
+/** 0 to 1 across the whole deployment. A stage without a count shows a sliver until it completes. */
+export const deployFraction = (progress: Pick<Progress, "stage" | "done" | "current" | "total">): number =>
+  Math.min(1, stages.reduce((sum, stage) => sum + stageWeights[stage] * stageFill(progress, stage), 0) / WEIGHT_TOTAL);
+
+export type StepState = "done" | "skipped" | "active" | "pending" | "failed";
+export const stepState = (progress: Pick<Progress, "stage" | "done" | "issue">, stage: Stage): StepState => {
+  if (progress.done[stage]) return progress.done[stage] === "skipped" ? "skipped" : "done";
+  if (stage !== activeStage(progress)) return "pending";
+  return progress.issue ? "failed" : "active";
+};
 
 export type EngineTone = "checking" | "ready" | "setup" | "attention" | "blocked" | "unknown";
 export interface EngineOption {

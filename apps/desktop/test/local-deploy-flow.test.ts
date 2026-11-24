@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
-import { codes, type DeployProgress, type EngineProbe } from "../src/renderer/lib/local-deploy-contract";
-import { deployIssue, deployProgress, emptyProgress, engineOptions, suggestedEngine } from "../src/renderer/lib/local-deploy-flow";
+import { codes, type DeployProgress, type EngineProbe, stages } from "../src/renderer/lib/local-deploy-contract";
+import {
+  activeStage, deployFraction, deployIssue, deployProgress, emptyProgress, engineOptions, sourceOfLog, stageCopy,
+  stageWeights, stepState, suggestedEngine,
+} from "../src/renderer/lib/local-deploy-flow";
 
 const envelope = { schemaVersion: 1, deployId: "test", ts: "2026-11-24T00:00:00Z" } as const;
 
@@ -26,6 +29,79 @@ test("ends on cancellation", () => {
 test("preserves the low-memory prompt until the user chooses whether to retry", () => {
   const prompt = deployProgress(emptyProgress(), { ...envelope, type: "action-required", action: { kind: "confirm-low-memory" } });
   expect(deployProgress(prompt, { ...envelope, type: "error", stage: "detect", code: "MEMORY_LOW", retryable: true })).toMatchObject({ busy: false, action: { kind: "confirm-low-memory" } });
+});
+
+const stage = (name: (typeof stages)[number], status: "started" | "completed" | "skipped" | "progress", extra: { current?: number; total?: number } = {}): DeployProgress =>
+  ({ ...envelope, type: "stage", stage: name, status, ...extra });
+const log = (message: string, name: (typeof stages)[number] = "pull"): DeployProgress => ({ ...envelope, type: "log", stage: name, message });
+
+test("remembers which stages finished or were already satisfied, and moves on after a completion", () => {
+  let progress = deployProgress(emptyProgress(), stage("detect", "completed"));
+  progress = deployProgress(progress, stage("release", "skipped"));
+  expect(progress.done).toEqual({ detect: "completed", release: "skipped" });
+  expect(stepState(progress, "detect")).toBe("done");
+  expect(stepState(progress, "release")).toBe("skipped");
+  expect(activeStage(progress)).toBe("engine");
+  expect(stepState(progress, "engine")).toBe("active");
+  expect(stepState(progress, "pull")).toBe("pending");
+});
+
+test("a failure marks the working stage and nothing else", () => {
+  const progress = deployProgress(deployProgress(emptyProgress(), stage("pull", "started")), { ...envelope, type: "error", stage: "pull", code: "IMAGE_PULL_FAILED", retryable: true });
+  expect(stepState(progress, "pull")).toBe("failed");
+  expect(stages.filter(name => stepState(progress, name) === "failed")).toEqual(["pull"]);
+});
+
+test.each([
+  ["Pulling server from ghcr.io.", "official"],
+  ["Pulling postgres from registry-1.docker.io.", "official"],
+  ["Pulling server from ghcr.nju.edu.cn.", "nju"],
+  ["Pulling postgres from docker.nju.edu.cn.", "nju"],
+  ["正在从 m.daocloud.io 拉取 worker。", "daocloud"],
+  ["Image pull failed from m.daocloud.io.", "daocloud"],
+])("reads the image source from %j in any language", (message, source) => {
+  expect(sourceOfLog(message)).toBe(source);
+});
+
+test.each(["Pulling server.", "Starting services", "ghcr.io.evil.example", undefined])("ignores log lines that do not name a known registry: %j", message => {
+  expect(sourceOfLog(message)).toBeNull();
+});
+
+test("tracks image sources in the order they were used, once each in a row", () => {
+  let progress = emptyProgress();
+  for (const message of ["Pulling a from ghcr.io.", "Image pull failed from ghcr.io.", "Pulling a from ghcr.nju.edu.cn.", "Pulling b from ghcr.nju.edu.cn.", "Pulling c from m.daocloud.io."]) {
+    progress = deployProgress(progress, log(message));
+  }
+  expect(progress.sources).toEqual(["official", "nju", "daocloud"]);
+  expect(deployProgress(progress, log("something unrelated")).sources).toBe(progress.sources);
+});
+
+test("overall progress follows stage weights and the image count, and never goes backwards", () => {
+  expect(deployFraction(emptyProgress())).toBeGreaterThan(0);
+  let progress = emptyProgress();
+  let previous = 0;
+  for (const name of stages) {
+    if (name === "pull") {
+      for (let current = 0; current <= 4; current++) {
+        progress = deployProgress(progress, stage("pull", "progress", { current, total: 4 }));
+        expect(deployFraction(progress)).toBeGreaterThanOrEqual(previous);
+        previous = deployFraction(progress);
+      }
+    }
+    progress = deployProgress(progress, stage(name, "completed"));
+    expect(deployFraction(progress)).toBeGreaterThanOrEqual(previous);
+    previous = deployFraction(progress);
+  }
+  expect(previous).toBe(1);
+  expect(Object.values(stageWeights).reduce((sum, weight) => sum + weight, 0)).toBe(100);
+});
+
+test("every stage has its own plain-language introduction, and macOS names the virtual machine", () => {
+  const notes = stages.map(name => stageCopy(name, "win32", "managed").note);
+  expect(new Set(notes).size).toBe(stages.length);
+  expect(stageCopy("engine", "darwin", "managed").title).toBe("Preparing the virtual machine");
+  expect(stageCopy("engine", "darwin", "external").title).toBe("Preparing the container engine");
+  expect(stageCopy("engine", "darwin", "external").note).not.toBe(stageCopy("engine", "darwin", "managed").note);
 });
 
 const probe = (state: EngineProbe["state"], extra: Partial<EngineProbe> = {}): EngineProbe => ({ state, reasons: [], ...extra });

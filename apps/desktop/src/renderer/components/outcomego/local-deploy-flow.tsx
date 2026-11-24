@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../../lib/i18n";
 import { codes, type DeploymentResult, type DeployProgress } from "../../lib/local-deploy-contract";
-import { deployIssue, deployProgress, deployStage, emptyProgress, engineOptions, type EngineKind, suggestedEngine } from "../../lib/local-deploy-flow";
+import { deployIssue, deployProgress, emptyProgress, engineOptions, type EngineKind, suggestedEngine } from "../../lib/local-deploy-flow";
 import { EnginePicker, useEngineProbes } from "./local-deploy-engines";
+import { DeployProgressPanel } from "./local-deploy-progress";
 import { SetupLayout, SetupLink, SetupPrimary, useCopied } from "./setup/setup-layout";
 
 export default function LocalDeployFlow({ onBack, onConnect }: {
@@ -132,12 +133,11 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
   // Without a choice or a suggestion (nothing found, or the look failed), the command line decides.
   const requestEngine: "auto" | EngineKind = choosesEngine ? selected ?? "auto" : "auto";
   const canEnable = platform === "win32" && progress?.action?.kind === "elevate" && requestEngine !== "external";
-  const stageLabel = progress?.stage === "engine" && platform === "darwin" && requestEngine !== "external"
-    ? "Preparing the virtual machine" : deployStage[progress?.stage ?? "detect"];
   const issueLabel = progress?.issue ? t(deployIssue(progress.issue.code)) : "";
   const issueDetail = progress?.issue?.message ?? progress?.action?.detail;
   return (
     <SetupLayout title={t("Deploy on this computer")} screenKey="local-deploy" stage={0}
+      body={t(busy ? "You can cancel at any time." : "Your data stays on this computer.")}
       onBack={busy ? undefined : onBack} onSubmit={() => void start()}
       footer={busy ? <SetupLink onClick={() => {
         cancelPending.current = true;
@@ -148,11 +148,8 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
         {progress?.action?.kind === "confirm-low-memory" && canStart ? <SetupLink onClick={() => void start(true)}>{t("Continue anyway")}</SetupLink> : null}
         {progress?.issue ? <SetupLink onClick={() => void window.outcomego?.localServer?.diagnostics().then(copy).catch(() => undefined)}>{t(copied ? "Copied" : "Copy diagnostics")}</SetupLink> : null}
       </>}>
-      {busy ? <div role="status" className="setup-note">
-        <p>{t(stageLabel)}</p>
-        <progress aria-label={t(stageLabel)} max={progress?.total || 1} value={progress?.current} />
-        <p>{progress?.total ? `${progress.current ?? 0}/${progress.total} · ` : ""}{t("{seconds} s elapsed", { seconds: elapsed })}</p>
-      </div> : <div className="flex flex-col gap-2">
+      {busy && progress ? <DeployProgressPanel progress={progress} platform={platform} engine={requestEngine} elapsed={elapsed} />
+      : <div className="flex flex-col gap-2">
         {resuming ? <p className="setup-note">{t("Continue deployment by entering your password again.")}</p> : null}
         {choosesEngine ? <EnginePicker options={options} selected={selected} disabled={authorizing} onRecheck={recheck}
           onSelect={kind => { setChosen(kind); setProgress(null); }} /> : null}

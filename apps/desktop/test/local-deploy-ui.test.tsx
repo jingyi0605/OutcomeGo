@@ -240,3 +240,51 @@ test("a deployment waiting on a restart stays on the OutcomeGo engine", async ()
   expect(card("managed").textContent).toContain("Restart needed");
   expect(entry.start).not.toHaveBeenCalled();
 });
+
+test("progress shows the stage introduction, one weighted bar, and the whole list of steps", async () => {
+  const entry = await fixture({ platform: "darwin", probes: { external: probe("needs-setup"), managed: probe("needs-setup") } });
+  await credentials();
+  await submit();
+  await entry.publish({ ...envelope, type: "stage", stage: "detect", status: "completed" });
+  await entry.publish({ ...envelope, type: "stage", stage: "engine", status: "started" });
+  const status = document.querySelector("[role=status]")!.textContent!;
+  expect(status).toContain("Step 2 of 8");
+  expect(status).toContain("Preparing the virtual machine");
+  expect(status).toContain("small virtual machine to host your bots");
+  const before = Number(document.querySelector("[role=progressbar]")!.getAttribute("aria-valuenow"));
+  expect(before).toBeGreaterThan(0);
+  // The bar's fill and its accessible value say the same thing.
+  const fill = Number(/--fill:\s*([\d.]+)/.exec(document.querySelector(".deploy-meter")!.getAttribute("style") ?? "")?.[1]);
+  expect(Math.round(fill * 100)).toBe(before);
+  expect(Array.from(document.querySelectorAll(".deploy-steps li")).map(item => item.getAttribute("data-state")))
+    .toEqual(["done", "active", "pending", "pending", "pending", "pending", "pending", "pending"]);
+  await entry.publish({ ...envelope, type: "stage", stage: "engine", status: "completed" });
+  await entry.publish({ ...envelope, type: "stage", stage: "release", status: "skipped" });
+  await entry.publish({ ...envelope, type: "stage", stage: "pull", status: "progress", current: 3, total: 7 });
+  expect(Number(document.querySelector("[role=progressbar]")!.getAttribute("aria-valuenow"))).toBeGreaterThan(before);
+  expect(document.body.textContent).toContain("3 of 7 images downloaded");
+  expect(document.querySelector(".deploy-steps li:nth-child(3)")!.textContent).toContain("Already done");
+});
+
+test("the image step shows the source being tested, then the one in use", async () => {
+  const entry = await fixture({ platform: "darwin", probes: { external: probe("needs-setup"), managed: probe("needs-setup") } });
+  await credentials();
+  await submit();
+  await entry.publish({ ...envelope, type: "stage", stage: "pull", status: "started" });
+  expect(document.querySelector(".deploy-sources")!.textContent).toContain("Testing which source is fastest");
+  expect(Array.from(document.querySelectorAll(".deploy-sources li")).map(item => item.getAttribute("data-state"))).toEqual(["testing", "testing", "testing"]);
+  await entry.publish({ ...envelope, type: "log", stage: "pull", message: "Pulling server from ghcr.nju.edu.cn." });
+  expect(document.querySelector(".deploy-sources")!.textContent).toContain("Downloading from Nanjing University");
+  expect(Array.from(document.querySelectorAll(".deploy-sources li")).map(item => item.getAttribute("data-state"))).toEqual(["idle", "active", "idle"]);
+  await entry.publish({ ...envelope, type: "log", stage: "pull", message: "Pulling worker from m.daocloud.io." });
+  expect(Array.from(document.querySelectorAll(".deploy-sources li")).map(item => item.getAttribute("data-state"))).toEqual(["idle", "used", "active"]);
+});
+
+test("with an engine of your own the images follow its settings and no mirror list is shown", async () => {
+  const entry = await fixture({ platform: "darwin", probes: { external: probe("ready"), managed: probe("needs-setup") } });
+  await credentials();
+  await submit();
+  await entry.publish({ ...envelope, type: "stage", stage: "pull", status: "started" });
+  expect(document.querySelector(".deploy-sources")).toBeNull();
+  expect(document.querySelector(".deploy-sources-note")!.textContent).toContain("OutcomeGo changes nothing in Docker");
+});
