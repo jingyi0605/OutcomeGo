@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { markSettlementMessage, runHasOpenWork } from "../src/notifications";
 
-const fakeTx = (options: { payload?: unknown; open?: number; backgroundWorkPending?: boolean }) => {
-  const calls: { count?: unknown; sql?: string } = {};
+const fakeTx = (options: {
+  payload?: unknown;
+  open?: number;
+  backgroundWorkPending?: boolean;
+  marked?: number;
+}) => {
+  const calls: { count?: unknown; sql?: string; statements: string[] } = { statements: [] };
   const tx = {
     run: { findUnique: async () => ({ backgroundWorkPending: options.backgroundWorkPending ?? false }) },
     inboxEvent: { findFirst: async () => (options.payload === undefined ? null : { payload: options.payload }) },
@@ -14,7 +19,9 @@ const fakeTx = (options: { payload?: unknown; open?: number; backgroundWorkPendi
     },
     $executeRaw: async (strings: TemplateStringsArray) => {
       calls.sql = strings.join("?");
-      return 1;
+      calls.statements.push(calls.sql);
+      // Only the first statement is the marker UPDATE; later ones are the held-push release.
+      return calls.statements.length === 1 ? (options.marked ?? 1) : 1;
     },
   };
   return { tx: tx as never, calls };
@@ -49,7 +56,22 @@ describe("settlement marker", () => {
   test("marking is idempotent and never overwrites an existing marker", async () => {
     const { tx, calls } = fakeTx({});
     await markSettlementMessage(tx, "message-1");
-    expect(calls.sql).toContain(`'{"settled": true}'::jsonb`);
-    expect(calls.sql).toContain("NOT (COALESCE");
+    expect(calls.statements[0]).toContain(`'{"settled": true}'::jsonb`);
+    expect(calls.statements[0]).toContain("NOT (COALESCE");
+  });
+
+  test("a newly settled message releases only the push that final-summary alerts held back", async () => {
+    const { tx, calls } = fakeTx({});
+    await markSettlementMessage(tx, "message-1");
+    expect(calls.statements).toHaveLength(2);
+    expect(calls.statements[1]).toContain(`"topic" = 'push.notification'`);
+    expect(calls.statements[1]).toContain(`"error"->>'held' =`);
+    expect(calls.statements[1]).toContain(`"status" = 'pending'`);
+  });
+
+  test("a message that was already settled releases nothing a second time", async () => {
+    const { tx, calls } = fakeTx({ marked: 0 });
+    await markSettlementMessage(tx, "message-1");
+    expect(calls.statements).toHaveLength(1);
   });
 });

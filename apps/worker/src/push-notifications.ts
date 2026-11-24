@@ -1,5 +1,12 @@
 import { suppressMobileNotification } from "@outcomego/contracts/notification-presence";
-import { notificationRouting, unreadBadgeCount, reconcileOutcomeInboxNotifications, outcomeNotificationIsCurrent } from "@outcomego/messaging";
+import {
+  HELD_NOT_FINAL,
+  notificationMessageIsSettlement,
+  notificationRouting,
+  unreadBadgeCount,
+  reconcileOutcomeInboxNotifications,
+  outcomeNotificationIsCurrent,
+} from "@outcomego/messaging";
 import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import {
   PUSH_DELIVERY_ADVISORY_LOCK,
@@ -222,17 +229,34 @@ export class PushNotificationDispatcher {
                 suppressMobileNotification(routing, item.device.platform)
                 ? false : this.notificationIsDeliverable(tx, item.payload))
             );
+            // "Final summary only": a progress message is set aside, not discarded. Its settlement
+            // can still arrive, and markSettlementMessage releases the held delivery then.
+            const finalOnly = routing?.botMessageLevel === "final_only";
+            const held = await Promise.all(
+              sendable.map(async (item, index) =>
+                finalOnly && allowed[index] && item.payload.kind === "message"
+                  ? !(await this.messageIsSettlement(tx, item.payload))
+                  : false
+              )
+            );
             const attempted = sendable.flatMap((item, index) => {
               const device = finalDeviceById.get(item.delivery.target);
-              return device && allowed[index] ? [{ ...item, device }] : [];
+              return device && allowed[index] && !held[index] ? [{ ...item, device }] : [];
             });
+            const heldItems = sendable.filter((item, index) => held[index] && finalDeviceById.has(item.delivery.target));
             const retired = sendable.filter(
-              (item, index) => !finalDeviceById.has(item.delivery.target) || !allowed[index]
+              (item, index) => !held[index] && (!finalDeviceById.has(item.delivery.target) || !allowed[index])
             );
             if (retired.length > 0) {
               await tx.outboxDelivery.updateMany({
                 where: { id: { in: retired.map(({ delivery }) => delivery.id) } },
                 data: { status: "delivered", deliveredAt: new Date() },
+              });
+            }
+            if (heldItems.length > 0) {
+              await tx.outboxDelivery.updateMany({
+                where: { id: { in: heldItems.map(({ delivery }) => delivery.id) } },
+                data: { status: "delivered", deliveredAt: new Date(), error: json({ held: HELD_NOT_FINAL }) },
               });
             }
             if (attempted.length === 0) return;
@@ -285,6 +309,15 @@ export class PushNotificationDispatcher {
         } });
       }
     }));
+  }
+
+  /** An alert that cannot be matched to a message is never held back for being "not final". */
+  private async messageIsSettlement(
+    tx: Prisma.TransactionClient,
+    payload: PushNotificationPayload
+  ): Promise<boolean> {
+    if (payload.kind === "badge-sync" || payload.kind === "outcome" || !payload.messageSequence) return true;
+    return notificationMessageIsSettlement(tx, payload.channelId, payload.messageSequence);
   }
 
   private async notificationIsDeliverable(

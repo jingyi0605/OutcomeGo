@@ -8,6 +8,7 @@ import {
   truncateNotificationText,
   outcomeNotificationPayload,
 } from "@outcomego/contracts";
+import type { BotMessageNotifyLevel } from "@outcomego/contracts/notification-presence";
 import { channelMessageSummary } from "@outcomego/product-core/channel-events";
 import { Prisma } from "@outcomego/db";
 
@@ -187,6 +188,9 @@ export const runHasOpenWork = async (
   );
 };
 
+/** Marks a push set aside by "final summary only" alerts, so settlement can release it. */
+export const HELD_NOT_FINAL = "not_final";
+
 /**
  * Record that this message is the turn's settlement: the reply the user was waiting for. The
  * floating window and its arrival cue key off this fact, not off the model remembering end_turn.
@@ -195,9 +199,51 @@ export const markSettlementMessage = async (
   tx: Pick<Prisma.TransactionClient, "$executeRaw">,
   messageId: string
 ): Promise<void> => {
-  await tx.$executeRaw`UPDATE "outcomego_channel_message"
+  const marked = await tx.$executeRaw`UPDATE "outcomego_channel_message"
     SET "metadata" = COALESCE("metadata", '{}'::jsonb) || '{"settled": true}'::jsonb
     WHERE "id" = ${messageId}::uuid AND NOT (COALESCE("metadata", '{}'::jsonb) ? 'settled')`;
+  if (!marked) return;
+  // With "final summary only" alerts, this message's push was set aside while it still looked like
+  // progress. Its activity already exists, so publishing cannot allocate another push; send the
+  // held one now. The delivery check still drops it if the message has been read meanwhile.
+  await tx.$executeRaw`UPDATE "outcomego_outbox_delivery"
+    SET "status" = 'pending', "deliveredAt" = NULL, "error" = NULL,
+      "availableAt" = CURRENT_TIMESTAMP + interval '1.5 seconds'
+    WHERE "topic" = 'push.notification' AND "status" = 'delivered'
+      AND "error"->>'held' = ${HELD_NOT_FINAL} AND "payload"->>'messageId' = ${messageId}`;
+};
+
+/**
+ * A Bot message that closes a turn or waits on the owner: the replies "final summary only" alerts
+ * and the floating window count. Expects the message row to be aliased `m`.
+ */
+export const settlementMessageSql = Prisma.sql`(
+  m.metadata->'end_turn' = 'true'::jsonb
+  -- The server marks a turn's last visible message "settled" when the run completes with no
+  -- worker still owing a result (markSettlementMessage). That covers a final reply whose
+  -- own send omitted end_turn, such as a room turn that fell back to its final text.
+  OR m.metadata->'settled' = 'true'::jsonb
+  OR m.metadata ? 'draftOutcomeNotification'
+  OR m.metadata->>'type' IN ('widget', 'secret-request', 'computer-handoff', 'user-form')
+  OR (m.metadata->>'type' IN ('external-draft', 'imessage-send')
+    AND COALESCE(m.metadata->>'cardState', 'pending') <> 'sending')
+  OR (m.metadata->>'type' = 'bot-template' AND m.metadata->>'cardState' = 'draft')
+)`;
+
+/** Whether the alert's message is a settlement; false when the message no longer exists. */
+export const notificationMessageIsSettlement = async (
+  tx: Pick<Prisma.TransactionClient, "$queryRaw">,
+  channelId: string,
+  messageSequence: string
+): Promise<boolean> => {
+  const [row] = await tx.$queryRaw<Array<{ settled: boolean }>>(Prisma.sql`
+    SELECT EXISTS (
+      SELECT 1 FROM "outcomego_channel_message" m
+      WHERE m."channelId" = ${channelId}::uuid AND m.sequence = ${messageSequence}::bigint
+        AND ${settlementMessageSql}
+    ) AS settled
+  `);
+  return row?.settled === true;
 };
 
 /** The same plain-text line the chat list shows: first line of text, "Sent 1 image", a card's prompt. */
@@ -235,6 +281,7 @@ export const channelNotificationStates = async (
       dockNotificationSequence: bigint | null;
       dockMessageSequence: bigint | null;
       dockCreatedAt: Date | null;
+      botMessageLevel: BotMessageNotifyLevel;
     }>
   >(Prisma.sql`
     SELECT requested."channelId", COALESCE(state."lastReadSequence", 0) AS "lastReadSequence",
@@ -257,7 +304,9 @@ export const channelNotificationStates = async (
         AND EXISTS (SELECT 1 FROM "outcomego_bot" b WHERE b.id = n."botId" AND b."notificationsEnabled" AND NOT b."hiddenFromSidebar")
         AND n.sequence > COALESCE(state."lastReadNotificationSequence", 0)) AS "activityUnreadCount",
       dock."unreadCount" AS "dockUnreadCount", dock.sequence AS "dockNotificationSequence",
-      dock."messageSequence" AS "dockMessageSequence", dock."createdAt" AS "dockCreatedAt"
+      dock."messageSequence" AS "dockMessageSequence", dock."createdAt" AS "dockCreatedAt",
+      COALESCE((SELECT p."botMessageLevel"::text FROM "outcomego_notification_preferences" p
+        WHERE p.id = 'global'), 'every_message') AS "botMessageLevel"
     FROM unnest(${channelIds}::uuid[]) requested("channelId")
     JOIN "outcomego_channel" channel ON channel.id = requested."channelId"
     LEFT JOIN "outcomego_channel_read_state" state ON state."channelId" = requested."channelId"
@@ -271,18 +320,7 @@ export const channelNotificationStates = async (
         AND NOT channel."notificationsMuted" AND n.sequence > channel."mutedThroughNotificationSequence"
         AND bot."notificationsEnabled" AND NOT bot."hiddenFromSidebar"
         AND n."messageSequence" > COALESCE(state."lastReadSequence", 0)
-        AND (
-          m.metadata->'end_turn' = 'true'::jsonb
-          -- The server marks a turn's last visible message "settled" when the run completes with no
-          -- worker still owing a result (markSettlementMessage). That covers a final reply whose
-          -- own send omitted end_turn, such as a room turn that fell back to its final text.
-          OR m.metadata->'settled' = 'true'::jsonb
-          OR m.metadata ? 'draftOutcomeNotification'
-          OR m.metadata->>'type' IN ('widget', 'secret-request', 'computer-handoff', 'user-form')
-          OR (m.metadata->>'type' IN ('external-draft', 'imessage-send')
-            AND COALESCE(m.metadata->>'cardState', 'pending') <> 'sending')
-          OR (m.metadata->>'type' = 'bot-template' AND m.metadata->>'cardState' = 'draft')
-        )
+        AND ${settlementMessageSql}
       ORDER BY n.sequence DESC LIMIT 1
     ) dock ON true
   `);
