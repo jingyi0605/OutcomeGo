@@ -47,6 +47,15 @@
 
 按用户授权完成可本地验证的候选路径；**尚无 1.10 Go，不可视为发布就绪**。未注册开机项、启动实际 VM、执行真实注销或卸载，也未修改签名配置。候选代码自动验证环境为 macOS arm64、Bun 1.4.4；另有 Windows 11 可用性与部署探测，见下文。
 
+### macOS 引擎资产与签名流水线 · 2026-11-25
+
+- 已接入 `.github/workflows/release.yml` 的 `macos-engine` 矩阵，在原生 macOS 15 arm64 和 macOS 15 Intel runner 上分别构建资产。
+- 现有 `macos` 公证包作业已同步扩展为原生 arm64 与 x64 矩阵，分别上传对应 DMG 和 ZIP。
+- 输入固定为 Lima 2.1.4 核心包、guest agents 和 Ubuntu Jammy cloud image 摘要。运行时内的 Mach-O 文件由现有 `MACOS_CERTIFICATE_BASE64`、`MACOS_CERTIFICATE_PASSWORD` 和 `MACOS_SIGNING_IDENTITY` 路径签名，并应用 `com.apple.security.virtualization` 辅助 entitlement。
+- 资产进入现有 `sign` 作业后使用 GitHub OIDC Sigstore 逐个签署 `.tar.gz` 和 `.qcow2`，发布汇总要求两种架构、四个资产签名、macOS 组件清单和第三方声明同时存在。
+- 实际验证：CLI 资产清单测试 4 pass / 0 fail；macOS 发布配置测试 8 pass / 0 fail；macOS 与 Windows 组件清单核对、发布工作流静态检查和 YAML 解析通过。
+- 待验收：当前 Mac 没有本地公证凭据，未实际运行 GitHub 签名流水线，未生成正式公证 DMG/ZIP 或两架构引擎资产。Ubuntu 镜像中的包级许可证、源码获取方式、Spike C、法务和发布门仍需确认，暂不能把 M3 标为 DONE。
+
 | 检查 | 实际结果 |
 | --- | --- |
 | CLI `bun test`、`bun run test:doctor`、`bun run test:install` | 收尾分别为 859 pass、225 pass、65 pass，均 0 fail |

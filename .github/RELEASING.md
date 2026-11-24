@@ -70,6 +70,12 @@ non-pre-release releases.
 Keep these in an Environment with required reviewers if you want a manual approval before
 signing. Never put signing material in the repository or in logs.
 
+When `RELEASE_MACOS=true`, the workflow also builds signed Lima runtime and Ubuntu Jammy disk
+assets for Apple Silicon and Intel on native macOS runners. The existing Developer ID
+certificate signs the runtime binaries, and the existing release signing job adds Sigstore
+bundles to every engine asset. The desktop app continues to use the existing Developer ID and
+notarization path.
+
 ## Android
 
 `bash scripts/android/package-release.sh` builds and verifies the signed APK locally when the

@@ -336,17 +336,83 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  macos-engine:
+    if: vars.RELEASE_MACOS == 'true'
+    needs: [meta]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { architecture: arm64, runner: macos-15, primary: true }
+          - { architecture: x64, runner: macos-15-intel, primary: false }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.2
+      - name: Restore macOS engine signing credentials
+        env:
+          MACOS_CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          signing_keychain="$RUNNER_TEMP/OutcomeGo-engine-signing.keychain-db"
+          signing_keychain_password="$(openssl rand -hex 32)"
+          signing_certificate="$RUNNER_TEMP/OutcomeGo-engine-signing.p12"
+          printf '%s' "$MACOS_CERTIFICATE_BASE64" | base64 --decode > "$signing_certificate"
+          security create-keychain -p "$signing_keychain_password" "$signing_keychain"
+          security set-keychain-settings -lut 21600 "$signing_keychain"
+          security unlock-keychain -p "$signing_keychain_password" "$signing_keychain"
+          security import "$signing_certificate" \
+            -k "$signing_keychain" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$signing_keychain_password" \
+            "$signing_keychain"
+          existing_keychains="$(security list-keychains -d user | tr -d '"')"
+          security list-keychains -d user -s "$signing_keychain" $existing_keychains
+          echo "CSC_KEYCHAIN=$signing_keychain" >> "$GITHUB_ENV"
+      - name: Build and sign the macOS engine assets
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/macos-engine-${{ matrix.architecture }}"
+          bun apps/cli/scripts/build-macos-engine.ts "${{ matrix.architecture }}" "$stage"
+          bun scripts/check/release-workflows.ts --engine-components "$stage/engine-components-macos.json" --section macos
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos-engine-${{ matrix.architecture }}
+          path: |
+            ${{ runner.temp }}/macos-engine-${{ matrix.architecture }}/outcomego-engine-darwin-*
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: matrix.primary
+        with:
+          name: macos-engine-components
+          path: ${{ runner.temp }}/macos-engine-${{ matrix.architecture }}/engine-components-macos.json
+          if-no-files-found: error
+          retention-days: 7
+
   sign:
     # The only job with an OIDC token. It runs just the signing script, so the Sigstore
     # certificate identity is this workflow on the release tag.
-    needs: [meta, ci, cli-build, merge-images, windows-engine]
+    needs: [meta, ci, cli-build, merge-images, windows-engine, macos-engine]
     if: >-
       ${{ !cancelled()
       && needs.meta.outputs.publish == 'true'
       && needs.ci.result == 'success'
       && needs.cli-build.result == 'success'
       && needs.merge-images.result == 'success'
-      && (vars.RELEASE_WINDOWS_ENGINE != 'true' || needs.windows-engine.result == 'success') }}
+      && (vars.RELEASE_WINDOWS_ENGINE != 'true' || needs.windows-engine.result == 'success')
+      && (vars.RELEASE_MACOS != 'true' || needs.macos-engine.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -392,6 +458,25 @@ jobs:
         env:
           OUTCOMEGO_RELEASE_SIGNING_MODE: keyless
         run: bun apps/cli/scripts/sign-release.ts dist/core/outcomego-engine-windows-x64.tar.gz
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: vars.RELEASE_MACOS == 'true'
+        with:
+          pattern: macos-engine-*
+          path: dist/core
+          merge-multiple: true
+      - name: Include macOS engine notices
+        if: vars.RELEASE_MACOS == 'true'
+        run: cp THIRD-PARTY-NOTICES dist/core/THIRD-PARTY-NOTICES
+      - name: Sign the macOS engine assets
+        if: vars.RELEASE_MACOS == 'true'
+        env:
+          OUTCOMEGO_RELEASE_SIGNING_MODE: keyless
+        run: |
+          set -euo pipefail
+          for asset in dist/core/outcomego-engine-darwin-*.tar.gz dist/core/outcomego-engine-darwin-*.qcow2; do
+            [ -f "$asset" ] || continue
+            bun apps/cli/scripts/sign-release.ts "$asset"
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: core
@@ -472,8 +557,14 @@ jobs:
     # Needs a Developer ID Application certificate and notarization key.
     needs: [meta]
     if: ${{ vars.RELEASE_MACOS == 'true' }}
-    runs-on: macos-latest
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { architecture: arm64, runner: macos-15 }
+          - { architecture: x64, runner: macos-15-intel }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -520,10 +611,10 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: bun run package:mac-release
       - name: Verify the disk image
-        run: hdiutil verify apps/desktop/release/OutcomeGo-*-mac-arm64.dmg
+        run: hdiutil verify "apps/desktop/release/OutcomeGo-*-mac-${{ matrix.architecture }}.dmg"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: desktop-macOS
+          name: desktop-macOS-${{ matrix.architecture }}
           path: |
             apps/desktop/release/OutcomeGo-*
             apps/desktop/release/latest*.yml
@@ -700,6 +791,7 @@ jobs:
       - name: Assemble the release files and checksums
         env:
           RELEASE_WINDOWS_ENGINE: ${{ vars.RELEASE_WINDOWS_ENGINE }}
+          RELEASE_MACOS: ${{ vars.RELEASE_MACOS }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -715,6 +807,18 @@ jobs:
           if [ "$RELEASE_WINDOWS_ENGINE" = true ]; then
             for required in outcomego-engine-windows-x64.tar.gz outcomego-engine-windows-x64.tar.gz.sigstore.json engine-components.json THIRD-PARTY-NOTICES; do
               [ -s "$required" ] || { echo "Missing release file: $required" >&2; exit 1; }
+            done
+          fi
+          if [ "$RELEASE_MACOS" = true ]; then
+            mac_runtime=(outcomego-engine-darwin-*.tar.gz)
+            mac_images=(outcomego-engine-darwin-*.qcow2)
+            [ "${#mac_runtime[@]}" -eq 2 ] || { echo "Expected two macOS runtime assets" >&2; exit 1; }
+            [ "${#mac_images[@]}" -eq 2 ] || { echo "Expected two macOS disk assets" >&2; exit 1; }
+            for required in "${mac_runtime[@]}" "${mac_images[@]}" engine-components-macos.json THIRD-PARTY-NOTICES; do
+              [ -s "$required" ] || { echo "Missing release file: $required" >&2; exit 1; }
+            done
+            for asset in "${mac_runtime[@]}" "${mac_images[@]}"; do
+              [ -s "$asset.sigstore.json" ] || { echo "Missing release signature: $asset.sigstore.json" >&2; exit 1; }
             done
           fi
           if [ "${{ needs.android.result }}" = "success" ]; then

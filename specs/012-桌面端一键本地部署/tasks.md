@@ -1101,8 +1101,8 @@
 ## 阶段 5：macOS 托管引擎
 
 - [ ] 5.1 macOS 引擎资产与打包签名
-  - 状态：IN_REVIEW（离线组包与校验已实现，待固定输入与签名公证）
-  - 实际输出：离线组包夹具 2 pass / 0 fail；Sigstore 夹具验证原资产和篡改副本。`verify:mac-notifications` 退出 1：`The outcomeGo app bundle was not found. Build the macOS package first.` 未修改签名配置或打包正式产物。
+  - 状态：IN_REVIEW（资产与签名流水线已实现，待授权发布流水线实跑）
+  - 实际输出：新增 `build-macos-engine.ts`，固定 Lima 2.1.4、Ubuntu Jammy 镜像摘要和两架构输入，使用 Developer ID 签名运行时并应用 `com.apple.security.virtualization`；新增 `macos-engine` CI 矩阵和双架构 macOS 公证包矩阵，复用现有 macOS 证书恢复和发布 Sigstore 签名。离线组件核对 4 pass / 0 fail，macOS 发布配置测试 8 pass / 0 fail，发布工作流核对通过。当前本机没有可用于公证的凭据，未生成正式 DMG、ZIP 或引擎资产。
   - 待验收：发布负责人提供两架构已授权运行时和磁盘，核对虚拟化 entitlement、Developer ID、Gatekeeper、公证、通知与 dmg/zip 体积；先完成 Spike C、法务与发布门。
   - 这一步到底做什么：按 Spike C 选定的路线，打包虚拟机运行时与资产，完成签名、虚拟化 entitlement 与公证。
   - 做完你能看到什么：正式发布的 macOS 应用带有已签名公证的辅助二进制，资产有摘要与签名。
@@ -1113,12 +1113,13 @@
     - `apps/desktop/package.json`、`apps/desktop/build/entitlements.mac.plist`、`apps/desktop/scripts/package-macos-release.ts`
   - 技术规划：
     1. 按 Spike C 的路线，在 `apps/desktop/package.json` 增加所需资源；优先按需下载，若必须随包则核对 dmg 预算。
-    2. `build/entitlements.mac.plist` 为辅助二进制增加 `com.apple.security.virtualization`。
-    3. `scripts/package-macos-release.ts` 与 `macos-release-utils.ts` 对辅助二进制逐个签名并纳入公证。
-    4. CI 构建并签名资产，生成摘要与 sigstore 签名，并执行与 4.1 相同的 `THIRD-PARTY-NOTICES` 一致性检查；确认不含专有软件。
+    2. 新增 `build/entitlements.engine.mac.plist`，为 Lima 辅助二进制提供 `com.apple.security.virtualization`。
+    3. `build-macos-engine.ts` 对辅助二进制逐个签名并生成两架构运行时、磁盘摘要和组件清单。
+    4. CI 构建并签名资产，生成摘要与 Sigstore 签名，并执行与 4.1 相同的 `THIRD-PARTY-NOTICES` 一致性检查；确认不含专有软件。
   - 主要改哪里：
     - `apps/desktop/package.json`（`extraResources` 或下载逻辑）
     - `apps/desktop/build/entitlements.mac.plist`
+    - `apps/cli/engine-assets/entitlements.engine.mac.plist`
     - `apps/desktop/scripts/package-macos-release.ts`、`apps/desktop/scripts/macos-release-utils.ts`
     - `.github/workflows/release.yml`
   - 这一步先不做什么：不实现 `managed-lima` 提供者；不改变现有 `package:mac-local` 的行为。

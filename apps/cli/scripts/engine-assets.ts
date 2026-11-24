@@ -46,18 +46,19 @@ export const verifyComponentReferences = (assets: readonly EngineAssetInput[], i
   if (referenced.size !== available.size) throw new Error("The engine inventory contains unreferenced components.");
 };
 
-const readEngineNotices = (notices: string): Component[] => {
-  const block = /^```engine-components-json\r?\n([\s\S]*?)^```\s*$/m.exec(notices)?.[1];
+const readEngineNotices = (notices: string, section = "windows"): Component[] => {
+  const blocks = [...notices.matchAll(/^```engine-components-json(?: ([^\r\n]+))?\r?\n([\s\S]*?)^```\s*$/gm)];
+  const block = blocks.find(match => (match[1] ?? "windows") === section)?.[2];
   if (!block) throw new Error("THIRD-PARTY-NOTICES has no engine inventory.");
   const declared = JSON.parse(block) as Component[];
   componentIds(declared);
   return declared;
 };
 
-export const verifyEngineNotices = (components: unknown, notices: string) => {
+export const verifyEngineNotices = (components: unknown, notices: string, section = "windows") => {
   componentIds(components);
   if (!Array.isArray(components) || !components.length) throw new Error("The staged engine inventory is empty.");
-  const declared = readEngineNotices(notices);
+  const declared = readEngineNotices(notices, section);
   const entries = (list: Component[]) => list.map(({ name, version, license, source, notice }) => JSON.stringify([name, version, license, source, notice])).sort();
   if (JSON.stringify(entries(components)) !== JSON.stringify(entries(declared))) throw new Error("THIRD-PARTY-NOTICES differs from the staged engine inventory.");
 };
@@ -150,10 +151,13 @@ if (import.meta.main) {
       assets: [{ name: windowsAsset, source, sha256: await sha256(source), components: [...componentIds(components)] }],
       components,
     }, windowsOutput);
+  } else if (input === "--macos-components" && output) {
+    const components = readEngineNotices(await readFile("THIRD-PARTY-NOTICES", "utf8"), "macos");
+    await writeFile(resolve(output), `${JSON.stringify(components, null, 2)}\n`);
   } else if (input && output && !windowsOutput) {
     await stageEngineAssets(input, output);
   } else {
-    throw new Error("Usage: bun engine-assets.ts <pinned-input.json> <new-output-directory> | --windows-rootfs <rootfs.tar> <new-output-directory>");
+    throw new Error("Usage: bun engine-assets.ts <pinned-input.json> <new-output-directory> | --windows-rootfs <rootfs.tar> <new-output-directory> | --macos-components <output.json>");
   }
   console.log("Candidate engine assets staged without signing or publication.");
 }

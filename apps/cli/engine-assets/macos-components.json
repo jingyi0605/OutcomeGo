@@ -1,0 +1,23 @@
+[
+  {
+    "name": "lima",
+    "version": "2.1.4",
+    "license": "Apache-2.0",
+    "source": "https://github.com/lima-vm/lima/tree/v2.1.4",
+    "notice": "LICENSE"
+  },
+  {
+    "name": "lima-guestagents",
+    "version": "2.1.4",
+    "license": "Apache-2.0",
+    "source": "https://github.com/lima-vm/lima/tree/v2.1.4",
+    "notice": "LICENSE"
+  },
+  {
+    "name": "ubuntu-jammy-cloud-image",
+    "version": "20261109",
+    "license": "GPL-2.0-only and other Ubuntu component licenses",
+    "source": "https://cloud-images.ubuntu.com/jammy/current/SHA256SUMS",
+    "notice": "Guest image package copyright files and Ubuntu license manifest"
+  }
+]

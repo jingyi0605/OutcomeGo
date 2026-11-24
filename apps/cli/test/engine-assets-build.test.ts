@@ -37,6 +37,20 @@ test("release review fails for missing or stale component notice metadata", () =
   expect(() => verifyEngineNotices(components, notices([{ ...components[0], notice: "wrong" }]))).toThrow("differs");
 });
 
+test("release review selects the macOS component inventory separately", () => {
+  const components = [{ name: "lima", version: "2.1.4", license: "Apache-2.0", source: "https://example.invalid/lima", notice: "LICENSE" }];
+  const notices = [
+    "```engine-components-json",
+    JSON.stringify([{ name: "windows", version: "1.0.0", license: "MIT", source: "https://example.invalid/windows", notice: "LICENSE" }]),
+    "```",
+    "```engine-components-json macos",
+    JSON.stringify(components),
+    "```",
+  ].join("\n");
+  expect(() => verifyEngineNotices(components, notices, "macos")).not.toThrow();
+  expect(() => verifyEngineNotices(components, notices)).toThrow("differs");
+});
+
 test("Windows rootfs packages must match every reviewed binary version and architecture", () => {
   const status = `Package: docker.io
 Status: install ok installed

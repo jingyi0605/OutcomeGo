@@ -110,3 +110,13 @@ Go 程序的链接依赖、对应源码保留和适用的上游 NOTICE 原文仍
 {"name": "zlib1g", "version": "1:1.3.dfsg+really1.3.1-1+deb13u1", "license": "Zlib", "source": "https://snapshot.debian.org/package/zlib/1%3A1.3.dfsg%2Breally1.3.1-1%2Bdeb13u1/", "notice": "/usr/share/doc/zlib1g/copyright"}
 ]
 ```
+
+macOS 托管引擎候选的组件登记。Ubuntu 客户机镜像中的完整包级许可证和源码获取方式仍需在公开发布前由法务核对。
+
+```engine-components-json macos
+[
+{"name": "lima", "version": "2.1.4", "license": "Apache-2.0", "source": "https://github.com/lima-vm/lima/tree/v2.1.4", "notice": "LICENSE"},
+{"name": "lima-guestagents", "version": "2.1.4", "license": "Apache-2.0", "source": "https://github.com/lima-vm/lima/tree/v2.1.4", "notice": "LICENSE"},
+{"name": "ubuntu-jammy-cloud-image", "version": "20261109", "license": "GPL-2.0-only and other Ubuntu component licenses", "source": "https://cloud-images.ubuntu.com/jammy/current/SHA256SUMS", "notice": "Guest image package copyright files and Ubuntu license manifest"}
+]
+```
