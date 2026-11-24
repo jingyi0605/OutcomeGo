@@ -26,6 +26,13 @@ export const registerLocalDeployIpc = (options: {
     requireAuthSender(event);
     await manager.cancel(args[0]);
   });
+  handle("outcomego:local-deploy:engines", async (event, ...args: unknown[]) => {
+    requireAuthSender(event);
+    if (args.length || !options.isSupported()) throw new Error("INVALID_INPUT");
+    const { manager } = await load();
+    requireAuthSender(event);
+    return manager.engines();
+  });
   handle("outcomego:local-deploy:enable-wsl", async (event, ...args: unknown[]) => {
     requireAuthSender(event);
     if (args.length !== 1 || args[0] !== true || !options.isSupported()) throw new Error("INVALID_INPUT");

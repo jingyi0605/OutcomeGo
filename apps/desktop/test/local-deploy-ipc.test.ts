@@ -20,7 +20,7 @@ const fixture = () => {
 
 test("IPC rejects a foreign sender before loading the local CLI manager", async () => {
   const entry = fixture();
-  expect(entry.handlers.size).toBe(9);
+  expect(entry.handlers.size).toBe(10);
   for (const handler of entry.handlers.values()) {
     await expect(Promise.resolve().then(() => handler({}))).rejects.toThrow("Authentication is unavailable");
   }
@@ -31,6 +31,7 @@ test.each([
   ["local-deploy:start", [{ username: "a", password: "x".repeat(1025) }]],
   ["local-deploy:cancel", [123]],
   ["local-deploy:enable-wsl", [false]],
+  ["local-deploy:engines", [true]],
   ["local-server:status", [false]],
   ["local-server:start", [{ apiPort: 65536 }]],
   ["local-server:stop", ["server"]],

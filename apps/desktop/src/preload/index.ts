@@ -249,6 +249,7 @@ contextBridge.exposeInMainWorld("outcomego", {
   localDeploy: {
     start: request<[unknown]>("local-deploy:start"),
     cancel: request<[string]>("local-deploy:cancel"),
+    engines: request("local-deploy:engines"),
     enableWsl: request<[true]>("local-deploy:enable-wsl"),
     onProgress: (callback: (value: unknown) => void) => subscribe("local-deploy:progress", callback),
   },

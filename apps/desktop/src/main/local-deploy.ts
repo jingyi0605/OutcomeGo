@@ -8,9 +8,9 @@ import { safeErrorMessage } from "@outcomego/product-core/redaction";
 import { canManageLocalInstallation, readManagedInstallation, readPendingDeployment } from "./local-installation";
 
 import {
-  actions, codes, engines, fields, stackStates, stages, statuses,
-  type Action, type Code, type DeployPayload, type DeployProgress, type LocalDeployRequest,
-  type LocalServerStatus, type Stage,
+  actions, codes, engineProbeStates, engines, fields, stackStates, stages, statuses,
+  type Action, type Code, type DeployPayload, type DeployProgress, type EngineProbe, type EngineProbes,
+  type LocalDeployRequest, type LocalServerStatus, type Stage,
 } from "../renderer/lib/local-deploy-contract";
 
 const record = (value: unknown): Record<string, unknown> | null =>
@@ -274,6 +274,40 @@ export class LocalDeployManager {
     } catch {
       return { ...empty, stack: { state: this.operation ?? (installation ? "unhealthy" : "not-installed"), services: [] }, reason: "ENGINE_UNAVAILABLE" };
     }
+  }
+
+  /**
+   * A read-only look at each container engine a deployment could use, for the engine choice
+   * screen. It starts nothing and takes no deployment lock. A look that fails or times out
+   * reports "unknown" instead of failing, so the screen can still offer both choices.
+   */
+  async engines(): Promise<EngineProbes> {
+    const probe = async (kind: "external" | "managed"): Promise<EngineProbe> => {
+      const unknown: EngineProbe = { state: "unknown", reasons: [] };
+      try {
+        const { status, output } = await this.command(["engine", "status", "--json", "--engine", kind], { bundled: true, timeout: 25_000 });
+        const detection = record(JSON.parse(output));
+        if (status !== 0 || !detection || !member(engineProbeStates, detection.state) || detection.state === "unknown") return unknown;
+        const described = record(detection.engine);
+        const label = (value: unknown) => typeof value === "string" && value.length <= 80 ? redact(value) : undefined;
+        const name = label(described?.name);
+        const version = label(described?.version) ?? label(detection.engineVersion);
+        return {
+          state: detection.state,
+          ...(member(codes, detection.code) ? { code: detection.code } : {}),
+          reasons: Array.isArray(detection.reasons)
+            ? detection.reasons.slice(0, 5).filter((item): item is string => typeof item === "string" && item.length <= 400).map(redact) : [],
+          ...(name ? { name } : {}),
+          ...(version ? { version } : {}),
+        };
+      } catch { return unknown; }
+    };
+    const platformName = this.options.platform ?? process.platform;
+    const [external, managed] = await Promise.all([
+      probe("external"),
+      platformName === "win32" || platformName === "darwin" ? probe("managed") : Promise.resolve(null),
+    ]);
+    return { external, managed };
   }
 
   async service(action: "start" | "stop" | "uninstall" | "resources", args: string[], serverUrl?: string): Promise<LocalServerStatus> {

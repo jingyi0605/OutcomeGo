@@ -158,6 +158,59 @@ test("a failed status command resolves to unhealthy with a reason", async () => 
   expect(await statusFixture("/isolated", null).manager.status()).toMatchObject({ stack: { state: "unhealthy" }, reason: "ENGINE_UNAVAILABLE" });
 });
 
+const enginesFixture = (outputs: Record<string, unknown>, platform: NodeJS.Platform = "darwin") => {
+  const calls: string[][] = [];
+  const manager = new LocalDeployManager({
+    directory: "/isolated", version: "1.2.3", executablePath: "/desktop", bundledCli: "/bundled-cli.js", platform,
+    installation: () => null,
+    spawn: ((_program, args: string[]) => {
+      calls.push(args);
+      const answer = outputs[args[args.indexOf("--engine") + 1]!];
+      const child = Object.assign(new EventEmitter(), { stdout: new PassThrough(), stderr: new PassThrough(), stdin: new PassThrough() });
+      child.stdout.once("end", () => child.emit("close", answer === undefined ? 1 : 0));
+      queueMicrotask(() => child.stdout.end(answer === undefined ? "" : JSON.stringify(answer)));
+      return child;
+    }) as ConstructorParameters<typeof LocalDeployManager>[0]["spawn"],
+  });
+  return { manager, calls };
+};
+
+test("engine probes read each engine without starting anything", async () => {
+  const entry = enginesFixture({
+    external: { state: "ready", reasons: [], engineVersion: "27.3.1", engine: { kind: "external", name: "Docker", version: "27.3.1" } },
+    managed: { state: "needs-setup", reasons: [], code: "WSL_NOT_ENABLED", engine: { kind: "managed-wsl", name: "OutcomeGo engine" } },
+  });
+  expect(await entry.manager.engines()).toEqual({
+    external: { state: "ready", reasons: [], name: "Docker", version: "27.3.1" },
+    managed: { state: "needs-setup", code: "WSL_NOT_ENABLED", reasons: [], name: "OutcomeGo engine" },
+  });
+  expect(entry.calls.map(args => args.slice(0, 5)).sort()).toEqual([
+    ["/bundled-cli.js", "engine", "status", "--json", "--engine"], ["/bundled-cli.js", "engine", "status", "--json", "--engine"],
+  ]);
+  expect(entry.calls.flat().filter(argument => ["bootstrap", "start", "uninstall", "enable-wsl"].includes(argument))).toEqual([]);
+});
+
+test("a failed or malformed engine probe reports unknown instead of failing the screen", async () => {
+  const entry = enginesFixture({ external: { state: "exploded", reasons: [] } });
+  expect(await entry.manager.engines()).toEqual({ external: { state: "unknown", reasons: [] }, managed: { state: "unknown", reasons: [] } });
+});
+
+test("engine probes keep reasons bounded and redact secret-looking lines", async () => {
+  const entry = enginesFixture({
+    external: { state: "unsupported", code: "ENGINE_INCOMPATIBLE", reasons: ["a", "OUTCOMEGO_AUTH_SECRET=leaked", "x".repeat(401), "b", "c", "d", "e"] },
+    managed: { state: "ready", reasons: [] },
+  });
+  const { external } = await entry.manager.engines();
+  expect(external.reasons).toEqual(["a", "OUTCOMEGO_AUTH_SECRET=[REDACTED]", "b", "c"]);
+  expect(JSON.stringify(external)).not.toContain("leaked");
+});
+
+test("a computer without a managed engine is only probed for its own", async () => {
+  const entry = enginesFixture({ external: { state: "stopped", reasons: ["Start Docker."] } }, "linux");
+  expect(await entry.manager.engines()).toEqual({ external: { state: "stopped", reasons: ["Start Docker."] }, managed: null });
+  expect(entry.calls).toHaveLength(1);
+});
+
 test("diagnostics returns the failed stage and strips credential values", async () => {
   const directory = mkdtempSync(join(tmpdir(), "outcomego-diagnostic-"));
   try {

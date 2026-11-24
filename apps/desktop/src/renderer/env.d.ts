@@ -143,6 +143,7 @@ interface Window {
     localDeploy?: {
       start(input: import("./lib/local-deploy-contract").LocalDeployRequest): Promise<{ deployId: string }>;
       cancel(deployId: string): Promise<void>;
+      engines(): Promise<import("./lib/local-deploy-contract").EngineProbes>;
       enableWsl(confirmed: true): Promise<{ code: import("./lib/local-deploy-contract").Code | null }>;
       onProgress(callback: (event: import("./lib/local-deploy-contract").DeployProgress) => void): () => void;
     };

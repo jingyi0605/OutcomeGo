@@ -5,9 +5,20 @@ export const statuses = ["started", "progress", "completed", "skipped", "failed"
 export const fields = ["username", "password", "apiPort", "stdin"] as const;
 export const engines = ["external", "managed-wsl", "managed-lima"] as const;
 export const stackStates = ["not-installed", "stopped", "starting", "running", "unhealthy", "updating", "removing"] as const;
+export const engineProbeStates = ["ready", "stopped", "needs-setup", "unsupported", "unknown"] as const;
 export type Stage = (typeof stages)[number];
 export type Code = (typeof codes)[number];
 export type Action = { kind: (typeof actions)[number]; detail?: string };
+/** What a read-only look at one container engine found; "unknown" means the look itself failed. */
+export type EngineProbe = {
+  state: (typeof engineProbeStates)[number];
+  code?: Code;
+  reasons: string[];
+  name?: string;
+  version?: string;
+};
+/** `managed` is null on a computer that has no OutcomeGo-managed engine (anything but Windows and macOS). */
+export type EngineProbes = { external: EngineProbe; managed: EngineProbe | null };
 export type DeploymentResult = { url: string; username: string; directory: string; version: string; engine: (typeof engines)[number] };
 export type DeployPayload =
   | { type: "stage"; stage: Stage; status: (typeof statuses)[number]; current?: number; total?: number }

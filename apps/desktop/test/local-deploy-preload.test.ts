@@ -27,6 +27,12 @@ test("preload exposes fixed local service routes and retains detect", async () =
   ]);
 });
 
+test("preload exposes the read-only engine probe on a fixed route", async () => {
+  invoke.mockClear();
+  await bridge!.localDeploy.engines();
+  expect(invoke.mock.calls).toEqual([["outcomego:local-deploy:engines"]]);
+});
+
 test("progress listeners receive only the event payload and can unsubscribe", () => {
   const progress = { schemaVersion: 1, deployId: "fixture", type: "log" as const, ts: "2026-11-24T00:00:00Z" };
   const receive = mock(() => undefined);
