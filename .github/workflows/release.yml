@@ -304,11 +304,49 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  windows-engine:
+    if: vars.RELEASE_WINDOWS_ENGINE == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.4.2
+      - name: Verify approved inputs and stage Windows rootfs
+        run: |
+          set -euo pipefail
+          stage="$RUNNER_TEMP/windows-engine"
+          mkdir "$stage"
+          docker buildx build --platform linux/amd64 \
+            --secret id=build_ca,src=/etc/ssl/certs/ca-certificates.crt \
+            --file apps/cli/engine-assets/windows-x64.Dockerfile \
+            --output "type=tar,dest=$stage/rootfs.tar" apps/cli/engine-assets
+          sudo "$(command -v bun)" apps/cli/scripts/engine-assets.ts --windows-rootfs "$stage/rootfs.tar" "$stage/staged"
+          sudo chown -R "$(id -u):$(id -g)" "$stage/staged"
+          bun scripts/check/release-workflows.ts --engine-components "$stage/staged/engine-components.json"
+          asset="$stage/staged/outcomego-engine-windows-x64.tar.gz"
+          test "$(stat -c %s "$asset")" -le "$((768 * 1024 * 1024))"
+          mkdir -p dist/windows-engine
+          cp "$asset" "$stage/staged/engine-components.json" THIRD-PARTY-NOTICES dist/windows-engine/
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-engine
+          path: dist/windows-engine/*
+          if-no-files-found: error
+          retention-days: 7
+
   sign:
     # The only job with an OIDC token. It runs just the signing script, so the Sigstore
     # certificate identity is this workflow on the release tag.
-    needs: [meta, ci, cli-build, merge-images]
-    if: needs.meta.outputs.publish == 'true'
+    needs: [meta, ci, cli-build, merge-images, windows-engine]
+    if: >-
+      ${{ !cancelled()
+      && needs.meta.outputs.publish == 'true'
+      && needs.ci.result == 'success'
+      && needs.cli-build.result == 'success'
+      && needs.merge-images.result == 'success'
+      && (vars.RELEASE_WINDOWS_ENGINE != 'true' || needs.windows-engine.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -344,6 +382,16 @@ jobs:
             dist/core/outcomego-linux-arm64 \
             dist/core/outcomego-linux-x64 \
             dist/core/outcomego-windows-x64.exe
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: vars.RELEASE_WINDOWS_ENGINE == 'true'
+        with:
+          name: windows-engine
+          path: dist/core
+      - name: Sign the Windows engine archive
+        if: vars.RELEASE_WINDOWS_ENGINE == 'true'
+        env:
+          OUTCOMEGO_RELEASE_SIGNING_MODE: keyless
+        run: bun apps/cli/scripts/sign-release.ts dist/core/outcomego-engine-windows-x64.tar.gz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: core
@@ -650,6 +698,8 @@ jobs:
           name: android
           path: artifacts/android
       - name: Assemble the release files and checksums
+        env:
+          RELEASE_WINDOWS_ENGINE: ${{ vars.RELEASE_WINDOWS_ENGINE }}
         run: |
           set -euo pipefail
           shopt -s nullglob
@@ -662,6 +712,11 @@ jobs:
           for required in outcomego-compose.yaml outcomego-compose.yaml.sigstore.json install.sh outcomego-linux-x64.gz; do
             [ -f "$required" ] || { echo "Missing release file: $required" >&2; exit 1; }
           done
+          if [ "$RELEASE_WINDOWS_ENGINE" = true ]; then
+            for required in outcomego-engine-windows-x64.tar.gz outcomego-engine-windows-x64.tar.gz.sigstore.json engine-components.json THIRD-PARTY-NOTICES; do
+              [ -s "$required" ] || { echo "Missing release file: $required" >&2; exit 1; }
+            done
+          fi
           if [ "${{ needs.android.result }}" = "success" ]; then
             [ -s android-update.json ] || {
               echo "Missing release file: android-update.json" >&2
@@ -684,6 +739,10 @@ jobs:
           VERSION: ${{ needs.meta.outputs.version }}
         run: |
           cat > notes.md <<EOF
+          ## Windows 桌面端
+
+          关闭窗口后，OutcomeGo 仍留在通知区域。点击托盘图标可重新打开窗口，右键选择“退出”可关闭应用。默认退出应用不停止本机服务。
+
           ## Install the server
 
           \`\`\`sh

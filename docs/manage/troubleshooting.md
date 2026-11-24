@@ -82,3 +82,33 @@ Say exactly what's wrong, give the bot any missing source, and ask it to revise 
 ## Get help
 
 If you're still stuck, [open an issue](https://github.com/jingyi0605/OutcomeGo/issues). Include your app version, your server version (shown by `outcomego status`), your operating system, the steps that cause the problem, and the error. Remove passwords, tokens, and private conversation content from logs and screenshots first.
+
+## 桌面本机部署排障（Spec 012，待真机验收）
+
+先检查“设置 → 服务器”的服务状态；需要支持时复制已脱敏诊断，不提交 `.env`、密码或令牌。托管引擎用 `outcomego engine status --json` 检查。
+
+| 错误码 | 处理 |
+| --- | --- |
+| `INVALID_INPUT` | 按提示检查字段；不要在命令行传密码。 |
+| `VIRTUALIZATION_DISABLED` | 在固件设置启用虚拟化后重试。 |
+| `WSL_NOT_ENABLED` | 核对用途后，在向导中明确授权。 |
+| `REBOOT_REQUIRED` | 重新启动电脑，再打开桌面端继续。 |
+| `ELEVATION_DENIED` | 重试授权，或改用已有引擎。 |
+| `WINDOWS_UNSUPPORTED` | 检查 x64 与最低 Windows build；不支持时连接已有服务器。 |
+| `MACOS_UNSUPPORTED` | 托管模式要求 macOS 13.5 或更高；可改用已有引擎或服务器。 |
+| `ENGINE_UNAVAILABLE` | 检查引擎是否就绪及既有安装清单；不要手动更换有数据的引擎。 |
+| `ENGINE_START_FAILED` | 查看引擎诊断，纠正错误后重试。 |
+| `ENGINE_INCOMPATIBLE` | 检查提示的 Compose、cgroup 或容器能力；Windows 托管模式需要能确认 NAT 的 WSL 2。无法使用 NAT 时，改用已有引擎或服务器。 |
+| `ASSET_DOWNLOAD_FAILED` | 检查网络、代理与该版本的资产供应。 |
+| `ASSET_VERIFICATION_FAILED` | 重新获取正确签名资产；不要跳过校验。 |
+| `PORT_IN_USE` | 释放占用端口或更换 API 端口；viewer 端口固定。 |
+| `DISK_SPACE_LOW` | 释放安装盘空间再重试。 |
+| `MEMORY_LOW` | 增加内存或确认继续。WSL 仅支持用户手工调整 `.wslconfig`。 |
+| `IMAGE_PULL_FAILED` | 检查容器镜像仓库的连接。 |
+| `STACK_START_FAILED` | 查看容器及部署日志。 |
+| `HEALTH_TIMEOUT` | 查看服务状态与健康检查。 |
+| `OWNER_CREATE_FAILED` | 检查账户输入，复制脱敏诊断后重试。 |
+| `BUSY` | 等待当前变更完成。 |
+| `CLI_VERSION_MISMATCH` | 更换到与桌面端匹配的已验证 CLI 载体。 |
+| `CANCELLED` | 可重新开始部署；成功下载的内容会保留。 |
+| `UNKNOWN` | 复制诊断信息并报告。 |

@@ -1,0 +1,175 @@
+import { useEffect, useRef, useState } from "react";
+import { useI18n } from "../../lib/i18n";
+import { codes, type DeploymentResult, type DeployProgress } from "../../lib/local-deploy-contract";
+import { deployIssue, deployProgress, deployStage, emptyProgress } from "../../lib/local-deploy-flow";
+import { SetupLayout, SetupLink, SetupPrimary, useCopied } from "./setup/setup-layout";
+
+export default function LocalDeployFlow({ onBack, onConnect }: {
+  onBack(): void;
+  onConnect(result: DeploymentResult, password: string): Promise<void>;
+}) {
+  const { t } = useI18n();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [apiPort, setApiPort] = useState("");
+  const [resuming, setResuming] = useState(false);
+  const [engine, setEngine] = useState<"auto" | "external" | "managed">("auto");
+  const [authorizing, setAuthorizing] = useState(false);
+  const platform = window.outcomego?.platform;
+  const [progress, setProgress] = useState<ReturnType<typeof emptyProgress> | null>(null);
+  const [loginError, setLoginError] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [copied, copy] = useCopied();
+  const active = useRef(false);
+  const cancelPending = useRef(false);
+  const id = useRef<string | null>(null);
+  const started = useRef(0);
+  const receive = useRef<(event: DeployProgress) => void>(() => undefined);
+  const unsubscribe = useRef<(() => void) | undefined>(undefined);
+  const clearPassword = () => { setPassword(""); setConfirmation(""); };
+  const showCode = (code: typeof codes[number], action?: "elevate" | "reboot") => {
+    setProgress(deployProgress(emptyProgress(), { schemaVersion: 1, deployId: "", ts: new Date().toISOString(), stage: "detect", type: "error", code, retryable: true,
+      ...(action ? { action: { kind: action } } : {}) }));
+  };
+  useEffect(() => {
+    let mounted = true;
+    const server = window.outcomego?.localServer;
+    if (server?.status) void server.status().then((status) => {
+      if (!mounted) return;
+      setResuming(Boolean(status.awaiting));
+      if (status.ownerUsername) setUsername(current => current || status.ownerUsername!);
+      if (status.awaiting && platform === "win32") setEngine("managed");
+      if (status.awaiting === "elevation" && platform === "win32") showCode("WSL_NOT_ENABLED", "elevate");
+    }).catch(() => undefined);
+    return () => {
+      mounted = false;
+      active.current = false;
+      unsubscribe.current?.();
+      if (id.current) void window.outcomego?.localDeploy?.cancel(id.current).catch(() => undefined);
+    };
+  }, [platform]);
+  useEffect(() => {
+    if (!progress?.busy) return;
+    const timer = window.setInterval(() => setElapsed(Math.floor((Date.now() - started.current) / 1000)), 500);
+    return () => window.clearInterval(timer);
+  }, [progress?.busy]);
+  useEffect(() => {
+    if (progress?.issue?.field) document.getElementById(`deploy-${progress.issue.field}`)?.focus();
+  }, [progress?.issue?.field]);
+
+  receive.current = (event) => {
+    setProgress(previous => deployProgress(previous ?? emptyProgress(), event));
+    if (event.type !== "error" && event.type !== "result") return;
+    id.current = null;
+    unsubscribe.current?.();
+    if (event.type === "error") {
+      active.current = false;
+      if (event.code === "CANCELLED" || event.action?.kind === "elevate" || event.action?.kind === "reboot") clearPassword();
+      return;
+    }
+    const login = onConnect(event.result, password);
+    clearPassword();
+    void login.then(() => setProgress(null)).catch(() => {
+      setLoginError(true);
+      setProgress(null);
+    }).finally(() => { active.current = false; });
+  };
+
+  const start = async (acceptLowMemory = false) => {
+    const bridge = window.outcomego?.localDeploy;
+    if (!bridge || active.current || authorizing || !username.trim() || !password || password !== confirmation) return;
+    active.current = true;
+    cancelPending.current = false;
+    setLoginError(false);
+    setProgress(emptyProgress());
+    setElapsed(0);
+    started.current = Date.now();
+    const early: DeployProgress[] = [];
+    const stop = bridge.onProgress(event => {
+      if (id.current === event.deployId) receive.current(event);
+      else if (!id.current && early.length < 32) early.push(event);
+    });
+    unsubscribe.current = stop;
+    try {
+      const { deployId } = await bridge.start({ username, password, engine, ...(apiPort ? { apiPort: Number(apiPort) } : {}), acceptLowMemory });
+      if (!active.current) {
+        await bridge.cancel(deployId);
+        return;
+      }
+      id.current = deployId;
+      if (cancelPending.current) void bridge.cancel(deployId).catch(() => undefined);
+      for (const event of early) if (id.current === event.deployId) receive.current(event);
+    } catch (error) {
+      stop();
+      active.current = false;
+      const code = codes.find(item => error instanceof Error && error.message.endsWith(item)) ?? "UNKNOWN";
+      showCode(code);
+    }
+  };
+  const enableWsl = async () => {
+    const bridge = window.outcomego?.localDeploy;
+    if (!bridge?.enableWsl || active.current || authorizing || platform !== "win32") return;
+    setAuthorizing(true);
+    clearPassword();
+    try {
+      const { code } = await bridge.enableWsl(true);
+      if (!code) { setProgress(null); setResuming(true); }
+      else showCode(code, code === "REBOOT_REQUIRED" ? "reboot" : "elevate");
+    } catch { showCode("ENGINE_START_FAILED", "elevate"); }
+    finally { setAuthorizing(false); }
+  };
+  const busy = Boolean(progress?.busy);
+  const field = progress?.issue?.field;
+  const canStart = Boolean(username.trim() && password && password === confirmation);
+  const canEnable = platform === "win32" && progress?.action?.kind === "elevate" && engine !== "external";
+  const stageLabel = progress?.stage === "engine" && platform === "darwin" && engine !== "external"
+    ? "Preparing the virtual machine" : deployStage[progress?.stage ?? "detect"];
+  const issueLabel = progress?.issue ? t(deployIssue(progress.issue.code)) : "";
+  const issueDetail = progress?.issue?.message ?? progress?.action?.detail;
+  return (
+    <SetupLayout title={t("Deploy on this computer")} screenKey="local-deploy" stage={0}
+      onBack={busy ? undefined : onBack} onSubmit={() => void start()}
+      footer={busy ? <SetupLink onClick={() => {
+        cancelPending.current = true;
+        if (id.current) void window.outcomego?.localDeploy?.cancel(id.current).catch(() => undefined);
+      }}>{t("Cancel")}</SetupLink> : <>
+        <SetupPrimary disabled={!canStart || authorizing}>{t(progress?.issue ? "Retry" : "Deploy locally")}</SetupPrimary>
+        {canEnable && !authorizing ? <SetupLink onClick={() => void enableWsl()}>{t("Authorize WSL setup")}</SetupLink> : null}
+        {progress?.action?.kind === "confirm-low-memory" && canStart ? <SetupLink onClick={() => void start(true)}>{t("Continue anyway")}</SetupLink> : null}
+        {progress?.issue ? <SetupLink onClick={() => void window.outcomego?.localServer?.diagnostics().then(copy).catch(() => undefined)}>{t(copied ? "Copied" : "Copy diagnostics")}</SetupLink> : null}
+      </>}>
+      {busy ? <div role="status" className="setup-note">
+        <p>{t(stageLabel)}</p>
+        <progress aria-label={t(stageLabel)} max={progress?.total || 1} value={progress?.current} />
+        <p>{progress?.total ? `${progress.current ?? 0}/${progress.total} · ` : ""}{t("{seconds} s elapsed", { seconds: elapsed })}</p>
+      </div> : <div className="flex flex-col gap-2">
+        {resuming ? <p className="setup-note">{t("Continue deployment by entering your password again.")}</p> : null}
+        {platform === "win32" || platform === "darwin" ? <>
+          <label className="setup-label" htmlFor="deploy-engine">{t("Container engine")}</label>
+          <select id="deploy-engine" className="setup-input" value={engine} disabled={authorizing}
+            onChange={event => { const value = event.target.value; if (value === "auto" || value === "external" || value === "managed") { setEngine(value); setProgress(null); } }}>
+            <option value="auto">{t("Choose automatically")}</option>
+            <option value="external">{t("Use an existing container engine")}</option>
+            <option value="managed">{t("Use the OutcomeGo managed engine")}</option>
+          </select>
+        </> : null}
+        <label className="setup-label" htmlFor="deploy-username">{t("Username")}</label>
+        <input id="deploy-username" className="setup-input" autoComplete="username" aria-invalid={field === "username"} value={username} onChange={event => setUsername(event.target.value)} />
+        <label className="setup-label" htmlFor="deploy-password">{t("Password")}</label>
+        <input id="deploy-password" className="setup-input" type="password" autoComplete="new-password" aria-invalid={field === "password"} value={password} onChange={event => setPassword(event.target.value)} />
+        <label className="setup-label" htmlFor="deploy-confirmation">{t("Confirm owner password")}</label>
+        <input id="deploy-confirmation" className="setup-input" type="password" autoComplete="new-password" value={confirmation} onChange={event => setConfirmation(event.target.value)} />
+        {progress?.issue?.code === "PORT_IN_USE" || field === "apiPort" ? <>
+          <label className="setup-label" htmlFor="deploy-apiPort">{t("Local API port")}</label>
+          <input id="deploy-apiPort" className="setup-input" type="number" min={1} max={65535} placeholder="8787" value={apiPort} onChange={event => setApiPort(event.target.value)} />
+        </> : null}
+        {progress?.issue ? <p className="setup-note" data-tone="error" role="alert">{issueLabel}{issueDetail && issueDetail !== issueLabel ? ` ${issueDetail}` : ""}</p> : null}
+        {canEnable || authorizing ? <p className="setup-note">{t("Administrator approval is required to enable WSL and Virtual Machine Platform.")}</p> : null}
+        {platform === "win32" && engine !== "external" && progress?.issue?.code === "MEMORY_LOW" ?
+          <p className="setup-note">{t("To give WSL more memory, edit .wslconfig manually and restart WSL.")}</p> : null}
+        {loginError ? <p className="setup-note" data-tone="error" role="alert">{t("Could not sign in to OutcomeGo")}</p> : null}
+      </div>}
+    </SetupLayout>
+  );
+}

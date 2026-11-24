@@ -80,6 +80,9 @@
       "dist-electron/**",
       "package.json"
     ],
+    "extraResources": [
+      { "from": "../../packages/design-tokens/assets", "to": "tray", "filter": ["outcomegoTemplate.png", "outcomegoTemplate@2x.png", "icon.ico"] }
+    ],
     "mac": {
       "icon": "../../packages/design-tokens/assets/outcomego.icon",
       "identity": "-",

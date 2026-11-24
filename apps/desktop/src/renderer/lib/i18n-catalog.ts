@@ -6,10 +6,78 @@
  * a catalog object here and registering it in the shared locale contract.
  */
 import { DEFAULT_LOCALE, type Locale } from "@outcomego/contracts/localization";
+import { localServiceTranslations } from "./local-service-catalog";
 
 export type TranslationValues = Record<string, string | number | null | undefined>;
 
 export const sourceTranslations: Record<string, string> = {
+  "Connect to an existing server": "连接已有服务器",
+  "Deploy on this computer": "在这台电脑部署",
+  "On this computer or on another server": "使用本机或另一台服务器",
+  "Deploy locally": "开始本机部署",
+  "Confirm owner password": "确认管理员密码",
+  "Local API port": "本机 API 端口",
+  "{seconds} s elapsed": "已用 {seconds} 秒",
+  "Copy diagnostics": "复制诊断信息",
+  "Continue deployment by entering your password again.": "请重新输入密码以继续部署。",
+  "The deployment input is invalid.": "部署输入不合规。",
+  "Enable virtualization in your firmware, then retry.": "请在固件设置中开启虚拟化，再重试。",
+  "Enable WSL before deploying the managed engine.": "请先启用 WSL，再部署托管引擎。",
+  "Restart your computer to continue deployment.": "请重启电脑以继续部署。",
+  "Allow the system change or use an existing engine.": "请允许系统变更，或使用已有引擎。",
+  "This Windows version or architecture is not supported.": "不支持此 Windows 版本或架构。",
+  "Managed deployment requires macOS 13.5 or later on Apple Silicon or Intel. Use an existing container engine or server instead.": "托管部署要求 Apple Silicon 或 Intel Mac 运行 macOS 13.5 或更高版本。也可使用已有引擎或连接服务器。",
+  "Managed deployment requires Windows x64 (Windows 10 22H2 or Windows 11 23H2 or later). Connect to an existing server on unsupported hardware.": "托管部署要求 Windows x64（Windows 10 22H2、Windows 11 23H2 或更高版本）。设备不受支持时，请连接已有服务器。",
+  "Restart your computer, then reopen OutcomeGo to continue deployment.": "请重启电脑，然后重新打开 OutcomeGo 继续部署。",
+  "Authorize WSL setup": "授权启用 WSL",
+  "Administrator approval is required to enable WSL and Virtual Machine Platform.": "启用 WSL 和虚拟机平台需要管理员授权。",
+  "To give WSL more memory, edit .wslconfig manually and restart WSL.": "如需为 WSL 分配更多内存，请手动编辑 .wslconfig 并重启 WSL。",
+  "Preparing the virtual machine": "正在准备虚拟机",
+  "Container engine": "容器引擎",
+  "Choose automatically": "自动选择",
+  "Use an existing container engine": "使用已有容器引擎",
+  "Use the OutcomeGo managed engine": "使用 OutcomeGo 托管引擎",
+  "Start a local Docker-compatible engine and retry.": "请启动本机兼容 Docker 的引擎，再重试。",
+  "The engine did not start. Check diagnostics and retry.": "引擎未启动，请查看诊断后重试。",
+  "This engine lacks capabilities required by OutcomeGo.": "此引擎缺少 OutcomeGo 所需能力。",
+  "Download failed. Check your connection or proxy and retry.": "下载失败，请检查网络或代理后重试。",
+  "The release could not be verified. Retry the download.": "无法验证发布资产，请重新下载。",
+  "Free the occupied port or choose another API port.": "请释放被占用的端口，或选择另一个 API 端口。",
+  "Free disk space before retrying deployment.": "请释放磁盘空间后重试。",
+  "Available memory is low. Add memory or confirm you want to continue.": "可用内存不足，请增加内存或确认继续。",
+  "Image download failed. Check your connection and retry.": "镜像下载失败，请检查网络后重试。",
+  "Local services could not start. Check diagnostics and retry.": "本地服务未能启动，请查看诊断后重试。",
+  "Local services did not become healthy. Check diagnostics and retry.": "本地服务未通过健康检查，请查看诊断后重试。",
+  "The owner account could not be created. Check your credentials and retry.": "未能创建管理员账户，请检查输入后重试。",
+  "A local service operation is already running.": "已有本地服务操作正在进行。",
+  "Update the desktop app to use a compatible command-line tool.": "请更新桌面应用，以使用兼容的命令行工具。",
+  "Deployment cancelled.": "部署已取消。",
+  "Deployment did not finish. Copy diagnostics and retry.": "部署未完成，请复制诊断信息并重试。",
+  "Checking deployment requirements": "正在检查部署要求",
+  "Preparing the container engine": "正在准备容器引擎",
+  "Checking the server release": "正在校验服务器发布配置",
+  "Configuring local services": "正在配置本地服务",
+  "Downloading container images": "正在下载容器镜像",
+  "Setting up the owner account": "正在设置管理员账户",
+  "Server location": "服务器位置",
+  "On this computer": "本机",
+  "Remote server": "远程服务器",
+  "Local services": "本地服务",
+  "Switch server": "切换服务器",
+  "Use local server": "使用本机服务器",
+  "Stop local services when quitting": "退出应用时停止本地服务",
+  "Remove local services": "移除本地服务",
+  "Remove services and keep data": "移除服务并保留数据",
+  "Permanently delete local data": "彻底删除本地数据",
+  "This cannot be undone. Type DELETE to confirm.": "此操作无法撤销。请输入 DELETE 确认。",
+  "Memory limits": "内存上限",
+  "Computer memory limit": "电脑服务内存上限",
+  "Desktop memory limit": "每个虚拟桌面的内存上限",
+  "Enter at least 1 GiB for each limit, for example 4g.": "每个上限至少为 1 GiB，例如 4g。",
+  "The engine will cap this value at 75% of its memory.": "引擎会将此值限制在引擎内存的 75%。",
+  "Changing memory limits interrupts running tasks.": "更改内存上限会中断进行中的任务。",
+  "Apply memory limits": "应用内存上限",
+  "The local service operation did not finish.": "本地服务操作未完成。",
   "View tool activity": "查看工具活动",
   "Execution messages": "执行消息",
   "View goal details": "查看目标详情",
@@ -1011,6 +1079,53 @@ export const sourceTranslations: Record<string, string> = {
   "Connect your server": "连接你的服务器",
   "The one you installed with the terminal": "你通过终端安装的服务器",
   "Choose your bots' AI": "选择机器人的 AI",
+  "Connect ChatGPT, Claude, or your own provider, or start with a free model.":
+    "连接 ChatGPT、Claude 或自定义提供方，也可以先试用免费模型。",
+  "Add a custom provider": "添加自定义提供方",
+  "Connect your own API endpoint": "连接你自己的 API 地址",
+  "OpenCode Zen free models": "OpenCode Zen 免费模型",
+  "Free and limited-use models": "免费与限量模型",
+  "Explore free API tiers and their usage limits": "查看免费 API 选项和用量限制",
+  "Connect with your own API key. Check your provider’s limits and billing before you connect.":
+    "使用你自己的 API 密钥。连接前请确认提供方的额度与计费规则。",
+  "Free Models Router": "免费模型路由",
+  "Typically 20 requests per minute and 50 per day without purchased credits. Upstream capacity can vary.":
+    "未购买点数时，通常每分钟可请求 20 次、每天 50 次。上游模型的可用量可能变化。",
+  "Use a Free plan key. Groq applies per-minute and daily request and token limits. Check the exact limits in your dashboard.":
+    "请使用免费方案的密钥。Groq 对每分钟和每天的请求数及 token 数设限，具体额度请查看控制台。",
+  "Use a free-tier project in an eligible region. Check per-project limits in AI Studio. Google may use free-tier prompts and replies to improve its products.":
+    "请使用受支持地区的免费项目，并在 AI Studio 查看项目限额。Google 可能使用免费服务的提示词和回复改进产品。",
+  "SiliconFlow (China)": "硅基流动（中国）",
+  "Zhipu GLM": "智谱 GLM",
+  "Chinese-first model with tool calling. Text input and output are free. Use a standard API key and check your account’s rate limits before connecting.":
+    "适合中文场景，支持工具调用。文本输入和输出免费。请使用标准 API 密钥，并在连接前确认账号的速率限制。",
+  "One API key for multiple models. This setup selects the free Qwen3-8B. Use a verified account and check the model page for current request and token limits.":
+    "一个 API 密钥可使用多个模型。此处选用免费的 Qwen3-8B。请使用已实名认证的账号，并在模型页面查看当前请求频率和 token 限制。",
+  "Provider limits and terms": "查看限额与条款",
+  "Use free models with key public, or your own OpenCode API key. Quotas, rate limits, and data policies vary by model.":
+    "使用公开密钥 public 即可试用免费模型，也可输入你自己的 OpenCode API 密钥。额度、速率限制和数据政策因模型而异。",
+  "OpenCode Zen free-model terms": "OpenCode Zen 免费模型风险与使用协议",
+  "OpenCode offers selected models at no charge for a limited time, intended for OpenCode client traffic.":
+    "OpenCode 限时免费提供部分模型，原本仅面向 OpenCode 官方客户端流量开放。",
+  "To use free models here, you will enter the public key manually. Requests use OpenCode client headers and environment context.":
+    "在此使用免费模型时，需由你手动输入 public 公开密钥，请求将附带 OpenCode 客户端请求头与环境上下文。",
+  "OpenCode sets the quotas and rate limits. The free allowance and request rate can change by model or network, and busy models may return rate-limit errors.":
+    "免费额度和请求频率由 OpenCode 设定，可能随模型或网络变化，高峰期可能触发限流报错。",
+  "You choose whether to use OpenCode Zen. Prompts and metadata you send are subject to OpenCode’s terms and the model’s data policy.":
+    "是否使用由你自行决定。你发送的提示词与元数据受 OpenCode 服务条款及对应模型的数据政策约束。",
+  "OpenCode pricing and data policies": "查看 OpenCode 定价和数据政策",
+  "I understand the risks, usage limits, and data policies, and agree to connect OpenCode Zen.":
+    "我已知晓上述风险、用量限制与数据政策，并同意连接 OpenCode Zen。",
+  "Agree & continue": "同意并继续",
+  "Enter your OpenCode Zen key": "输入 OpenCode Zen 密钥",
+  "Enter public to use free models without an account, or paste your own OpenCode API key. Your server checks it with OpenCode Zen, then keeps it there.":
+    "输入 public 即可免账号使用免费模型，或粘贴你自己的 OpenCode API 密钥。服务器会在验证后保存该密钥。",
+  "Available in the official OpenCode client. Quotas, rate limits, and data policies vary by model.":
+    "可在 OpenCode 官方客户端使用。额度、速率限制和数据政策因模型而异。",
+  "Open OpenCode": "打开 OpenCode",
+  "Your server will test {model} with this key.": "你的服务器将使用此密钥测试 {model}。",
+  "{model} isn't available on this account. Check the provider's dashboard or choose another model.":
+    "此账号无法使用 {model}。请查看提供方控制台，或改选其他模型。",
   "ChatGPT, Claude, or an API key": "ChatGPT、Claude 或 API 密钥",
   "Meet your first bot": "认识你的第一个机器人",
   "Give it a name and a job": "为它命名并分配工作",
@@ -1019,6 +1134,7 @@ export const sourceTranslations: Record<string, string> = {
   Back: "返回",
   Skip: "跳过",
   "Get started": "开始使用",
+  "Start exploring": "开始体验",
   "Server address": "服务器地址",
   Username: "用户名",
   Password: "密码",
@@ -1226,6 +1342,11 @@ export const sourceTranslations: Record<string, string> = {
   "Alerts resume after 5 minutes of inactivity or when you open OutcomeGo on Mobile.":
     "闲置 5 分钟后，或在手机上打开 OutcomeGo 时恢复提醒。",
   "Couldn’t save notification settings. Try again.": "无法保存通知设置，请重试。",
+  "Bot message alerts": "机器人消息通知",
+  "Applies to desktop and mobile alerts. Choose whether every Bot message alerts you or only the final summary of each task.":
+    "同时作用于桌面端和手机端的提醒。可选择每条机器人消息都通知，或只在每个任务最后总结时通知。",
+  "Every message": "每条消息都通知",
+  "Final summary only": "只通知最后总结的消息",
   "Choose the AI provider and model for all bots on this server.":
     "选择此服务器上所有机器人的 AI 服务商和模型。",
   "The account your bots use to think. Sign-ins and keys stay on your server.":
@@ -1294,11 +1415,6 @@ export const sourceTranslations: Record<string, string> = {
   "Bots can't search the web.": "机器人无法搜索网络。",
   "Basic pages only; can't run JavaScript.": "只能读取基础网页，无法运行 JavaScript。",
   "Built-in": "内置",
-  "Bot message alerts": "机器人消息通知",
-  "Applies to desktop and mobile alerts. Choose whether every Bot message alerts you or only the final summary of each task.":
-    "同时作用于桌面端和手机端的提醒。可选择每条机器人消息都通知，或只在每个任务最后总结时通知。",
-  "Every message": "每条消息都通知",
-  "Final summary only": "只通知最后总结的消息",
   "Close plugins": "关闭插件",
   Manage: "管理",
   "Your plugins": "你的插件",
@@ -1356,7 +1472,6 @@ export const sourceTranslations: Record<string, string> = {
   "Check for Updates…": "检查更新…",
   "Settings…": "设置…",
   "Hide OutcomeGo": "隐藏 OutcomeGo",
-  "Quit OutcomeGo": "退出 OutcomeGo",
   File: "文件",
   View: "显示",
   Window: "窗口",
@@ -1530,7 +1645,6 @@ export const sourceTranslations: Record<string, string> = {
   "One key, hundreds of models": "一个密钥，数百个模型",
   "One tap, nothing to paste": "一键完成，无需粘贴",
   "Only your server sees it": "只有你的服务器能看到它",
-  "Open OutcomeGo": "打开 OutcomeGo",
   "Open it": "打开",
   "Open it again": "再次打开",
   "Open sign-in page": "打开登录页面",
@@ -2303,7 +2417,6 @@ export const sourceTranslations: Record<string, string> = {
   "Routines are recurring tasks this Bot runs on a schedule. Ask it in chat to set one up.":
     "例程是此机器人按计划运行的重复任务。在聊天中让它创建一个即可。",
   "Run history": "运行记录",
-  Running: "运行中",
   "Running…": "正在运行…",
   Saturday: "星期六",
   "Saved facts used across this bot’s chats. New memories appear here as the bot learns.":
@@ -3213,7 +3326,7 @@ const interpolate = (text: string, values?: TranslationValues): string =>
 /** The English catalog is the complete baseline; other locales are partial by design. */
 const catalogs: Record<Locale, Record<string, string>> = {
   "en-US": {},
-  "zh-CN": sourceTranslations,
+  "zh-CN": { ...sourceTranslations, ...localServiceTranslations },
 };
 
 /**
@@ -3241,4 +3354,4 @@ export const translateCurrent = (key: string, values?: TranslationValues): strin
 
 /** Report keys that the current catalogs cannot resolve; used by coverage checks. */
 export const missingKeys = (keys: Iterable<string>): string[] =>
-  [...new Set(keys)].filter((key) => !(key in sourceTranslations)).sort();
+  [...new Set(keys)].filter((key) => !(key in catalogs["zh-CN"])).sort();

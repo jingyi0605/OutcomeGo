@@ -190,7 +190,9 @@ atMost("build-analysis metadata bytes", result.renderer.buildMetadata.bytes, 256
 // contracts: 2,447,064 bytes with pinned Bun 1.4.2. The same sources with Bun
 // 1.3.8 are 10,758 bytes larger. Retain the individual bundle limits below
 // and less than 1% aggregate headroom for this measured feature baseline.
-atMost("Electron runtime bytes", result.electron.bytes, 2_460_000);
+// Spec 012 adds 53,388 bytes over the same-toolchain baseline (2,645,316 → 2,698,704).
+// Account only for the bundled CLI, IPC and lazy deploy/tray delta; the prior overage remains visible.
+atMost("Electron runtime bytes", result.electron.bytes, 2_514_000);
 const electronFileBudget = (path: string, maximum: number) => {
   const file = result.electron.files.find((candidate) => candidate.path === path);
   if (!file) failures.push(`Electron runtime file is missing: ${path}`);
@@ -200,8 +202,8 @@ electronFileBudget("main.js", 175_000);
 const updaterChunks = result.electron.files.filter(file => /^chunks\/main(?:-[^.]+)?\.js$/.test(file.path));
 if (updaterChunks.length !== 1) failures.push("Expected exactly one Electron updater chunk");
 else atMost("Electron updater chunk bytes", updaterChunks[0]!.bytes, 600_000);
-// ScreenBot's preload bridge adds 243 bytes over the previous ceiling.
-electronFileBudget("preload.cjs", 10_500);
+// Spec 012 adds 395 bytes for the deploy, local service and preferences bridges (10,405 → 10,800).
+electronFileBudget("preload.cjs", 10_900);
 // AwaitShell adds the bounded RE2 engine and durable job/environment receipts.
 // Measured unminified utility: 280,140 bytes; retain the total Electron ceiling.
 electronFileBudget("host-utility.js", 285_000);
@@ -321,6 +323,9 @@ const lazyBudgets: Record<string, number> = {
   // pictures, the topology and the model picker live apart, with the setup screens);
   // 69,096 with the web search stage's shared tint and five-step progress.
   signIn: 71_000,
+  // Spec 012: deploy form and progress share the setup layout; the local settings stay separate.
+  localDeploy: 67_000,
+  settingsServerLocation: 17_000,
   // 40,608 with Messages (#165); 62,814 with the shared Select (#187). Beta.19's
   // external messaging boundary changes the shared plugin graph to 167,241 bytes.
   pluginSettings: 170_000,

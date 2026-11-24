@@ -1,7 +1,7 @@
 import { withDefaultScheme } from "@outcomego/client-core/http";
 import type { SystemVersionView } from "@outcomego/contracts";
 import { Bot, Check, Copy, Server, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   clearAuthCredentialsForServerChange,
   getServerSignOut,
@@ -30,8 +30,9 @@ import {
 } from "./setup/setup-layout";
 import { RobotsVisual, TerminalVisual } from "./setup/sign-in-visuals";
 
-type Stage = "welcome" | "endpoint" | "credentials";
+type Stage = "welcome" | "endpoint" | "credentials" | "deploy";
 type LocalServer = { url: string; username?: string };
+const LocalDeployFlow = lazy(() => import("./local-deploy-flow"));
 
 const INSTALL_COMMAND = "curl -fsSL https://github.com/jingyi0605/OutcomeGo/releases/latest/download/install.sh | sh";
 
@@ -59,6 +60,7 @@ const serverVersion = async (baseUrl: string): Promise<string | null> => {
 /** Welcome, server address, and sign-in: the first stage of setup, before an account exists here. */
 export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSession> }) {
   const { t } = useI18n();
+  const canDeploy = Boolean(window.outcomego?.localDeploy && ["darwin", "win32"].includes(window.outcomego.platform));
   // When the server signed this device out (for example, the sign-in expired partway through
   // setup), the account step opens for the same server and account and says why.
   const [signedOut] = useState(getServerSignOut);
@@ -126,6 +128,15 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!canDeploy || signedOut || !window.outcomego?.localServer?.status) return;
+    let mounted = true;
+    void window.outcomego.localServer.status().then((status) => {
+      if (mounted && status.awaiting) setStage(current => current === "welcome" ? "deploy" : current);
+    }).catch(() => undefined);
+    return () => { mounted = false; };
+  }, [canDeploy, signedOut]);
 
   const submit = async () => {
     if (!username.trim() || !password || submitting) return;
@@ -200,6 +211,18 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
     }
   };
 
+  if (stage === "deploy") {
+    return <Suspense fallback={null}>
+      <LocalDeployFlow onBack={() => goTo("welcome", true)} onConnect={async (result, secret) => {
+        const connection = await testServerConnection(result.url);
+        if (connection.baseUrl !== API_BASE) await clearAuthCredentialsForServerChange();
+        await signInToServer(connection.baseUrl, result.username, secret);
+        saveConfiguredApiBase(localStorage, connection.baseUrl);
+        reloadInto(connection.baseUrl);
+      }} />
+    </Suspense>;
+  }
+
   if (stage === "welcome") {
     return (
       <SetupLayout
@@ -209,8 +232,8 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
         direction={direction}
         footer={
           <>
-            <SetupPrimary busy={connecting}>{t("Get started")}</SetupPrimary>
-            {localServer || showInstall ? null : (
+            <SetupPrimary busy={connecting}>{t(canDeploy ? "Connect to an existing server" : "Get started")}</SetupPrimary>
+            {canDeploy ? <SetupLink onClick={() => goTo("deploy")}>{t("Deploy on this computer")}</SetupLink> : localServer || showInstall ? null : (
               <SetupLink onClick={() => setShowInstall(true)}>
                 {t("I still need to install the server")}
               </SetupLink>
@@ -218,7 +241,7 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
           </>
         }
         onSubmit={() => {
-          if (localServer) void connectTo(localServer.url, localServer.username);
+          if (localServer && !canDeploy) void connectTo(localServer.url, localServer.username);
           else goTo("endpoint");
         }}
         screenKey="welcome"
@@ -231,7 +254,7 @@ export default function SignInFlow({ auth }: { auth: ReturnType<typeof useAuthSe
             <Server aria-hidden="true" className="size-4" />
             <span>
               <strong>{t("Connect your server")}</strong>
-              <small>{t("The one you installed with the terminal")}</small>
+              <small>{t(canDeploy ? "On this computer or on another server" : "The one you installed with the terminal")}</small>
             </span>
           </li>
           <li>

@@ -92,10 +92,11 @@
 
 1. WHEN 用户确认部署 THEN System SHALL 依次执行：环境检测、引擎就绪、下载并校验发布配置、生成配置、拉取镜像、启动栈、等待健康、创建 owner、自动登录，且全程无需终端。
 2. WHEN 任一阶段进行中 THEN System SHALL 通过进度事件展示当前阶段、进度（可确定时给出百分比或 N/M，否则显示不确定态）和已用时间，并 SHALL 在点击后 2 秒内显示第一个事件。
-3. WHEN 用户取消部署 THEN System SHALL 终止当前阶段的子进程，保留已下载内容以便续传，并 SHALL 不留下会阻止下次部署的半成品安装。
+3. WHEN 用户取消部署 THEN System SHALL 先让 CLI 终止当前阶段的子进程并有机会回滚，超时才强制终止进程树；System SHALL 保留已下载内容以便续传，并 SHALL 不留下会阻止下次部署的半成品安装。
 4. WHEN 部署失败 THEN System SHALL 显示带稳定错误码的可操作原因，并提供“重试”；重试 SHALL 幂等地从失败阶段继续，不要求用户手工清理。
 5. WHEN 部署成功 THEN System SHALL 用刚创建的 owner 账号自动连接本地服务，并进入现有的“选择 AI”和“创建第一个机器人”流程。
 6. WHEN 本机的 API 端口（默认 8787）或屏幕端口段 6200–6299 被占用 THEN System SHALL 在拉取镜像之前指出占用者，并提供更换 API 端口的选项；屏幕端口段不可更换时 SHALL 说明需要释放。
+7. WHEN 托管引擎首次部署需要拉取受支持的公开镜像 THEN System SHALL 并行探测官方源和多个预设的国内镜像源，优先使用同一摘要且实测传输更快的源。镜像源不可用或拉取失败时 SHALL 回退，优先复用本机已有的镜像。镜像加速 SHALL 保留签名配置和原始摘要，且不得修改全局 Docker 设置。
 
 设计：`design.md` §2.3.1、§3.2.3、§3.3.1、§5。任务：2.4、2.5、3.1、3.4、3.8。
 
@@ -126,9 +127,9 @@
 3. WHEN `external` 引擎已安装但未运行 THEN System SHALL 尝试启动（macOS 的 Docker Desktop 保持现有行为）或给出针对该引擎的指引，文案 SHALL 不再写死 Docker Desktop。
 4. WHEN 存在多种可用引擎 THEN System SHALL 使用安装清单中记录的引擎，SHALL NOT 因环境变化静默切换引擎而导致找不到数据卷。
 5. WHEN 运行在 Linux THEN System SHALL 只使用 `external` 引擎，行为与现状一致。
-6. WHEN 引擎不满足 `computer` 容器的运行要求（例如不支持 `systempaths=unconfined`、cgroup v2 不可写）THEN System SHALL 在预检阶段指出具体缺失项，而不是等到启动失败。
+6. WHEN 引擎不满足 `computer` 容器的运行要求（例如不支持 `systempaths=unconfined`、cgroup v2 不可写）THEN System SHALL 在启动服务栈之前指出具体缺失项；可只读判断的项目在拉取前检查，必须进入容器才能验证的项目在已验证发布指定的 `computer` 镜像可用后隔离探测，不额外拉取探测镜像。
 
-设计：`design.md` §3.2.1、§3.2.2、§3.3.2、§3.3.4、§4.1。任务：1.3、1.4、1.10、2.1、2.2、2.7、4.2、5.2。
+设计：`design.md` §3.2.1、§3.2.2、§3.3.2、§3.3.4、§4.1。任务：1.3、1.4、1.10、2.1、2.2、2.4、2.7、4.2、5.2。
 
 ### 需求 5：Windows 托管引擎
 
@@ -137,7 +138,7 @@
 #### 验收标准
 
 1. WHEN Windows 上没有可用的 `external` 引擎 THEN System SHALL 提供“使用 OutcomeGo 托管引擎”，且不要求用户安装 Docker Desktop。
-2. WHEN WSL 或虚拟机平台未启用 THEN System SHALL 说明原因，经用户同意后只用一次管理员授权启用；需要重启时 SHALL 保存状态，并在重启后桌面端启动时自动续跑。
+2. WHEN WSL 或虚拟机平台未启用 THEN System SHALL 说明原因，经用户同意后只用一次管理员授权启用；需要重启时 SHALL 保存状态，并在重启后用户下次打开桌面端时恢复向导，不自动启动桌面端。
 3. WHEN 初始化引擎 THEN System SHALL 导入专用发行版 `outcomego-engine`，SHALL NOT 修改用户的 `.wslconfig` 或其他 WSL 发行版。
 4. WHEN BIOS/UEFI 虚拟化未开启、Windows 版本过低或 CPU 架构不受支持 THEN System SHALL 检测并给出对应的具体指引，而不是通用失败。支持范围为 x64 的 Windows 10 22H2（build 19045）及以上、Windows 11 23H2（build 22631）及以上，见 `design.md` §3.3.8；ARM64 设备 SHALL 提示改用远程服务器。
 5. WHEN 下载引擎资产 THEN System SHALL 在导入前校验固定的 SHA-256 和发布签名，校验失败 SHALL 拒绝使用。
@@ -171,7 +172,7 @@
 2. WHEN 用户在设置中点击启动或停止 THEN System SHALL 通过 CLI 执行并回显状态；操作期间 SHALL 互斥，重复点击不会并发执行。
 3. WHEN 用户关闭窗口 THEN System SHALL 按需求 13 让应用留在后台，本地服务保持运行。WHEN 用户退出应用 THEN System SHALL 默认保持本地服务继续运行（产品决定，2026-11-23），并在设置中提供“退出应用时停止服务”开关，默认关闭。该开关为停止服务的唯一例外，关机与注销不触发它。
 4. WHEN 宿主机重启 THEN System SHALL 在下次打开桌面端时恢复栈；System SHALL NOT 依赖 Windows 上并不存在的更新代理系统服务。
-5. WHEN 用户选择移除 THEN System SHALL 区分“仅移除容器并保留数据”和“彻底删除（含数据卷）”；后者 SHALL 需要二次确认并说明不可恢复，对应 CLI 的 `uninstall --purge`。
+5. WHEN 用户选择移除 THEN System SHALL 区分“仅移除容器并保留数据”和“彻底删除（含数据卷）”；后者 SHALL 需要二次确认并说明不可恢复，对应 CLI 的 `uninstall --purge`。桌面端移除只针对服务与其数据，不卸载独立 CLI 载体；已移除的服务不在打开桌面端时自动重建。
 6. WHEN 栈不健康 THEN System SHALL 展示服务级状态，并提供一键诊断，结果来自 `status` 与 `doctor`。
 
 设计：`design.md` §2.3.3、§2.3.5、§2.3.6、§3.3.3、§3.3.7、§4.2。任务：3.3、3.5、3.6、3.7、3.8、4.2、4.5、5.2、5.4。
@@ -185,8 +186,8 @@
 1. WHEN 桌面端自更新完成 THEN System SHALL 保证服务端更新代理仍指向存在且可执行的 CLI 载体，SHALL NOT 依赖带版本号的 `app.asar.unpacked` 路径。
 2. WHEN 更新代理在 Windows 上常驻 THEN System SHALL NOT 占用桌面端自身的可执行文件而阻塞桌面自更新。
 3. WHEN 服务端有新版本 THEN System SHALL 沿用现有“服务器更新”流程，本地模式下更新器可用。
-4. WHEN 托管引擎资产有新版本 THEN System SHALL 在用户确认后先停栈再升级引擎，保留数据卷；升级失败 SHALL 回到旧引擎。
-5. WHEN CLI 与桌面端版本不兼容 THEN System SHALL 检测并提示，沿用现有的版本兼容判断。
+4. WHEN 用户确认升级本机托管引擎资产 THEN System SHALL 先验证新资产、停栈并保留回滚点，再按原名称迁移卷；升级失败 SHALL 回到旧引擎，中断后可重试回退。
+5. WHEN CLI 与桌面端版本不兼容 THEN System SHALL 检测并提示，沿用现有的版本兼容判断；独立载体须经发布校验后才可替换，不向准备进程传凭据。
 
 设计：`design.md` §2.3.4、§3.3.5。任务：1.7、2.6、2.7、3.1、4.2、4.5、5.2、5.4。
 
@@ -198,8 +199,8 @@
 
 1. WHEN 创建或启动托管引擎 THEN System SHALL 读取引擎客户机的实际内存，按 `design.md` §3.3.6 的公式计算并写入 `OUTCOMEGO_COMPUTER_MEMORY_LIMIT` 与 `OUTCOMEGO_DESKTOP_MEMORY_LIMIT`。
 2. WHEN 引擎客户机内存低于最低配置（初始值 4 GiB，待 Spike F 校准）THEN System SHALL 警告并要求用户确认，SHALL NOT 静默安装。
-3. WHEN 可用磁盘空间不足 THEN System SHALL 在下载前阻止，并说明所需空间。
-4. WHEN 用户在设置中调整本地服务内存 THEN System SHALL 重新生成 `.env`，并在提示“会中断进行中的任务”后重建 `computer` 与 `computer-memory-init`。
+3. WHEN 安装目录或适用的托管引擎资产目录所在文件系统可用磁盘空间不足 THEN System SHALL 在下载前阻止，并说明所需空间（初值 8 GiB，待 Spike F 校准）。
+4. WHEN 用户在设置中调整本地服务内存 THEN System SHALL 重新生成 `.env`，并在提示“会中断进行中的任务”后重建 `computer` 与 `computer-memory-init`；超出已知客户机内存 75% 的设置须提示并按上限提交。
 5. WHEN 在 Windows 上低内存 THEN System SHALL 只给出手工修改 `.wslconfig` 的说明，SHALL NOT 自行修改该文件。
 
 设计：`design.md` §3.3.6。任务：1.8、2.5、2.7、3.5、4.4。
@@ -281,7 +282,7 @@
 5. WHEN 新增或升级第三方二进制 THEN System SHALL 在发布流程中检查 `THIRD-PARTY-NOTICES` 已同步更新。
 6. WHEN 公开发布托管引擎资产之前 THEN System SHALL 已取得法务对《许可证评估与建议》§6 所列问题的确认；未确认则 SHALL NOT 公开发布。
 
-设计：`design.md` §3.3.9、§6.10、§8.2 Q11。任务：1.9、4.1、5.1、6.1、6.2。
+设计：`design.md` §3.3.4、§3.3.9、§6.10、§8.2 Q11。任务：1.9、4.1、5.1、6.1、6.2。
 
 ## 非功能需求
 

@@ -133,6 +133,22 @@ interface Window {
     /** An OutcomeGo server installed on this computer by the CLI, if any. */
     localServer?: {
       detect(): Promise<{ url: string; username?: string } | null>;
+      status(): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
+      start(): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
+      stop(): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
+      remove(input: { purgeData: boolean }): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
+      diagnostics(): Promise<string>;
+      resources(input: { computerMemory: string; desktopMemory: string }): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
+    };
+    localDeploy?: {
+      start(input: import("./lib/local-deploy-contract").LocalDeployRequest): Promise<{ deployId: string }>;
+      cancel(deployId: string): Promise<void>;
+      enableWsl(confirmed: true): Promise<{ code: import("./lib/local-deploy-contract").Code | null }>;
+      onProgress(callback: (event: import("./lib/local-deploy-contract").DeployProgress) => void): () => void;
+    };
+    backgroundPreferences?: {
+      get(): Promise<{ stopServiceOnQuit: boolean }>;
+      set(value: boolean): Promise<{ stopServiceOnQuit: boolean }>;
     };
     /** Catches a model provider's localhost sign-in redirect on this computer. */
     providerSignIn?: {
