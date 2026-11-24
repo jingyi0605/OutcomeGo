@@ -1,3 +1,4 @@
+import { MISSED_SCHEDULE_REASON_CODE } from "./outcome-inbox-categories";
 import type {
   AgentWorkItemStatus,
   HumanWorkItemStatus,
@@ -111,7 +112,7 @@ export function hasUnfinishedDependency(
  */
 export function deriveWorkItemDisplayState(input: WorkItemDisplayInput, now: Date): WorkItemDisplayState {
   if (input.executorType !== "agent" || input.status !== "queued") return input.status;
-  if (input.statusReason === "missed_schedule") return "missed_schedule";
+  if (input.statusReason === MISSED_SCHEDULE_REASON_CODE) return "missed_schedule";
   if (input.scheduledAt && input.scheduledAt.getTime() > now.getTime()) {
     return input.statusReason === "deferred_by_agent" ? "deferred" : "scheduled";
   }

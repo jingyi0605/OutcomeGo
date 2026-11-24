@@ -1,8 +1,14 @@
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { join, posix } from "node:path";
-import type { ServerInferenceSettings } from "@outcomego/contracts";
+import { ApiError, type ServerInferenceSettings } from "@outcomego/contracts";
+import {
+  MISSED_SCHEDULE_CONFIRMED_REASON,
+  MISSED_SCHEDULE_OPTION_IDS,
+  MISSED_SCHEDULE_REASON_CODE,
+} from "@outcomego/contracts/outcome-inbox";
 import { OutcomeError, parseOutcomePlan } from "@outcomego/contracts/outcomes";
+import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import type { AgentMessaging } from "./index";
 import { readFeatureSettings } from "./feature-settings";
@@ -11,7 +17,7 @@ import { readOutcomeReviewBatch } from "./outcome-review-batch";
 import { finalRunMessage, runGroupBackgroundWorkRunning } from "./automation-results";
 import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem } from "./outcome-state";
 import { outcomeDispatchEnabled } from "./outcome-availability";
-import { isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql } from "./outcome-decisions";
+import { createOutcomeDecision, isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql } from "./outcome-decisions";
 
 export interface EnqueueOutcomeTurnInput {
   workItemId: string;
@@ -40,6 +46,45 @@ async function lockWorkItem(tx: Prisma.TransactionClient, workItemId: string) {
   return tx.outcomeWorkItem.findUniqueOrThrow({
     where: { id: workItemId }, include: { outcome: true, contractRevision: true },
   });
+}
+
+type HeldItem = Awaited<ReturnType<typeof lockWorkItem>>;
+
+/** The nature the planner gave this task, read from its approved revision's plan. None for a task without a plan. */
+const planNature = (item: HeldItem) =>
+  item.planKey ? parseOutcomePlan(item.contractRevision.plan)?.tasks.find((task) => task.key === item.planKey)?.nature : undefined;
+
+/**
+ * A task is being released later than planned by more than the owner's grace time and it acts on the outside
+ * world (specs/004.10 design §5.3): it does not run on its own. One decision asks the owner; the task stays queued
+ * with a status reason and its start intent is kept. Repeating this finds the same decision, so scans never add more.
+ */
+async function holdMissedSchedule(tx: Prisma.TransactionClient, item: HeldItem, releasedAt: Date): Promise<void> {
+  const scheduledAt = item.scheduledAt!.toISOString();
+  try {
+    await createOutcomeDecision(tx, {
+      outcomeId: item.outcomeId, contractRevisionId: item.contractRevisionId, workItemId: item.id,
+      reasonCode: MISSED_SCHEDULE_REASON_CODE,
+      completedSummary: "Nothing has been run for this task yet.",
+      problemSummary: "This task could not start at its planned time and it acts outside OutcomeGo, so it will not run on its own this late.",
+      nextStepSummary: "Choose whether to run it now, or set a new time for it yourself.",
+      customEntryAllowed: false,
+      options: [
+        { id: MISSED_SCHEDULE_OPTION_IDS.runNow, label: "Run now", consequence: "Start this task now, later than planned.", resolutionEffect: "plan_only", source: "runtime" },
+        { id: MISSED_SCHEDULE_OPTION_IDS.waitForReschedule, label: "I will set a new time", consequence: "Keep this task waiting until you give it a new time.", resolutionEffect: "plan_only", source: "runtime" },
+      ],
+    }, actor, { kind: "missed-schedule", workItemId: item.id, scheduledAt });
+  } catch (error) {
+    // Another open decision on this task already asks the owner something: leave the task held and try again later.
+    if (!(error instanceof ApiError && error.code === "decision_already_open")) throw error;
+  }
+  if (item.statusReason !== MISSED_SCHEDULE_REASON_CODE) {
+    await tx.outcomeWorkItem.update({ where: { id: item.id }, data: { statusReason: MISSED_SCHEDULE_REASON_CODE } });
+    console.info("outcome.missed_schedule " + JSON.stringify({
+      workItemId: item.id, scheduledAt, releasedAt: releasedAt.toISOString(),
+      lateSeconds: Math.max(0, Math.round((releasedAt.getTime() - item.scheduledAt!.getTime()) / 1000)),
+    }));
+  }
 }
 
 /** Reserve capacity and enqueue only through the existing transactional mailbox. */
@@ -107,6 +152,16 @@ export async function enqueueOutcomeTurn(
     },
   });
   if (reserved >= 2) return { status: "queued_for_capacity" };
+  // Everything else is ready, so this is the moment the task would start. Only the scheduled start is judged: a
+  // resumed or retried task has an old schedule that says nothing about being late. After the owner chose "run
+  // now" the task carries its own marker, so it is not asked a second time.
+  if (input.reason === "start" && item.status === "queued" && item.scheduledAt && item.statusReason !== MISSED_SCHEDULE_CONFIRMED_REASON) {
+    const grace = resolveTaskPolicy((await readFeatureSettings(tx)).taskPolicy)["schedule.graceMinutes"] as number;
+    if (releasedAt.getTime() - item.scheduledAt.getTime() > grace * 60_000 && planNature(item) === "action") {
+      await holdMissedSchedule(tx, item, releasedAt);
+      return { status: "queued_for_capacity" };
+    }
+  }
   const bot = await tx.bot.findUnique({ where: { id: item.botId }, include: { conversation: true } });
   if (bot?.status !== "active" || !bot.conversation) {
     const to = bot && bot.status === "provisioning" ? "retry_pending" : "failed";
@@ -174,12 +229,24 @@ export async function dispatchQueuedOutcomeWorkItems(
     const current = await tx.outcomeWorkItem.findUnique({ where: { id: item.id }, include: { outcome: true, contractRevision: true } });
     if (!current || terminal.includes(current.status) || current.outcome.cancelledAt || current.outcome.acceptedAt || !current.contractRevision.approvedAt
       || !await isOutcomeDecisionRevisionActive(tx, current.outcomeId, current.contractRevisionId, current.id)) continue;
-    const pending = await tx.idempotencyRecord.findFirst({
-      where: { scope: scopeFor(item.id), status: "processing" }, orderBy: { createdAt: "asc" },
-    });
-    const input = (pending?.response as { input?: EnqueueOutcomeTurnInput } | null)?.input;
-    if (input) await enqueueOutcomeTurn(tx, messaging, input);
+    await releaseHeldOutcomeTurn(tx, messaging, item.id);
   }
+}
+
+/**
+ * Tries to start the start intent a task is holding (its oldest pending record). Returns null when it holds none.
+ * Used by the queue drain, and by a decision that lets a held task run.
+ */
+export async function releaseHeldOutcomeTurn(
+  tx: Prisma.TransactionClient,
+  messaging: AgentMessaging,
+  workItemId: string
+): Promise<EnqueueOutcomeTurnResult | null> {
+  const pending = await tx.idempotencyRecord.findFirst({
+    where: { scope: scopeFor(workItemId), status: "processing" }, orderBy: { createdAt: "asc" },
+  });
+  const input = (pending?.response as { input?: EnqueueOutcomeTurnInput } | null)?.input;
+  return input ? enqueueOutcomeTurn(tx, messaging, input) : null;
 }
 
 /**

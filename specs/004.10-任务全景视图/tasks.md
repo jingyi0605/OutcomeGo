@@ -370,8 +370,16 @@
   - 对应需求：`requirements.md` 需求 C4.1 至 C4.5、非功能 2.1、2.2、3.3
   - 对应设计：`design.md` §5.2、§8.1、§8.2
 
-- [ ] 2.4 错过计划的处理
-  - 状态：TODO
+- [x] 2.4 错过计划的处理
+  - 状态：DONE
+  - 完成记录（2026-11-25）：
+    - 判断：`enqueueOutcomeTurn` 在依赖和容量检查都满足、马上要启动的那一刻，若任务性质（按 `planKey` 读修订计划里的 `nature`）是 `action`，且放行时间晚于 `scheduledAt` 超过策略 `schedule.graceMinutes`，就不放行：创建一个 `missed_schedule` 决策（选项「Run now」「I will set a new time」，不允许自由文本），任务保持 `queued`、`statusReason = missed_schedule`，启动意图保留。`deliverable` 和没有计划性质的任务照常放行。
+    - 只对「排期启动」判断：`reason = start` 且任务仍是 `queued` 时才判断，续跑、重试、决策后恢复不受旧排期影响。
+    - 重复扫描：同一任务同一排期时间只会有一个决策（确定性的请求快照作幂等键），扫描不会再弹、也不会启动。
+    - 选择：「现在执行」把 `scheduledAt` 置为当前时间、标记 `missed_schedule_confirmed`（之后不再追问，宽限时间为 0 也一样），并用任务一直持有的原始启动意图放行（不是「决策已解决」的消息）；bot 正忙时保持就绪，有空位即启动。「我来改期」只记录选择，任务继续被拦住。任务在决策期间被取消或已启动，则只记录、不启动。
+    - 可见性：决策是普通的收件箱决策，出现在收件箱，经 worker 现有的 `reconcileOutcomeInboxNotifications` 送达通知，选择后通知被撤销（均有测试）。
+  - 验证：messaging `outcome-missed-schedule.integration.test.ts` 11 个、server `outcome-missed-schedule.integration.test.ts` 9 个，均在本机一次性 Postgres 上真实执行。**做了 7 个变异检查**（去掉启动原因守卫、去掉确认标记、忽略性质、忽略宽限时间；决策效果里不移动时间、不打标记、两个选项都启动），每个都有测试变红，已还原。有数据库时全量：contracts 322、messaging 924、worker 278（3 跳过）、server 1710（19 跳过）、db 50，均 0 失败；根目录 `typecheck` 15/15、`check:architecture` 通过。（第一次全量验证在会话中断时被终止、没有出结果，上面的数字来自重跑。）
+  - 没有验证的：①「选『我来改期』之后，所有者改期会关闭决策并清除标记」属于任务 2.6，目前没有任何代码清除 `missed_schedule`；在 2.6 完成前，选了「我来改期」的任务会一直被拦住（这是设计的预期，改期接口在 2.6）。②决策卡片在桌面端的实际显示没有在界面里看过（本任务按边界不改决策界面）。③没有在真实 computer 上跑过，不需要同步重建。
   - 这一步到底做什么：到点后若已晚于宽限时间，`action` 任务不自动执行，改为让所有者决定。
   - 做完你能看到什么：停机后恢复时，对外产生影响的任务不会静默晚执行；你能选择"现在执行"或"等我改期"。
   - 先依赖什么：2.3

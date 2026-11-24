@@ -4,7 +4,14 @@ import { OUTCOME_INBOX_CATEGORIES, type OutcomeInboxCategory } from "./outcome-i
 
 export const DECISION_STATUSES = ["open", "presented", "resolved", "expired", "withdrawn"] as const;
 export type DecisionStatus = (typeof DECISION_STATUSES)[number];
-export { CREDENTIAL_ACCESS_REASON_CODE, OUTCOME_INBOX_CATEGORIES, type OutcomeInboxCategory } from "./outcome-inbox-categories";
+export {
+  CREDENTIAL_ACCESS_REASON_CODE,
+  MISSED_SCHEDULE_CONFIRMED_REASON,
+  MISSED_SCHEDULE_OPTION_IDS,
+  MISSED_SCHEDULE_REASON_CODE,
+  OUTCOME_INBOX_CATEGORIES,
+  type OutcomeInboxCategory,
+} from "./outcome-inbox-categories";
 
 export interface DecisionActionCard {
   title: string;

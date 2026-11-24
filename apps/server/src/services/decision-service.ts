@@ -1,8 +1,17 @@
 import { ApiError } from "@outcomego/contracts";
-import type { DecisionCreateInput, DecisionOption, DecisionResolution, DecisionView, ResolveDecisionInput } from "@outcomego/contracts/outcome-inbox";
+import {
+  MISSED_SCHEDULE_CONFIRMED_REASON,
+  MISSED_SCHEDULE_OPTION_IDS,
+  MISSED_SCHEDULE_REASON_CODE,
+  type DecisionCreateInput,
+  type DecisionOption,
+  type DecisionResolution,
+  type DecisionView,
+  type ResolveDecisionInput,
+} from "@outcomego/contracts/outcome-inbox";
 import { OutcomeError, type CreateContractRevisionInput, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { createOutcomeDecision, isOutcomeDecisionRevisionActive, closeOutcomeDecision, appendOutcomeEvent, enqueueOutcomeTurn, recomputeOutcomeStatus, transitionWorkItem, unavailableHumanActionPort, type ActorRef, type AgentMessaging, type HumanActionPort } from "@outcomego/messaging";
+import { createOutcomeDecision, releaseHeldOutcomeTurn, isOutcomeDecisionRevisionActive, closeOutcomeDecision, appendOutcomeEvent, enqueueOutcomeTurn, recomputeOutcomeStatus, transitionWorkItem, unavailableHumanActionPort, type ActorRef, type AgentMessaging, type HumanActionPort } from "@outcomego/messaging";
 import { activeDecisionStatuses, revokeDecisionNotification, withdrawSupersededDecisions } from "./decision-lifecycle";
 import { NotificationService } from "./notification-service";
 import { Effect } from "effect";
@@ -147,6 +156,7 @@ export class DecisionService {
       }
       throw apiError("invalid_decision_source", "This effect requires a requesting work item", row, 422);
     }
+    if (row.reasonCode === MISSED_SCHEDULE_REASON_CODE) return this.applyMissedSchedule(tx, row, option);
     if (effect === "cancel_branch") {
       await transitionWorkItem(tx, { workItemId: row.workItemId, to: "cancelled", reason: "decision_cancel_branch", actor, idempotencyKey: `decision:${row.id}` });
       return { status: "cancelled", workItemIds: [row.workItemId] };
@@ -178,6 +188,22 @@ export class DecisionService {
     }
     const result = await (this.ports.enqueueTurn ?? enqueueOutcomeTurn)(tx, this.ports.messaging, { workItemId: row.workItemId, content: JSON.stringify({ decisionId: row.id, optionId: option?.id ?? null, choice: option?.label ?? null, customText }), reason: "decision_resolved", clientId: `decision:${row.id}` });
     return { status: result.status, workItemIds: [row.workItemId, ...(supplementId ? [supplementId] : [])] };
+  }
+  /**
+   * A task held because it was released later than planned (specs/004.10 design §5.3). "Run now" moves its time to
+   * the present, marks it as confirmed so it is not asked again, and releases the start it was holding with its
+   * original instructions. "I will set a new time" only records the choice: the task stays held until the owner
+   * gives it a new time. Neither choice widens what the task may do.
+   */
+  private async applyMissedSchedule(tx: Tx, row: Row, option: DecisionOption | undefined): Promise<DecisionResolution["resume"]> {
+    const workItemId = row.workItemId!;
+    const item = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: workItemId } });
+    // The task may have been cancelled or started some other way while the decision was open.
+    if (item.status !== "queued" || option?.id !== MISSED_SCHEDULE_OPTION_IDS.runNow) return { status: "recorded", workItemIds: [workItemId] };
+    if (!this.ports.messaging) throw apiError("decision_effect_unavailable", "Outcome messaging has not been registered", row, 503);
+    await tx.outcomeWorkItem.update({ where: { id: workItemId }, data: { scheduledAt: new Date(), statusReason: MISSED_SCHEDULE_CONFIRMED_REASON } });
+    const released = await releaseHeldOutcomeTurn(tx, this.ports.messaging, workItemId);
+    return { status: released?.status ?? "queued_for_capacity", workItemIds: [workItemId] };
   }
   private lock(tx: Tx, outcomeId: string) { return tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`}))`; }
   private async lockDecision(tx: Tx, id: string): Promise<Row> {
