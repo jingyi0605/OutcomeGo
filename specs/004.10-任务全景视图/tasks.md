@@ -304,16 +304,16 @@
   - 对应需求：`requirements.md` 需求 C3.1、C3.3、C7.1、D3
   - 对应设计：`design.md` §5.10、§2.6
 
-- [ ] 2.2 `SavePlan` 排期校验、物化与差异比对
-  - 状态：IN_REVIEW
-  - **为什么不是 DONE：** 锁定任务的排期比较以任务行为准（见 `docs/20261124-实施偏差与待确认记录.md` D2-7）。在所有者还不能改期的现在，行和计划值总是一致，代码行为正确；但任务 2.6 让所有者可以改期之后，规划角色重规划时原样回传它读到的旧排期，会被 `plan_task_locked` 拒绝，而且它并没有改那个字段。这与需求 C3.4（过去的 `startAt` 可原样回传）的意图冲突，取决于设计 §10.2 第 14 项（改期是否回写计划）的结论，**需要所有者表态**。在 2.6 开工前必须解决，否则重规划会在所有者改期后卡住。
+- [x] 2.2 `SavePlan` 排期校验、物化与差异比对
+  - 状态：DONE
+  - **此前的悬而未决已解决（2026-11-25，随任务 2.6）：** 原先对已开始任务的排期比较以任务行为准（D2-7），所有者改期后规划角色原样回传旧计划会被拒绝。现按「改期不回写计划，重规划比对时保留所有者的修改」（待确认项 14 的默认做法）改为：规划角色传回的计划与**它上次看到的已保存计划**比较，只有它真正改过的字段才会写入任务行；所有者之后改过的日期保持不变。有测试和变异检查。
   - 完成记录（2026-11-25）：
     - 校验：`SavePlan` 对每个任务调用 `validatePlanSchedule`，失败整体拒绝并返回 400 `invalid_schedule`，`details` 含任务 key 和出错字段，计划和事件都不变；过去的 `startAt` 被接受；`dueAt` 可等于但不可早于 `startAt`。错误码已登记到 `OUTCOME_ERROR_CODES`。
     - 保存：`normalizePlanTask` 保留三个字段；`plansEqual` 把它们纳入比较，且按时间点而不是按字符串比较（同一时刻不同偏移写法不算修改，只改排期也不再被判为 `plan_unchanged`）。
     - 物化：批准时（`startApprovedRevision`）和批准后追加任务（`applyApprovedPlanChanges`）两处都通过共用函数 `workItemScheduleFromPlanTask` 写入 `scheduledAt / dueAt / estimateMinutes`。
     - 批准后差异：未开始任务的排期改动更新任务行，并沿用「先删待处理排队记录再以新 clientId 重新入队」；已开始或已结束任务的排期被改则整体拒绝（`plan_task_locked`，任务行不变）；可原样回传。锁定任务的比较对象是任务行而不是计划 JSON，因为所有者之后可以改排期（任务 2.6）。
     - 验证：`outcome-plan-service.test.ts` +8、`outcome-stage3.test.ts` +7，共 15 个；做过变异检查（关掉锁定任务的排期比较，对应测试立刻变红，已还原）。有数据库时 contracts 322、messaging 900、server 1701（19 跳过）均 0 失败；根目录 `typecheck` 15/15、`check:architecture` 通过。
-  - **风险（必须看）：2.2 不能单独发布，必须与 2.3 一起。** 消息层目前没有任何地方读取任务的 `scheduledAt`，所以在 2.3 的到点闸口实现之前，带未来 `startAt` 的计划被批准后任务仍会立刻执行，排期只是被保存下来。
+  - **说明：2.2 与 2.3 需要一起发布。** 消息层目前没有任何地方读取任务的 `scheduledAt`，所以在 2.3 的到点闸口实现之前，带未来 `startAt` 的计划被批准后任务仍会立刻执行，排期只是被保存下来。
   - 未做（按任务边界）：规划角色并不知道要使用这三个字段。`SavePlan` 的工具描述和规划角色提示词的排期指导在任务 2.8；现在只是 schema 接受它们。
   - 测试环境：server 整包运行时 `runtime-health.test.ts` 的 `attributes queue-timeout failures and bounds the response` 出现过 1 次失败（computer 状态 `unavailable`），单独重跑 5/5 通过、整包重跑 0 失败。它与本任务无交集，判断为并行负载下的偶发失败，**未在未改动的提交上验证**。
   - 这一步到底做什么：让规划角色能保存带排期的计划；批准后把日期复制到任务；批准后修改未开始任务的排期按既有规则处理。
@@ -434,8 +434,17 @@
   - 对应需求：`requirements.md` 需求 C5.1 至 C5.7
   - 对应设计：`design.md` §5.4、§5.11、§8.3
 
-- [ ] 2.6 所有者改期、目标截止日与事件
-  - 状态：TODO
+- [x] 2.6 所有者改期、目标截止日与事件
+  - 状态：DONE
+  - 完成记录（2026-11-25）：
+    - 接口：`PUT /api/v0/outcomes/:id/work-items/:workItemId/schedule`（`scheduledAt`、`dueAt`、`estimateMinutes`，缺省为不变，`null` 为清除）与 `PUT /api/v0/outcomes/:id/due`，均带 `clientRequestId` 做幂等；错误 `invalid_schedule`（400）、`schedule_not_editable`（409）、`outcome_not_open`（409）。
+    - 规则：只允许未开始的任务（bot 任务要求 `queued` 且没有活跃运行；人工任务要求未提交）；已验收或已取消的目标拒绝；目标截止日可设为过去（只是逾期）；对 tracked 目标同样可用；不改契约、哈希或批准状态；每次修改写 `outcome.schedule.changed`（来源 `owner`，含旧值）；设置成与当前相同的值不写事件。
+    - 放行：移动一个被持有的 bot 任务时，用同样的内容和原因、新的请求 ID 重建它持有的启动意图（延后任务的续做说明不会丢）；改到已过去的时间则立即放行且恰好一次，并带确认标记，不会被判成「错过计划」；清除时间也立即放行。
+    - 错过计划：任务正等所有者表态时改期，会撤回未决决策并清除标记（改到未来则回到正常排期）。
+    - 重规划（解决原 D2-7）：规划角色传回的计划与它上次看到的已保存计划比较，只写它真正改过的字段。
+  - 验证：server `outcome-schedule-service.integration.test.ts` 23 个、`outcome-routes.test.ts` +1、`outcome-stage3.test.ts` +3、contracts +4，均真实执行（数据库）。**变异检查 8 个**（可编辑检查、关闭决策、重建意图、过去时间确认标记、重建丢内容；重规划的三种写法），每个都有测试变红，已还原。全量（有数据库）：contracts 332、messaging 931、server 1750（19 跳过），均 0 失败；根目录 `typecheck` 15/15、`check:architecture` 通过。
+  - 没有验证的：桌面端界面（任务 3.2 才做）。路径是 `/api/v0/outcomes/...`（设计里的 `/api/v0/outcomes/:outcomeId/work-items/:workItemId/schedule` 一致）。
+  - 有一处行为需要你知道：所有者把一个**已有未决「错过计划」决策**的任务改到未来，决策会被撤回（状态 `withdrawn`），不是「已解决」。
   - 这一步到底做什么：提供修改未开始任务排期和目标截止日的接口，并新增 `outcome.schedule.changed` 事件。
   - 做完你能看到什么：可以通过接口改期和设截止日，契约不受影响，每次修改都有审计记录。
   - 先依赖什么：2.1、2.3

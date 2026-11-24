@@ -123,6 +123,21 @@ const scheduleOfRow = (item: { scheduledAt: Date | null; dueAt: Date | null; est
 const sameSchedule = (a: ReturnType<typeof scheduleOfTask>, b: ReturnType<typeof scheduleOfTask>) =>
   a.scheduledAt === b.scheduledAt && a.dueAt === b.dueAt && a.estimateMinutes === b.estimateMinutes;
 
+/**
+ * The columns the planner actually changed between the plan it saw and the plan it sent. A field it left alone is not
+ * written, so a date the owner moved since is not undone because the planner edited some other field.
+ */
+const scheduleColumnsChangedBy = (before: PlanTask, after: PlanTask) => {
+  const a = scheduleOfTask(before);
+  const b = scheduleOfTask(after);
+  const written = workItemScheduleFromPlanTask(after);
+  return {
+    ...(a.scheduledAt !== b.scheduledAt ? { scheduledAt: written.scheduledAt } : {}),
+    ...(a.dueAt !== b.dueAt ? { dueAt: written.dueAt } : {}),
+    ...(a.estimateMinutes !== b.estimateMinutes ? { estimateMinutes: written.estimateMinutes } : {}),
+  };
+};
+
 const instantOf = (value: string | undefined): number | null =>
   value === undefined ? null : (parseOffsetTimestamp(value)?.getTime() ?? null);
 
@@ -385,8 +400,9 @@ export class OutcomePlanService {
         !sameStringArray(currentDepKeys, nextDepKeys) ||
         natureDiffers ||
         coversDiffers ||
-        // Compared with the stored row, which is the authority once the owner can reschedule it.
-        !sameSchedule(scheduleOfRow(item), scheduleOfTask(candidate))
+        // The planner is shown the saved plan, so what it sends back is compared with that plan. The owner may have
+        // moved the task since, which changes the task row but not the plan; that must not make an echo look like a change.
+        (prevTask ? !sameSchedule(scheduleOfTask(prevTask), scheduleOfTask(candidate)) : !sameSchedule(scheduleOfRow(item), scheduleOfTask(candidate)))
       ) {
         throw outcomeApiError(
           "plan_task_locked",
@@ -471,12 +487,22 @@ export class OutcomePlanService {
       if (!isUnlocked(existing)) continue;
 
       const currentDeps = asStringList(existing.dependsOn);
+      // The saved plan is the baseline for the schedule: if the planner left it as it was, the task keeps whatever
+      // the owner has since set. Only a schedule the planner actually changed is written to the task.
+      const prevTask = existingPlanTaskByKey.get(task.key);
+      // With no saved plan to compare against (a task the plan never described), the task row is the baseline.
+      const scheduleColumns = prevTask
+        ? scheduleColumnsChangedBy(prevTask, task)
+        : sameSchedule(scheduleOfRow(existing), scheduleOfTask(task))
+          ? {}
+          : workItemScheduleFromPlanTask(task);
+      const scheduleChangedByPlanner = Object.keys(scheduleColumns).length > 0;
       const changed =
         existing.title !== task.title ||
         existing.instructions !== task.instructions ||
         existing.botId !== task.botId ||
         !sameStringArray(currentDeps, depIds) ||
-        !sameSchedule(scheduleOfRow(existing), scheduleOfTask(task));
+        scheduleChangedByPlanner;
       if (changed) {
         await tx.outcomeWorkItem.update({
           where: { id: existing.id },
@@ -485,7 +511,7 @@ export class OutcomePlanService {
             instructions: task.instructions,
             botId: task.botId,
             dependsOn: depIds,
-            ...workItemScheduleFromPlanTask(task),
+            ...scheduleColumns,
           },
         });
         if (this.messaging) {

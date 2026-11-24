@@ -2,6 +2,7 @@ import { ApiError } from "@outcomego/contracts";
 import {
   AdoptPrereviewInput, CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
   CancelOutcomeInput, DecideOutcomeAcceptanceInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, decodeOutcomeCursor, parseListOutcomesQuery,
+  SetOutcomeDueInput, SetWorkItemScheduleInput,
 } from "@outcomego/contracts/outcomes";
 import { CreateOutcomeThreadInput, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
 import { OutcomeAttentionInput, ReconcileOutcomeInput } from "@outcomego/contracts/outcome-runtime";
@@ -83,6 +84,12 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
       if (!runtime.startRun) throw new ApiError(503, "outcome_runtime_unavailable", "Outcome execution is not available yet", { retryable: true });
       return json(await run(runtime.startRun(id, await parseBody(request, StartOutcomeRunInput), actor)), 202);
     }
+    // The owner's dates (specs/004.10): a task's schedule, and the goal's deadline. Neither touches the contract.
+    const schedule = tail?.match(/^\/work-items\/([\da-f-]{36})\/schedule$/i);
+    if (schedule && request.method === "PUT")
+      return json(await app.outcomeSchedule.setWorkItemSchedule(id, schedule[1]!, await parseBody(request, SetWorkItemScheduleInput), actor));
+    if (tail === "/due" && request.method === "PUT")
+      return json(await app.outcomeSchedule.setOutcomeDue(id, await parseBody(request, SetOutcomeDueInput), actor));
     const stopWorkThread = tail?.match(/^\/work-items\/([\da-f-]{36})\/stop$/i);
     if (stopWorkThread && request.method === "POST")
       return json(await run(runtime.stopWorkThread(id, stopWorkThread[1]!)));

@@ -5,6 +5,7 @@ import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
 import { OutcomePlanningService } from "./services/outcome-planning-service";
 import { OutcomeThreadService } from "./services/outcome-thread-service";
 import { OutcomePlanService } from "./services/outcome-plan-service";
+import { OutcomeScheduleService } from "./services/outcome-schedule-service";
 import { OutcomeTaskReviewService } from "./services/outcome-task-review-service";
 import { OutcomeThreadTools } from "./services/outcome-thread-tools";
 import { ExploreService } from "./services/explore-service";
@@ -119,6 +120,7 @@ export class AppService {
   readonly outcomePlanning: OutcomePlanningService;
   readonly outcomeThreads: OutcomeThreadService;
   readonly outcomePlans: OutcomePlanService;
+  readonly outcomeSchedule: OutcomeScheduleService;
   readonly outcomeTaskReviews: OutcomeTaskReviewService;
   readonly outcomeBriefs: OutcomeBriefService;
   readonly explore: ExploreService;
@@ -293,6 +295,7 @@ export class AppService {
       this.machines
     );
     this.outcomePlans = new OutcomePlanService(this.prisma, this.outcomes, this.messaging);
+    this.outcomeSchedule = new OutcomeScheduleService(this.prisma, this.outcomes, this.messaging);
     this.outcomeTaskReviews = new OutcomeTaskReviewService(this.prisma, this.outcomes, this.messaging);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);

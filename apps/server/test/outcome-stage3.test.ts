@@ -395,3 +395,64 @@ test("a started task may be sent back with its original schedule unchanged", asy
   }, `bot:${BOT_A}`);
   expect(f.workItems.find((item) => item.planKey === "t2")!.estimateMinutes).toBe(15);
 });
+
+// Specs/004.10 task 2.6 / design §10.2 item 14: the owner moving a task changes the task, not the saved plan. The
+// planner still holds the plan it last saw, so sending that plan back must not be taken as a change, and must not
+// undo the owner's move.
+test("after the owner moved a task, the planner sending its last-seen plan back is accepted and the owner's date stays", async () => {
+  const f = await approveHarness(
+    { tasks: [step("t1", { startAt: "2026-12-01T00:00:00Z" }), step("t2", { dependsOn: ["t1"], startAt: "2026-12-10T00:00:00Z" })] },
+    "approve-owner-move-1"
+  );
+  const first = f.workItems.find((item) => item.planKey === "t1")!;
+  const second = f.workItems.find((item) => item.planKey === "t2")!;
+  first.status = "running";
+  first.rootRunId = "run-started";
+  // The owner moves both tasks: the rows change, the saved plan does not.
+  first.scheduledAt = new Date("2026-12-03T00:00:00Z");
+  second.scheduledAt = new Date("2026-12-20T00:00:00Z");
+  const movedFirst = first.scheduledAt;
+  const movedSecond = second.scheduledAt;
+
+  // The planner sends back exactly the plan it saw, with one unrelated change (a new estimate on t2).
+  await f.plans.savePlan(OUTCOME_ID, {
+    expectedRevision: 1,
+    tasks: [step("t1", { startAt: "2026-12-01T00:00:00Z" }), step("t2", { dependsOn: ["t1"], startAt: "2026-12-10T00:00:00Z", estimateMinutes: 25 })] as never,
+    clientRequestId: "echo-after-owner-move",
+  }, `bot:${BOT_A}`);
+
+  expect(first.scheduledAt).toEqual(movedFirst);
+  expect(second.scheduledAt).toEqual(movedSecond);
+  expect(second.estimateMinutes).toBe(25);
+});
+
+test("a planner that really changes a task's date still wins over the owner's older move", async () => {
+  const f = await approveHarness(
+    { tasks: [step("t1"), step("t2", { dependsOn: ["t1"], startAt: "2026-12-10T00:00:00Z" })] },
+    "approve-owner-move-2"
+  );
+  const second = f.workItems.find((item) => item.planKey === "t2")!;
+  second.scheduledAt = new Date("2026-12-20T00:00:00Z"); // the owner's move
+  await f.plans.savePlan(OUTCOME_ID, {
+    expectedRevision: 1,
+    tasks: [step("t1"), step("t2", { dependsOn: ["t1"], startAt: "2026-12-12T00:00:00Z" })] as never, // a different date from the saved plan
+    clientRequestId: "planner-changes-date",
+  }, `bot:${BOT_A}`);
+  expect(second.scheduledAt).toEqual(new Date("2026-12-12T00:00:00.000Z"));
+});
+
+test("a started task whose planner-visible schedule changed is still refused", async () => {
+  const f = await approveHarness({ tasks: [step("t1", { startAt: "2026-12-01T00:00:00Z" }), step("t2", { dependsOn: ["t1"] })] }, "approve-owner-move-3");
+  const first = f.workItems.find((item) => item.planKey === "t1")!;
+  first.status = "running";
+  first.rootRunId = "run-started";
+  first.scheduledAt = new Date("2026-12-03T00:00:00Z"); // owner's move; the plan still says 12-01
+  await expect(
+    f.plans.savePlan(OUTCOME_ID, {
+      expectedRevision: 1,
+      tasks: [step("t1", { startAt: "2026-12-09T00:00:00Z" }), step("t2", { dependsOn: ["t1"] })] as never, // differs from the plan the planner saw
+      clientRequestId: "locked-differs-from-plan",
+    }, `bot:${BOT_A}`)
+  ).rejects.toMatchObject({ code: "plan_task_locked", details: { key: "t1" } });
+  expect(first.scheduledAt).toEqual(new Date("2026-12-03T00:00:00.000Z"));
+});

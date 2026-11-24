@@ -567,6 +567,8 @@ export const OUTCOME_ERROR_CODES = {
   model_unavailable: 400,
   invalid_schedule: 400,
   defer_limit_reached: 409,
+  schedule_not_editable: 409,
+  outcome_not_open: 409,
 } as const;
 export type OutcomeErrorCode = keyof typeof OUTCOME_ERROR_CODES;
 
@@ -1010,6 +1012,25 @@ const ClientRequestId = Schema.String.pipe(Schema.minLength(8), Schema.maxLength
 export const Uuid = Schema.String.pipe(Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));
 const RevisionNumber = Schema.Number.pipe(Schema.int(), Schema.positive());
 const OptionalText = (max: number) => Schema.optional(Schema.String.pipe(Schema.maxLength(max)));
+
+/**
+ * The owner changes a task's schedule (specs/004.10 design §5.5). A field that is left out is unchanged; `null`
+ * clears it. Shape only: real timestamps, ranges and ordering are decided by the server.
+ */
+export const SetWorkItemScheduleInput = Schema.Struct({
+  scheduledAt: Schema.optional(Schema.NullOr(Schema.String.pipe(Schema.maxLength(64)))),
+  dueAt: Schema.optional(Schema.NullOr(Schema.String.pipe(Schema.maxLength(64)))),
+  estimateMinutes: Schema.optional(Schema.NullOr(Schema.Number)),
+  clientRequestId: ClientRequestId,
+});
+export type SetWorkItemScheduleInput = typeof SetWorkItemScheduleInput.Type;
+
+/** The owner sets or clears the goal's deadline. `null` clears it. */
+export const SetOutcomeDueInput = Schema.Struct({
+  dueAt: Schema.NullOr(Schema.String.pipe(Schema.maxLength(64))),
+  clientRequestId: ClientRequestId,
+});
+export type SetOutcomeDueInput = typeof SetOutcomeDueInput.Type;
 
 const PlanningSelection = Schema.Struct({
   selectedOptionIds: Schema.Array(Schema.String.pipe(Schema.maxLength(40))).pipe(Schema.maxItems(OUTCOME_LIMITS.optionsPerDimension)),

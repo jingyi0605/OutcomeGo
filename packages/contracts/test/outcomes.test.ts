@@ -25,6 +25,8 @@ import {
   validatePlanSchedule,
   PLAN_ESTIMATE_MINUTES,
   DEFER_WORK_ITEM_TOOL,
+  SetOutcomeDueInput,
+  SetWorkItemScheduleInput,
   DeferWorkItemInput,
   OUTCOME_THREAD_TOOL_NAMES,
   requiredCriteriaSatisfied,
@@ -390,5 +392,37 @@ describe("DeferWorkItem (specs/004.10 design §5.4)", () => {
     expect(OUTCOME_ERROR_CODES.defer_limit_reached).toBe(409);
     expect(OUTCOME_EVENT_TOPICS).toContain("outcome.schedule.changed");
     expect(isOutcomeEventTopic("outcome.schedule.changed")).toBe(true);
+  });
+});
+
+describe("owner rescheduling requests (specs/004.10 design §5.5)", () => {
+  const rid = "request-0001";
+  const schedule = (value: unknown) => Schema.decodeUnknownSync(SetWorkItemScheduleInput)(value);
+  const due = (value: unknown) => Schema.decodeUnknownSync(SetOutcomeDueInput)(value);
+
+  test("a field left out stays out, so it means unchanged; null is kept so it means clear", () => {
+    expect(schedule({ clientRequestId: rid, estimateMinutes: 30 })).toEqual({ clientRequestId: rid, estimateMinutes: 30 });
+    expect(schedule({ clientRequestId: rid, scheduledAt: null, dueAt: null, estimateMinutes: null })).toEqual({
+      clientRequestId: rid, scheduledAt: null, dueAt: null, estimateMinutes: null,
+    });
+  });
+
+  test("a request must carry an id long enough to be a retry key, and values of the wrong kind are refused", () => {
+    expect(() => schedule({ scheduledAt: "2026-12-01T09:00:00Z" })).toThrow();
+    expect(() => schedule({ clientRequestId: "short", scheduledAt: "2026-12-01T09:00:00Z" })).toThrow();
+    expect(() => schedule({ clientRequestId: rid, scheduledAt: 5 })).toThrow();
+    expect(() => schedule({ clientRequestId: rid, estimateMinutes: "30" })).toThrow();
+    expect(() => schedule({ clientRequestId: rid, dueAt: "x".repeat(65) })).toThrow();
+  });
+
+  test("the deadline request needs a value or an explicit null", () => {
+    expect(due({ clientRequestId: rid, dueAt: "2026-12-05T09:00:00Z" }).dueAt).toBe("2026-12-05T09:00:00Z");
+    expect(due({ clientRequestId: rid, dueAt: null }).dueAt).toBeNull();
+    expect(() => due({ clientRequestId: rid })).toThrow();
+  });
+
+  test("the two new refusals have their own codes", () => {
+    expect(OUTCOME_ERROR_CODES.schedule_not_editable).toBe(409);
+    expect(OUTCOME_ERROR_CODES.outcome_not_open).toBe(409);
   });
 });

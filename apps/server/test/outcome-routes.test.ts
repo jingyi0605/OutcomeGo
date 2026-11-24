@@ -10,6 +10,7 @@ import type { RouteContext } from "../src/routes/context";
 import { outcomeFixture, testDatabaseUrl, requestId } from "./fixtures/outcome-fixture";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
 import { OutcomeService } from "../src/services/outcome-service";
+import { OutcomeScheduleService } from "../src/services/outcome-schedule-service";
 
 // The production authentication gate must run before every feature route.
 test("main registers Outcome behind the existing authentication middleware", () => {
@@ -23,7 +24,7 @@ test("main registers Outcome behind the existing authentication middleware", () 
 describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
   const f = outcomeFixture();
   const reviews = new OutcomeReviewService(f.prisma, {} as AgentMessaging, async () => { throw new Error("offline"); });
-  const app = { prisma: f.prisma, outcomes: f.outcomes, outcomeThreads: {} as OutcomeThreadService, outcomeReviews: reviews };
+  const app = { prisma: f.prisma, outcomes: f.outcomes, outcomeThreads: {} as OutcomeThreadService, outcomeReviews: reviews, outcomeSchedule: undefined as unknown as OutcomeScheduleService };
   afterAll(() => f.close());
   async function call(path: string, method = "GET", body?: unknown, authMode: "required" | "disabled" = "disabled", sessionId: string | null = null) {
     const url = new URL(`http://localhost/api/v0${path}`);
@@ -123,4 +124,43 @@ describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
       expect(await unavailable.json()).toMatchObject({ error: { code: "bot_not_runnable", details: { retryable: true } } });
     } finally { app.outcomes = original; await h.cleanup(); }
   });
+  // Specs/004.10 task 2.6: the owner's schedule and deadline endpoints.
+  test("schedule and deadline routes change dates for the owner and report refusals with their codes", async () => {
+    const h = await outcomeThreadFixture();
+    const original = app.outcomeSchedule;
+    app.outcomeSchedule = new OutcomeScheduleService(h.db, new OutcomeService(h.db, h.messaging), h.messaging);
+    try {
+      const item = await h.item(1);
+      const when = new Date(Date.now() + 3_600_000).toISOString();
+      const put = (path: string, body: unknown) => call(path, "PUT", body);
+
+      const moved = await put(`/outcomes/${h.outcome.id}/work-items/${item.id}/schedule`, { scheduledAt: when, estimateMinutes: 30, clientRequestId: requestId() });
+      expect(moved.status).toBe(200);
+      expect(await moved.json()).toMatchObject({ workItems: [{ id: item.id, scheduledAt: when, estimateMinutes: 30 }] });
+
+      const bad = await put(`/outcomes/${h.outcome.id}/work-items/${item.id}/schedule`, { scheduledAt: "soon", clientRequestId: requestId() });
+      expect(bad.status).toBe(400);
+      expect(await bad.json()).toMatchObject({ error: { code: "invalid_schedule" } });
+
+      const malformed = await put(`/outcomes/${h.outcome.id}/work-items/${item.id}/schedule`, { scheduledAt: 7, clientRequestId: requestId() });
+      expect(malformed.status).toBe(400);
+
+      const due = new Date(Date.now() + 86_400_000).toISOString();
+      const deadline = await put(`/outcomes/${h.outcome.id}/due`, { dueAt: due, clientRequestId: requestId() });
+      expect(deadline.status).toBe(200);
+      expect(await deadline.json()).toMatchObject({ dueAt: due });
+      const cleared = await put(`/outcomes/${h.outcome.id}/due`, { dueAt: null, clientRequestId: requestId() });
+      expect(await cleared.json()).toMatchObject({ dueAt: null });
+
+      await h.db.outcomeWorkItem.update({ where: { id: item.id }, data: { status: "running" } });
+      const started = await put(`/outcomes/${h.outcome.id}/work-items/${item.id}/schedule`, { scheduledAt: when, clientRequestId: requestId() });
+      expect(started.status).toBe(409);
+      expect(await started.json()).toMatchObject({ error: { code: "schedule_not_editable" } });
+
+      // Only PUT is handled. Any other method falls through to the other routes and finds nothing, so nothing changes.
+      expect(await call(`/outcomes/${h.outcome.id}/due`, "POST", { dueAt: due, clientRequestId: requestId() })).toBeUndefined();
+      expect(await call(`/outcomes/${h.outcome.id}/work-items/${item.id}/schedule`, "GET")).toBeUndefined();
+    } finally { app.outcomeSchedule = original; await h.cleanup(); }
+  });
+
 });
