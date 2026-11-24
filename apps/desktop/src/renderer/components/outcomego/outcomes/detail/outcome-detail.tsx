@@ -13,6 +13,7 @@ import { Info, MoreHorizontal } from "lucide-react";
 import { OutcomeThreadPanel } from "../thread/outcome-thread-panel";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../../../ui/dropdown-menu";
 import { OutcomeSourceInfo } from "../outcome-source-info";
+import { OutcomeTimeline } from "../timeline/outcome-timeline";
 import { ContractEditor } from "./contract-editor";
 import { ReviewPanel } from "./review-panel";
 import { RevisionHistory, revisionMaterialLabel } from "./revision-history";
@@ -863,6 +864,13 @@ export function OutcomeDetail({
                   />
                 )}
               </div>
+            )}
+            {outcome.workItems.length > 0 && (
+              <OutcomeTimeline
+                workItems={outcome.workItems}
+                currentRevision={outcome.currentRevision}
+                botName={(botId) => (botId ? bots.find((b) => b.id === botId)?.name : undefined)}
+              />
             )}
             {outcome.workItems.length > 0 && (
               <details className="outcome-disclosure" {...disclosure("execution")}>

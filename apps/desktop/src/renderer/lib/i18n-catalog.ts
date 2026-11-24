@@ -3194,6 +3194,31 @@ export const sourceTranslations: Record<string, string> = {
   Unreviewed: "未审查",
   "Use global model": "使用全局模型",
   fallback: "回退",
+
+  // Goal timeline (specs/004.10)
+  Timeline: "时间线",
+  Task: "任务",
+  Owner: "负责方",
+  Runs: "运行记录",
+  "Task timeline as a list": "任务时间线（列表形式）",
+  "This server does not report task times yet. Only order and status are shown.":
+    "此服务器暂未提供任务时间，仅显示顺序和状态。",
+  "Deferred until {time}": "延后至 {time}",
+  "Waiting for: {tasks}": "等待：{tasks}",
+  "{start} – now": "{start} – 现在",
+  Queued: "排队中",
+  "Waiting for earlier tasks": "等待前置任务",
+  Scheduled: "已排期",
+  Deferred: "已延后",
+  "Missed schedule": "错过计划",
+  "Waiting for a decision": "等待决策",
+  "Waiting for a person": "等待人工处理",
+  Retrying: "重试中",
+  "Needs review": "待审查",
+  Failed: "失败",
+  "Not started": "未开始",
+  "Awaiting your review": "等待你验收",
+  "Sent back": "已退回",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

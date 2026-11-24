@@ -2332,3 +2332,146 @@ button.outcome-chat-card-main:hover {
   list-style: disc;
   color: var(--foreground);
 }
+
+/* Goal timeline (specs/004.10). Status is always words + icon + tone, never color alone. */
+.outcome-timeline {
+  /* One fixed label column shared by every row, the axis and the today line, so tracks line up. */
+  --timeline-label: 12rem;
+  --timeline-gap: 0.5rem;
+  display: grid;
+  gap: 0.5rem;
+  color: var(--foreground);
+}
+.outcome-timeline-title,
+.outcome-timeline-unscheduled h5 {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.outcome-timeline-note {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--foreground-secondary);
+}
+.outcome-timeline-chart {
+  position: relative;
+  display: grid;
+  gap: 0.375rem;
+  padding: 0.5rem 0;
+  border-block: 0.5px solid var(--border);
+}
+.outcome-timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: calc(var(--timeline-label) + var(--timeline-gap));
+  font-size: 0.6875rem;
+  color: var(--foreground-secondary);
+}
+.outcome-timeline-row {
+  display: grid;
+  grid-template-columns: var(--timeline-label) 1fr;
+  align-items: center;
+  gap: var(--timeline-gap);
+  font-size: 0.75rem;
+}
+.outcome-timeline-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.outcome-timeline-track {
+  position: relative;
+  height: 1rem;
+  background: var(--subtle);
+  border-radius: 3px;
+}
+.outcome-timeline-segment {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 2px;
+  background: var(--segment-tone, var(--foreground-secondary));
+}
+.outcome-timeline-segment[data-marker="diamond"] {
+  min-width: 0.625rem;
+  transform: rotate(45deg) scale(0.8);
+}
+.outcome-timeline-gap {
+  position: absolute;
+  top: 50%;
+  border-top: 1px dashed var(--foreground-secondary);
+}
+.outcome-timeline-defer {
+  position: absolute;
+  right: 0.25rem;
+  top: 0;
+  font-size: 0.6875rem;
+  color: var(--tone-plan);
+}
+/* Covers exactly the track area (right of the label column) so a percentage is a position on the axis. */
+.outcome-timeline-today-layer {
+  position: absolute;
+  top: 1.25rem;
+  bottom: 0;
+  left: calc(var(--timeline-label) + var(--timeline-gap));
+  right: 0;
+  pointer-events: none;
+}
+.outcome-timeline-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px solid var(--tone-action);
+}
+.outcome-timeline [data-tone="action"] { --segment-tone: var(--tone-action); --status-tone: var(--tone-action); }
+.outcome-timeline [data-tone="review"] { --segment-tone: var(--tone-review); --status-tone: var(--tone-review); }
+.outcome-timeline [data-tone="plan"] { --segment-tone: var(--tone-plan); --status-tone: var(--tone-plan); }
+.outcome-timeline [data-tone="pass"] { --segment-tone: var(--tone-pass); --status-tone: var(--tone-pass); }
+.outcome-timeline [data-tone="fail"] { --segment-tone: var(--tone-fail); --status-tone: var(--tone-fail); }
+.outcome-timeline [data-tone="muted"] { --segment-tone: var(--foreground-secondary); --status-tone: var(--foreground-secondary); }
+.outcome-timeline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--status-tone, var(--foreground));
+}
+.outcome-timeline-icon {
+  display: inline-block;
+  min-width: 1em;
+  text-align: center;
+}
+.outcome-timeline-status[data-animated] .outcome-timeline-icon {
+  animation: outcome-timeline-pulse 1.6s ease-in-out infinite;
+}
+@keyframes outcome-timeline-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.outcome-timeline-unscheduled ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.75rem;
+}
+.outcome-timeline-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+.outcome-timeline-table th,
+.outcome-timeline-table td {
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 0.5px solid var(--border);
+}
+.outcome-timeline-run {
+  display: block;
+}
+@media (prefers-reduced-motion: reduce) {
+  .outcome-timeline,
+  .outcome-timeline * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
