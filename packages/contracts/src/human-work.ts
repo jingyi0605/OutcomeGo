@@ -33,6 +33,9 @@ export const humanActionInputSchema = z.object({
     kind: z.enum(["text", "asset", "sourceReference", "observation"]),
   }).strict()).min(1).max(100),
   referenceIds: z.array(z.string().min(1).max(500)).max(100).optional(),
+  // Specs/004.10: a booked time and a deadline for the person. Shape only; the server checks real timestamps and order.
+  scheduledAt: z.string().max(64).optional(),
+  dueAt: z.string().max(64).optional(),
 }).strict();
 
 export type HumanWorkMutation = z.infer<typeof humanWorkMutationSchema>;
@@ -102,6 +105,8 @@ export const REQUEST_HUMAN_ACTION_TOOL = {
         },
       },
       referenceIds: { type: "array", maxItems: 100, items: { type: "string", minLength: 1, maxLength: 500 } },
+      scheduledAt: { type: "string", maxLength: 64, description: "Optional ISO 8601 time with a UTC offset when the person is expected to do this. It books the time only: nothing waits for it." },
+      dueAt: { type: "string", maxLength: 64, description: "Optional ISO 8601 time with a UTC offset by which this should be done. It only marks the task overdue after that; it never stops anything." },
     },
     required: ["title", "purpose", "steps", "evidenceRequirements"],
   },
@@ -140,6 +145,12 @@ export interface HumanWorkItemView {
   evidenceCount: number;
   nextAction?: string;
   startedAt: string | null;
+  /** A booked time. It only informs: nothing waits for it. Null when none; absent on payloads from older servers. */
+  scheduledAt?: string | null;
+  /** The deadline. Null when none; absent on payloads from older servers. */
+  dueAt?: string | null;
+  /** Derived when read: the deadline has passed and no receipt is in. Never true without a deadline. */
+  overdue?: boolean;
 }
 export interface HumanWorkItemDetail extends HumanWorkItemView {
   card: HumanActionCardView | null;

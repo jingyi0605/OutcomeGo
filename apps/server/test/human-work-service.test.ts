@@ -146,3 +146,130 @@ describe.skipIf(!url)("human work service (004.4 wave 1)", () => {
     expect(await prisma.outcomeWorkItem.count({ where: { outcomeId: outcome.id } })).toBe(count);
   });
 });
+
+// Specs/004.10 task 2.7: dates on a human task. Booking a time never blocks or changes anything about the task.
+describe.skipIf(!url)("human task dates (specs/004.10 task 2.7)", () => {
+  const prisma = createPrismaClient(url!);
+  const service = new HumanWorkService(prisma);
+  const bots: string[] = [];
+  beforeAll(() => prisma.$connect());
+  afterAll(async () => {
+    await prisma.bot.deleteMany({ where: { id: { in: bots } } });
+    await prisma.$disconnect();
+  });
+  const card = (extra: Record<string, unknown> = {}) => ({
+    title: "Perform another check", purpose: "Collect real observations", steps: ["Human checks it"],
+    evidenceRequirements: [{ criterionOrdinal: 1, label: "Log", kind: "text" as const }], ...extra,
+  });
+  const create = async (extra: Record<string, unknown> = {}) => {
+    const s = await humanWorkScenario(prisma, service);
+    bots.push(s.bot.id);
+    const result = await prisma.$transaction((tx) => service.createCard(tx, { ...s.cardInput, card: card(extra) as never }, "owner:local"));
+    return { s, result, row: () => prisma.outcomeWorkItem.findUniqueOrThrow({ where: { id: result.workItemId } }) };
+  };
+
+  test("a card with a booked time and a deadline stores both on the task, and the task starts ready as usual", async () => {
+    const t = await create({ scheduledAt: "2026-12-01T09:00:00+08:00", dueAt: "2026-12-05T09:00:00Z" });
+    const row = await t.row();
+    expect(row.scheduledAt!.toISOString()).toBe("2026-12-01T01:00:00.000Z");
+    expect(row.dueAt!.toISOString()).toBe("2026-12-05T09:00:00.000Z");
+    expect(row.status).toBe("ready");
+    expect(row.executorType).toBe("human");
+  });
+
+  test("a card with no dates leaves both empty, exactly as before", async () => {
+    const t = await create();
+    const row = await t.row();
+    expect(row.scheduledAt).toBeNull();
+    expect(row.dueAt).toBeNull();
+  });
+
+  test("a future booked time does not hold the task back, and a past one does not change its state", async () => {
+    for (const scheduledAt of ["2099-01-01T00:00:00Z", "2001-01-01T00:00:00Z"]) {
+      const t = await create({ scheduledAt });
+      expect((await t.row()).status).toBe("ready");
+      const started = await service.start((await t.row()).id, { clientRequestId: crypto.randomUUID(), expectedContractRevision: 1 }, "owner:local");
+      expect(started.status).toBe("in_progress");
+    }
+  });
+
+  test("a malformed time, or a deadline before the booked time, refuses the whole request and creates nothing", async () => {
+    const s = await humanWorkScenario(prisma, service);
+    bots.push(s.bot.id);
+    const before = await prisma.outcomeWorkItem.count({ where: { outcomeId: s.outcome.id } });
+    const bad: Array<Record<string, unknown>> = [
+      { scheduledAt: "soon" }, { dueAt: "2026-02-30T00:00:00Z" }, { scheduledAt: "2026-12-01" },
+      { scheduledAt: "2026-12-05T00:00:00Z", dueAt: "2026-12-01T00:00:00Z" },
+    ];
+    for (const extra of bad) {
+      const error = await prisma.$transaction((tx) => service.createCard(tx, { ...s.cardInput, card: card(extra) as never }, "owner:local")).then(() => null, (e) => e);
+      expect([JSON.stringify(extra), (error as ApiError | null)?.status, (error as ApiError | null)?.code]).toEqual([JSON.stringify(extra), 400, "invalid_schedule"]);
+    }
+    expect(await prisma.outcomeWorkItem.count({ where: { outcomeId: s.outcome.id } })).toBe(before);
+  });
+
+  test("the card's own record is unchanged by the dates: they live on the task, not in a second place", async () => {
+    const t = await create({ scheduledAt: "2026-12-01T09:00:00Z" });
+    const stored = await prisma.outcomeHumanActionCard.findUniqueOrThrow({ where: { workItemId: (await t.row()).id } });
+    expect(JSON.stringify(stored)).not.toContain("2026-12-01");
+  });
+});
+
+// Specs/004.10 task 2.7: what the owner sees. Overdue is derived when read, and only a task with a deadline can be.
+describe.skipIf(!url)("human task view dates and overdue (specs/004.10 task 2.7)", () => {
+  const prisma = createPrismaClient(url!);
+  const service = new HumanWorkService(prisma);
+  const bots: string[] = [];
+  beforeAll(() => prisma.$connect());
+  afterAll(async () => {
+    await prisma.bot.deleteMany({ where: { id: { in: bots } } });
+    await prisma.$disconnect();
+  });
+  const make = async (extra: Record<string, unknown> = {}) => {
+    const s = await humanWorkScenario(prisma, service);
+    bots.push(s.bot.id);
+    const card = { ...s.cardInput.card, title: "Dated task", ...extra };
+    const result = await prisma.$transaction((tx) => service.createCard(tx, { ...s.cardInput, card: card as never }, "owner:local"));
+    return { s, id: result.workItemId };
+  };
+  const view = async (t: { s: { outcome: { id: string } }; id: string }) => (await service.list(t.s.outcome.id)).find((entry) => entry.id === t.id)!;
+
+  test("the list and the detail show the booked time and the deadline", async () => {
+    const t = await make({ scheduledAt: "2026-12-01T09:00:00Z", dueAt: "2099-12-05T09:00:00Z" });
+    expect(await view(t)).toMatchObject({ scheduledAt: "2026-12-01T09:00:00.000Z", dueAt: "2099-12-05T09:00:00.000Z", overdue: false });
+    expect(await service.detail(t.id)).toMatchObject({ scheduledAt: "2026-12-01T09:00:00.000Z", dueAt: "2099-12-05T09:00:00.000Z" });
+  });
+
+  test("a task with no dates reports none, and is never overdue", async () => {
+    const t = await make();
+    expect(await view(t)).toMatchObject({ scheduledAt: null, dueAt: null, overdue: false });
+  });
+
+  test("a deadline that has passed marks the task overdue while it still needs doing", async () => {
+    const t = await make({ dueAt: "2001-01-01T00:00:00Z" });
+    for (const status of ["ready", "in_progress", "paused", "rejected"] as const) {
+      await prisma.outcomeWorkItem.update({ where: { id: t.id }, data: { status } });
+      expect([status, (await view(t)).overdue]).toEqual([status, true]);
+    }
+  });
+
+  test("once a receipt is in, or the task is closed, it is no longer overdue", async () => {
+    const t = await make({ dueAt: "2001-01-01T00:00:00Z" });
+    for (const status of ["submitted", "review_pending", "accepted", "cancelled"] as const) {
+      await prisma.outcomeWorkItem.update({ where: { id: t.id }, data: { status } });
+      expect([status, (await view(t)).overdue]).toEqual([status, false]);
+    }
+  });
+
+  test("a booked time alone never makes a task overdue, however long ago it was", async () => {
+    const t = await make({ scheduledAt: "2001-01-01T00:00:00Z" });
+    expect((await view(t)).overdue).toBe(false);
+  });
+
+  test("overdue is read off the date each time and is not stored", async () => {
+    const t = await make({ dueAt: new Date(Date.now() + 60_000).toISOString() });
+    expect((await view(t)).overdue).toBe(false);
+    await prisma.outcomeWorkItem.update({ where: { id: t.id }, data: { dueAt: new Date(Date.now() - 60_000) } });
+    expect((await view(t)).overdue).toBe(true);
+  });
+});

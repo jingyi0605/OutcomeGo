@@ -5,12 +5,13 @@ import {
   type HumanWorkPause,
 } from "@outcomego/contracts/human-work";
 import type { KnowledgeReference } from "@outcomego/contracts/knowledge";
-import { OutcomeError, OUTCOME_ERROR_CODES, type WorkItemExecutorType, type WorkItemStatus } from "@outcomego/contracts/outcomes";
+import { OutcomeError, OUTCOME_ERROR_CODES, validatePlanSchedule, parseOffsetTimestamp, type WorkItemExecutorType, type WorkItemStatus } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
   appendOutcomeEvent, transitionWorkItem,
   type ActorRef, type HumanActionInput, type HumanActionResult, type HumanActionPort,
 } from "@outcomego/messaging";
+import { isWorkItemOverdue } from "@outcomego/contracts/task-overview";
 import { hashRequest, toJson } from "./service-utils";
 import type { HumanKnowledgeResolver } from "./human-knowledge-service";
 import { humanReceiptView } from "./human-receipt-service";
@@ -127,6 +128,9 @@ export class HumanWorkService implements HumanActionPort {
     const parsed = humanActionInputSchema.safeParse(input.card);
     if (!parsed.success) throw new ApiError(400, "invalid_request", "Invalid human action card", parsed.error.flatten());
     const card = parsed.data;
+    // The booked time and deadline are checked before anything is written, so a bad one creates nothing.
+    const schedule = validatePlanSchedule({ startAt: card.scheduledAt, dueAt: card.dueAt });
+    if (!schedule.ok) throw new ApiError(400, "invalid_schedule", "The booked time or deadline is not valid", { fields: schedule.fields.map((field) => (field === "startAt" ? "scheduledAt" : field)), retryable: false });
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${input.outcomeId}`}))`;
     const outcome = await tx.outcome.findUnique({ where: { id: input.outcomeId } });
     if (!outcome) throw new ApiError(404, "outcome_not_found", "Outcome not found");
@@ -162,6 +166,9 @@ export class HumanWorkService implements HumanActionPort {
         outcomeId: outcome.id, contractRevisionId: revision.id, botId: outcome.botId,
         executorType: "human", kind: "human_action", status: "pending", title: card.title,
         ordinal: (last._max.ordinal ?? 0) + 1, dependsOn: [], sourceDecisionId: input.sourceDecisionId,
+        // A booked time and a deadline only inform: nothing waits for them and the task's state does not depend on them.
+        scheduledAt: card.scheduledAt ? parseOffsetTimestamp(card.scheduledAt) : null,
+        dueAt: card.dueAt ? parseOffsetTimestamp(card.dueAt) : null,
       },
     });
     await tx.outcomeHumanActionCard.create({
@@ -282,6 +289,10 @@ export class HumanWorkService implements HumanActionPort {
       evidenceCount: item._count.evidence,
       nextAction: item.executorType === "human" ? nextAction(item.status) : undefined,
       startedAt: item.startedAt?.toISOString() ?? null,
+      scheduledAt: item.scheduledAt?.toISOString() ?? null,
+      dueAt: item.dueAt?.toISOString() ?? null,
+      // The one shared derivation, so every view agrees on what overdue means.
+      overdue: isWorkItemOverdue({ executorType: item.executorType, status: item.status, dueAt: item.dueAt }, new Date()),
     };
   }
 

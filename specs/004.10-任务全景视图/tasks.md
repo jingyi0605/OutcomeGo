@@ -467,7 +467,16 @@
   - 对应设计：`design.md` §5.5、§5.11
 
 - [ ] 2.7 人工任务日期
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 完成记录（2026-11-25）：
+    - 契约：`RequestHumanAction`（`humanActionInputSchema`，仍是严格模式）和 agent 看到的工具 schema 增加可选的 `scheduledAt`、`dueAt`（描述写明「预约只提示、不阻塞」「截止只用于标逾期、不会停止任何事」）；`HumanWorkItemView` 增加可选的 `scheduledAt`、`dueAt`、`overdue`（旧服务端缺失按「无」处理）。
+    - 服务端：`createCard` 在写入前用 `validatePlanSchedule` 校验（400 `invalid_schedule`，整体拒绝、不创建任何东西），通过后写到任务行；日期不进动作卡自己的记录；任务状态流转完全不看日期。逾期由共享的 `isWorkItemOverdue` 在读取时推导，不存储：有截止且已过、且尚未提交回执才为真，没有截止永不逾期，只有预约时间永不逾期。
+    - 桌面端：新增 `HumanTaskDates`（预约时间、截止、「已逾期」用文字加图标表达），接进动作卡标题下方；新增 3 条中英文文案。
+  - 验证：server `human-work-service.test.ts` +11（数据库）、桌面端 `human-task-dates.test.tsx` 8 个（含动作卡整体渲染）、contracts +3。**变异检查 4 个**（不写入日期、不校验、逾期忽略回执状态、预约时间被当成截止），每个都有测试变红。全量：contracts 335、messaging 931、server 1761（19 跳过）、desktop 1094（2 跳过）均 0 失败；根目录 `typecheck` 15/15、`check:architecture` 与 `check:i18n` 通过。
+  - **没有做 / 没有验证：**
+    1. **任务 2.7 的第三条做法「日期可由所有者在界面修改」没有界面。** 后端接口在 2.6 已支持人工任务改期，但动作卡里没有改期入口，桌面端界面改期放在 3.2（时间线行菜单）。所以这里是 IN_REVIEW，不是 DONE。
+    2. **决策选项里的 `manualAction` 不带日期**（规格 C6.1 只写了 `RequestHumanAction`）。agent 通过决策提议的人工任务，日期会被静默丢弃（不报错），已用测试固定这一行为，见 D2-22。
+    3. 动作卡的实际界面没在真实窗口里看过，只有静态渲染断言。
   - 这一步到底做什么：让人工任务可带预约时间和截止，并可由所有者修改。
   - 做完你能看到什么：动作卡里能看到日期；日期不阻塞流程；逾期的人工任务被标出。
   - 先依赖什么：2.1、2.6

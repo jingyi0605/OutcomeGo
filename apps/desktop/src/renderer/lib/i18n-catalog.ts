@@ -3219,6 +3219,11 @@ export const sourceTranslations: Record<string, string> = {
   "Not started": "未开始",
   "Awaiting your review": "等待你验收",
   "Sent back": "已退回",
+
+  // Human task dates (specs/004.10)
+  "Booked for": "预约于",
+  Due: "截止",
+  Overdue: "已逾期",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

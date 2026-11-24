@@ -17,6 +17,7 @@ import type { InboxClient } from "../inbox/inbox-api";
 import type { HumanMaterialClient } from "./human-api";
 import { KnowledgeReferences } from "./knowledge-references";
 import { ReceiptForm } from "./receipt-form";
+import { HumanTaskDates } from "./human-task-dates";
 import { OutcomeRequestIds } from "../planning/outcome-client";
 import { responseStatus } from "../inbox/decision-state";
 import { useI18n } from "../../../../lib/i18n";
@@ -148,6 +149,7 @@ export function HumanAction({
               {t(item.status)}
             </p>
           )}
+          {item && card && <HumanTaskDates scheduledAt={item.scheduledAt} dueAt={item.dueAt} overdue={item.overdue} />}
         </div>
         <button className="outcome-control" disabled={busy} onClick={() => void refresh()}>
           {t("Refresh from server")}
