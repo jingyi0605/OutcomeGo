@@ -64,6 +64,12 @@ export async function enqueueOutcomeTurn(
     scope, key: input.clientId, requestHash, response: JSON.parse(JSON.stringify({ input })), status: "processing", expiresAt: ttl(),
   } });
   if (!outcomeDispatchEnabled()) return { status: "queued_for_capacity" };
+  // Not before its scheduled time (specs/004.10 design §5.2). The intent stays "processing" and is released by
+  // the due-time sweep. This sits before the capacity check, so a task that is only waiting for its time never
+  // holds one of the bot's slots. The process clock decides here; the sweep's SQL uses the database clock, and
+  // any skew only delays a release by one pass, never duplicates or loses it.
+  const releasedAt = new Date();
+  if (item.scheduledAt && item.scheduledAt.getTime() > releasedAt.getTime()) return { status: "queued_for_capacity" };
   const dependencies = Array.isArray(item.dependsOn) ? item.dependsOn.filter((id): id is string => typeof id === "string") : [];
   if (dependencies.length) {
     if (
@@ -127,6 +133,13 @@ export async function enqueueOutcomeTurn(
   await tx.idempotencyRecord.update({
     where: { scope_key: { scope, key: input.clientId } }, data: { status: "completed", response: result },
   });
+  if (item.scheduledAt) {
+    // One line per release of a scheduled task, so a late or missing start can be traced (non-functional 3.3).
+    console.info("outcome.scheduled_release " + JSON.stringify({
+      workItemId: item.id, scheduledAt: item.scheduledAt.toISOString(), releasedAt: releasedAt.toISOString(),
+      delaySeconds: Math.max(0, Math.round((releasedAt.getTime() - item.scheduledAt.getTime()) / 1000)),
+    }));
+  }
   return result;
 }
 
@@ -150,6 +163,7 @@ export async function dispatchQueuedOutcomeWorkItems(
       AND o."cancelledAt" IS NULL AND o."acceptedAt" IS NULL
       AND revision."approvedAt" IS NOT NULL AND revision.status IN ('approved', 'superseded')
       AND ${outcomeDecisionRevisionActiveSql(Prisma.sql`w."outcomeId"`, Prisma.sql`w."contractRevisionId"`, Prisma.sql`w.id`)}
+      AND (w."scheduledAt" IS NULL OR w."scheduledAt" <= now())
       AND EXISTS (SELECT 1 FROM "outcomego_idempotency_record" r
         WHERE r.scope = 'outcome-turn:' || w.id::text AND r.status = 'processing')
     ORDER BY w."createdAt", w.id LIMIT 100`;
@@ -166,6 +180,34 @@ export async function dispatchQueuedOutcomeWorkItems(
     const input = (pending?.response as { input?: EnqueueOutcomeTurnInput } | null)?.input;
     if (input) await enqueueOutcomeTurn(tx, messaging, input);
   }
+}
+
+/**
+ * Releases tasks whose scheduled time has arrived (specs/004.10 design §5.2). Only queued agent tasks that are due
+ * and still hold a pending start intent are looked at, never every task. Each bot is drained in its own
+ * transaction, the same way recovery does it. Safe to repeat: a release goes through the same client ID, so it can
+ * never create a second run. State is in the database, so a restart that spans the due time still releases it.
+ */
+export async function dispatchDueScheduledWorkItems(
+  prisma: PrismaClient,
+  messaging: AgentMessaging
+): Promise<{ bots: number; released: number }> {
+  if (!outcomeDispatchEnabled()) return { bots: 0, released: 0 };
+  const due = await prisma.$queryRaw<Array<{ id: string; botId: string }>>`
+    SELECT w.id, w."botId" FROM "outcomego_outcome_work_item" w
+    WHERE w."executorType" = 'agent' AND w.status = 'queued'
+      AND w."scheduledAt" IS NOT NULL AND w."scheduledAt" <= now()
+      AND EXISTS (SELECT 1 FROM "outcomego_idempotency_record" r
+        WHERE r.scope = 'outcome-turn:' || w.id::text AND r.status = 'processing')
+    ORDER BY w."scheduledAt", w.id LIMIT 100`;
+  const botIds = [...new Set(due.map((row) => row.botId))];
+  let released = 0;
+  for (const botId of botIds) {
+    const before = await prisma.run.count({ where: { botId, origin: "outcome" } });
+    await prisma.$transaction((tx) => dispatchQueuedOutcomeWorkItems(tx, messaging, botId), { timeout: 30_000 });
+    released += (await prisma.run.count({ where: { botId, origin: "outcome" } })) - before;
+  }
+  return { bots: botIds.length, released };
 }
 
 const TEXT_OUTPUT_EXTENSIONS = new Set([".txt", ".md", ".markdown", ".log", ".json", ".csv", ".tsv", ".yaml", ".yml"]);

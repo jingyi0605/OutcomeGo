@@ -337,8 +337,17 @@
   - 对应需求：`requirements.md` 需求 C3.1 至 C3.6
   - 对应设计：`design.md` §5.1、§5.11
 
-- [ ] 2.3 到点才放行
-  - 状态：TODO
+- [x] 2.3 到点才放行
+  - 状态：DONE
+  - 完成记录（2026-11-25）：
+    - 闸口：`enqueueOutcomeTurn` 在写入待处理记录之后、依赖检查与容量检查之前，若 `scheduledAt` 晚于当前时间就返回 `queued_for_capacity`，意图保持 `processing`。
+    - 防饿死：`dispatchQueuedOutcomeWorkItems` 的筛选 SQL 增加 `(scheduledAt IS NULL OR scheduledAt <= now())`，100 个未到点任务排在前面也不会挤掉到点任务。
+    - 到点扫描：新增 `dispatchDueScheduledWorkItems`（`packages/messaging`，已导出），只查「已到点、`queued`、有 `processing` 记录」的任务，按 bot 在独立事务里放行；worker 在启动恢复和每分钟的 `dispatchRoutinePass` 里调用（`releaseDueScheduledWork`，紧挨 `dispatchRequestChecks` 与 `recoverRequestProgress`），出错只记日志、不影响同一轮的其他步骤。
+    - 日志：每次放行一个带排期的任务，打一行 `outcome.scheduled_release {workItemId, scheduledAt, releasedAt, delaySeconds}`。
+    - 取消、已验收、契约被取代：沿用 `enqueueOutcomeTurn` 与 dispatch 查询里原有的判断，各有一个测试。
+  - 验证：`outcome-scheduled-dispatch.integration.test.ts` 13 个、`scheduled-release.integration.test.ts`（worker）2 个，均在本机一次性 Postgres 上真实执行。**做了三个变异检查**：去掉闸口（8 个测试变红）、去掉 SQL 排除（1 个变红）、把闸口挪到容量检查之后（1 个变红），每次都已还原。有数据库时 messaging 913、worker 278（3 跳过）、server 1701（19 跳过）、contracts 322 均 0 失败；根目录 `typecheck` 15/15。
+  - 没有验证的：①「worker 重启跨过到点时间」只验证了「状态在数据库里、清空内存后扫描仍会放行」，没有真的杀掉并重启一个 worker 进程。②没有在真实 computer 上跑过；本任务不改 `packages/contracts` 的工具、不改 `apps/computer`，不需要同步重建远端 computer。③暂停期间排期任务是否放行（设计 §10.2 第 17 项）还没核对，留给阶段 2 检查点。
+  - 重要：本任务让任务 2.2 保存的 `startAt` 真正生效，所以 2.2 与 2.3 现在可以一起发布。
   - 这一步到底做什么：让未到点的 bot 任务不启动，到点后恰好放行一次，停机后能补放行。
   - 做完你能看到什么：排到未来的任务在到点前保持排队，到点后自动开始，且不占并发名额。
   - 先依赖什么：2.1

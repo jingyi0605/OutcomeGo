@@ -1,4 +1,4 @@
-import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
+import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, dispatchDueScheduledWorkItems, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
 import {
   isManagedDraftWake,
   isTreatmentDraftWake,
@@ -629,6 +629,7 @@ export class WakeWorker {
     await dispatchTaskContinuations(this.prisma, this.messaging);
     await dispatchRequestChecks(this.prisma, this.messaging);
     await recoverRequestProgress(this.prisma, this.messaging);
+    await this.releaseDueScheduledWork();
     await this.recoverRoutineExecutions();
     while (this.outcomeRecoveryCursor) await this.recoverOutcomeWorkItems();
     await this.reconcileRetiredAgents();
@@ -703,6 +704,18 @@ export class WakeWorker {
     await this.prisma.$disconnect();
   }
 
+  /**
+   * Starts bot tasks whose scheduled time has arrived (specs/004.10). Failure here is logged and does not stop the
+   * routine pass or startup recovery: one failing source must not take the others down.
+   */
+  private async releaseDueScheduledWork(): Promise<void> {
+    try {
+      await dispatchDueScheduledWorkItems(this.prisma, this.messaging);
+    } catch (error) {
+      console.error("scheduled-work-release", error);
+    }
+  }
+
   private async dispatchRoutinePass(): Promise<void> {
     if (this.routinePassActive) return;
     this.routinePassActive = true;
@@ -710,6 +723,7 @@ export class WakeWorker {
       await dispatchTaskContinuations(this.prisma, this.messaging);
       await dispatchRequestChecks(this.prisma, this.messaging);
       await recoverRequestProgress(this.prisma, this.messaging);
+      await this.releaseDueScheduledWork();
       const reconciliation = await this.agentData.reconcileAutomationFilesBatch(
         this.automationReconcileCursor,
         AUTOMATION_RECONCILE_BATCH_SIZE
