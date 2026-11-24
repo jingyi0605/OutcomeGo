@@ -180,6 +180,36 @@ describe.skipIf(!url)("scheduled dispatch (specs/004.10 task 2.3)", () => {
     }
   });
 
+  test("a hundred due tasks that stay held cannot starve another bot's due task out of the sweep", async () => {
+    const stuck = await outcomeThreadFixture();
+    const other = await outcomeThreadFixture();
+    try {
+      // 105 tasks that are all due and stay held: the bot's two slots take two and the other 103 wait for capacity,
+      // still due and still holding their start intent, so they stay in the sweep's result for as long as they wait.
+      await stuck.db.outcomeWorkItem.createMany({
+        data: Array.from({ length: 105 }, (_, index) => ({
+          outcomeId: stuck.outcome.id, contractRevisionId: stuck.revision.id, botId: stuck.bot.id, executorType: "agent" as const,
+          title: "Held fixture", status: "queued" as const, ordinal: index + 1000, scheduledAt: minutes(60),
+        })),
+      });
+      const held = await stuck.db.outcomeWorkItem.findMany({ where: { outcomeId: stuck.outcome.id, ordinal: { gte: 1000 } }, select: { id: true } });
+      for (const item of held) expect((await start(stuck, item.id)).status).toBe("queued_for_capacity");
+      await stuck.db.outcomeWorkItem.updateMany({ where: { outcomeId: stuck.outcome.id, ordinal: { gte: 1000 } }, data: { scheduledAt: minutes(-600) } });
+      // Another bot's task whose time comes later than all of those, so row order puts it behind the 105.
+      const due = await other.item(1);
+      await schedule(other, due.id, minutes(30));
+      expect((await start(other, due.id)).status).toBe("queued_for_capacity");
+      await schedule(other, due.id, minutes(-1));
+      await dispatchDueScheduledWorkItems(stuck.db, stuck.messaging);
+      expect((await other.db.outcomeWorkItem.findUniqueOrThrow({ where: { id: due.id } })).rootRunId).not.toBeNull();
+      expect(await runs(other)).toBe(1);
+      await stuck.db.idempotencyRecord.deleteMany({ where: { scope: { in: held.map((item) => `outcome-turn:${item.id}`) } } });
+    } finally {
+      await other.cleanup();
+      await stuck.cleanup();
+    }
+  }, 120_000);
+
   test("a cancelled goal never releases its scheduled task", async () => {
     const h = await outcomeThreadFixture();
     try {

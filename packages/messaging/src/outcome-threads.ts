@@ -262,14 +262,18 @@ export async function dispatchDueScheduledWorkItems(
   messaging: AgentMessaging
 ): Promise<{ bots: number; released: number }> {
   if (!outcomeDispatchEnabled()) return { bots: 0, released: 0 };
-  const due = await prisma.$queryRaw<Array<{ id: string; botId: string }>>`
-    SELECT w.id, w."botId" FROM "outcomego_outcome_work_item" w
+  // One row per bot, not per task. A due task that stays queued (waiting for capacity, an open dependency or the
+  // owner's decision) stays in this result, so a limit on tasks could fill with those and starve another bot's due
+  // task. A bot's own pass releases up to its capacity and picks its tasks itself.
+  const due = await prisma.$queryRaw<Array<{ botId: string }>>`
+    SELECT w."botId" FROM "outcomego_outcome_work_item" w
     WHERE w."executorType" = 'agent' AND w.status = 'queued'
       AND w."scheduledAt" IS NOT NULL AND w."scheduledAt" <= now()
       AND EXISTS (SELECT 1 FROM "outcomego_idempotency_record" r
         WHERE r.scope = 'outcome-turn:' || w.id::text AND r.status = 'processing')
-    ORDER BY w."scheduledAt", w.id LIMIT 100`;
-  const botIds = [...new Set(due.map((row) => row.botId))];
+    GROUP BY w."botId"
+    ORDER BY min(w."scheduledAt"), w."botId" LIMIT 100`;
+  const botIds = due.map((row) => row.botId);
   let released = 0;
   for (const botId of botIds) {
     const before = await prisma.run.count({ where: { botId, origin: "outcome" } });
