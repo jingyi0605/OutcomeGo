@@ -18,6 +18,7 @@ const OFF: FeatureState = {
   plannerModel: null,
   reviewerModel: null,
   environmentNote: null,
+  taskPolicy: {},
   updatedAt: null,
   loaded: false,
   failed: false,
@@ -36,6 +37,8 @@ const publish = (next: FeatureSettingsView) => {
     plannerModel: next.plannerModel ?? null,
     reviewerModel: next.reviewerModel ?? null,
     environmentNote: next.environmentNote ?? null,
+    // Only the keys the owner changed; an older server sends none, which reads as "all initial values".
+    taskPolicy: next.taskPolicy ?? {},
     updatedAt: next.updatedAt ?? null,
     loaded: true,
     failed: false,

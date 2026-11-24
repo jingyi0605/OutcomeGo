@@ -3224,6 +3224,118 @@ export const sourceTranslations: Record<string, string> = {
   "Booked for": "预约于",
   Due: "截止",
   Overdue: "已逾期",
+
+  // Goal management settings page (specs/004.10)
+  "Goal management":
+    "目标管理",
+  "Planning and review":
+    "规划与审查",
+  "Scheduling and deferral":
+    "排期与延后",
+  "Activity view":
+    "活动视图",
+  "To-dos":
+    "待办",
+  "Auto-accept rules":
+    "自动接受规则",
+  "Calendar":
+    "日历",
+  "Turn on goal management to change these settings.":
+    "开启目标管理后才能修改这些设置。",
+  "No limit":
+    "不限制",
+  "Initial":
+    "初始值",
+  "Restore initial value":
+    "恢复初始值",
+  "That value is not allowed.":
+    "这个值不被允许。",
+  "Allowed: {min} to {max}":
+    "允许范围：{min} 至 {max}",
+  "Allowed: a time written as HH:MM":
+    "允许：按 HH:MM 写法的时间",
+  "Allowed: choose one of the options":
+    "允许：从选项中选择一项",
+  "Allowed: on or off":
+    "允许：开或关",
+  "Switch it on and set up planning, review and scheduling in its own settings page.":
+    "在独立的设置页里开启目标管理，并设置规划、审查和排期。",
+  "Open goal management settings":
+    "打开目标管理设置",
+  "Grace time for a missed start":
+    "错过开始的宽限时间",
+  "How late a scheduled task may start before an action that acts outside OutcomeGo waits for your decision instead of running.":
+    "排期任务晚于计划多久之后，会对外部产生影响的操作就不再自动执行，而是等你决定。",
+  "Most times a task can be deferred":
+    "单个任务最多可延后的次数",
+  "How many times a running task may put itself off to continue later.":
+    "运行中的任务最多可以把自己推迟到以后继续多少次。",
+  "Furthest a task can be deferred":
+    "任务最远可延后到多久以后",
+  "How far ahead a running task may schedule its own continuation.":
+    "运行中的任务最远可以把自己的继续时间安排到多久以后。",
+  "Keep finished work visible for":
+    "已完成的工作保留显示多久",
+  "How long finished work stays in the recently completed list before it is only in history.":
+    "已完成的工作在「最近完成」里停留多久，之后只出现在历史记录中。",
+  "Late check tolerance":
+    "检查延迟的容忍时间",
+  "How long a saved check may be overdue before it is shown as not having fired.":
+    "已保存的检查过期多久仍未执行，就显示为「检查未触发」。",
+  "Most items shown as cards":
+    "以卡片显示的最多条数",
+  "Up to this many items are shown as cards; more are shown as a table.":
+    "不超过这个数量时以卡片显示，超过则改用表格。",
+  "Dashboard layout":
+    "仪表盘显示方式",
+  "Whether the dashboard shows the activity list, the goal lanes, or both, so you can compare them.":
+    "仪表盘显示活动列表、目标泳道，还是两者都显示，方便你对比。",
+  "Activity and goal lanes together":
+    "活动与目标泳道并存",
+  "Activity only":
+    "只显示活动",
+  "Goal lanes only":
+    "只显示目标泳道",
+  "Expire unanswered suggestions after":
+    "未处理的建议多久后过期",
+  "A suggestion you have not answered is dismissed after this long.":
+    "你一直没有处理的建议，超过这个时间后会被忽略。",
+  "Keep finished to-dos restorable for":
+    "已完成待办可恢复的时长",
+  "How long a completed or dismissed to-do can still be restored.":
+    "已完成或已忽略的待办在多久内还能恢复。",
+  "Most open suggestions per bot":
+    "每个机器人未处理建议的上限",
+  "A bot that already has this many open suggestions cannot add more. Empty means no limit.":
+    "未处理建议已达到这个数量的机器人不能再提出新建议。留空表示不限制。",
+  "How long a message can authorise a to-do":
+    "你的消息多久内可以授权创建待办",
+  "A to-do can be created directly from your message only while that message is this recent.":
+    "只有在你的消息还足够新的时候，才能凭它直接创建待办。",
+  "Most to-dos from one message":
+    "一条消息最多授权的待办数",
+  "How many to-dos a single message of yours can authorise. Empty means no limit.":
+    "你的一条消息最多可以授权创建多少个待办。留空表示不限制。",
+  "Most auto-accepts per rule per day":
+    "每条规则每天最多自动接受次数",
+  "Once a rule has accepted this many suggestions in a day, its further suggestions wait for you. Empty means no limit.":
+    "一条规则一天内自动接受达到这个数量后，之后的建议会等你处理。留空表示不限制。",
+  "Notify for urgent suggestions":
+    "紧急建议时通知",
+  "Interrupt you once when a bot marks a new item as urgent. Off by default.":
+    "机器人把新事项标为紧急时，打断你一次。默认关闭。",
+  "Send a morning summary":
+    "发送晨报",
+  "A short daily notice of what is due, overdue, waiting for you or needs a follow-up.":
+    "每天一条简短提醒：今天到期、已逾期、等你处理和需要跟进的事项。",
+  "Morning summary time":
+    "晨报时间",
+  "The time of day, in your time zone, the summary is sent.":
+    "按你的时区，每天发送晨报的时刻。",
+  "Titles in the summary":
+    "晨报里列出的标题数",
+  "The most item titles the summary lists.":
+    "晨报最多列出多少条事项标题。",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

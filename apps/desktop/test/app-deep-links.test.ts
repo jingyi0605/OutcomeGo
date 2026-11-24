@@ -27,6 +27,16 @@ describe("OutcomeGo deep-link routing parity", () => {
     expect(settingsViewForAnchor("web-fetch-provider")).toBe("providers");
   });
 
+  // Specs/004.10 task 2.9: the goal-management page and its groups.
+  test("goal-management anchors open the goal-management page", () => {
+    const anchors = ["goal-management", "goal-roles", "goal-schedule", "goal-activity", "goal-todo", "goal-auto-accept", "goal-calendar"] as const;
+    for (const anchor of anchors) {
+      expect(parseOutcomeGoDeepLink(`outcomego://app/v1/settings?id=${anchor}`)).toEqual({ kind: "settings", anchor });
+      expect(settingsViewForAnchor(anchor)).toBe("goals");
+    }
+    expect(parseOutcomeGoDeepLink("outcomego://app/v1/settings?id=goal-nope")).toBeNull();
+  });
+
   test("preserves the stable plugin id and rejects malformed or unsupported links", () => {
     expect(parseOutcomeGoDeepLink("outcomego://app/v1/plugin/add?id=google-calendar")).toEqual({
       kind: "plugin",

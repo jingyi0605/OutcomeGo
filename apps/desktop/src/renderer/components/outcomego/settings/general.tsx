@@ -1,7 +1,7 @@
 import { SettingsSelectContent } from "./select-content";
 import { PrivateSettingValue } from "./private-value";
 import { SmartNotificationSettings } from "./smart-notifications";
-import { Copy, Settings } from "lucide-react";
+import { ChevronRight, Copy } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 import { signOut } from "../../../client/auth";
 import { API_BASE } from "../../../client/http";
@@ -15,7 +15,6 @@ import {
   setThemePreference,
   type ThemePreference,
 } from "../../../lib/theme";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "../../ui/dialog";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import type { MicrophoneControlProps } from "./microphone";
 import {
@@ -28,11 +27,11 @@ import {
   settingsSecondaryButton,
 } from "./ui";
 import { MicrophoneAccessSkeleton } from "./microphone-skeleton";
+import { openGoalSettings } from "./goal-settings-link";
 const MicrophoneSettings = lazy(() =>
   import("./microphone").then((module) => ({ default: module.MicrophoneSettings }))
 );
 const BotDockSettings = lazy(() => import("./bot-dock-settings"));
-const OutcomeRoleSettings = lazy(() => import("./outcome-role-settings"));
 const TimeZoneSettings = lazy(() =>
   import("./time-zone").then((module) => ({ default: module.TimeZoneSettings }))
 );
@@ -87,52 +86,26 @@ export function FeatureSettings() {
   const features = useFeatureSettings();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const goalLabel = t("Enable goal management for bots");
+  const goalLabel = t("Goal management");
   const streamLabel = t("Stream bot replies");
   return (
     <>
       <SectionLabel>{t("Features")}</SectionLabel>
       <SettingsGroup>
+        {/* The one place goal management is edited is its own page; this row only opens it. */}
         <SettingsRow
           title={goalLabel}
-          description={t(
-            "Shows the Outcomes entry and the idea capture button, and lets your bots register and manage goals in conversation."
-          )}
+          description={t("Switch it on and set up planning, review and scheduling in its own settings page.")}
           control={
-            <div className="flex items-center gap-2.5">
-              {features.loaded && features.outcomesEnabled && (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label={t("Goal management settings")}
-                      title={t("Goal management settings")}
-                      className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-black/[0.06] text-foreground outline-none transition-colors hover:bg-black/[0.1] focus-visible:ring-2 focus-visible:ring-ring/40 dark:bg-white/[0.09] dark:hover:bg-white/[0.13]"
-                    >
-                      <Settings aria-hidden="true" className="size-4" strokeWidth={1.75} />
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-[660px] grid-rows-[auto_minmax(0,1fr)] gap-3">
-                    <Suspense fallback={<DialogTitle>{t("Goal management settings")}</DialogTitle>}>
-                      <OutcomeRoleSettings features={features} />
-                    </Suspense>
-                  </DialogContent>
-                </Dialog>
-              )}
-              <InteractiveSwitch
-                label={goalLabel}
-                checked={features.outcomesEnabled}
-                disabled={!features.loaded || saving}
-                onChange={(value) => {
-                  setSaving(true);
-                  setError(null);
-                  features
-                    .update({ outcomesEnabled: value })
-                    .catch(() => setError(t("Couldn't save this setting. Try again.")))
-                    .finally(() => setSaving(false));
-                }}
-              />
-            </div>
+            <button
+              type="button"
+              aria-label={t("Open goal management settings")}
+              className={settingsSecondaryButton}
+              onClick={() => openGoalSettings()}
+            >
+              {t("Open")}
+              <ChevronRight aria-hidden="true" className="ml-0.5 size-3.5" strokeWidth={1.75} />
+            </button>
           }
         />
         <SettingsRow

@@ -1,15 +1,4 @@
-import {
-  BrainCircuit,
-  CloudDownload,
-  AudioLines,
-  Globe,
-  Keyboard,
-  Mic,
-  Monitor,
-  Server,
-  Settings,
-  X,
-} from "lucide-react";
+import { X } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   type SettingsAnchor,
@@ -19,6 +8,7 @@ import {
 import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
 import { SettingsHeading } from "./heading";
+import { SETTINGS_NAVIGATION } from "./navigation";
 import {
   Dialog,
   DialogClose,
@@ -31,6 +21,7 @@ const loadGeneralSettings = () => import("./general");
 const loadKeyboardSettings = () => import("./keyboard");
 const loadComputerSettings = () => import("./computer");
 const loadModelSettings = () => import("./model");
+const loadGoalsSettings = () => import("./goals");
 const loadVoiceSettings = () => import("./transcription");
 const loadRealtimeVoiceSettings = () => import("./realtime-voice");
 const loadServerSettings = () => import("./server");
@@ -41,6 +32,7 @@ const GeneralSettings = lazy(loadGeneralSettings);
 const KeyboardSettings = lazy(loadKeyboardSettings);
 const ComputerSettings = lazy(loadComputerSettings);
 const ModelSettings = lazy(loadModelSettings);
+const GoalsSettings = lazy(loadGoalsSettings);
 const VoiceSettings = lazy(loadVoiceSettings);
 const RealtimeVoiceSettings = lazy(loadRealtimeVoiceSettings);
 const ServerSettings = lazy(loadServerSettings);
@@ -52,6 +44,7 @@ const sectionLoaders: Record<SettingsView, () => Promise<unknown>> = {
   keyboard: loadKeyboardSettings,
   computer: loadComputerSettings,
   model: loadModelSettings,
+  goals: loadGoalsSettings,
   voice: loadVoiceSettings,
   "realtime-voice": loadRealtimeVoiceSettings,
   server: loadServerSettings,
@@ -64,6 +57,7 @@ const sectionComponents = {
   keyboard: KeyboardSettings,
   computer: ComputerSettings,
   model: ModelSettings,
+  goals: GoalsSettings,
   voice: VoiceSettings,
   "realtime-voice": RealtimeVoiceSettings,
   server: ServerSettings,
@@ -71,21 +65,7 @@ const sectionComponents = {
   updates: UpdatesSettings,
 };
 
-const navigation: Array<{
-  id: SettingsView;
-  label: string;
-  icon: typeof Settings;
-}> = [
-  { id: "general", label: "General", icon: Settings },
-  { id: "keyboard", label: "Keyboard", icon: Keyboard },
-  { id: "computer", label: "Computer", icon: Monitor },
-  { id: "model", label: "Model", icon: BrainCircuit },
-  { id: "voice", label: "Voice notes", icon: Mic },
-  { id: "realtime-voice", label: "Realtime voice", icon: AudioLines },
-  { id: "server", label: "Server", icon: Server },
-  { id: "providers", label: "Providers", icon: Globe },
-  { id: "updates", label: "Updates", icon: CloudDownload },
-];
+const navigation = SETTINGS_NAVIGATION;
 
 export function SettingsPanel({
   onOpenChange,

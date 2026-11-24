@@ -15,6 +15,14 @@ export const APP_SETTINGS_ANCHORS = [
   "automatic-updates",
   "web-search-provider",
   "web-fetch-provider",
+  // Goal management page and its groups (specs/004.10). Mobile has no such page and does not open settings links.
+  "goal-management",
+  "goal-roles",
+  "goal-schedule",
+  "goal-activity",
+  "goal-todo",
+  "goal-auto-accept",
+  "goal-calendar",
 ] as const;
 
 /** Outcome links contain object identity only; callers load content after authentication. */

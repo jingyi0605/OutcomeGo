@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { api } from "../../../client/outcomego-api";
 import type { useFeatureSettings } from "../../../hooks/use-feature-settings";
 import { useI18n } from "../../../lib/i18n";
-import { DialogDescription, DialogTitle } from "../../ui/dialog";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
 import { ModelOverrideSelect } from "./model-override-select";
 import { SettingsSelectContent } from "./select-content";
@@ -56,13 +55,10 @@ export default function OutcomeRoleSettings({ features }: { features: ReturnType
     }
   };
 
+  // In-page content of the goal-management page; it was a dialog before, so it no longer carries a dialog header or its own scroll.
   return (
     <>
-      <header className="space-y-1.5 pr-8">
-        <DialogTitle>{t("Goal management settings")}</DialogTitle>
-        <DialogDescription>{t("Outcome roles & environment")}</DialogDescription>
-      </header>
-      <SettingsGroup className="bot-scrollbar min-h-0 min-w-0 overflow-y-auto">
+      <SettingsGroup>
         <SettingsRow
           stackControl
           title={t("Planner bot")}

@@ -9,6 +9,7 @@ export type SettingsView =
   | "keyboard"
   | "computer"
   | "model"
+  | "goals"
   | "voice"
   | "realtime-voice"
   | "server"
@@ -34,6 +35,13 @@ const viewByAnchor: Record<SettingsAnchor, SettingsView> = {
   "automatic-updates": "updates",
   "web-search-provider": "providers",
   "web-fetch-provider": "providers",
+  "goal-management": "goals",
+  "goal-roles": "goals",
+  "goal-schedule": "goals",
+  "goal-activity": "goals",
+  "goal-todo": "goals",
+  "goal-auto-accept": "goals",
+  "goal-calendar": "goals",
 };
 
 export type OutcomeGoDeepLink =
