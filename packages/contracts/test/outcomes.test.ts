@@ -24,6 +24,9 @@ import {
   parseOutcomePlan,
   validatePlanSchedule,
   PLAN_ESTIMATE_MINUTES,
+  DEFER_WORK_ITEM_TOOL,
+  DeferWorkItemInput,
+  OUTCOME_THREAD_TOOL_NAMES,
   requiredCriteriaSatisfied,
   resolvePlanningSelections,
   SubmitOutcomeReviewInput,
@@ -343,5 +346,49 @@ describe("plan task schedule fields (specs/004.10 design §5.1)", () => {
     const result = validatePlanSchedule({ startAt: "nope", estimateMinutes: 0 });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.fields.sort()).toEqual(["estimateMinutes", "startAt"]);
+  });
+});
+
+describe("DeferWorkItem (specs/004.10 design §5.4)", () => {
+  const decode = (value: unknown) => Schema.decodeUnknownSync(DeferWorkItemInput)(value);
+
+  test("is a thread tool, so it is only offered inside an Outcome work item turn", () => {
+    expect(OUTCOME_THREAD_TOOL_NAMES).toContain("DeferWorkItem");
+    expect(DEFER_WORK_ITEM_TOOL.name).toBe("DeferWorkItem");
+  });
+
+  test("takes a resume time and a note for the next turn, and an optional reason", () => {
+    expect(decode({ resumeAt: "2026-12-01T09:00:00+08:00", note: "Continue from step three." })).toEqual({
+      resumeAt: "2026-12-01T09:00:00+08:00", note: "Continue from step three.",
+    });
+    expect(decode({ resumeAt: "2026-12-01T09:00:00Z", note: "Go on", reason: "Waiting for an outside result" }).reason).toBe("Waiting for an outside result");
+  });
+
+  test("the note is required and bounded, the reason is bounded", () => {
+    expect(() => decode({ resumeAt: "2026-12-01T09:00:00Z" })).toThrow();
+    expect(() => decode({ resumeAt: "2026-12-01T09:00:00Z", note: "" })).toThrow();
+    expect(() => decode({ resumeAt: "2026-12-01T09:00:00Z", note: "x".repeat(2001) })).toThrow();
+    expect(() => decode({ resumeAt: "2026-12-01T09:00:00Z", note: "ok", reason: "x".repeat(301) })).toThrow();
+    expect(decode({ resumeAt: "2026-12-01T09:00:00Z", note: "x".repeat(2000) }).note).toHaveLength(2000);
+  });
+
+  test("the schema checks shape only; whether the time is real and in range is decided by the server", () => {
+    expect(() => decode({ resumeAt: 5, note: "ok" })).toThrow();
+    expect(() => decode({ resumeAt: "x".repeat(65), note: "ok" })).toThrow();
+  });
+
+  test("the description tells the agent to stop after calling it, and states no numbers or scenarios", () => {
+    const text = DEFER_WORK_ITEM_TOOL.description;
+    expect(text).toMatch(/end(s)? (the|this) turn/i);
+    expect(text).toMatch(/not .*complete/i);
+    // "ISO 8601" names a format. Any other digit would be a business number, which belongs in the policy.
+    expect(text.replace(/ISO 8601/g, "")).not.toMatch(/\d/);
+    expect(text).not.toMatch(/mail|visit|inspect|customer|sender/i);
+  });
+
+  test("has its own error code and a schedule-change audit event", () => {
+    expect(OUTCOME_ERROR_CODES.defer_limit_reached).toBe(409);
+    expect(OUTCOME_EVENT_TOPICS).toContain("outcome.schedule.changed");
+    expect(isOutcomeEventTopic("outcome.schedule.changed")).toBe(true);
   });
 });

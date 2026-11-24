@@ -3,7 +3,7 @@ import type { AgentMessaging } from "./index";
 import { pendingAutomationShells } from "./automation-results";
 import { taskProgress } from "./task-progress";
 import { appendOutcomeEvent, transitionWorkItem } from "./outcome-state";
-import { dispatchQueuedOutcomeWorkItems, enqueueOutcomeTurn, settleOutcomeWorkItem, type OutcomeThreadRuntime } from "./outcome-threads";
+import { DEFERRED_BY_AGENT_REASON, dispatchQueuedOutcomeWorkItems, enqueueOutcomeTurn, settleOutcomeWorkItem, type OutcomeThreadRuntime } from "./outcome-threads";
 import { outcomeDispatchEnabled } from "./outcome-availability";
 import { createOutcomeDecision, isOutcomeDecisionRevisionActive } from "./outcome-decisions";
 
@@ -106,6 +106,9 @@ export async function recoverOutcomeWorkItem(tx: Prisma.TransactionClient, workI
     await tx.inboxEvent.updateMany({ where: { runId: { in: queued }, status: "pending" }, data: { status: "completed", completedAt: now } });
     return write("cancelled", "contract_revision_superseded");
   }
+  // A task its agent deferred waits for its own time. The turn that deferred it ending, or being cut off, is no reason
+  // to resume it early; the due-time sweep starts it when the time comes.
+  if (item.status === "queued" && item.statusReason === DEFERRED_BY_AGENT_REASON) return null;
   if (active.length || ["waiting_decision", "waiting_human"].includes(item.status)) return null;
   // WakeParent deliberately parks this thread until the main conversation resolves
   // its platform blocker; a restart must not turn that handoff into an automatic retry.

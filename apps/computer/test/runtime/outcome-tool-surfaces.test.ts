@@ -140,3 +140,28 @@ test("a goal's own thread filters tools by purpose and excludes chat, WakeParent
   expect(ordinary).toContain("SubmitOutcome");
   expect(names({ requestSource: "automation" })).not.toContain("SaveOutcomeContract");
 });
+
+// Specs/004.10 task 2.5: DeferWorkItem exists only inside a task's own Outcome turn. The lists above name tools
+// by hand, so they cannot catch a new tool being offered somewhere it should not be; this one names the one place.
+test("DeferWorkItem is offered in an Outcome work item's own turn and nowhere else", () => {
+  const runtime = tools();
+  const names = (turn: Record<string, unknown>) => {
+    const active = { runtimeProfile: "agent", subagentType: null, pluginNamespaces: [], outcomesEnabled: true, ...turn };
+    return [
+      ...runtime.customTools(active).map((tool) => tool.name),
+      ...runtime.dynamicCatalog(active).flatMap((namespace) => namespace.tools.map((tool) => tool.name)),
+    ];
+  };
+  expect(names({ requestSource: "automation", outcomeThread: { workItemId: "work" } })).toContain("DeferWorkItem");
+  const elsewhere: Array<[string, Record<string, unknown>]> = [
+    ["an ordinary user turn", { requestSource: "turn" }],
+    ["a routine or event turn", { requestSource: "automation" }],
+    ["a sub-agent", { requestSource: "turn", runtimeProfile: "subagent", subagentType: "executor" }],
+    ["a goal's planning thread", { requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose: "plan" } }],
+    ["a goal's replanning thread", { requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose: "replan" } }],
+    ["a goal's owner-message thread", { requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose: "owner_message" } }],
+    ["a goal's review thread", { requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose: "review" } }],
+    ["a goal's task-review thread", { requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose: "review_task" } }],
+  ];
+  for (const [label, turn] of elsewhere) expect([label, names(turn).includes("DeferWorkItem")]).toEqual([label, false]);
+});

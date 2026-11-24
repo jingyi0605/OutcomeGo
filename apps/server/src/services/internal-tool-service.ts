@@ -69,6 +69,7 @@ export interface OutcomeThreadToolHandlers {
   RequestOutcomeDecision?: OutcomeThreadToolHandler;
   RequestHumanAction?: OutcomeThreadToolHandler;
   ReportOutcomeProgress?: OutcomeThreadToolHandler;
+  DeferWorkItem?: OutcomeThreadToolHandler;
   /** Step approval for Bitwarden reads; called with already validated candidates, never with agent input. */
   RequestBitwardenReadApproval?: OutcomeThreadToolHandler;
 }

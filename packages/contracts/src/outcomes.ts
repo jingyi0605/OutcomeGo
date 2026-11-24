@@ -142,11 +142,12 @@ export const OUTCOME_EVENT_TOPICS = [
   "outcome.human_receipt.submitted",
   "outcome.accepted",
   "outcome.recovered",
+  "outcome.schedule.changed",
 ] as const;
 export type OutcomeEventTopic = (typeof OUTCOME_EVENT_TOPICS)[number];
 export const OUTCOME_EVENT_SCHEMA_VERSION = 1;
 
-export const OUTCOME_THREAD_TOOL_NAMES = ["RequestOutcomeDecision", "RequestHumanAction", "ReportOutcomeProgress"] as const;
+export const OUTCOME_THREAD_TOOL_NAMES = ["RequestOutcomeDecision", "RequestHumanAction", "ReportOutcomeProgress", "DeferWorkItem"] as const;
 export type OutcomeThreadToolName = (typeof OUTCOME_THREAD_TOOL_NAMES)[number];
 
 export const OUTCOME_TASK_STEP_STATUSES = ["pending", "in_progress", "completed", "blocked"] as const;
@@ -205,6 +206,24 @@ export const REPORT_OUTCOME_PROGRESS_TOOL = {
   description:
     "Update the current execution phase/stage and structured task list for this Outcome work item. Call this at the start of execution to publish your task breakdown, and update it promptly whenever the phase changes or a task starts, completes, or becomes blocked. When the saved goal states explicit prerequisites (access, credentials, approvals, environment conditions), also report each one in `prerequisites` with status met/unmet/unknown after you actually check it, and resend the full list whenever a status changes.",
   inputSchema: JSONSchema.make(ReportOutcomeProgressInput),
+} as const;
+
+/**
+ * Shape only. Whether the time is a real timestamp with an offset, is in the future and is within the owner's limits
+ * is decided by the server, which reads those limits from the task policy.
+ */
+export const DeferWorkItemInput = Schema.Struct({
+  resumeAt: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(64)),
+  note: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(2_000)),
+  reason: Schema.optional(Schema.String.pipe(Schema.maxLength(300))),
+});
+export type DeferWorkItemInput = typeof DeferWorkItemInput.Type;
+
+export const DEFER_WORK_ITEM_TOOL = {
+  name: "DeferWorkItem",
+  description:
+    "Use when this work item cannot be finished now and should continue at a later time. Give resumeAt (an ISO 8601 time with a UTC offset, in the future) and a note that tells the next turn where to continue: what is done, what remains and what to check first. This task then waits, uses none of the bot's capacity, and starts again at that time with your note as its instructions. The server may refuse a time that is too far away or a task that has been deferred too many times; the refusal says why. Calling this ends this turn and does not mean the task is complete, so stop right after it and do not report a result. It changes nothing about the contract, the dependencies or what this task may do.",
+  inputSchema: JSONSchema.make(DeferWorkItemInput),
 } as const;
 
 export function parseOutcomeWorkItemProgress(value: unknown): OutcomeWorkItemProgress | null {
@@ -472,6 +491,17 @@ export interface OutcomeEventPayloads {
   "outcome.human_receipt.submitted": { workItemId: string; receiptId: string; evidenceIds: string[] };
   "outcome.accepted": { revisionId: string; reviewIds: string[]; autoClosed?: boolean; summary?: string };
   "outcome.recovered": { workItemId: string; action: "resettle" | "resume_queued" | "needs_review" | "cancelled"; reason: string };
+  /** A task's schedule or the goal's deadline changed. `previous` holds the old values, so the change can be audited. */
+  "outcome.schedule.changed": {
+    target: "outcome" | "work_item";
+    workItemId?: string;
+    scheduledAt?: string | null;
+    dueAt?: string | null;
+    estimateMinutes?: number | null;
+    previous?: { scheduledAt?: string | null; dueAt?: string | null; estimateMinutes?: number | null };
+    reason?: string;
+    source: "planner" | "owner" | "agent_defer" | "system";
+  };
 }
 
 export interface OutcomeEventEnvelope<T = Record<string, unknown>> {
@@ -536,6 +566,7 @@ export const OUTCOME_ERROR_CODES = {
   outcome_thread_tool_forbidden: 403,
   model_unavailable: 400,
   invalid_schedule: 400,
+  defer_limit_reached: 409,
 } as const;
 export type OutcomeErrorCode = keyof typeof OUTCOME_ERROR_CODES;
 

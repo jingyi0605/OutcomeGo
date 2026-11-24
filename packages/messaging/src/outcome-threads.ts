@@ -22,7 +22,7 @@ import { createOutcomeDecision, isOutcomeDecisionRevisionActive, outcomeDecision
 export interface EnqueueOutcomeTurnInput {
   workItemId: string;
   content: string;
-  reason: "start" | "decision_resolved" | "human_action_accepted" | "recovery" | "rework";
+  reason: "start" | "decision_resolved" | "human_action_accepted" | "recovery" | "rework" | "resume_scheduled";
   clientId: string;
 }
 export type EnqueueOutcomeTurnResult =
@@ -33,6 +33,8 @@ export interface OutcomeThreadRuntime {
   workspaceRoot?: string;
 }
 const actor = "system:outcome-runtime" as const;
+/** The status reason of a task its agent deferred while it was running. */
+export const DEFERRED_BY_AGENT_REASON = "deferred_by_agent";
 const terminal = ["completed", "failed", "cancelled", "accepted"];
 const activeRuns = ["queued", "running"] as const;
 const scopeFor = (id: string) => `outcome-turn:${id}`;
@@ -386,6 +388,10 @@ export async function settleOutcomeWorkItem(tx: Prisma.TransactionClient, runId:
   if (!run?.outcomeWorkItemId) return;
   const item = await lockWorkItem(tx, run.outcomeWorkItemId);
   if (item.executorType !== "agent" || ["waiting_decision", "waiting_human", "failed", "cancelled", "needs_review"].includes(item.status)) return;
+  // The agent deferred this task (specs/004.10 design §5.4): the turn that ended is not the task ending. It is back
+  // in the queue waiting for its time, so settling it as completed, failed or in review would be wrong. Once it is
+  // released and starts again its status is no longer queued, and this stops applying.
+  if (item.status === "queued" && item.statusReason === DEFERRED_BY_AGENT_REASON) return;
   const family = await tx.run.findMany({ where: { outcomeWorkItemId: item.id }, orderBy: [{ startedAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }, { id: "desc" }] });
   if (!family.length || family.some((entry) => activeRuns.includes(entry.status as typeof activeRuns[number]))) return;
   const ids = family.map((entry) => entry.id);

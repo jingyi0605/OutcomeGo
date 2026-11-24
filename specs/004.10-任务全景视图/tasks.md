@@ -401,7 +401,16 @@
   - 对应设计：`design.md` §5.3、§8.5
 
 - [ ] 2.5 运行中延后（`DeferWorkItem`）与结算守卫
-  - 状态：TODO
+  - 状态：IN_REVIEW
+  - 完成记录（2026-11-25）：
+    - 契约：`DeferWorkItemInput`（`resumeAt`、`note` 1 至 2000、可选 `reason` 至 300）、`DEFER_WORK_ITEM_TOOL`（描述里写明「调用后结束本回合，不代表任务完成」，不含业务数值和场景词）、`OUTCOME_THREAD_TOOL_NAMES` 加入 `DeferWorkItem`、错误码 `defer_limit_reached`（409）、审计事件主题 `outcome.schedule.changed` 及载荷。
+    - 服务端：`createDeferWorkItemTool`。校验顺序为参数格式、`resumeAt` 是否真实带偏移的时间、回合上下文（与 `ReportOutcomeProgress` 相同的 409 `tool_context_invalid` 规则）、是否在未来、是否超过策略 `schedule.deferMaxDays`（400 `invalid_schedule`）、是否已达策略 `schedule.deferMaxCount`（409 `defer_limit_reached`）。同一事务内先拿目标锁再拿任务锁，设置 `scheduledAt` 与 `deferCount`，`running → queued`（原因 `deferred_by_agent`），保留以续做说明为内容、原因为 `resume_scheduled`、`clientId = defer:<任务>:<次数>` 的待处理启动意图，写入 `outcome.schedule.changed`（来源 `agent_defer`，含旧值与原因）。任何拒绝都不改变任何东西。
+    - 结算守卫：`settleOutcomeWorkItem` 对「`queued` 且原因为 `deferred_by_agent`」的任务提前返回，不会把它结算为完成、失败或待审查，也不记录结果产物。
+    - 恢复守卫（规格没写，见 D2-16）：恢复流程对已延后的任务提前返回，避免延后的那一轮被中断后被当成「被中断的任务」立刻续跑。
+    - computer：`DeferWorkItem` 登记到线程工具注册表，只在 Outcome 任务自己的回合里出现。
+  - 验证：messaging `outcome-defer.integration.test.ts` 7 个、server `outcome-defer-tool.integration.test.ts` 13 个（均在本机一次性 Postgres 上真实执行）、computer 新增 1 个、contracts 新增 6 个。**变异检查共 11 个**（结算守卫三种写法、恢复跳过、处理器的次数限制 / 天数限制 / 请求与上下文的 runId 一致 / 错误被吞掉、工具被误开放到所有回合），每个都有测试变红，已还原。全量（有数据库）：contracts 328、messaging 931、worker 278（3 跳过）、server 1723（19 跳过）、computer 1392（73 跳过），均 0 失败；根目录 `typecheck` 15/15、`check:architecture` 通过。
+  - **没有验证（所以不是 DONE）：** 真实延后与续做的端到端，需要把 `packages/contracts` 与 `apps/computer` 的改动同步到远端 computer 并重建，会中断运行中的 bot 任务，**必须先征得所有者同意，尚未请求**。在那之前，`DeferWorkItem` 在真实 bot 里不可用（远端 computer 还是旧版本，看不到这个工具）。
+  - **发现一个已有缺陷（不属于本任务，未修改）：** `apps/server/src/services/outcome-progress-tool.ts` 第 135 行 `catch` 里写的是 `mapOutcomeError(error);` 而不是 `throw mapOutcomeError(error);`（同目录其他 6 处都有 `throw`）。后果：`ReportOutcomeProgress` 在事务里出任何错误，包括它自己抛的 `ApiError`（如 `tool_context_invalid`），都会被吞掉，函数返回 `undefined`，bot 会以为调用成功。我的处理器写了 `throw`，并用变异检查（去掉 `throw` 后 8 个测试变红）证实这个写法确实有区别。是否修复需要所有者决定，修复本身一行。
   - 这一步到底做什么：新增线程工具让运行中的任务约定未来某个时间继续，并让结算逻辑不再把它误判为完成。
   - 做完你能看到什么：执行中的 bot 发现现在做不完，可以约定某时间继续；回合结束后任务仍在排队，到点带着续做说明重新开始。
   - 先依赖什么：2.3

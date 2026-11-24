@@ -3,6 +3,8 @@ import { OUTCOME_GOAL_THREAD_TOOLS, decodeOutcomeThreadInput, goalThreadToolsFor
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
 import {
   OUTCOME_THREAD_TOOL_NAMES,
+  DEFER_WORK_ITEM_TOOL,
+  DeferWorkItemInput,
   REPORT_OUTCOME_PROGRESS_TOOL,
   ReportOutcomeProgressInput,
   type OutcomeThreadToolName,
@@ -280,6 +282,12 @@ const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
     inputSchema: REPORT_OUTCOME_PROGRESS_TOOL.inputSchema as unknown as Readonly<Record<string, unknown>>,
     source: "first-party",
     decodeArguments: Schema.decodeUnknownSync(ReportOutcomeProgressInput),
+  },
+  DeferWorkItem: {
+    ...DEFER_WORK_ITEM_TOOL,
+    inputSchema: DEFER_WORK_ITEM_TOOL.inputSchema as unknown as Readonly<Record<string, unknown>>,
+    source: "first-party",
+    decodeArguments: Schema.decodeUnknownSync(DeferWorkItemInput),
   },
 };
 

@@ -12,6 +12,7 @@ import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
 import { DecisionService } from "./services/decision-service";
 import { createOutcomeDecisionTool } from "./services/outcome-decision-tool";
 import { createOutcomeProgressTool } from "./services/outcome-progress-tool";
+import { createDeferWorkItemTool } from "./services/outcome-defer-tool";
 import { createOutcomeCredentialApprovalTool } from "./services/outcome-credential-approval";
 import { OutcomeChatTools } from "./services/outcome-chat-tools";
 import { GroupTaskTools } from "./services/group-task-tools";
@@ -417,6 +418,7 @@ export class AppService {
         RequestOutcomeDecision: createOutcomeDecisionTool(this.prisma, this.outcomeDecisions),
         RequestHumanAction: humanServices.humanActionTool,
         ReportOutcomeProgress: createOutcomeProgressTool(this.prisma),
+        DeferWorkItem: createDeferWorkItemTool(this.prisma, this.messaging),
         RequestBitwardenReadApproval: createOutcomeCredentialApprovalTool(this.prisma, this.outcomeDecisions),
       },
       outcomeChatTools,
