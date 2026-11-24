@@ -1123,6 +1123,18 @@ export function useOutcomeGo() {
     return next;
   }, [historyRevision]);
 
+  /**
+   * The newest message sequence the server reported for a channel at the last refresh. A history
+   * window opened on an older message keeps the snapshot from holding it, so the snapshot's own
+   * messages cannot say how far a channel really goes.
+   */
+  const latestKnownSequence = useCallback(
+    (channelId: string): string | undefined =>
+      bootstrapRef.current?.latestMessages.find((message) => message.channelId === channelId)
+        ?.sequence,
+    []
+  );
+
   return {
     snapshot,
     detachedMessageIds,
@@ -1131,6 +1143,7 @@ export function useOutcomeGo() {
     refreshing,
     refresh,
     mutate,
+    latestKnownSequence,
     loadChannel,
     loadOlder,
     loadNewer,

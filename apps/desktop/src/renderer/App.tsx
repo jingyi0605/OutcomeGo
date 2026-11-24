@@ -93,6 +93,7 @@ import { requestErrorMessage, withDeadline } from "./lib/request-errors";
 import { enableScreenForSession } from "./lib/screen-session";
 import { useSnapshotIndex } from "./lib/snapshot-index";
 import { SidebarBotOrderContext } from "./lib/sidebar-bot-order";
+import { channelReadTarget, newestSequence } from "./lib/channel-read-target";
 import { sidebarChannelOrder } from "./lib/sidebar-rows";
 import { readThemePreference, setThemePreference, THEME_CHANGE_EVENT } from "./lib/theme";
 import { useFeatureSettings } from "./hooks/use-feature-settings";
@@ -209,6 +210,7 @@ export default function App() {
     setHistoryViewport,
     threadContextMessageIdsByChannel,
     searchContextMessageIdsByChannel,
+    latestKnownSequence,
   } = useOutcomeGo();
   const index = useSnapshotIndex(snapshot);
   // Previews and unread state include each channel's newest message from
@@ -284,6 +286,7 @@ export default function App() {
     messageId: string;
     nonce: number;
     readThroughSequence?: string;
+    fromNotification?: boolean;
     branchOnly?: boolean;
   } | null>(null);
   const [routineOpenTarget, setRoutineOpenTarget] = useState<{
@@ -490,25 +493,29 @@ export default function App() {
   const markChannelRead = useCallback(
     (channelId: string) => {
       if (notificationOpening?.target.channelId === channelId) return;
-      sidebarPreferences.markRead(channelId);
       const channel = index.channelById.get(channelId);
+      const serverHasUnread =
+        (channel?.unreadCount ?? 0) > 0 || Boolean(channel?.notificationState?.activityUnreadCount);
+      // While the server still counts unread, the list badge follows it, as the floating window
+      // does: it clears when the read is confirmed, not before. A channel the server does not count
+      // (a hand-marked one, or an older server) has nothing to wait for.
+      if (channel?.unreadCount === undefined || !serverHasUnread) {
+        sidebarPreferences.markRead(channelId);
+      }
       if (channel?.unreadCount === 0 && !channel.notificationState?.activityUnreadCount) return;
-      const transcript = transcriptMessagesByChannel.get(channelId);
-      const notifiedSequence =
-        searchMessageTarget?.channelId === channelId
-          ? (transcript?.find((message) => message.id === searchMessageTarget.messageId)
-              ?.sequence ?? searchMessageTarget.readThroughSequence)
-          : undefined;
-      const latestSequence = notifiedSequence ?? transcript?.at(-1)?.sequence;
-      const throughSequence =
-        latestSequence && /^\d+$/.test(latestSequence) ? latestSequence : undefined;
-      if (!throughSequence) return;
-      const newestKnown = index.latestMessageByChannel.get(channelId)?.sequence;
-      const viewingOlder = notifiedSequence && newestKnown && /^\d+$/.test(newestKnown)
-        && BigInt(notifiedSequence) < BigInt(newestKnown);
-      const throughNotificationSequence = viewingOlder
-        ? channel?.notificationState?.lastReadNotificationSequence ?? "0"
-        : channel?.notificationState?.notificationCursor ?? "0";
+      const target = channelReadTarget({
+        channelKind: channel?.kind,
+        search: searchMessageTarget?.channelId === channelId ? searchMessageTarget : undefined,
+        transcript: transcriptMessagesByChannel.get(channelId),
+        newestKnown: newestSequence([
+          ...(index.messagesByChannel.get(channelId) ?? []),
+          { sequence: latestKnownSequence(channelId) },
+        ]),
+        lastReadNotificationSequence: channel?.notificationState?.lastReadNotificationSequence,
+        notificationCursor: channel?.notificationState?.notificationCursor,
+      });
+      if (!target) return;
+      const { throughSequence, throughNotificationSequence } = target;
       // Suppress native banners before slow persistence or avatar projection catches up.
       window.outcomego?.notifications.read?.({
         channelId,
@@ -523,7 +530,8 @@ export default function App() {
     },
     [
       index.channelById,
-      index.latestMessageByChannel,
+      index.messagesByChannel,
+      latestKnownSequence,
       notificationOpening,
       refresh,
       searchMessageTarget,
@@ -637,6 +645,7 @@ export default function App() {
             messageId: message.messageId,
             nonce,
             readThroughSequence: message.sequence,
+            fromNotification: true,
           });
           setNotificationOpening(null);
         } catch (cause) {
