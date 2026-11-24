@@ -15,7 +15,8 @@ import { checkDeployResources } from "./deploy-resources";
 import { ComposeProject } from "./docker";
 import { probeComputerCapabilities } from "./engine/computer-capabilities";
 import { ExternalEngine } from "./engine/external";
-import { hasImageSources, imageSourcesPath, pullDeploymentImage, rankImageSources, registrySources } from "./engine/image-sources";
+import { hasImageSources, imageSourcesPath, type rankImageSources, registrySources } from "./engine/image-sources";
+import { pullFastestImage, releaseImages as readReleaseImages } from "./engine/image-pull";
 import { managedEngine, selectEngine } from "./engine/select";
 import { ManagedEngine } from "./engine/managed";
 import { EngineError } from "./engine/types";
@@ -126,20 +127,8 @@ const canonicalDirectory = (directory: string): string => {
 
 const releaseImages = (project: ComposeProject): { computer: string; images: Map<string, string[]> } => {
   try {
-    const result = project.run(["config", "--format", "json"], { timeoutMs: 10_000, useImageSources: false });
-    if (result.status !== 0) throw new Error();
-    const services = JSON.parse(result.stdout).services as Record<string, { image?: unknown; profiles?: string[] }>;
-    const computer = services.computer?.image;
-    if (typeof computer !== "string" || !/^[a-z0-9][a-z0-9._:/-]*@sha256:[a-f0-9]{64}$/.test(computer)) throw new Error();
-    const enabled = new Set((parseEnvironment(readFileSync(project.paths.environment, "utf8")).get("COMPOSE_PROFILES") || "").split(","));
-    const images = new Map<string, string[]>();
-    for (const [service, configuration] of Object.entries(services)) {
-      if (configuration.profiles?.length && !configuration.profiles.some((profile) => enabled.has(profile))) continue;
-      if (typeof configuration.image !== "string" || !configuration.image || !/^[a-z0-9][a-z0-9._-]*$/i.test(service)) throw new Error();
-      const names = images.get(configuration.image) ?? [];
-      names.push(service);
-      images.set(configuration.image, names);
-    }
+    const { computer, images } = readReleaseImages(project);
+    if (!computer) throw new Error("The release has no computer image");
     return { computer, images };
   } catch {
     throw new BootstrapError("ASSET_VERIFICATION_FAILED", cliTranslate("The verified release does not specify valid deployment images."));
@@ -345,26 +334,9 @@ export const bootstrapCommand = async (
           if (image !== computer || !cached) {
             const [official] = engine instanceof ManagedEngine ? registrySources(image) : [];
             if (engine instanceof ManagedEngine && official) {
-              const selected = await pullDeploymentImage(image, {
-                signal, rank: dependencies.rankSources ?? rankImageSources,
-                cached: reference => engine.docker(["image", "inspect", "--format", "{{.Id}}", reference], { timeoutMs: 10_000 }).status === 0,
-                pull: async reference => {
-                  const mirrored = reference !== image;
-                  const registry = mirrored ? reference.split("/", 1)[0]! : official.registry;
-                  record(cliTranslate("Pulling {service} from {registry}.", { service: services[0]!, registry }));
-                  const invocation = mirrored ? engine.pullInvocation(reference) : project!.invocation(["pull", services[0]!], undefined, false);
-                  const deadline = mirrored ? AbortSignal.timeout(30 * 60_000) : undefined;
-                  const pullSignal = signal && deadline ? AbortSignal.any([signal, deadline]) : signal ?? deadline;
-                  const result = await (dependencies.stream ?? runStreaming)(invocation.command, invocation.args, {
-                    cwd: invocation.cwd, env: invocation.env, signal: pullSignal,
-                    onStdoutLine: record, onStderrLine: record,
-                  });
-                  cancelled();
-                  if (result.status === 130 && !deadline?.aborted) throw new BootstrapError("CANCELLED");
-                  if (result.status === 0) return true;
-                  record(cliTranslate("Image pull failed from {registry}.", { registry }));
-                  return false;
-                },
+              const selected = await pullFastestImage(image, services[0]!, { engine, project: project! }, {
+                signal, rank: dependencies.rankSources, stream: dependencies.stream, record, cancelled,
+                interrupted: () => { throw new BootstrapError("CANCELLED"); },
               });
               if (!selected) throw new BootstrapError("IMAGE_PULL_FAILED");
               if (image === computer) computerReference = selected;

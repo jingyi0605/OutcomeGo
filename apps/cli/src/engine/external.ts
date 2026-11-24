@@ -204,7 +204,6 @@ export class ExternalEngine implements EngineProvider {
   }
 }
 
-export const dockerDaemon = (runner: CommandRunner): RunResult => new ExternalEngine(runner).daemon();
 export const findCompose = (runner: CommandRunner): ComposeCommand | null =>
   new ExternalEngine(runner).probeCompose().command;
 

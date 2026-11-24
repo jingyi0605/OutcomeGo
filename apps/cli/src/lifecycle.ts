@@ -32,6 +32,8 @@ import { CLI_VERSION, DEFAULT_REPOSITORY, PROJECT_NAME } from "./constants";
 import { validMemorySize } from "./deploy-resources";
 import { requireRecordedEngine } from "./engine/select";
 import { ManagedEngine } from "./engine/managed";
+import { pullReleaseImages } from "./engine/image-pull";
+import { hasImageSources, imageSourcesPath } from "./engine/image-sources";
 import { type ComposeProject, DOCKER_OUTPUT_HINT, requireComposeProject } from "./docker";
 import { printDoctor, runDoctor } from "./doctor";
 import { dockerMissing, renderDockerRequired, startDockerDesktop } from "./docker-preflight";
@@ -585,6 +587,13 @@ const updateCommandUnlocked = async (
     );
     return;
   }
+  // The OutcomeGo engine isn't always running (after a restart, say) and nothing below starts it;
+  // `start` brings it up the same way. Doing it first means the busy check sees any services it
+  // brings back, and a stopped engine isn't reported as a missing Docker.
+  if (manifest.engine && manifest.engine.kind !== "external") {
+    report("checking", "Starting the OutcomeGo engine", target);
+    await requireRecordedEngine(paths, runner, manifest.engine.kind).ensureReady();
+  }
   const whenIdle = updateWaitsForIdle(options);
   if (whenIdle) await assertNoAgentWorking(paths);
   console.log(
@@ -614,14 +623,27 @@ const updateCommandUnlocked = async (
   let manifestUpdated = false;
   let backupPath: string | null = null;
   let previousImages: string[] | null = null;
+  // Services that run a registry mirror's copy of an image; only the OutcomeGo engine needs this.
+  let imageSources: Record<string, { image: string }> = {};
   try {
     writeFileAtomic(nextCompose, release.compose, 0o600);
-    assertUpdatePreflight(paths, runner, project, nextCompose);
+    assertUpdatePreflight(paths, project, nextCompose);
     maintenanceWarning("capture pre-update images", () => {
       previousImages = captureStackImages(paths, project, runner);
     });
     report("pulling", `Pulling OutcomeGo ${target} container images`, target);
-    project.runOrThrow(["pull"], { inherit: true, composeFile: nextCompose });
+    if (project.engine instanceof ManagedEngine) {
+      // Its virtual machine has no registry mirror setting, so pick the fastest registry from here,
+      // as the install did; going straight to ghcr.io can be very slow or fail.
+      imageSources = await pullReleaseImages(project, project.engine, nextCompose, {
+        record: (line) => console.log(line),
+        interrupted: () => {
+          throw new CliError("Docker was interrupted.", 130);
+        },
+      });
+    } else {
+      project.runOrThrow(["pull"], { inherit: true, composeFile: nextCompose });
+    }
     // Work may have started during the download; this is the last moment nothing has stopped.
     if (whenIdle) await assertNoAgentWorking(paths);
     maintenanceStarted = true;
@@ -643,6 +665,12 @@ const updateCommandUnlocked = async (
     persisted = writeUpdateState(paths, { ...persisted, backupPath });
     writeFileAtomic(paths.environment, nextEnvironment, 0o600);
     writeFileAtomic(paths.compose, release.compose, 0o600);
+    // The overrides file is named for the exact contents of the Compose file it belongs to, so the
+    // previous release's file is left alone and stays valid if this update is rolled back.
+    const sources = imageSourcesPath(paths.compose);
+    if (Object.keys(imageSources).length || hasImageSources(sources)) {
+      writeFileAtomic(sources, JSON.stringify({ services: imageSources }), 0o600);
+    }
     rmSync(nextCompose, { force: true });
     report("restarting", "Restarting the server, worker, and computer", target);
     newStackStarted = true;

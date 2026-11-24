@@ -13,7 +13,7 @@ import { requireRecordedEngine } from "./engine/select";
 import { CliError } from "./errors";
 import type { CommandRunner, RunResult } from "./process";
 
-export { composeProcessEnvironment, dockerDaemon, findCompose, MINIMUM_COMPOSE_VERSION } from "./engine/external";
+export { composeProcessEnvironment, findCompose, MINIMUM_COMPOSE_VERSION } from "./engine/external";
 export type { ComposeCommand } from "./engine/types";
 
 export const DOCKER_OUTPUT_HINT = "see the Docker output above";
