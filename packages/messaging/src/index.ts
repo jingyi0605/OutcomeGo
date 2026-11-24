@@ -52,7 +52,7 @@ import { hasActivePlannerRole } from "./outcome-roles";
 import { AUTOMATION_RUN_INSTRUCTIONS, automationContinuationRoute } from "./automation-results";
 import { join } from "node:path";
 import { publishChannelNotification, publishMessageNotification } from "./notifications";
-export { publishChannelNotification, publishMessageNotification, markSettlementMessage, runHasOpenWork, publishOutcomeNotification, publishRequiredDecisionNotification, reconcileOutcomeDecisionNotifications, channelNotificationStates } from "./notifications";
+export { publishChannelNotification, publishMessageNotification, markSettlementMessage, runHasOpenWork, HELD_NOT_FINAL, settlementMessageSql, notificationMessageIsSettlement, publishOutcomeNotification, publishRequiredDecisionNotification, reconcileOutcomeDecisionNotifications, channelNotificationStates } from "./notifications";
 import { messagePreviewText } from "@outcomego/contracts/message-preview";
 import { defaultTaskConfiguration, type TaskConfiguration } from "@outcomego/contracts/task-configuration";
 import { combinedGraphicalWorkerPrompt } from "./graphical-worker-prompts";

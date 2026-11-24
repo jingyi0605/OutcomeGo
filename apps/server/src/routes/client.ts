@@ -67,7 +67,7 @@ export async function clientRoutes(context: RouteContext): Promise<Response | un
   }
   if (path === "/api/notification-preferences" && request.method === "PATCH") {
     const input = await parseBody(request, UpdateNotificationPreferencesInput);
-    return json(await run(app.notifications.updatePreferences(input.smartEnabled)));
+    return json(await run(app.notifications.updatePreferences(input)));
   }
   if (path === "/api/feature-settings" && request.method === "GET") {
     return json(await app.featureSettings(), 200, { "cache-control": "no-store" });

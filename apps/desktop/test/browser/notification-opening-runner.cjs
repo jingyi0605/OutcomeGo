@@ -102,11 +102,14 @@ app
     let current = "startup";
     try {
       for (const theme of ["dark", "light"]) {
-        const test = async (name, body) => {
+        // `threads` lists "reply:root" pairs that are already thread replies when the page loads.
+        const test = async (name, body, threads = "") => {
           current = `${theme}: ${name}`;
           manager.clear();
           localReads.length = 0;
-          await win.loadURL(`${process.argv[2]}?theme=${theme}`);
+          await win.loadURL(
+            `${process.argv[2]}?theme=${theme}${threads ? `&threads=${threads}` : ""}`
+          );
           await until(visible("other-message"));
           await body();
           if (errors.length) throw new Error(errors.join("\n"));
@@ -115,14 +118,17 @@ app
         await test("ordinary notification opens its exact older message", async () => {
           await js("notificationFixture.announce(25)");
           await until(visible("notice-25"));
-          await until(`${readCalls}.some(c => c.sequence === '25')`);
+          // A Bot chat opened from a notification is read through its newest message. The server's
+          // read marker also drives the floating window, so stopping at message 25 would leave the
+          // later settled reply counted there while the chat is open.
+          await until(`${readCalls}.some(c => c.sequence === '180')`);
           await check(
-            `${readCalls}.every(c => c.sequence === '25' && c.activity === '0')`,
-            "Read exceeded the notified message"
+            `${readCalls}.every(c => c.sequence === '180')`,
+            "Read stopped at the notified message instead of the newest"
           );
           for (let i = 0; i < 40 && !localReads.length; i++) await pause(25);
           if (!localReads.some((read) => read.channelId === "channel-research" &&
-            read.lastReadSequence === "25" && read.lastReadNotificationSequence === "0"))
+            read.lastReadSequence === "180"))
             throw new Error("Native suppression diverged from the server's read watermark");
           await check(
             "notificationFixture.bridgeTargets.at(-1).messageId === 'notice-25'",
@@ -148,17 +154,18 @@ app
           await js("notificationFixture.announce(26, false, true)");
           await until(visible("notice-26", true));
         });
-        await test("successive notifications switch between different threads", async () => {
-          await js(
-            "notificationFixture.prepareThread([25, 26]); notificationFixture.prepareThread([160], 159)"
-          );
-          await js("notificationFixture.announce(25, false, true)");
-          await until(visible("notice-25", true));
-          await js("notificationFixture.announce(160, false, true, 159)");
-          await until(visible("notice-160", true));
-          await js("notificationFixture.announce(26, false, true)");
-          await until(visible("notice-26", true));
-        });
+        await test(
+          "successive notifications switch between different threads",
+          async () => {
+            await js("notificationFixture.announce(25, false, true)");
+            await until(visible("notice-25", true));
+            await js("notificationFixture.announce(160, false, true, 159)");
+            await until(visible("notice-160", true));
+            await js("notificationFixture.announce(26, false, true)");
+            await until(visible("notice-26", true));
+          },
+          "25:24,26:24,160:159"
+        );
         await test("slow context shows progress and defers read acknowledgement", async () => {
           await js(
             "notificationFixture.control({contextDelay: 1200}); notificationFixture.announce(25)"
@@ -167,7 +174,7 @@ app
           await pause(300);
           await check(`${readCalls}.length === 0`, "Read acknowledged before the message loaded");
           await until(visible("notice-25"));
-          await until(`${readCalls}.some(c => c.sequence === '25')`);
+          await until(`${readCalls}.some(c => c.sequence === '180')`);
           await check(
             "!document.querySelector('[data-notification-opening]')",
             "Progress remained after completion"

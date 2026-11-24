@@ -72,6 +72,12 @@ export const parseNotificationChannels = (
       channel.notifications.length > 100
     )
       return null;
+    if (
+      channel.botMessageLevel !== undefined &&
+      channel.botMessageLevel !== "every_message" &&
+      channel.botMessageLevel !== "final_only"
+    )
+      return null;
     const dock = channel.botDock;
     if (
       dock !== undefined &&
@@ -301,14 +307,33 @@ export class DesktopNotificationManager {
           dockMessage ? BigInt(dockMessage.notificationSequence) : 0n
         );
       if (previousCursor === undefined) continue;
-      if (
+      const settledArrived = Boolean(
         dockMessage &&
         BigInt(dockMessage.notificationSequence) > (previousDock ?? previousCursor) &&
         BigInt(dockMessage.messageSequence) > BigInt(
           this.localReads.get(channel.channelId)?.lastReadSequence ?? channel.lastReadSequence
         )
-      ) {
-        dockMessageArrived = true;
+      );
+      if (settledArrived) dockMessageArrived = true;
+      // "Final summary only": a banner is the floating window's newest settled reply, nothing
+      // earlier. That reply may carry a sequence below the activity cursor (it settled after
+      // it was sent), so it follows the same marker as the window's arrival cue.
+      if (channel.botMessageLevel === "final_only" && channel.botDock) {
+        const settled = settledArrived
+          ? channel.notifications.find(
+              (notification) => notification.notificationSequence === dockMessage!.notificationSequence
+            )
+          : undefined;
+        if (
+          settled &&
+          !notificationIsRead(settled, channel) &&
+          !this.isLocallyRead(settled)
+        )
+          pending.set(channel.channelId, {
+            sequence: BigInt(settled.notificationSequence),
+            notification: settled,
+          });
+        continue;
       }
       for (const notification of channel.notifications) {
         const sequence = BigInt(notification.notificationSequence);

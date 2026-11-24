@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Schema } from "effect";
-import { UpdateNotificationPresenceInput } from "../src";
+import { UpdateNotificationPreferencesInput, UpdateNotificationPresenceInput } from "../src";
 import {
   notificationPresenceLifetime,
   suppressMobileNotification,
@@ -56,4 +56,15 @@ test("presence API rejects invalid IDs, platforms, ordering and idle values", ()
   ]) {
     expect(() => parse({ ...input, ...patch })).toThrow();
   }
+});
+
+test("preference updates accept either field, stay compatible with older clients, and reject an empty or unknown change", () => {
+  const decode = Schema.decodeUnknownEither(UpdateNotificationPreferencesInput);
+  const ok = (value: unknown) => decode(value)._tag === "Right";
+  expect(ok({ smartEnabled: false })).toBe(true);
+  expect(ok({ botMessageLevel: "final_only" })).toBe(true);
+  expect(ok({ smartEnabled: true, botMessageLevel: "every_message" })).toBe(true);
+  expect(ok({})).toBe(false);
+  expect(ok({ botMessageLevel: "most" })).toBe(false);
+  expect(ok({ smartEnabled: "yes" })).toBe(false);
 });

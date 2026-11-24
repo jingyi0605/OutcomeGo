@@ -12,8 +12,17 @@ export interface NotificationPresenceInput {
   idleSeconds?: number;
 }
 
+/** How much Bot chatter raises an alert: every message, or only a turn's final summary. */
+export const BOT_MESSAGE_NOTIFY_LEVELS = ["every_message", "final_only"] as const;
+export type BotMessageNotifyLevel = (typeof BOT_MESSAGE_NOTIFY_LEVELS)[number];
+
+export const isBotMessageNotifyLevel = (value: unknown): value is BotMessageNotifyLevel =>
+  (BOT_MESSAGE_NOTIFY_LEVELS as readonly unknown[]).includes(value);
+
 export interface NotificationRouting {
   smartEnabled: boolean;
+  /** Absent on servers that predate the setting, which alert on every message. */
+  botMessageLevel?: BotMessageNotifyLevel;
   serverTime: number;
   iosActiveUntil: number;
   androidActiveUntil?: number;

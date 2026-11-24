@@ -34,6 +34,14 @@ messages.push({
 });
 let cursor = 10;
 const parameters = new URLSearchParams(location.search);
+// Replies that already belong to a thread when the page loads. A server never adds thread
+// metadata to a message a client has already loaded, so cases that open a thread notification for
+// a message that is on the loaded page must not rely on it appearing later.
+for (const entry of (parameters.get("threads") ?? "").split(",").filter(Boolean)) {
+  const [number, root] = entry.split(":").map(Number);
+  const reply = messages.find((message) => message.id === `notice-${number}`);
+  if (reply) reply.metadata = { branched: true, replyTo: `notice-${root}` };
+}
 document.documentElement.dataset.theme = parameters.get("theme") ?? "dark";
 Object.defineProperty(document, "hidden", { configurable: true, value: true });
 Object.defineProperty(document, "hasFocus", { configurable: true, value: () => true });

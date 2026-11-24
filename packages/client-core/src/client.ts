@@ -1,7 +1,7 @@
 import type { ServerUpdateView } from "@outcomego/contracts";
 import type { ReplyPreviewSnapshot } from "@outcomego/contracts";
 import type { DingTalkActionInput, DingTalkStatus } from "@outcomego/contracts";
-import type { NotificationPresenceInput, NotificationRouting } from "@outcomego/contracts/notification-presence";
+import type { BotMessageNotifyLevel, NotificationPresenceInput, NotificationRouting } from "@outcomego/contracts/notification-presence";
 import type { BrowserNetworkView, NetworkSettingsUpdate, NetworkEgress, NetworkQuality } from "@outcomego/contracts/browser-network";
 import type {
   AutomationWebhookInput,
@@ -823,7 +823,7 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
     updateUserTimeZone: (input: UpdateUserTimeZoneInput) =>
       transport.request<UserTimeZoneView>("/api/v0/time-zone", { method: "PATCH", body: JSON.stringify(input) }),
     notificationPreferences: () => transport.request<NotificationRouting>("/api/v0/notification-preferences"),
-    updateNotificationPreferences: (smartEnabled: boolean) => transport.request<NotificationRouting>("/api/v0/notification-preferences", { method: "PATCH", body: JSON.stringify({ smartEnabled }) }),
+    updateNotificationPreferences: (changes: { smartEnabled?: boolean; botMessageLevel?: BotMessageNotifyLevel }) => transport.request<NotificationRouting>("/api/v0/notification-preferences", { method: "PATCH", body: JSON.stringify(changes) }),
     updateNotificationPresence: (input: NotificationPresenceInput) => transport.request<NotificationRouting>("/api/v0/notification-presence", { method: "POST", body: JSON.stringify(input) }),
     markChannelRead: (channelId: string, throughSequence?: string, throughNotificationSequence?: string) =>
       transport.request<{

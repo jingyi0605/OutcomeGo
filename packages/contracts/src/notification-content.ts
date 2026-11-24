@@ -1,5 +1,6 @@
 import { OUTCOME_INBOX_CATEGORIES } from "./outcome-inbox-categories";
 import { outcomeDeepLink, outcomeDecisionDeepLink } from "./app-deep-links";
+import type { BotMessageNotifyLevel } from "./notification-presence";
 /** Cross-process PostgreSQL advisory lock protecting the final push authorization/send boundary. */
 export const PUSH_DELIVERY_ADVISORY_LOCK = {
   namespace: 0x4f50424f,
@@ -120,6 +121,8 @@ export interface ChannelNotificationState extends NotificationReadState {
   notificationCursor: string;
   notifications: ChannelNotificationView[];
   activityUnreadCount: number;
+  /** Owner's alert level for Bot messages; absent from servers that predate the setting. */
+  botMessageLevel?: BotMessageNotifyLevel;
   /** Floating-window attention, independent of the bounded native alert history. */
   botDock?: {
     unreadCount: number;

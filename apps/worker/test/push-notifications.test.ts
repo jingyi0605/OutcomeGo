@@ -410,3 +410,112 @@ describe("push notification content", () => {
     ]);
   });
 });
+
+describe("push alerts for Bot messages", () => {
+  const run = async (options: { level: "every_message" | "final_only"; settled: boolean }) => {
+    let sends = 0;
+    let settlementQueries = 0;
+    const updates: unknown[] = [];
+    const device = apnsDevice("level-device");
+    const tx = {
+      $queryRaw: async (query: { sql?: string }) => {
+        if (query.sql?.includes("AS settled")) {
+          settlementQueries += 1;
+          return [{ settled: options.settled }];
+        }
+        return query.sql?.includes('AS "count"') ? [{ count: 0n }] : [];
+      },
+      pushDevice: { findMany: async () => [device], updateMany: async () => ({ count: 0 }) },
+      notificationPreferences: {
+        findUnique: async () => ({ smartEnabled: true, botMessageLevel: options.level }),
+      },
+      notificationPresence: { findMany: async () => [] },
+      channelReadState: { findUnique: async () => null },
+      bot: { findUnique: async () => ({ notificationsEnabled: true, hiddenFromSidebar: false }) },
+      channel: {
+        findUnique: async () => ({
+          archivedAt: null,
+          hiddenFromSidebar: false,
+          notificationsMuted: false,
+          mutedThroughNotificationSequence: 0n,
+        }),
+      },
+      channelNotification: { findUnique: async () => ({ revoked: false, sequence: 7n }) },
+      outboxDelivery: {
+        update: async (value: unknown) => {
+          updates.push(value);
+          return {};
+        },
+        updateMany: async (value: unknown) => {
+          updates.push(value);
+          return { count: 1 };
+        },
+      },
+    };
+    let claimed = 0;
+    const prisma = {
+      $queryRaw: async () =>
+        ++claimed === 1
+          ? [
+              {
+                id: "delivery-1",
+                deliveryKey: "notification:activity:7:level-device",
+                target: device.id,
+                payload: {
+                  schemaVersion: 1,
+                  kind: "message",
+                  botId: "bot",
+                  channelId: "channel",
+                  runId: "run",
+                  title: "Probe",
+                  body: "Working on it",
+                  badgeCount: 0,
+                  messageId: "message-1",
+                  messageSequence: "4",
+                  notificationSequence: "7",
+                },
+                attempts: 1,
+              },
+            ]
+          : [],
+      pushDevice: { findMany: async () => [device] },
+      outboxDelivery: { update: async () => ({}), updateMany: async () => ({ count: 0 }) },
+      $transaction: async (operation: (client: typeof tx) => Promise<unknown>) => operation(tx),
+    };
+    const dispatcher = new PushNotificationDispatcher(
+      prisma as never,
+      "required",
+      apnsClient(async () => {
+        sends += 1;
+        return { status: 200 };
+      }),
+      undefined,
+      async () => undefined
+    );
+    await dispatcher.drain();
+    return { sends, settlementQueries, updates };
+  };
+
+  test("final-summary-only holds a progress message back and tags it for release", async () => {
+    const result = await run({ level: "final_only", settled: false });
+    expect(result.sends).toBe(0);
+    expect(result.updates).toEqual([
+      {
+        where: { id: { in: ["delivery-1"] } },
+        data: { status: "delivered", deliveredAt: expect.any(Date), error: { held: "not_final" } },
+      },
+    ]);
+  });
+
+  test("final-summary-only still sends the settled reply", async () => {
+    const result = await run({ level: "final_only", settled: true });
+    expect(result.sends).toBe(1);
+    expect(result.settlementQueries).toBe(1);
+  });
+
+  test("every-message alerts send progress without consulting settlement", async () => {
+    const result = await run({ level: "every_message", settled: false });
+    expect(result.sends).toBe(1);
+    expect(result.settlementQueries).toBe(0);
+  });
+});

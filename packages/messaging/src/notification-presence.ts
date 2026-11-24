@@ -29,6 +29,7 @@ export async function notificationRouting(
     );
   return {
     smartEnabled: preferences?.smartEnabled ?? true,
+    botMessageLevel: preferences?.botMessageLevel ?? "every_message",
     serverTime: now.getTime(),
     iosActiveUntil: until("ios"),
     androidActiveUntil: until("android"),
