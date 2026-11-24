@@ -5,6 +5,7 @@ import {
   type DesktopNotificationEvent,
   DesktopNotificationManager,
   type DesktopNotificationSnapshot,
+  parseNotificationChannels,
   parseNotificationTarget,
   parseNotificationReadState,
   NOTIFICATION_DELIVERY_DELAY_MS,
@@ -735,5 +736,75 @@ describe("DesktopNotificationManager", () => {
     manager.setVisibleChannel("chat-2");
     manager.setVisibleChannel(null);
     expect(badges).toEqual(["5", "2", "3", "5"]);
+  });
+});
+
+describe("DesktopNotificationManager with final-summary-only alerts", () => {
+  const settledAt = (sequence: number) => ({
+    unreadCount: 1,
+    latest: {
+      notificationSequence: String(sequence),
+      messageSequence: String(sequence * 10),
+      createdAt: "2026-11-24T00:00:00Z",
+    },
+  });
+  const quiet = { unreadCount: 0, latest: null };
+  const finalOnly = (notifications: ChannelNotificationView[], botDock = quiet as Channel["botDock"]) =>
+    channel(notifications, { botMessageLevel: "final_only", botDock });
+
+  test("progress messages raise no banner, the settled reply does", () => {
+    const { manager, flush, ids } = harness();
+    manager.sync({ channels: [finalOnly([], quiet)] });
+    manager.sync({ channels: [finalOnly([alert(1)], quiet)] });
+    manager.sync({ channels: [finalOnly([alert(1), alert(2)], quiet)] });
+    flush();
+    expect(ids()).toEqual([]);
+
+    manager.sync({ channels: [finalOnly([alert(1), alert(2), alert(3)], settledAt(3))] });
+    flush();
+    expect(ids()).toEqual(["chat:3"]);
+  });
+
+  test("a reply that settles after its alert passed the cursor still raises one banner", () => {
+    const { manager, flush, ids } = harness();
+    manager.sync({ channels: [finalOnly([], quiet)] });
+    // Message 5 is progress while the run works: no banner, though the cursor reaches 5.
+    manager.sync({ channels: [finalOnly([alert(5)], quiet)] });
+    flush();
+    expect(ids()).toEqual([]);
+    // The run settles: the same alert now counts although its sequence is not above the cursor.
+    const settled = finalOnly([alert(5)], settledAt(5));
+    manager.sync({ channels: [settled] });
+    manager.sync({ channels: [settled] });
+    flush();
+    expect(ids()).toEqual(["chat:5"]);
+  });
+
+  test("a settled reply the user already read raises nothing", () => {
+    const { manager, flush, ids } = harness();
+    manager.sync({ channels: [finalOnly([], quiet)] });
+    manager.sync({ channels: [finalOnly([alert(5)], quiet)] });
+    manager.markRead({ channelId: "chat", lastReadSequence: "50", lastReadNotificationSequence: "5" });
+    manager.sync({ channels: [finalOnly([alert(5)], settledAt(5))] });
+    flush();
+    expect(ids()).toEqual([]);
+  });
+
+  test("every-message alerts keep banner behaviour and ignore the floating-window marker", () => {
+    const { manager, flush, ids } = harness();
+    manager.sync({ channels: [channel([], { botMessageLevel: "every_message", botDock: quiet })] });
+    manager.sync({
+      channels: [channel([alert(1)], { botMessageLevel: "every_message", botDock: quiet })],
+    });
+    flush();
+    expect(ids()).toEqual(["chat:1"]);
+  });
+
+  test("rejects an unknown alert level at the IPC boundary", () => {
+    const valid = finalOnly([alert(1)], quiet);
+    expect(parseNotificationChannels([valid])).toEqual([valid]);
+    expect(parseNotificationChannels([{ ...valid, botMessageLevel: "most" }])).toBeNull();
+    const { botMessageLevel: _omitted, ...older } = valid;
+    expect(parseNotificationChannels([older])).toEqual([older]);
   });
 });

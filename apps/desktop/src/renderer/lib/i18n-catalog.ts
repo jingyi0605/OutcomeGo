@@ -1294,6 +1294,11 @@ export const sourceTranslations: Record<string, string> = {
   "Bots can't search the web.": "机器人无法搜索网络。",
   "Basic pages only; can't run JavaScript.": "只能读取基础网页，无法运行 JavaScript。",
   "Built-in": "内置",
+  "Bot message alerts": "机器人消息通知",
+  "Applies to desktop and mobile alerts. Choose whether every Bot message alerts you or only the final summary of each task.":
+    "同时作用于桌面端和手机端的提醒。可选择每条机器人消息都通知，或只在每个任务最后总结时通知。",
+  "Every message": "每条消息都通知",
+  "Final summary only": "只通知最后总结的消息",
   "Close plugins": "关闭插件",
   Manage: "管理",
   "Your plugins": "你的插件",
