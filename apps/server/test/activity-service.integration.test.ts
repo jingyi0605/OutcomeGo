@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { ACTIVITY_LIST_LIMIT, ACTIVITY_TITLE_LIMIT } from "@outcomego/contracts/task-overview";
 import { updateFeatureSettings } from "@outcomego/messaging";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
@@ -8,9 +8,11 @@ import { ActivityService } from "../src/services/activity-service";
 // of one. Needs a disposable PostgreSQL database; skipped without OUTCOMEGO_TEST_DATABASE_URL. Fixtures are
 // scenario-neutral placeholders, and each rule is checked on two bots with different wording and numbers.
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
+// Each test cleans up as soon as it ends: a fixture holds its own connection pool, and the owner's policy is one global
+// row, so waiting until the end of the file would exhaust the database's connections and leak one test's policy into the next.
 const cleanups: Array<() => Promise<void>> = [];
-afterAll(async () => {
-  for (const cleanup of cleanups) await cleanup();
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
 const hours = (value: number) => new Date(Date.now() + value * 3_600_000);
 const minutes = (value: number) => new Date(Date.now() + value * 60_000);
@@ -238,5 +240,269 @@ describe.skipIf(!url)("the size of the list", () => {
     const t = await setup();
     await request(t.h);
     expect((await t.service.list({ botId: t.h.bot.id })).truncated).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Specs/004.10 task 4.2 (requirements A1.3, A3): routines and goal tasks join the list, executors fold into their request.
+// ---------------------------------------------------------------------------
+
+let routineCounter = 0;
+/** A routine and its most recent execution, as the routine runtime leaves them. */
+async function routine(h: Fixture, options: {
+  name?: string; last?: "queued" | "running" | "completed" | "failed" | "skipped" | "cancelled" | null;
+  error?: unknown; skipReason?: string; paused?: boolean; enabled?: boolean; deleted?: boolean; nextRunAt?: Date | null; executionAt?: Date;
+} = {}) {
+  routineCounter += 1;
+  const created = await h.db.routine.create({
+    data: {
+      botId: h.bot.id, slug: `routine-${routineCounter}-${crypto.randomUUID().slice(0, 6)}`, name: options.name ?? `Routine ${routineCounter}`, prompt: "Do the thing",
+      scheduleText: "every day", scheduleKind: "interval", intervalSeconds: 86_400, timezone: "UTC", enabled: options.enabled ?? true,
+      nextRunAt: options.nextRunAt === undefined ? hours(10) : options.nextRunAt,
+      pausedAt: options.paused ? new Date() : null, deletedAt: options.deleted ? new Date() : null,
+    },
+  });
+  if (options.last) {
+    const revision = await h.db.routineRevision.create({
+      data: { routineId: created.id, revision: 1, name: created.name, prompt: "Do the thing", scheduleText: "every day", scheduleKind: "interval", intervalSeconds: 86_400, timezone: "UTC", timezoneMode: "installation", enabled: true, source: "fixture" },
+    });
+    const execution = await h.db.routineExecution.create({
+      data: {
+        routineId: created.id, routineRevisionId: revision.id, kind: "scheduled", status: options.last, dedupeKey: `exec-${created.id}`, scheduledFor: new Date(),
+        ...(options.error !== undefined ? { error: options.error as never } : {}), ...(options.skipReason ? { skipReason: options.skipReason } : {}),
+      },
+    });
+    if (options.executionAt) await h.db.$executeRaw`UPDATE "outcomego_routine_execution" SET "updatedAt" = ${options.executionAt}, "createdAt" = ${options.executionAt} WHERE id = ${execution.id}::uuid`;
+  }
+  return created;
+}
+
+describe.skipIf(!url)("routines in the activity list", () => {
+  for (const [name, failure, nextRun] of [["first", "The sandbox refused the command", 5], ["second", "Timed out waiting for the host", 40]] as const) {
+    test(`(${name}) a routine whose last run failed shows with the reason and its next run`, async () => {
+      const t = await setup();
+      const failed = await routine(t.h, { name: `Nightly ${name}`, last: "failed", error: { message: failure }, nextRunAt: hours(nextRun) });
+      const item = (await t.service.list({ botId: t.h.bot.id })).items.find((entry) => entry.id === `routine:${failed.id}`)!;
+      expect(item).toMatchObject({ type: "routine", botId: t.h.bot.id, title: `Nightly ${name}`, state: "failed", reason: failure, needsOwner: false, link: { type: "routine", id: failed.id } });
+      expect(Math.abs(Date.parse(item.nextCheckAt!) - hours(nextRun).getTime())).toBeLessThan(5_000);
+    });
+  }
+
+  test("running, queued and skipped runs show; a run that succeeded does not, and neither does one that was cancelled", async () => {
+    const t = await setup();
+    const running = await routine(t.h, { last: "running" });
+    const queued = await routine(t.h, { last: "queued" });
+    const skipped = await routine(t.h, { last: "skipped", skipReason: "The previous run was still going" });
+    await routine(t.h, { last: "completed" });
+    await routine(t.h, { last: "cancelled" });
+    await routine(t.h, { last: null });
+    const byId = new Map((await t.service.list({ botId: t.h.bot.id })).items.map((item) => [item.id, item]));
+    expect([...byId.keys()].sort()).toEqual([`routine:${running.id}`, `routine:${queued.id}`, `routine:${skipped.id}`].sort());
+    expect(byId.get(`routine:${running.id}`)!.state).toBe("running");
+    expect(byId.get(`routine:${queued.id}`)!.state).toBe("running");
+    expect(byId.get(`routine:${skipped.id}`)).toMatchObject({ state: "skipped", reason: "The previous run was still going" });
+  });
+
+  test("'show all' adds the routines that are fine, so nothing is hidden for good", async () => {
+    const t = await setup();
+    const fine = await routine(t.h, { last: "completed" });
+    const paused = await routine(t.h, { last: null, paused: true });
+    expect(ids(await t.service.list({ botId: t.h.bot.id }))).toEqual([]);
+    const all = new Map((await t.service.list({ botId: t.h.bot.id, includeAll: true })).items.map((item) => [item.id, item.state]));
+    expect(all.get(`routine:${fine.id}`)).toBe("idle");
+    expect(all.get(`routine:${paused.id}`)).toBe("paused");
+  });
+
+  test("a paused routine does not hide that its last run failed", async () => {
+    const t = await setup();
+    const failed = await routine(t.h, { last: "failed", error: { message: "boom" }, paused: true });
+    expect((await t.service.list({ botId: t.h.bot.id })).items.find((entry) => entry.id === `routine:${failed.id}`)?.state).toBe("failed");
+  });
+
+  test("a routine that was deleted or switched off is not shown", async () => {
+    const t = await setup();
+    await routine(t.h, { last: "failed", error: { message: "x" }, deleted: true });
+    await routine(t.h, { last: "failed", error: { message: "x" }, enabled: false });
+    expect(ids(await t.service.list({ botId: t.h.bot.id }))).toEqual([]);
+  });
+
+  test("a failure stays until the routine runs well again, and a skip only for the recent window the owner's policy sets", async () => {
+    const t = await setup();
+    const failed = await routine(t.h, { last: "failed", error: { message: "old failure" }, executionAt: hours(-24 * 20) });
+    const skipped = await routine(t.h, { last: "skipped", executionAt: hours(-48) });
+    const find = async () => ids(await t.service.list({ botId: t.h.bot.id }));
+    expect(await find()).toEqual([`routine:${failed.id}`]);
+    await updateFeatureSettings(t.h.db, { taskPolicy: { "activity.recentCompletedHours": 100 } });
+    expect(await find()).toEqual([`routine:${failed.id}`, `routine:${skipped.id}`].sort());
+    await updateFeatureSettings(t.h.db, { taskPolicy: { "activity.recentCompletedHours": 1 } });
+    expect(await find()).toEqual([`routine:${failed.id}`]);
+  });
+
+  test("an error that is long is cut, so one bad run cannot flood the list", async () => {
+    const t = await setup();
+    const failed = await routine(t.h, { last: "failed", error: { message: "x".repeat(5000) } });
+    const item = (await t.service.list({ botId: t.h.bot.id })).items.find((entry) => entry.id === `routine:${failed.id}`)!;
+    expect(item.reason!.length).toBeLessThan(400);
+  });
+});
+
+/** A goal with an approved plan and one bot task, as the goal runtime leaves them. */
+async function goalTask(h: Fixture, options: {
+  title?: string; status?: "queued" | "running"; scheduledAt?: Date | null; statusReason?: string | null;
+  progress?: { phase: string; summary?: string; done: number; total: number }; ordinal?: number;
+} = {}) {
+  const item = await h.item(options.ordinal ?? 1);
+  await h.db.outcomeWorkItem.update({
+    where: { id: item.id },
+    data: {
+      title: options.title ?? "Step", status: options.status ?? "queued", scheduledAt: options.scheduledAt ?? null,
+      statusReason: options.statusReason ?? null,
+      ...(options.progress ? { progress: {
+        phase: options.progress.phase, ...(options.progress.summary ? { summary: options.progress.summary } : {}), updatedAt: new Date().toISOString(),
+        tasks: Array.from({ length: options.progress.total }, (_, index) => ({ id: `s${index}`, title: `Part ${index}`, status: index < options.progress!.done ? "completed" : "pending" })),
+      } } : {}),
+    },
+  });
+  return item;
+}
+
+describe.skipIf(!url)("goal tasks in the activity list", () => {
+  test("a running task shows its phase and how many parts are done, under 'task — goal'", async () => {
+    const t = await setup();
+    const item = await goalTask(t.h, { title: "Collect the pieces", status: "running", progress: { phase: "Gathering", summary: "Three sources read", done: 2, total: 5 } });
+    const entry = (await t.service.list({ botId: t.h.bot.id })).items.find((candidate) => candidate.id === `goal_task:${item.id}`)!;
+    expect(entry).toMatchObject({
+      type: "goal_task", botId: t.h.bot.id, title: `Collect the pieces — ${t.h.outcome.title}`, state: "running",
+      doing: "Three sources read", progress: { done: 2, total: 5, phase: "Gathering" }, needsOwner: false, link: { type: "outcome", id: t.h.outcome.id },
+    });
+  });
+
+  test("a task scheduled for later shows as scheduled with its start time, never as working; a deferred one says deferred", async () => {
+    const t = await setup();
+    const later = hours(30);
+    const scheduled = await goalTask(t.h, { scheduledAt: later, ordinal: 1 });
+    const deferred = await goalTask(t.h, { scheduledAt: hours(3), statusReason: "deferred_by_agent", ordinal: 2 });
+    const byId = new Map((await t.service.list({ botId: t.h.bot.id })).items.map((item) => [item.id, item]));
+    expect(byId.get(`goal_task:${scheduled.id}`)).toMatchObject({ state: "scheduled", doing: null, progress: null });
+    expect(Math.abs(Date.parse(byId.get(`goal_task:${scheduled.id}`)!.nextCheckAt!) - later.getTime())).toBeLessThan(5_000);
+    expect(byId.get(`goal_task:${deferred.id}`)!.state).toBe("deferred");
+  });
+
+  test("a task that is waiting its turn with no time, or whose time has passed, is not 'activity'", async () => {
+    const t = await setup();
+    await goalTask(t.h, { ordinal: 1 });
+    await goalTask(t.h, { scheduledAt: hours(-2), ordinal: 2 });
+    expect(ids(await t.service.list({ botId: t.h.bot.id }))).toEqual([]);
+  });
+
+  test("a goal a bot registered for itself has no task, so it is not activity", async () => {
+    const t = await setup();
+    await t.h.db.outcome.update({ where: { id: t.h.outcome.id }, data: { trackingMode: "tracked" } });
+    expect(ids(await t.service.list({ botId: t.h.bot.id }))).toEqual([]);
+  });
+
+  test("the tasks of a goal that was accepted or cancelled are gone from the list", async () => {
+    const accepted = await setup();
+    await goalTask(accepted.h, { status: "running" });
+    await accepted.h.db.outcome.update({ where: { id: accepted.h.outcome.id }, data: { acceptedAt: new Date() } });
+    expect(ids(await accepted.service.list({ botId: accepted.h.bot.id }))).toEqual([]);
+    const cancelled = await setup();
+    await goalTask(cancelled.h, { status: "running" });
+    await cancelled.h.db.outcome.update({ where: { id: cancelled.h.outcome.id }, data: { cancelledAt: new Date() } });
+    expect(ids(await cancelled.service.list({ botId: cancelled.h.bot.id }))).toEqual([]);
+  });
+
+  test("a task from a plan that was replaced is not shown", async () => {
+    const t = await setup();
+    await goalTask(t.h, { status: "running" });
+    const next = await t.h.db.outcomeContractRevision.create({
+      data: { outcomeId: t.h.outcome.id, revision: 2, status: "approved", approvedAt: new Date(), approvedBy: "owner:local", goal: ["Changed"], boundaries: {}, executionBotId: t.h.bot.id, contentHash: "second", createdBy: "owner:local" },
+    });
+    await t.h.db.outcome.update({ where: { id: t.h.outcome.id }, data: { currentRevisionId: next.id } });
+    expect(ids(await t.service.list({ botId: t.h.bot.id }))).toEqual([]);
+  });
+});
+
+describe.skipIf(!url)("executors and duplicates", () => {
+  /** A scoped worker a request started: its own bot, linked to the request. */
+  async function worker(h: Fixture, requestRunId: string, status: "provisioning" | "queued" | "running" | "waiting" | "completed" | "failed") {
+    const child = await h.db.bot.create({ data: { name: "Worker fixture", defaultDirectory: h.root, status: "active", conversation: { create: {} } } });
+    cleanups.push(async () => void (await h.db.bot.delete({ where: { id: child.id } }).catch(() => undefined)));
+    const channel = await h.db.channel.findFirstOrThrow({ where: { directKey: `bot:${h.bot.id}` } });
+    return h.db.subagent.create({
+      data: {
+        parentBotId: h.bot.id, childBotId: child.id, parentRunId: requestRunId, requestRunId, parentChannelId: channel.id,
+        launchCallId: `call-${crypto.randomUUID()}`, description: "Look into it", prompt: "Look into it", subagentType: "general", outputPath: "out.md", status,
+      },
+    });
+  }
+
+  test("the executors a request started are counted under it and never get a row of their own", async () => {
+    const t = await setup();
+    const run = await request(t.h);
+    await worker(t.h, run.id, "running");
+    await worker(t.h, run.id, "waiting");
+    await worker(t.h, run.id, "completed");
+    const { items } = await t.service.list({ botId: t.h.bot.id });
+    expect(items).toHaveLength(1);
+    // Two are still working; the one that finished is not counted as working.
+    expect(items[0]).toMatchObject({ id: `request:${run.id}`, workerCount: 2 });
+  });
+
+  test("a request with no executors says zero", async () => {
+    const t = await setup();
+    const run = await request(t.h);
+    expect((await t.service.list({ botId: t.h.bot.id })).items.find((item) => item.id === `request:${run.id}`)!.workerCount).toBe(0);
+  });
+
+  test("the run a routine or a goal task made is never a second row for the same thing", async () => {
+    const t = await setup();
+    // Even when the runtime left progress on such a run, it is the routine's or the goal's own work, shown once as that.
+    await request(t.h, { origin: "routine" });
+    await request(t.h, { origin: "outcome" });
+    const failed = await routine(t.h, { last: "failed", error: { message: "boom" } });
+    const task = await goalTask(t.h, { status: "running" });
+    const all = (await t.service.list({ botId: t.h.bot.id })).items.map((item) => item.id);
+    expect(all.sort()).toEqual([`routine:${failed.id}`, `goal_task:${task.id}`].sort());
+    expect(new Set(all).size).toBe(all.length);
+  });
+});
+
+describe.skipIf(!url)("one list from every source", () => {
+  test("requests, routines and goal tasks come together, the most recently active first, each with its type", async () => {
+    const t = await setup();
+    const oldRequest = await request(t.h, { updatedAt: hours(-6) });
+    const failed = await routine(t.h, { last: "failed", error: { message: "x" }, executionAt: hours(-2) });
+    const task = await goalTask(t.h, { status: "running" });
+    const { items } = await t.service.list({ botId: t.h.bot.id });
+    expect(items.map((item) => [item.type, item.id])).toEqual([
+      ["goal_task", `goal_task:${task.id}`],
+      ["routine", `routine:${failed.id}`],
+      ["request", `request:${oldRequest.id}`],
+    ]);
+  });
+
+  test("the limit covers all sources together, and the list says when it was cut", async () => {
+    const t = await setup();
+    const total = ACTIVITY_LIST_LIMIT + 3;
+    const messages = Array.from({ length: total }, (_, index) => ({
+      id: crypto.randomUUID(), botId: t.h.bot.id, conversationId: t.h.bot.conversation!.id, role: "user" as const, content: `Bulk ${index}`, status: "completed" as const,
+    }));
+    await t.h.db.message.createMany({ data: messages });
+    await t.h.db.run.createMany({
+      data: messages.map((message, index) => ({
+        botId: t.h.bot.id, conversationId: t.h.bot.conversation!.id, userMessageId: message.id, status: "completed" as const,
+        requestProgress: { key: `bulk-${index}`, state: "working", summary: "Working", evidence: ["e"], remaining: ["r"], nextAction: "n", runId: "x", revision: 1 },
+      })),
+    });
+    await routine(t.h, { last: "failed", error: { message: "x" } });
+    const response = await t.service.list({ botId: t.h.bot.id });
+    expect(response.items).toHaveLength(ACTIVITY_LIST_LIMIT);
+    expect(response.truncated).toBe(true);
+  }, 60_000);
+
+  test("a list with nothing in it is simply empty", async () => {
+    const t = await setup();
+    expect(await t.service.list({ botId: t.h.bot.id })).toEqual({ items: [], truncated: false });
   });
 });

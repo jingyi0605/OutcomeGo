@@ -15,7 +15,9 @@ const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.Inp
 /** Runs from these origins have their own tracking (routines, goal work) and never join request progress. */
 export const INDEPENDENT_RUN_ORIGINS = ["routine", "outcome"] as const;
 const independentOrigins = INDEPENDENT_RUN_ORIGINS;
-const openWorkers = ["provisioning", "queued", "running", "waiting"] as const;
+/** A scoped worker a request started counts as still working in these states. */
+export const OPEN_REQUEST_WORKER_STATUSES = ["provisioning", "queued", "running", "waiting"] as const;
+const openWorkers = OPEN_REQUEST_WORKER_STATUSES;
 const lock = (tx: Prisma.TransactionClient, botId: string) =>
   tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${botId}`}))`;
 

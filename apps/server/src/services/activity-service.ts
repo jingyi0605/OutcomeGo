@@ -1,9 +1,12 @@
-import { messagePreviewText } from "@outcomego/contracts/message-preview";
+import { messagePreviewText, truncatePreviewText } from "@outcomego/contracts/message-preview";
+import { parseOutcomeWorkItemProgress } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import {
   ACTIVITY_LIST_LIMIT,
   ACTIVITY_TITLE_LIMIT,
   deriveRequestDisplayState,
+  deriveRoutineDisplayState,
+  deriveWorkItemDisplayState,
   type ActivityItem,
   type ActivityResponse,
   type RequestBlockSource,
@@ -12,7 +15,7 @@ import {
   type RequestProgressState,
 } from "@outcomego/contracts/task-overview";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { INDEPENDENT_RUN_ORIGINS, readFeatureSettings } from "@outcomego/messaging";
+import { INDEPENDENT_RUN_ORIGINS, OPEN_REQUEST_WORKER_STATUSES, readFeatureSettings } from "@outcomego/messaging";
 
 /** What the runtime keeps in `Run.requestProgress`: written by the bot, bounded by its tool. */
 interface StoredProgress {
@@ -35,6 +38,11 @@ export interface ActivityQuery {
   /** Overrides the policy's "recently completed" window, in hours. */
   recentHours?: number;
 }
+
+/** The longest reason copied from a failed run's error; a bad run cannot flood the list. A format limit. */
+const REASON_LIMIT = 300;
+/** More routines than this are not scanned for failures. A scale limit; an owner has far fewer. */
+const ROUTINE_SCAN_LIMIT = 1000;
 
 /** These states already show in the "needs me" queue, so the activity list marks them and does not draw them twice. */
 const NEEDS_OWNER: readonly RequestDisplayState[] = ["needs_owner", "no_follow_up", "check_not_fired"];
@@ -66,28 +74,19 @@ export class ActivityService {
     const policy = await this.policy();
     const recentHours = query.recentHours ?? policy.recentCompletedHours;
     const cutoff = new Date(now.getTime() - recentHours * 3_600_000);
-    const rows = await this.prisma.run.findMany({
-      where: {
-        requestProgress: { not: Prisma.DbNull },
-        requestStoppedAt: null,
-        origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
-        ...(query.botId ? { botId: query.botId } : {}),
-        // Finished work leaves the list after the window; everything unfinished stays however old it is.
-        ...(query.includeAll
-          ? {}
-          : { OR: [{ NOT: { requestProgress: { path: ["state"], equals: "complete" } } }, { updatedAt: { gte: cutoff } }] }),
-      },
-      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-      take: ACTIVITY_LIST_LIMIT + 1,
-      select: requestRows,
-    });
-    const truncated = rows.length > ACTIVITY_LIST_LIMIT;
-    const kept = truncated ? rows.slice(0, ACTIVITY_LIST_LIMIT) : rows;
-    const titles = await this.titles(kept.map((row) => row.userMessageId));
-    return {
-      items: kept.map((row) => this.item(row, titles.get(row.userMessageId) ?? "", now, policy.checkOverdueMinutes)),
-      truncated,
-    };
+    // Each source reads its own records; they share the types, the derivation and the limit, and nothing else.
+    const [requests, routines, goalTasks] = await Promise.all([
+      this.requestItems(query, cutoff, now, policy.checkOverdueMinutes),
+      this.routineItems(query, cutoff),
+      this.goalTaskItems(query, now),
+    ]);
+    // A thing has one id (`<type>:<source id>`), so the same thing seen twice collapses to one row.
+    const byId = new Map<string, ActivityItem>();
+    for (const item of [...requests, ...routines, ...goalTasks]) if (!byId.has(item.id)) byId.set(item.id, item);
+    const merged = [...byId.values()].sort(
+      (a, b) => (a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : a.id < b.id ? -1 : 1)
+    );
+    return { items: merged.slice(0, ACTIVITY_LIST_LIMIT), truncated: merged.length > ACTIVITY_LIST_LIMIT };
   }
 
   /** One request with what the list leaves out (evidence, the tool's error). Null when it is not a tracked request. */
@@ -122,6 +121,137 @@ export class ActivityService {
       evidence: progress.evidence ?? [],
       toolError: progress.toolError ?? null,
     };
+  }
+
+  /** Unfinished requests, with the executors each one started folded in as a count. */
+  private async requestItems(query: ActivityQuery, cutoff: Date, now: Date, checkOverdueMinutes: number): Promise<ActivityItem[]> {
+    const rows = await this.prisma.run.findMany({
+      where: {
+        requestProgress: { not: Prisma.DbNull },
+        requestStoppedAt: null,
+        origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
+        ...(query.botId ? { botId: query.botId } : {}),
+        // Finished work leaves the list after the window; everything unfinished stays however old it is.
+        ...(query.includeAll
+          ? {}
+          : { OR: [{ NOT: { requestProgress: { path: ["state"], equals: "complete" } } }, { updatedAt: { gte: cutoff } }] }),
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: ACTIVITY_LIST_LIMIT + 1,
+      select: requestRows,
+    });
+    const titles = await this.titles(rows.map((row) => row.userMessageId));
+    const workers = await this.workerCounts(rows.map((row) => row.id));
+    return rows.map((row) => ({
+      ...this.item(row, titles.get(row.userMessageId) ?? "", now, checkOverdueMinutes),
+      workerCount: workers.get(row.id) ?? 0,
+    }));
+  }
+
+  /** Executors still working, per request: they are summarised under their request and never listed on their own. */
+  private async workerCounts(requestRunIds: readonly string[]): Promise<Map<string, number>> {
+    if (!requestRunIds.length) return new Map();
+    const groups = await this.prisma.subagent.groupBy({
+      by: ["requestRunId"],
+      where: { requestRunId: { in: [...requestRunIds] }, status: { in: [...OPEN_REQUEST_WORKER_STATUSES] } },
+      _count: { _all: true },
+    });
+    return new Map(groups.flatMap((group) => (group.requestRunId ? [[group.requestRunId, group._count._all] as const] : [])));
+  }
+
+  /**
+   * Routines whose last run is running, failed or skipped. A run that succeeded is not a row (it is in the routine's own
+   * page), unless "show all" is asked for. A failure stays until the routine runs well again, however long ago it was,
+   * because it still needs a look; a skip is noise and only shows inside the recent window.
+   */
+  private async routineItems(query: ActivityQuery, cutoff: Date): Promise<ActivityItem[]> {
+    const routines = await this.prisma.routine.findMany({
+      where: {
+        enabled: true,
+        deletedAt: null,
+        ...(query.botId ? { OR: [{ botId: query.botId }, { executorBotId: query.botId }] } : {}),
+      },
+      orderBy: { updatedAt: "desc" },
+      take: ROUTINE_SCAN_LIMIT,
+      select: {
+        id: true, name: true, botId: true, executorBotId: true, nextRunAt: true, pausedAt: true, updatedAt: true,
+        executions: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, error: true, skipReason: true, updatedAt: true } },
+      },
+    });
+    return routines.flatMap((routine): ActivityItem[] => {
+      const botId = routine.botId ?? routine.executorBotId;
+      if (!botId) return [];
+      const last = routine.executions[0] ?? null;
+      const state = deriveRoutineDisplayState({ pausedAt: routine.pausedAt, lastExecutionStatus: last?.status ?? null });
+      const quiet = state === "idle" || state === "paused";
+      if (quiet && !query.includeAll) return [];
+      if (state === "skipped" && !query.includeAll && (last?.updatedAt ?? routine.updatedAt) < cutoff) return [];
+      const reason = state === "failed" ? errorText(last?.error) : state === "skipped" ? (last?.skipReason ?? null) : null;
+      return [
+        {
+          id: `routine:${routine.id}`,
+          type: "routine",
+          botId,
+          title: routine.name,
+          state,
+          reason: reason ? truncatePreviewText(reason, REASON_LIMIT) : null,
+          doing: null,
+          progress: null,
+          lastActivityAt: (last?.updatedAt ?? routine.updatedAt).toISOString(),
+          nextCheckAt: routine.nextRunAt?.toISOString() ?? null,
+          needsOwner: false,
+          link: { type: "routine", id: routine.id },
+        },
+      ];
+    });
+  }
+
+  /**
+   * A goal's bot tasks that are running, or waiting for a time that has not come. A task whose time has not come is
+   * "scheduled" or "deferred", never "working". A goal a bot registered for itself has no task, so it is not here.
+   */
+  private async goalTaskItems(query: ActivityQuery, now: Date): Promise<ActivityItem[]> {
+    const rows = await this.prisma.outcomeWorkItem.findMany({
+      where: {
+        executorType: "agent",
+        ...(query.botId ? { botId: query.botId } : {}),
+        outcome: { cancelledAt: null, acceptedAt: null },
+        OR: [{ status: "running" }, { status: "queued", scheduledAt: { gt: now } }],
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: ACTIVITY_LIST_LIMIT + 1,
+      select: {
+        id: true, botId: true, title: true, status: true, statusReason: true, scheduledAt: true, progress: true, updatedAt: true,
+        contractRevisionId: true, outcome: { select: { id: true, title: true, currentRevisionId: true } },
+      },
+    });
+    return rows.flatMap((row): ActivityItem[] => {
+      // Only the current plan's tasks: a replaced plan's leftovers are not work in progress.
+      if (row.contractRevisionId !== row.outcome.currentRevisionId) return [];
+      const state = deriveWorkItemDisplayState(
+        { executorType: "agent", status: row.status, statusReason: row.statusReason, scheduledAt: row.scheduledAt, hasUnfinishedDependency: false },
+        now
+      );
+      const progress = state === "running" ? parseOutcomeWorkItemProgress(row.progress) : null;
+      return [
+        {
+          id: `goal_task:${row.id}`,
+          type: "goal_task",
+          botId: row.botId,
+          title: `${row.title} — ${row.outcome.title}`,
+          state,
+          reason: null,
+          doing: progress?.summary ?? null,
+          progress: progress
+            ? { done: progress.tasks.filter((step) => step.status === "completed").length, total: progress.tasks.length, phase: progress.phase }
+            : null,
+          lastActivityAt: row.updatedAt.toISOString(),
+          nextCheckAt: state === "scheduled" || state === "deferred" ? (row.scheduledAt?.toISOString() ?? null) : null,
+          needsOwner: false,
+          link: { type: "outcome", id: row.outcome.id },
+        },
+      ];
+    });
   }
 
   private async policy(): Promise<{ recentCompletedHours: number; checkOverdueMinutes: number }> {
@@ -170,4 +300,11 @@ export class ActivityService {
       link: { type: "conversation", id: row.conversationId },
     };
   }
+}
+
+/** The words of a failed run's error, as plain text. The runtime stores either a string or an object with a message. */
+function errorText(error: unknown): string | null {
+  if (typeof error === "string") return error || null;
+  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") return error.message || null;
+  return null;
 }
