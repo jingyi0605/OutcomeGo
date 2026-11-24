@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../../lib/i18n";
 import { codes, type DeploymentResult, type DeployProgress } from "../../lib/local-deploy-contract";
-import { deployIssue, deployProgress, deployStage, emptyProgress } from "../../lib/local-deploy-flow";
+import { deployIssue, deployProgress, deployStage, emptyProgress, engineOptions, type EngineKind, suggestedEngine } from "../../lib/local-deploy-flow";
+import { EnginePicker, useEngineProbes } from "./local-deploy-engines";
 import { SetupLayout, SetupLink, SetupPrimary, useCopied } from "./setup/setup-layout";
 
 export default function LocalDeployFlow({ onBack, onConnect }: {
@@ -14,9 +15,12 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
   const [confirmation, setConfirmation] = useState("");
   const [apiPort, setApiPort] = useState("");
   const [resuming, setResuming] = useState(false);
-  const [engine, setEngine] = useState<"auto" | "external" | "managed">("auto");
+  // The engine the person clicked; until then, the one suggested from what was found.
+  const [chosen, setChosen] = useState<EngineKind | null>(null);
   const [authorizing, setAuthorizing] = useState(false);
   const platform = window.outcomego?.platform;
+  const choosesEngine = platform === "win32" || platform === "darwin";
+  const { probes, recheck } = useEngineProbes(choosesEngine);
   const [progress, setProgress] = useState<ReturnType<typeof emptyProgress> | null>(null);
   const [loginError, setLoginError] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -39,7 +43,7 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
       if (!mounted) return;
       setResuming(Boolean(status.awaiting));
       if (status.ownerUsername) setUsername(current => current || status.ownerUsername!);
-      if (status.awaiting && platform === "win32") setEngine("managed");
+      if (status.awaiting && platform === "win32") setChosen("managed");
       if (status.awaiting === "elevation" && platform === "win32") showCode("WSL_NOT_ENABLED", "elevate");
     }).catch(() => undefined);
     return () => {
@@ -92,7 +96,7 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
     });
     unsubscribe.current = stop;
     try {
-      const { deployId } = await bridge.start({ username, password, engine, ...(apiPort ? { apiPort: Number(apiPort) } : {}), acceptLowMemory });
+      const { deployId } = await bridge.start({ username, password, engine: requestEngine, ...(apiPort ? { apiPort: Number(apiPort) } : {}), acceptLowMemory });
       if (!active.current) {
         await bridge.cancel(deployId);
         return;
@@ -114,7 +118,7 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
     clearPassword();
     try {
       const { code } = await bridge.enableWsl(true);
-      if (!code) { setProgress(null); setResuming(true); }
+      if (!code) { setProgress(null); setResuming(true); recheck(); }
       else showCode(code, code === "REBOOT_REQUIRED" ? "reboot" : "elevate");
     } catch { showCode("ENGINE_START_FAILED", "elevate"); }
     finally { setAuthorizing(false); }
@@ -122,8 +126,13 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
   const busy = Boolean(progress?.busy);
   const field = progress?.issue?.field;
   const canStart = Boolean(username.trim() && password && password === confirmation);
-  const canEnable = platform === "win32" && progress?.action?.kind === "elevate" && engine !== "external";
-  const stageLabel = progress?.stage === "engine" && platform === "darwin" && engine !== "external"
+  const options = engineOptions(probes, platform, resuming);
+  const suggested = suggestedEngine(options);
+  const selected = chosen && options.find(option => option.kind === chosen)?.selectable ? chosen : suggested;
+  // Without a choice or a suggestion (nothing found, or the look failed), the command line decides.
+  const requestEngine: "auto" | EngineKind = choosesEngine ? selected ?? "auto" : "auto";
+  const canEnable = platform === "win32" && progress?.action?.kind === "elevate" && requestEngine !== "external";
+  const stageLabel = progress?.stage === "engine" && platform === "darwin" && requestEngine !== "external"
     ? "Preparing the virtual machine" : deployStage[progress?.stage ?? "detect"];
   const issueLabel = progress?.issue ? t(deployIssue(progress.issue.code)) : "";
   const issueDetail = progress?.issue?.message ?? progress?.action?.detail;
@@ -145,15 +154,8 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
         <p>{progress?.total ? `${progress.current ?? 0}/${progress.total} · ` : ""}{t("{seconds} s elapsed", { seconds: elapsed })}</p>
       </div> : <div className="flex flex-col gap-2">
         {resuming ? <p className="setup-note">{t("Continue deployment by entering your password again.")}</p> : null}
-        {platform === "win32" || platform === "darwin" ? <>
-          <label className="setup-label" htmlFor="deploy-engine">{t("Container engine")}</label>
-          <select id="deploy-engine" className="setup-input" value={engine} disabled={authorizing}
-            onChange={event => { const value = event.target.value; if (value === "auto" || value === "external" || value === "managed") { setEngine(value); setProgress(null); } }}>
-            <option value="auto">{t("Choose automatically")}</option>
-            <option value="external">{t("Use an existing container engine")}</option>
-            <option value="managed">{t("Use the OutcomeGo managed engine")}</option>
-          </select>
-        </> : null}
+        {choosesEngine ? <EnginePicker options={options} selected={selected} disabled={authorizing} onRecheck={recheck}
+          onSelect={kind => { setChosen(kind); setProgress(null); }} /> : null}
         <label className="setup-label" htmlFor="deploy-username">{t("Username")}</label>
         <input id="deploy-username" className="setup-input" autoComplete="username" aria-invalid={field === "username"} value={username} onChange={event => setUsername(event.target.value)} />
         <label className="setup-label" htmlFor="deploy-password">{t("Password")}</label>
@@ -166,7 +168,7 @@ export default function LocalDeployFlow({ onBack, onConnect }: {
         </> : null}
         {progress?.issue ? <p className="setup-note" data-tone="error" role="alert">{issueLabel}{issueDetail && issueDetail !== issueLabel ? ` ${issueDetail}` : ""}</p> : null}
         {canEnable || authorizing ? <p className="setup-note">{t("Administrator approval is required to enable WSL and Virtual Machine Platform.")}</p> : null}
-        {platform === "win32" && engine !== "external" && progress?.issue?.code === "MEMORY_LOW" ?
+        {platform === "win32" && requestEngine !== "external" && progress?.issue?.code === "MEMORY_LOW" ?
           <p className="setup-note">{t("To give WSL more memory, edit .wslconfig manually and restart WSL.")}</p> : null}
         {loginError ? <p className="setup-note" data-tone="error" role="alert">{t("Could not sign in to OutcomeGo")}</p> : null}
       </div>}

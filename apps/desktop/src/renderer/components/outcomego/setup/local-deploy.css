@@ -1,0 +1,270 @@
+/* One-click local deployment: the engine choice.
+   Built on the setup tokens (setup.css), so light, dark and the springs follow the other setup screens. */
+
+.setup-shell {
+  --deploy-a: var(--setup-accent);
+  --deploy-b: #5e5ce6;
+  --deploy-warn: #c77700;
+}
+:root[data-theme="dark"] .setup-shell {
+  --deploy-warn: #ffb340;
+}
+
+/* Engine choice: two cards, like the other setup options, with what was found on this computer. */
+.deploy-engines {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 6px;
+  border: 0;
+  padding: 0;
+}
+.deploy-engines-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.deploy-engine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.deploy-engine {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border: 1px solid var(--setup-line);
+  border-radius: 14px;
+  background: var(--setup-panel);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
+}
+.deploy-engine:hover:not([data-disabled], [data-selected]) {
+  border-color: color-mix(in srgb, var(--setup-ink) 26%, transparent);
+}
+.deploy-engine[data-selected] {
+  border-color: var(--setup-ink);
+  box-shadow: 0 0 0 1px var(--setup-ink);
+}
+.deploy-engine:has(input:focus-visible) {
+  border-color: var(--setup-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--setup-accent) 22%, transparent);
+}
+.deploy-engine[data-disabled] {
+  background: var(--setup-field);
+  cursor: not-allowed;
+}
+.deploy-engine > input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.deploy-engine-tile {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 11px;
+  color: #fff;
+  box-shadow:
+    inset 0 0.5px 0 rgb(255 255 255 / 35%),
+    0 0 0 0.5px rgb(0 0 0 / 10%);
+  transition:
+    filter 200ms ease-out,
+    opacity 200ms ease-out;
+}
+.deploy-engine[data-kind="external"] .deploy-engine-tile {
+  background: linear-gradient(145deg, #58a9ff 0%, #0a84ff 55%, #0764d1 100%);
+}
+.deploy-engine[data-kind="managed"] .deploy-engine-tile {
+  background: linear-gradient(145deg, #8f8bff 0%, #5b54ee 55%, #4338ca 100%);
+}
+.deploy-engine[data-disabled] .deploy-engine-tile {
+  opacity: 0.5;
+  filter: grayscale(0.85);
+}
+.deploy-engine-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+.deploy-engine-body > strong {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.deploy-engine-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.deploy-engine-sub > small {
+  color: var(--setup-muted);
+  font-size: 13px;
+}
+.deploy-engine-badge {
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--setup-accent) 16%, var(--setup-panel));
+  padding: 1px 7px;
+  color: var(--setup-ink);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 17px;
+  animation: deploy-pop var(--spring-bouncy-duration) var(--spring-bouncy) both;
+}
+.deploy-engine-status {
+  position: relative;
+  display: block;
+  margin-top: 5px;
+  padding-left: 16px;
+  font-size: 13px;
+  line-height: 19px;
+  animation: deploy-fade 260ms ease-out both;
+}
+.deploy-engine-status > i {
+  position: absolute;
+  top: 6px;
+  left: 1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--tone, var(--setup-faint));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone, var(--setup-faint)) 18%, transparent);
+}
+.deploy-engine-status > b {
+  font-weight: 600;
+}
+.deploy-engine-status > b > em {
+  color: var(--setup-muted);
+  font-style: normal;
+  font-weight: 400;
+}
+.deploy-engine-status > span {
+  color: var(--setup-muted);
+  overflow-wrap: anywhere;
+}
+.deploy-engine-status > span::before {
+  margin: 0 5px;
+  color: var(--setup-faint);
+  content: "·";
+}
+.deploy-engine-status[data-tone="ready"] {
+  --tone: var(--setup-success);
+}
+.deploy-engine-status[data-tone="setup"] {
+  --tone: var(--setup-accent);
+}
+.deploy-engine-status[data-tone="attention"] {
+  --tone: var(--deploy-warn);
+}
+.deploy-engine-status[data-tone="blocked"] {
+  --tone: var(--setup-danger);
+}
+.deploy-engine-status[data-tone="checking"] > i {
+  animation: deploy-breathe 1.2s ease-in-out infinite;
+}
+.deploy-engine-radio {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  align-self: center;
+  place-items: center;
+  border: 1.5px solid color-mix(in srgb, var(--setup-ink) 22%, transparent);
+  border-radius: 999px;
+  color: transparent;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+.deploy-engine[data-selected] .deploy-engine-radio {
+  border-color: var(--setup-ink);
+  background: var(--setup-ink);
+  color: var(--setup-panel);
+}
+.deploy-engine[data-selected] .deploy-engine-radio > svg {
+  animation: deploy-pop var(--spring-bouncy-duration) var(--spring-bouncy) both;
+}
+.deploy-engine[data-disabled] .deploy-engine-radio {
+  opacity: 0.35;
+}
+.deploy-recheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  padding: 2px;
+  color: var(--setup-muted);
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 140ms ease;
+}
+.deploy-recheck:hover:not(:disabled) {
+  color: var(--setup-ink);
+}
+.deploy-recheck:disabled {
+  cursor: default;
+}
+.deploy-recheck > svg[data-spin] {
+  animation: deploy-spin 900ms linear infinite;
+}
+
+@keyframes deploy-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes deploy-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+@keyframes deploy-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes deploy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deploy-engine-badge,
+  .deploy-engine-status,
+  .deploy-engine-status > i,
+  .deploy-engine-radio > svg,
+  .deploy-recheck > svg {
+    animation: none;
+  }
+}
+
+/* The choice adds two cards to a screen that already has three fields; give them the room. */
+.setup-content:has(.deploy-engines) {
+  padding-top: 4vh;
+}
+@media (max-height: 940px) {
+  .setup-content:has(.deploy-engines) {
+    padding-top: 1vh;
+  }
+  .setup-content:has(.deploy-engines) > .setup-body {
+    display: none;
+  }
+}

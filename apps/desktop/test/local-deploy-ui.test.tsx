@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeAll, expect, mock, test } from "bun:test";
 import { parseHTML } from "linkedom";
 import { act } from "react";
 import type { Root } from "react-dom/client";
-import type { Code, DeployProgress, LocalDeployRequest, LocalServerStatus } from "../src/renderer/lib/local-deploy-contract";
+import type { Code, DeployProgress, EngineProbe, EngineProbes, LocalDeployRequest, LocalServerStatus } from "../src/renderer/lib/local-deploy-contract";
 
 const dom = parseHTML("<!doctype html><html><body></body></html>");
 const globals = new Map<string, PropertyDescriptor | undefined>();
@@ -51,24 +51,25 @@ afterAll(() => {
   }
 });
 
-const fixture = async (options: { awaiting?: boolean; delayStart?: boolean; platform?: "win32" | "darwin"; elevationCode?: Code } = {}) => {
+const fixture = async (options: { awaiting?: boolean; delayStart?: boolean; platform?: "win32" | "darwin"; elevationCode?: Code; probes?: EngineProbes } = {}) => {
   const ack = Promise.withResolvers<{ deployId: string }>();
   if (!options.delayStart) ack.resolve({ deployId: envelope.deployId });
   const start = mock((_request: LocalDeployRequest) => ack.promise);
   const cancel = mock(async (_id: string) => undefined);
   const enable = mock(async (_confirmed: true) => ({ code: options.elevationCode ?? null }));
   const connect = mock(async (_result: typeof result, _password: string) => undefined);
+  const engines = mock(async () => options.probes!);
   let listener: ((event: DeployProgress) => void) | undefined;
   const status: LocalServerStatus = { stack: { state: "not-installed", services: [] }, apiPort: null, engine: null,
     version: null, ownerUsername: options.awaiting ? "local-owner" : null, awaiting: options.awaiting ? "reboot" : null };
   Object.defineProperty(window, "outcomego", { configurable: true, value: {
     platform: options.platform,
     localServer: { status: async () => status },
-    localDeploy: { start, cancel, enableWsl: enable, onProgress: (receive: typeof listener) => { listener = receive; return () => { listener = undefined; }; } },
+    localDeploy: { start, cancel, enableWsl: enable, ...(options.probes ? { engines: engines } : {}), onProgress: (receive: typeof listener) => { listener = receive; return () => { listener = undefined; }; } },
   } });
   root = createRoot(document.body);
   await act(async () => root!.render(<I18nProvider><LocalDeployFlow onBack={() => undefined} onConnect={connect} /></I18nProvider>));
-  return { start, cancel, connect, enable, ack, publish: (event: DeployProgress) => act(async () => listener?.(event)) };
+  return { start, cancel, connect, enable, engines, ack, publish: (event: DeployProgress) => act(async () => listener?.(event)) };
 };
 
 const input = (name: string) => document.getElementById(`deploy-${name}`) as HTMLInputElement;
@@ -172,4 +173,70 @@ test("macOS shows virtual machine preparation and the 13.5 fallback guidance", a
   await entry.publish({ ...envelope, type: "error", stage: "detect", code: "MACOS_UNSUPPORTED", retryable: false });
   expect(document.querySelector("[role=alert]")?.textContent).toContain("macOS 13.5 or later");
   expect(document.querySelector("[role=alert]")?.textContent).toContain("existing container engine or server");
+});
+
+const probe = (state: EngineProbe["state"], extra: Partial<EngineProbe> = {}): EngineProbe => ({ state, reasons: [], ...extra });
+const radio = (kind: "external" | "managed") => document.querySelector<HTMLInputElement>(`input[name="deploy-engine"][value="${kind}"]`)!;
+const card = (kind: "external" | "managed") => radio(kind).closest("label")!;
+const pick = (kind: "external" | "managed") => act(async () => {
+  const control = radio(kind);
+  // A real click checks the box first. The test DOM has no `checked` accessor to track, so
+  // setting the attribute is enough for React to see a change.
+  control.setAttribute("checked", "");
+  control.dispatchEvent(new Event("click", { bubbles: true }));
+});
+
+test("macOS shows what was found for each engine, suggests one, and deploys with it", async () => {
+  const entry = await fixture({ platform: "darwin", probes: { external: probe("ready", { name: "Docker Engine", version: "27.3.1" }), managed: probe("needs-setup") } });
+  expect(entry.engines).toHaveBeenCalledTimes(1);
+  expect(card("external").textContent).toContain("Ready to use");
+  expect(card("external").textContent).toContain("Docker Engine 27.3.1");
+  expect(card("external").textContent).toContain("Recommended");
+  expect(card("managed").textContent).toContain("Installs automatically");
+  expect(card("managed").textContent).toContain("virtual machine");
+  expect(card("managed").textContent).not.toContain("Recommended");
+  expect([radio("external").checked, radio("managed").checked]).toEqual([true, false]);
+  await credentials();
+  await submit();
+  expect(entry.start.mock.calls[0]![0]).toMatchObject({ engine: "external" });
+});
+
+test("picking the other engine deploys with it", async () => {
+  const entry = await fixture({ platform: "darwin", probes: { external: probe("ready"), managed: probe("needs-setup") } });
+  await pick("managed");
+  expect([radio("external").checked, radio("managed").checked]).toEqual([false, true]);
+  await credentials();
+  await submit();
+  expect(entry.start.mock.calls[0]![0]).toMatchObject({ engine: "managed" });
+});
+
+test("an engine that is installed but stopped says so, and checking again looks once more", async () => {
+  const entry = await fixture({ platform: "darwin", probes: { external: probe("stopped"), managed: probe("needs-setup") } });
+  expect(card("external").textContent).toContain("Installed, not running");
+  expect(card("external").textContent).toContain("Start your container engine");
+  expect(card("managed").textContent).toContain("Recommended");
+  await click("Check again");
+  expect(entry.engines).toHaveBeenCalledTimes(2);
+});
+
+test("an incompatible engine cannot be picked, and with nothing usable the person is told", async () => {
+  const entry = await fixture({ platform: "darwin", probes: {
+    external: probe("unsupported", { reasons: ["Compose is too old."] }), managed: probe("unsupported", { code: "MACOS_UNSUPPORTED" }) } });
+  expect(radio("external").disabled).toBe(true);
+  expect(radio("managed").disabled).toBe(true);
+  expect(card("external").textContent).toContain("Compose is too old.");
+  expect(card("managed").textContent).toContain("macOS 13.5 or later");
+  expect(document.querySelector("[role=alert]")?.textContent).toContain("Neither engine can run here");
+  expect(document.querySelector('input[name="deploy-engine"]:checked')).toBeNull();
+  await credentials();
+  await submit();
+  expect(entry.start.mock.calls[0]![0]).toMatchObject({ engine: "auto" });
+});
+
+test("a deployment waiting on a restart stays on the OutcomeGo engine", async () => {
+  const entry = await fixture({ platform: "win32", awaiting: true, probes: { external: probe("ready"), managed: probe("needs-setup", { code: "REBOOT_REQUIRED" }) } });
+  expect(radio("external").disabled).toBe(true);
+  expect(radio("managed").checked).toBe(true);
+  expect(card("managed").textContent).toContain("Restart needed");
+  expect(entry.start).not.toHaveBeenCalled();
 });
