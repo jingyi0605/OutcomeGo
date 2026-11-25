@@ -161,6 +161,10 @@ export function TodoPanel({ client }: { client: TodoClient }) {
     try {
       const result = await client.list({ view: history ? "history" : "all", ...(cursor && { cursor }) });
       if (request.current !== current) return;
+      if (!Array.isArray(result?.items)) {
+        setError("Could not load to-dos. Try again.");
+        return;
+      }
       setUnavailable(false);
       setPage((previous) => cursor ? {
         items: [...new Map([...previous.items, ...result.items].map((item) => [item.id, item])).values()],
