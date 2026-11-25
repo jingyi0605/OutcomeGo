@@ -583,7 +583,7 @@ const FIRST_PARTY_CATALOG_HEADER =
 const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
   SubmitOutcome: "Submit the user's verbatim goal request to the planning role when one is configured; never rewrite it or write a contract yourself.",
   CreateOutcome: "Save a native goal with a contract you wrote, for owner approval; use Outcomes before external task apps; never approve or accept it yourself.",
-  TrackOutcome: "Register anything you cannot finish this turn on the goal board; owner decisions go to the inbox.",
+  TrackOutcome: "Use a native goal only for explicit goal tracking, owner plan approval, final acceptance or human action, or an inbox decision. Use Task and ReportRequestProgress for ordinary ongoing bot work.",
   CloseOutcome: "Close a tracked goal you finished yourself, without user acceptance.",
   ListOutcomes: "Find native goals and their execution statuses by text or status.",
   GetOutcome: "Read a goal's actual contract, Runs, results, Evidence and Reviews.",

@@ -38,6 +38,7 @@ export function OutcomeList({
   const { t } = useI18n();
   const [page, setPage] = useState<OutcomeListPage | null>(null);
   const [status, setStatus] = useState<OutcomeStatus | "all">("all");
+  const [trackedOnly, setTrackedOnly] = useState(false);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const generation = useRef(0);
@@ -47,6 +48,7 @@ export function OutcomeList({
     setError(false);
     const query = new URLSearchParams();
     if (status !== "all") query.set("status", status);
+    if (trackedOnly) query.set("trackingMode", "tracked");
     if (cursor) query.set("cursor", cursor);
     try {
       const result = await client.list(query.toString());
@@ -82,17 +84,18 @@ export function OutcomeList({
       window.removeEventListener("focus", refresh);
       window.clearInterval(interval);
     };
-  }, [client, status]);
+  }, [client, status, trackedOnly]);
   useEffect(() => {
     if (refreshVersion > 0) void load();
   }, [refreshVersion]);
+  const items = trackedOnly ? page?.items.filter((outcome) => outcome.trackingMode === "tracked") : page?.items;
   return (
     <section aria-label={t("All goals")} aria-busy={busy}>
       <div className="outcome-toolbar">
         <p className="outcome-toolbar-description">
           {t("Your goals, from planning to completion.")}
         </p>
-        <div className="outcome-toolbar-controls">
+        <div className="outcome-toolbar-controls flex-wrap">
           <label className="sr-only" htmlFor="outcome-status-filter">
             {t("Execution status")}
           </label>
@@ -109,6 +112,10 @@ export function OutcomeList({
               </option>
             ))}
           </select>
+          <label className="flex items-center gap-1.5 text-xs">
+            <input type="checkbox" checked={trackedOnly} onChange={(event) => setTrackedOnly(event.target.checked)} />
+            {t("Bot-registered only")}
+          </label>
           <OutcomeRefresh busy={busy} onRefresh={() => void load()} />
         </div>
       </div>
@@ -125,7 +132,9 @@ export function OutcomeList({
           {t("Loading goals…")}
         </p>
       )}
-      {page?.items.length === 0 && (
+      {items?.length === 0 && !page?.nextCursor && (trackedOnly ? (
+        <p role="status" className="outcome-empty">{t("No matching bot-registered goals.")}</p>
+      ) : (
         <OutcomeEmptyState
           icon={Target}
           title={status === "all" ? "No goals yet." : "No goals with this status."}
@@ -142,9 +151,9 @@ export function OutcomeList({
             </OutcomeButton>
           )}
         </OutcomeEmptyState>
-      )}
-      <ul className={page?.items.length ? "outcome-rows" : undefined}>
-        {page?.items.map((outcome) => (
+      ))}
+      <ul className={items?.length ? "outcome-rows" : undefined}>
+        {items?.map((outcome) => (
           <li key={outcome.id}>
             <button className="outcome-row" onClick={() => onSelect(outcome.id)}>
               <span className="outcome-row-icon">
@@ -155,6 +164,7 @@ export function OutcomeList({
                 <span className="outcome-row-meta">
                   {bots.find((bot) => bot.id === outcome.botId)?.name ?? t("Bot")} · {t("Revision")}{" "}
                   {outcome.currentRevision ?? "—"} · {new Date(outcome.updatedAt).toLocaleString()}
+                  {outcome.trackingMode === "tracked" && <> · {t("Bot-registered")}</>}
                 </span>
               </span>
               <span className="outcome-status" data-outcome-status={outcome.status}>

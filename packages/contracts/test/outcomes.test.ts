@@ -237,6 +237,12 @@ describe("list query", () => {
     expectOutcomeError(() => decodeOutcomeCursor("not-a-cursor"), "invalid_outcome_query");
     expectOutcomeError(() => parseListOutcomesQuery(new URLSearchParams({ limit: "0" })), "invalid_outcome_query");
   });
+
+  test.each(["tracked", "standard"])("parses %s tracking mode without changing the unfiltered default", (trackingMode) => {
+    expect(parseListOutcomesQuery(new URLSearchParams({ trackingMode })).trackingMode).toBe(trackingMode);
+    expect(parseListOutcomesQuery(new URLSearchParams()).trackingMode).toBeUndefined();
+    expectOutcomeError(() => parseListOutcomesQuery(new URLSearchParams({ trackingMode: "unknown" })), "invalid_outcome_query");
+  });
 });
 
 describe("run segments", () => {

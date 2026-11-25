@@ -659,6 +659,7 @@ export class OutcomeService {
       const rows = await this.prisma.outcome.findMany({
         where: {
           ...(query.botId ? { botId: query.botId } : {}),
+          ...(query.trackingMode ? { trackingMode: query.trackingMode } : {}),
           ...(query.statuses.length ? { status: { in: query.statuses } } : {}),
           ...(query.query ? {
             AND: [{ OR: [
@@ -699,6 +700,7 @@ export class OutcomeService {
           title: row.title,
           status: row.status,
           botId: row.botId,
+          trackingMode: row.trackingMode,
           currentRevision: row.currentRevision?.revision ?? null,
           updatedAt: row.updatedAt.toISOString(),
           ...(row.threads.some((thread) => thread.turns.length > 0) ? { prereviewStatus: "pending" as const } : {}),

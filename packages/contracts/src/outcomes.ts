@@ -967,6 +967,8 @@ export interface OutcomeSummary {
   botId: string;
   currentRevision: number | null;
   updatedAt: string;
+  /** Task-board items registered by a Bot; absent on payloads from older servers. */
+  trackingMode?: OutcomeTrackingMode;
   /** The Bot's holistic prereview is running. The owner has no action yet. */
   prereviewStatus?: "pending" | "stale" | "unreviewed";
 }
@@ -978,8 +980,6 @@ export interface OutcomeDetail extends OutcomeSummary {
   resumeStatus: OutcomeStatus | null;
   createdAt: string;
   acceptedAt: string | null;
-  /** Task-board items registered by a Bot; absent on payloads from older servers. */
-  trackingMode?: OutcomeTrackingMode;
   /** Owner-set deadline. Null when none; absent on payloads from older servers. */
   dueAt?: string | null;
   /** Set when the Bot closed a tracked item without owner acceptance. */
@@ -1221,6 +1221,7 @@ export interface ListOutcomesQuery {
   statuses: OutcomeStatus[];
   query?: string;
   botId?: string;
+  trackingMode?: OutcomeTrackingMode;
   cursor: { updatedAt: string; id: string } | null;
   limit: number;
 }
@@ -1235,6 +1236,9 @@ export function parseListOutcomesQuery(params: URLSearchParams): ListOutcomesQue
   const limit = rawLimit === null ? OUTCOME_LIMITS.listPageSize : Number(rawLimit);
   const query = params.get("query")?.trim();
   const botId = params.get("botId");
+  const trackingMode = params.get("trackingMode");
+  if (trackingMode !== null && trackingMode !== "standard" && trackingMode !== "tracked")
+    throw new OutcomeError("invalid_outcome_query", "trackingMode is invalid", { field: "trackingMode" });
   if (botId !== null && !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(botId))
     throw new OutcomeError("invalid_outcome_query", "botId is invalid", { field: "botId" });
   if (query && query.length > 200)
@@ -1244,6 +1248,7 @@ export function parseListOutcomesQuery(params: URLSearchParams): ListOutcomesQue
     statuses: statuses as OutcomeStatus[],
     ...(query ? { query } : {}),
     ...(botId ? { botId } : {}),
+    ...(trackingMode ? { trackingMode } : {}),
     cursor: decodeOutcomeCursor(params.get("cursor")),
     limit: Math.min(limit, OUTCOME_LIMITS.listPageSizeMax),
   };

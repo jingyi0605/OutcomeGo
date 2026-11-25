@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { ACTIVITY_LIST_LIMIT, ACTIVITY_TITLE_LIMIT } from "@outcomego/contracts/task-overview";
-import { updateFeatureSettings } from "@outcomego/messaging";
+import { ensureRequestForTask, notifyRequestsNeedingOwner, settleRequestProgress, updateFeatureSettings } from "@outcomego/messaging";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
 import { ActivityService } from "../src/services/activity-service";
 
@@ -574,5 +574,76 @@ describe.skipIf(!url)("the requests in the owner's queue (specs/004.10 task 4.4)
     const queued = (await t.service.needsMe()).items.map((item) => item.key).sort();
     const marked = (await t.service.list({})).items.filter((item) => item.needsOwner).map((item) => item.id).sort();
     expect(queued).toEqual(marked);
+  });
+});
+
+describe.skipIf(!url)("request recovery is projected without another reminder (specs/004.10 task 4.6)", () => {
+  test.each([
+    ["Request alpha", "Summary alpha", 30],
+    ["Request beta", "Summary beta", 90],
+  ])("%s uses the persisted reconciliation and check state", async (content, summary, tolerance) => {
+    const { h, service } = await setup();
+    const run = await request(h, { content, progress: null });
+    await h.db.run.update({ where: { id: run.id }, data: { channelId: h.channel.id } });
+    await h.db.$transaction((tx) => ensureRequestForTask(tx, h.bot.id, run.id));
+    const activityId = `request:${run.id}`;
+    const eventWhere = { botId: h.bot.id, type: "request.check" };
+    const notificationWhere = { channelId: h.channel.id, kind: "request" };
+    const readStored = () => h.db.run.findUniqueOrThrow({ where: { id: run.id } });
+    const settle = () => h.db.$transaction((tx) => settleRequestProgress(tx, h.messaging, h.bot.id, run.id));
+
+    for (const attempt of [1, 2, 3]) {
+      await settle();
+      await settle();
+      const saved = await readStored();
+      expect(saved.requestReconciliations).toBe(attempt);
+      expect(saved.requestNextCheckAt).toBeNull();
+      if (attempt < 3) expect(saved.requestProgress).toMatchObject({ state: "working" });
+      else expect(saved.requestProgress).toMatchObject({ state: "blocked", blockSource: "runtime" });
+      expect(await h.db.channelNotification.count({ where: notificationWhere })).toBe(0);
+
+      for (const _read of [1, 2]) {
+        const { items } = await service.list({ botId: h.bot.id });
+        expect(items.find((item) => item.id === activityId)).toMatchObject({
+          title: content, state: attempt < 3 ? "verifying" : "no_follow_up", needsOwner: attempt === 3,
+        });
+        expect((await service.needsMe()).items.filter((item) => item.key === activityId)).toEqual(attempt < 3 ? [] : [
+          expect.objectContaining({ state: "no_follow_up", zone: "exception" }),
+        ]);
+        expect((await service.requestDetail(run.id))?.displayState).toBe(attempt < 3 ? "verifying" : "no_follow_up");
+      }
+      expect(await readStored()).toEqual(saved);
+      expect(await h.db.inboxEvent.count({ where: eventWhere })).toBe(attempt);
+      expect(await h.db.channelNotification.count({ where: notificationWhere })).toBe(0);
+      if (attempt < 3) {
+        await notifyRequestsNeedingOwner(h.db);
+        expect(await h.db.channelNotification.count({ where: notificationWhere })).toBe(0);
+      }
+      await h.db.inboxEvent.updateMany({ where: { ...eventWhere, status: "pending" }, data: { status: "completed" } });
+    }
+
+    await settle();
+    expect(await h.db.inboxEvent.count({ where: eventWhere })).toBe(3);
+    await notifyRequestsNeedingOwner(h.db);
+    await notifyRequestsNeedingOwner(h.db);
+    expect(await h.db.channelNotification.count({ where: notificationWhere })).toBe(1);
+    await h.db.event.deleteMany({ where: { entityId: h.channel.id, topic: "notification.created" } });
+
+    const now = new Date();
+    const nextCheckAt = new Date(now.getTime() - tolerance * 60_000);
+    const waiting = await request(h, { content, summary, state: "waiting", nextCheckAt });
+    await updateFeatureSettings(h.db, { taskPolicy: { "activity.checkOverdueMinutes": tolerance } });
+    const waitingId = `request:${waiting.id}`;
+    expect((await service.needsMe(now)).items.some((item) => item.key === waitingId)).toBe(false);
+    const overdue = new Date(now.getTime() + 1);
+    expect((await service.needsMe(overdue)).items.find((item) => item.key === waitingId)).toMatchObject({
+      state: "check_not_fired", zone: "exception",
+    });
+    expect((await service.list({ botId: h.bot.id }, overdue)).items.find((item) => item.id === waitingId)).toMatchObject({
+      doing: summary, state: "check_not_fired", needsOwner: true,
+    });
+    expect(await h.db.run.findUniqueOrThrow({ where: { id: waiting.id } })).toEqual(waiting);
+    expect(await h.db.inboxEvent.count({ where: eventWhere })).toBe(3);
+    expect(await h.db.channelNotification.count({ where: notificationWhere })).toBe(1);
   });
 });

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { Effect } from "effect";
 import { ApiError, type DynamicToolCallRequest } from "@outcomego/contracts";
-import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
+import { parseListOutcomesQuery, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { parseOutcomeInboxQuery, type OutcomeInboxPage } from "@outcomego/contracts/outcome-inbox";
 import type { ToolContext } from "@outcomego/messaging";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
@@ -63,10 +63,40 @@ async function fixture() {
   };
   const pendingInbox = (): Promise<OutcomeInboxPage> =>
     Effect.runPromise(inbox.list(parseOutcomeInboxQuery(new URLSearchParams("status=pending"))));
-  return { h, decisions, call, failure, pendingInbox };
+  return { h, outcomes, decisions, call, failure, pendingInbox };
 }
 
 describe.skipIf(!databaseUrl)("Bot task board: TrackOutcome / CloseOutcome with real services", () => {
+  test.each(["Alpha", "Beta"])("%s: existing tracked goals stay in the paginated list and still close", async (label) => {
+    const { h, outcomes, call } = await fixture();
+    const original = await call<Result>("TrackOutcome", { title: `${label} first`, goal: `Verify ${label} first`, clientRequestId: key() });
+    const second = await call<Result>("TrackOutcome", { title: `${label} second`, goal: `Verify ${label} second`, clientRequestId: key() });
+    const rejectedByStatus = await call<Result>("TrackOutcome", { title: `${label} completed`, goal: `Verify ${label} completed`, clientRequestId: key() });
+    await call<Result>("CloseOutcome", { outcomeId: rejectedByStatus.outcome.id, resultSummary: `Verified ${label}`, clientRequestId: key() });
+    const list = (filters: Record<string, string> = {}) => Effect.runPromise(outcomes.list(parseListOutcomesQuery(new URLSearchParams({ botId: h.bot.id, ...filters }))));
+    const existing = await h.db.outcome.findMany({ where: { botId: h.bot.id }, orderBy: { id: "asc" } });
+
+    const all = await list();
+    expect(all.items).toHaveLength(4);
+    expect(all.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: h.outcome.id, trackingMode: "standard", status: "approved" }),
+      expect.objectContaining({ id: original.outcome.id, trackingMode: "tracked", status: "approved" }),
+      expect.objectContaining({ id: rejectedByStatus.outcome.id, trackingMode: "tracked", status: "accepted" }),
+    ]));
+    expect((await list({ trackingMode: "standard" })).items.map((item) => item.id)).toEqual([h.outcome.id]);
+    const filters = { trackingMode: "tracked", status: "approved", limit: "1" };
+    const firstPage = await list(filters);
+    expect(firstPage.nextCursor).not.toBeNull();
+    const nextPage = await list({ ...filters, cursor: firstPage.nextCursor! });
+    expect(nextPage.nextCursor).toBeNull();
+    expect([...firstPage.items, ...nextPage.items].map((item) => item.id).sort()).toEqual([original.outcome.id, second.outcome.id].sort());
+    expect(await h.db.outcome.findMany({ where: { botId: h.bot.id }, orderBy: { id: "asc" } })).toEqual(existing);
+
+    const closed = await call<Result>("CloseOutcome", { outcomeId: original.outcome.id, resultSummary: `Verified ${label}`, clientRequestId: key() });
+    expect(closed.outcome).toMatchObject({ trackingMode: "tracked", status: "accepted" });
+    expect((await list({ trackingMode: "tracked", status: "accepted" })).items.map((item) => item.id).sort()).toEqual([original.outcome.id, rejectedByStatus.outcome.id].sort());
+  });
+
   test("a silent task is registered without planning, never runs, and closes without owner acceptance", async () => {
     const f = await fixture();
     const input = { title: "Renew domain", goal: "Renew the domain before it expires", clientRequestId: key() };
