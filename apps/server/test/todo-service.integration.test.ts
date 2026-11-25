@@ -253,6 +253,45 @@ describe.skipIf(!enabled)("owner todo source gate and triage", () => {
     expect((await todos.act("local", accepted.id, "dismiss", { revision: accepted.revision }, nextDay)).status).toBe("dismissed");
   });
 
+  test("two opaque fixtures share the routine suggestion, deduplication, expiry and rule path", async () => {
+    const fixture = await setup();
+    const { db, bot, todos } = fixture;
+    const { run, context } = await turn(fixture, "routine");
+    const { context: unbound } = await turn(fixture, "routine");
+    const common = { name: "Routine fixture", prompt: "Fixture", scheduleText: "Fixture", scheduleKind: "interval" as const, timezone: "UTC", timezoneMode: "installation" };
+    const routine = await db.routine.create({ data: { ...common, botId: bot.id, slug: "todo-fixture" } });
+    cleanups.push(async () => {
+      await db.routineExecution.deleteMany({ where: { routineId: routine.id } });
+      await db.routine.delete({ where: { id: routine.id } });
+    });
+    const revision = await db.routineRevision.create({ data: { ...common, routineId: routine.id, revision: 1, enabled: true, source: "fixture" } });
+    await db.routineExecution.create({ data: { runId: run.id, routineId: routine.id, routineRevisionId: revision.id, kind: "scheduled", dedupeKey: run.id, scheduledFor: now } });
+    await db.featureSettings.update({ where: { id: "global" }, data: { taskPolicy: { "todo.suggestionTtlDays": 1 } } });
+    const cases = [
+      { title: "First fixture", tags: ["group-a"], summary: "Placeholder 1", sourceRef: { kind: "kind-a", id: "alpha", label: "Label A" } },
+      { title: "Second fixture", tags: ["group-b"], summary: "Placeholder 2", sourceRef: { kind: "kind-b", id: "beta", label: "Label B" } },
+    ];
+    const expiry = new Date("2026-11-26T10:00:00Z");
+    for (const input of cases) {
+      const key = input.sourceRef.id;
+      const first = await todos.createFromTurn(context, "suggest", { ...input, clientRequestId: key }, now);
+      expect(await todos.detail("local", first.todo.id, now)).toMatchObject({ ...input, createdByRoutineId: routine.id,
+        status: "suggested", displayState: "suggested", expiresAt: expiry.toISOString() });
+      expect(await todos.createFromTurn(context, "suggest", { ...input, clientRequestId: `new-${key}` }, now)).toEqual(first);
+    }
+    expect(await expireTodoSuggestions(db, expiry)).toBe(2);
+    const rule = await todos.createAutoAcceptRule("local", { name: "Bound", routineId: routine.id });
+    for (const input of cases) {
+      const key = input.sourceRef.id;
+      const accepted = await todos.createFromTurn(context, "suggest", { ...input, clientRequestId: `accept-${key}` }, expiry);
+      expect(await todos.detail("local", accepted.todo.id, expiry)).toMatchObject({ createdByRoutineId: routine.id,
+        status: "open", displayState: "unscheduled", acceptedBy: "rule", autoAcceptRuleId: rule.id, expiresAt: null });
+      const untrusted = await todos.createFromTurn(unbound, "suggest", { ...input, sourceRef: { ...input.sourceRef, id: `other-${key}` }, clientRequestId: `other-${key}` }, expiry);
+      expect(await todos.detail("local", untrusted.todo.id, expiry)).toMatchObject({ createdByRoutineId: null, status: "suggested", acceptedBy: null });
+    }
+    expect((await todos.listAutoAcceptRules("local")).rules[0]?.matchCount).toBe(2);
+  });
+
   test("a later turn can reference a recent owner message, but synthetic, stale and foreign messages cannot authorize", async () => {
     const fixture = await setup();
     const { db, todos } = fixture;
