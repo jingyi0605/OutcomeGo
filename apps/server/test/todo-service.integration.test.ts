@@ -2,6 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
 import { OwnerTodoService } from "../src/services/owner-todo-service";
 import { createTodoRoutes } from "../src/routes/todos";
+import { createActivityRoutes } from "../src/routes/activity";
+import { ActivityService } from "../src/services/activity-service";
 import type { RouteContext } from "../src/routes/context";
 import { expireTodoSuggestions } from "@outcomego/messaging";
 
@@ -21,6 +23,7 @@ async function setup() {
   await db.featureSettings.upsert({ where: { id: "global" }, create: { outcomesEnabled: true }, update: { outcomesEnabled: true } });
   cleanups.push(async () => {
     const rows = await db.ownerTodoItem.findMany({ where: { ownerId: { in: [owner, "local"] } }, select: { id: true } });
+    await db.outboxDelivery.deleteMany({ where: { OR: rows.map(({ id }) => ({ deliveryKey: { startsWith: `todo:urgent:${id}:` } })) } });
     await db.event.deleteMany({ where: { topic: "todo.changed", entityId: { in: rows.map((row) => row.id) } } });
     await db.ownerTodoItem.deleteMany({ where: { ownerId: { in: [owner, "local"] } } });
     await db.idempotencyRecord.deleteMany({ where: { scope: { in: [`todo-create:${owner}`, "todo-create:local", "todo-agent:local"] } } });
@@ -85,6 +88,44 @@ describe.skipIf(!enabled)("owner todo basics", () => {
     await expect(route({ ...ctx, request: malformed, authMode: "disabled" })).rejects.toMatchObject({ status: 400 });
     await db.featureSettings.update({ where: { id: "global" }, data: { outcomesEnabled: false } });
     await expect(route({ ...ctx, authMode: "disabled", request: new Request(request.url) })).rejects.toMatchObject({ code: "outcomes_disabled" });
+  });
+
+  test("needs-me shows reached follow-ups, removes snoozed items and preserves the activity response", async () => {
+    const { db, todos } = await setup();
+    const owner = "local";
+    const item = await todos.create(owner, { title: "Initial", clientRequestId: "waiting" }, now);
+    await todos.update(owner, item.id, { revision: 1, status: "waiting", followUpAt: later }, now);
+    expect(await todos.attention(owner, now)).toEqual([]);
+    const at = new Date(later);
+    expect(await todos.attention(owner, at)).toMatchObject([{ attention: "follow_up", todo: { id: item.id, revision: 2 } }]);
+    expect((await todos.list(owner, { view: "needs_me" }, at)).items.map(({ id }) => id)).toEqual([item.id]);
+    const request = new Request("http://localhost/api/needs-me");
+    const context = { request, path: "/api/needs-me", url: new URL(request.url), authMode: "disabled", authenticatedSessionId: null } as RouteContext;
+    const response = await createActivityRoutes(new ActivityService(db), {
+      ownerForSession: todos.ownerForSession.bind(todos), attention: (ownerId) => todos.attention(ownerId, at),
+    })(context);
+    expect(await response?.json()).toMatchObject({ items: [], todos: [{ todo: { id: item.id } }] });
+    await todos.act(owner, item.id, "snooze", { revision: 2, snoozeUntil: "2026-11-25T13:00:00Z" }, now);
+    expect(await todos.attention(owner, at)).toEqual([]);
+    expect((await todos.list(owner, { view: "needs_me" }, at)).items).toEqual([]);
+  });
+
+  test("high urgency uses the owner outbox only when enabled and only once per todo", async () => {
+    const { db, todos } = await setup();
+    const device = await db.pushDevice.create({ data: { installationId: crypto.randomUUID(), pushToken: crypto.randomUUID(), platform: "ios", authRequired: false, locale: "zh-CN" } });
+    cleanups.unshift(async () => { await db.pushDevice.deleteMany({ where: { id: device.id } }); });
+    const muted = await todos.create("local", { title: "Private title A", urgency: "high", clientRequestId: "muted" }, now);
+    await db.featureSettings.update({ where: { id: "global" }, data: { taskPolicy: { "todo.highUrgencyNotify": true } } });
+    const input = { title: "Private title B", urgency: "high" as const, clientRequestId: "enabled" };
+    const [first, retry] = await Promise.all([todos.create("local", input, now), todos.create("local", input, now)]);
+    expect(first.id).toBe(retry.id);
+    const edited = await todos.create("local", { title: "Private title C", clientRequestId: "edit" }, now);
+    await todos.update("local", edited.id, { revision: 1, urgency: "high" }, now);
+    const deliveries = await db.outboxDelivery.findMany({ where: { target: device.id, deliveryKey: { startsWith: "todo:urgent:" } } });
+    expect(deliveries).toHaveLength(1);
+    expect(deliveries[0]).toMatchObject({ deliveryKey: `todo:urgent:${first.id}:${device.id}`, payload: { kind: "todo", type: "urgent", todoId: first.id, title: "有一件高紧急度待办" } });
+    expect(JSON.stringify(deliveries)).not.toContain("Private title");
+    expect(muted.id).not.toBe(first.id);
   });
 });
 

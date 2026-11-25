@@ -3,12 +3,12 @@ import { ApiError } from "@outcomego/contracts";
 import { messagePreviewText } from "@outcomego/contracts/message-preview";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import {
-  decideTodoSource, deriveTodoDisplayState, TodoCreateFromTurn, TodoSourceRef, TodoSuggest,
-  type TodoAction, type TodoActionInput, type TodoBulkInput, type TodoCreate,
+  compareTodoAttention, decideTodoSource, deriveTodoAttention, deriveTodoDisplayState, TodoCreateFromTurn, TodoSourceRef, TodoSuggest,
+  type TodoAction, type TodoActionInput, type TodoAttentionItem, type TodoBulkInput, type TodoCreate,
   type TodoItemView, type TodoListQuery, type TodoListResponse, type TodoTurnResponse, type TodoUpdate,
 } from "@outcomego/contracts/todo";
 import type { Prisma, PrismaClient } from "@outcomego/db";
-import { expireTodoRows, publishTodoChanges, readFeatureSettings, readUserTimeZone } from "@outcomego/messaging";
+import { enqueueUrgentTodoPush, expireTodoRows, publishTodoChanges, readFeatureSettings, readUserTimeZone, todoAttentionWhere } from "@outcomego/messaging";
 
 type TodoRow = Prisma.OwnerTodoItemGetPayload<{}>;
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -111,6 +111,7 @@ export class OwnerTodoService {
         response: { id: row.id }, expiresAt: new Date(now.getTime() + Number(policy["todo.restoreRetentionDays"]) * dayMs),
       } });
       await publishTodoChanges(tx, [row]);
+      if (row.urgency === "high" && policy["todo.highUrgencyNotify"]) await enqueueUrgentTodoPush(tx, ownerId, row.id, now);
       return (await views(tx, [row], now))[0]!;
     });
   }
@@ -173,7 +174,10 @@ export class OwnerTodoService {
         scope, key: clientRequestId, requestHash, status: "completed", response: { id: row.id, reason },
         expiresAt: new Date(now.getTime() + Number(policy["todo.restoreRetentionDays"]) * dayMs),
       } });
-      if (!existing) await publishTodoChanges(tx, [row]);
+      if (!existing) {
+        await publishTodoChanges(tx, [row]);
+        if (row.urgency === "high" && policy["todo.highUrgencyNotify"]) await enqueueUrgentTodoPush(tx, ownerId, row.id, now);
+      }
       console.info(existing ? "todo.deduplicated" : "todo.created", { ...log, todoId: row.id, status: row.status, reason });
       return { todo: turnResult(row), reason };
     });
@@ -200,6 +204,20 @@ export class OwnerTodoService {
     return (await views(this.db, [row], now))[0]!;
   }
 
+  async attention(ownerId: string, now = new Date()): Promise<TodoAttentionItem[]> {
+    if (!(await readFeatureSettings(this.db)).outcomesEnabled) return [];
+    const timeZone = await readUserTimeZone(this.db);
+    const rows = await this.db.ownerTodoItem.findMany({ where: await todoAttentionWhere(this.db, ownerId, now, timeZone) });
+    const entries = rows.flatMap((row) => {
+      const attention = deriveTodoAttention(row, now, timeZone);
+      if (!attention) return [];
+      const since = attention === "overdue" ? row.dueAt : attention === "follow_up" ? row.followUpAt : row.createdAt;
+      return [{ row, key: `todo:${row.id}`, attention, urgency: row.urgency, since: (since ?? row.createdAt).toISOString() }];
+    }).sort(compareTodoAttention).slice(0, 200);
+    const todos = await views(this.db, entries.map(({ row }) => row), now);
+    return entries.map(({ row, ...entry }, index) => ({ ...entry, todo: todos[index]! }));
+  }
+
   async list(ownerId: string, query: TodoListQuery = {}, now = new Date()): Promise<TodoListResponse> {
     const policy = await this.settings(this.db);
     const and: Prisma.OwnerTodoItemWhereInput[] = [];
@@ -211,7 +229,7 @@ export class OwnerTodoService {
     } else {
       where.status = query.view === "suggestions" ? "suggested" : { in: ["suggested", "open", "waiting"] };
     }
-    if (query.view === "needs_me") and.push({ OR: [{ snoozeUntil: null }, { snoozeUntil: { lte: now } }] });
+    if (query.view === "needs_me") and.push(await todoAttentionWhere(this.db, ownerId, now, await readUserTimeZone(this.db)));
     if (query.from || query.to) {
       const range = { gte: query.from ? new Date(query.from) : undefined, lt: query.to ? new Date(query.to) : undefined };
       and.push({ OR: [{ dueAt: range }, { scheduledAt: range }, { followUpAt: range }] });

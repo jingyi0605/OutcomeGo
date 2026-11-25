@@ -137,6 +137,43 @@ export interface TodoListResponse {
   nextCursor: string | null;
 }
 
+export type TodoAttention = "overdue" | "today" | "follow_up" | "suggested";
+
+export interface TodoAttentionItem {
+  key: string;
+  attention: TodoAttention;
+  urgency: TodoItemView["urgency"];
+  since: string;
+  todo: TodoItemView;
+}
+
+const ATTENTION_RANK: Record<TodoAttention, number> = { overdue: 0, today: 1, follow_up: 1, suggested: 2 };
+const URGENCY_RANK: Record<TodoAttentionItem["urgency"], number> = { high: 0, normal: 1, low: 2 };
+
+export function compareTodoAttention(left: Omit<TodoAttentionItem, "todo">, right: Omit<TodoAttentionItem, "todo">): number {
+  return ATTENTION_RANK[left.attention] - ATTENTION_RANK[right.attention] ||
+    URGENCY_RANK[left.urgency] - URGENCY_RANK[right.urgency] ||
+    left.since.localeCompare(right.since) || left.key.localeCompare(right.key);
+}
+
+export function deriveTodoAttention(input: {
+  status: TodoStatus;
+  dueAt: Date | null;
+  scheduledAt: Date | null;
+  snoozeUntil: Date | null;
+  followUpAt: Date | null;
+  expiresAt: Date | null;
+}, now: Date, timeZone: string): TodoAttention | null {
+  const { status, dueAt, followUpAt, expiresAt } = input;
+  if (input.snoozeUntil && input.snoozeUntil > now) return null;
+  if (status === "suggested") return expiresAt && expiresAt <= now ? null : "suggested";
+  if (status !== "open" && status !== "waiting") return null;
+  if (isOverdue(dueAt, now, false)) return "overdue";
+  if (status === "waiting" && followUpAt && followUpAt <= now) return "follow_up";
+  const date = dueAt ?? (status === "open" ? input.scheduledAt : null);
+  return date && localDateOf(date, timeZone) === localDateOf(now, timeZone) ? "today" : null;
+}
+
 export function deriveTodoDisplayState(input: {
   status: TodoStatus;
   dueAt: Date | null;

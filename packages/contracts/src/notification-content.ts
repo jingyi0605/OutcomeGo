@@ -254,6 +254,14 @@ export interface RequestNotificationPayload {
   body: string;
 }
 
+export type TodoNotificationPayload = {
+  schemaVersion: 1;
+  kind: "todo";
+  ownerId: string;
+  title: string;
+  body: string;
+} & ({ type: "urgent"; todoId: string } | { type: "digest"; date: string });
+
 export const requestNotificationPayload = (input: {
   requestId: string; state: RequestNotificationPayload["state"]; revision: number; botId: string; channelId: string;
 }): RequestNotificationPayload => ({
