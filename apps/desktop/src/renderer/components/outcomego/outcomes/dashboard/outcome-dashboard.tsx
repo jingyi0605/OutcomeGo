@@ -43,6 +43,7 @@ import { ActivitySection } from "./activity-section";
 import { dashboardSections, styleForActivity } from "./activity-state";
 import { GoalFocusDetail, type GoalFocusClient } from "./goal-focus";
 import { QuickDecision } from "./quick-decision";
+import { TodoPanel } from "./todo-panel";
 
 interface Loaded {
   outcomes: OutcomeSummary[];
@@ -256,7 +257,7 @@ export function OutcomeDashboard({
   activityPolicy,
   refreshVersion = 0,
 }: {
-  outcomes: Pick<OutcomeClient, "list" | "activity" | "needsMe"> & GoalFocusClient;
+  outcomes: Pick<OutcomeClient, "list" | "activity" | "needsMe" | "todos"> & GoalFocusClient;
   inbox: Pick<InboxClient, "list" | "decision" | "resolve">;
   bots: readonly OutcomeExecutionBot[];
   onSelectOutcome: (id: string) => void;
@@ -377,6 +378,7 @@ export function OutcomeDashboard({
           <OutcomeRefresh busy={busy} onRefresh={() => void load()} />
         </div>
       </div>
+      {outcomes.todos && <TodoPanel client={outcomes.todos} />}
       {error && (
         <p role="alert" className="text-xs text-destructive">
           {t("Could not load goals. Try again.")}{" "}

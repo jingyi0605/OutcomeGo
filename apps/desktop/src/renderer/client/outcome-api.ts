@@ -1,4 +1,5 @@
 import type { ActivityResponse, NeedsMeResponse } from "@outcomego/contracts/task-overview";
+import { createTodoApi, type TodoClient } from "./todo-api";
 import type {
   PlanningDraftView,
   CreateOutcomePlanInput,
@@ -64,6 +65,7 @@ export interface OutcomeClient {
   activity?(query?: { botId?: string; includeAll?: boolean; recentHours?: number }): Promise<ActivityResponse>;
   /** The requests that wait on the owner (specs/004.10). Absent on a server that has no such call. */
   needsMe?(): Promise<NeedsMeResponse>;
+  todos?: TodoClient;
   workThreads?(botId: string, query: { archived?: boolean; cursor?: string; signal?: AbortSignal }): Promise<OutcomeWorkThreadPage>;
   transcript(id: string, itemId: string, query?: { before?: number }): Promise<unknown>;
 }
@@ -102,6 +104,7 @@ export function createOutcomeApi(
       outcomePut(`${outcomePath(id)}/work-items/${encodeURIComponent(workItemId)}/schedule`, input),
     setDue: (id, input) => outcomePut(`${outcomePath(id)}/due`, input),
     needsMe: () => request("/api/needs-me"),
+    todos: createTodoApi(request),
     activity: (query = {}) => {
       const params = new URLSearchParams();
       if (query.botId) params.set("botId", query.botId);
