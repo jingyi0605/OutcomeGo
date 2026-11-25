@@ -30,12 +30,31 @@ import kotlinx.serialization.json.put
 import java.net.URI
 import java.net.URLEncoder
 import java.net.URLDecoder
+import java.time.Instant
 
 /**
  * Maps the feature contracts to the existing authenticated server API. The
  * request client owns tokens, redirects, file I/O, and error translation.
  */
 class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway {
+    override suspend fun needsMeTodos(cursor: String?): Result<MobileTodoPage?> = runCatching {
+        val path = "/api/v0/todos?view=needs_me" + (cursor?.let { "&cursor=${URLEncoder.encode(it, "UTF-8")}" } ?: "")
+        try {
+            mobileJson.decodeFromJsonElement(MobileTodoPage.serializer(), client.request(HttpMethod.GET, path))
+        } catch (error: OutcomeGoRequestException) {
+            if (error.error.status == 404) null else throw error
+        }
+    }.onFailure { if (it is CancellationException) throw it }
+
+    override suspend fun actOnTodo(item: MobileTodo, action: MobileTodoAction, snoozeUntil: Instant?): Result<Unit> = runCatching {
+        val body = buildJsonObject {
+            put("revision", item.revision)
+            if (action == MobileTodoAction.SNOOZE) put("snoozeUntil", requireNotNull(snoozeUntil).toString())
+        }
+        client.request(HttpMethod.POST, "/api/v0/todos/${URLEncoder.encode(item.id, "UTF-8")}/${action.route}", body)
+        Unit
+    }.onFailure { if (it is CancellationException) throw it }
+
     override suspend fun outcomeInbox(category: String?, cursor: String?): Result<OutcomeInboxPage?> =
         loadOutcomeInbox(outcomeInboxPath(category, cursor))
 

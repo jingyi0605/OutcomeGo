@@ -1837,6 +1837,25 @@ final class AppStore {
   func outcomeInbox(category: String? = nil, cursor: String? = nil) async throws -> OutcomeInboxPage? {
     try await fetchOutcomeInbox(query: API.outcomeInboxQuery(category: category, cursor: cursor))
   }
+  func needsMeTodos(cursor: String? = nil) async throws -> MobileTodoPage? {
+    try await withTodoAPI { try await $0.needsMeTodos(cursor: cursor) }
+  }
+  func actOnTodo(_ item: MobileTodo, action: MobileTodoAction, snoozeUntil: Date? = nil) async throws {
+    try await withTodoAPI { try await $0.actOnTodo(item, action: action, snoozeUntil: snoozeUntil) }
+  }
+  private func withTodoAPI<Value>(_ operation: (API) async throws -> Value) async throws -> Value {
+    guard let api else { throw APIError("Sign in to continue.", status: 401) }
+    let epoch = generation
+    do {
+      let value = try await operation(api)
+      guard epoch == generation, !Task.isCancelled else { throw CancellationError() }
+      return value
+    } catch {
+      guard epoch == generation else { throw CancellationError() }
+      if (error as? APIError)?.unauthorized == true { handle(error) }
+      throw error
+    }
+  }
   func hasPendingOutcomes() async throws -> Bool {
     try await fetchOutcomeInbox(query: ["status": "pending", "limit": "1"])?.hasPendingActions ?? false
   }

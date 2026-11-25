@@ -1,6 +1,57 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "To-dos that need me": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "需要我处理的待办"}}}
+    },
+    "Refresh to-dos": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "刷新待办"}}}
+    },
+    "Could not load to-dos.": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "无法加载待办。"}}}
+    },
+    "To-dos are unavailable on this server.": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "此服务器不支持待办。"}}}
+    },
+    "No to-dos need attention.": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "暂无待处理的待办。"}}}
+    },
+    "Load more to-dos": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "加载更多待办"}}}
+    },
+    "To-do suggestion": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "待办建议"}}}
+    },
+    "Needs follow-up": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "需跟进"}}}
+    },
+    "Overdue": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "已逾期"}}}
+    },
+    "Today": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "今天"}}}
+    },
+    "Accept suggestion": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "接受建议"}}}
+    },
+    "Complete": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "完成"}}}
+    },
+    "Snooze": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "延后"}}}
+    },
+    "Snooze until": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "延后至"}}}
+    },
+    "Choose a future snooze time.": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "请选择未来的延后时间。"}}}
+    },
+    "The to-do changed. Review the current list.": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "待办已变化，请查看最新列表。"}}}
+    },
+    "Could not update the to-do.": {
+      "localizations": {"zh-CN": {"stringUnit": {"state": "translated", "value": "无法更新待办。"}}}
+    },
     "%@ %lld": {
       "localizations": {
         "zh-CN": {

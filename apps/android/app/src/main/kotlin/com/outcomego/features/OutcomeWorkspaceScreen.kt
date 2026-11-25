@@ -507,11 +507,13 @@ private fun NeedsAttentionTab(
     }
 
     LaunchedEffect(gateway, category, refreshVersion) { load() }
+    val todoItems = rememberNeedsMeTodoItems(gateway, refreshVersion) { onAuthenticationRequired(OutcomeLinkTarget()) }
 
     LazyColumn(
         contentPadding = PaddingValues(horizontal = SpatialSpacing.md, vertical = SpatialSpacing.xs),
         verticalArrangement = Arrangement.spacedBy(SpatialSpacing.sm),
     ) {
+        todoItems()
         item {
             Row(
                 modifier = Modifier
@@ -543,7 +545,7 @@ private fun NeedsAttentionTab(
             item {
                 SpatialGlassSurface(Modifier.fillMaxWidth(), tier = GlassTier.Subtle, shape = RoundedCornerShape(SpatialRadii.lg)) {
                     Text(
-                        text = localizedText("All caught up — nothing needs attention.", "暂无待处理事项。"),
+                        text = localizedText("No outcome inbox items.", "暂无目标收件箱事项。"),
                         style = MaterialTheme.typography.bodyMedium,
                         color = colors.textSecondary,
                         modifier = Modifier.padding(SpatialSpacing.lg),

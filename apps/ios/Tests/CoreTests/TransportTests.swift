@@ -60,6 +60,52 @@ private final class ImageRequestCount: @unchecked Sendable {
 }
 
 final class TransportTests: XCTestCase, @unchecked Sendable {
+  func testNeedsMeTodosPreserveCursorAndFourRevisionedWrites() async throws {
+    let client = try api()
+    let until = Date(timeIntervalSince1970: 1_893_553_440)
+    let actions: [(MobileTodoAction, String)] = [(.accept, "accept"), (.snooze, "snooze"), (.dismiss, "dismiss"), (.complete, "complete")]
+    XCTAssertEqual(MobileTodoAction.allCases, actions.map(\.0))
+    for (id, revision) in [("item-a", 3), ("item/b", 8)] {
+      MockProtocol.stub.set { request in
+        XCTAssertEqual(request.httpMethod, "GET")
+        XCTAssertEqual(request.url?.path, "/team/api/v0/todos")
+        XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems,
+          [URLQueryItem(name: "cursor", value: "next/+"), URLQueryItem(name: "view", value: "needs_me")])
+        return (200, [:], Data("""
+          {"items":[{"id":"\(id)","title":"Item \(revision)","status":"suggested","displayState":"suggested","revision":\(revision)}],"nextCursor":"next/+"}
+          """.utf8))
+      }
+      let response = try await client.needsMeTodos(cursor: "next/+")
+      let page = try XCTUnwrap(response)
+      let item = try XCTUnwrap(page.items.first)
+      XCTAssertEqual(item.id, id)
+      XCTAssertEqual(page.nextCursor, "next/+")
+      for (action, route) in actions {
+        MockProtocol.stub.set { request in
+          XCTAssertEqual(request.httpMethod, "POST")
+          XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.percentEncodedPath,
+            "/team/api/v0/todos/\(id.replacingOccurrences(of: "/", with: "%2F"))/\(route)")
+          let body = try JSONDecoder().decode(JSON.self, from: requestBody(request))
+          XCTAssertEqual(body["revision"], .number(Double(revision)))
+          XCTAssertEqual(Set(body.object.keys), action == .snooze ? ["revision", "snoozeUntil"] : ["revision"])
+          if action == .snooze { XCTAssertEqual(ISO8601DateFormatter().date(from: body["snoozeUntil"].string), until) }
+          return (200, [:], Data("{}".utf8))
+        }
+        try await client.actOnTodo(item, action: action, snoozeUntil: action == .snooze ? until : nil)
+      }
+    }
+  }
+
+  func testTodoActionsFollowServerTransitions() throws {
+    for (status, actions) in [("suggested", [.accept, .snooze, .dismiss]), ("open", [.complete, .snooze, .dismiss]),
+      ("waiting", [.complete, .snooze, .dismiss]), ("done", []), ("dismissed", []), ("future_status", [])] as [(String, [MobileTodoAction])] {
+      let item = try JSONDecoder().decode(MobileTodo.self, from: Data("""
+        {"id":"item-a","title":"Item A","status":"\(status)","displayState":"today","revision":1}
+        """.utf8))
+      XCTAssertEqual(item.actions, actions)
+    }
+  }
+
   func testPresentationPhotosUseOnlySelectedServerWithScopedCredentials() async throws {
     let image = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jG1sAAAAASUVORK5CYII=")!
     let provider = "https://photos.example.com/photo?expiring=provider-token"
