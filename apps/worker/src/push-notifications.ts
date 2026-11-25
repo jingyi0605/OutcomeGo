@@ -175,7 +175,7 @@ export class PushNotificationDispatcher {
         if (
           !device ||
           payload.schemaVersion !== 1 ||
-          !(payload.kind === "badge-sync" || payload.kind === "outcome" || isAgentNotificationKind(payload.kind))
+          !(payload.kind === "badge-sync" || payload.kind === "outcome" || payload.kind === "request" || isAgentNotificationKind(payload.kind))
         ) {
           return [];
         }
@@ -316,7 +316,7 @@ export class PushNotificationDispatcher {
     tx: Prisma.TransactionClient,
     payload: PushNotificationPayload
   ): Promise<boolean> {
-    if (payload.kind === "badge-sync" || payload.kind === "outcome" || !payload.messageSequence) return true;
+    if (payload.kind === "badge-sync" || payload.kind === "outcome" || payload.kind === "request" || !payload.messageSequence) return true;
     return notificationMessageIsSettlement(tx, payload.channelId, payload.messageSequence);
   }
 
@@ -340,6 +340,20 @@ export class PushNotificationDispatcher {
           (decision.expiresAt && decision.expiresAt <= new Date())) return false;
       }
       return outcomeNotificationIsCurrent(tx, payload);
+    }
+    if (payload.kind === "request") {
+      const [bot, activity, state, preferences, run] = await Promise.all([
+        tx.bot.findUnique({ where: { id: payload.botId } }),
+        tx.channelNotification.findUnique({ where: { key: payload.factKey } }),
+        tx.channelReadState.findUnique({ where: { channelId: payload.channelId } }),
+        tx.notificationPreferences.findUnique({ where: { id: "global" } }),
+        tx.run.findUnique({ where: { id: payload.requestId }, select: { requestStoppedAt: true, requestRevision: true, requestProgress: true } }),
+      ]);
+      const progress = run?.requestProgress as { state?: string } | null | undefined;
+      // Stale once the request moved on: it is stopped, revised, or no longer waiting or blocked.
+      const current = !!run && !run.requestStoppedAt && run.requestRevision === payload.revision && (progress?.state === "blocked" || progress?.state === "waiting");
+      return !(preferences?.smartEnabled === false || !bot?.notificationsEnabled || !activity || activity.revoked || activity.sequence.toString() !== payload.notificationSequence ||
+        (state && activity.sequence <= state.lastReadNotificationSequence) || !current);
     }
     const [state, bot, channel] = await Promise.all([
       tx.channelReadState.findUnique({ where: { channelId: payload.channelId } }),

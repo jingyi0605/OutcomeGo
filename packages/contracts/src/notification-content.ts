@@ -234,3 +234,34 @@ export const outcomeNotificationPayload = (input: {
     deepLink: input.decisionId ? outcomeDecisionDeepLink(input.decisionId) : outcomeDeepLink(input.outcomeId),
   };
 };
+
+/**
+ * A tracked request that waits on the owner. It has no outcome, so it is not an outcome notification; old clients
+ * ignore the unknown kind. The text is fixed: nothing the bot wrote is placed in an alert.
+ */
+export interface RequestNotificationPayload {
+  schemaVersion: 1;
+  kind: "request";
+  factKey: string;
+  requestId: string;
+  state: "needs_owner" | "no_follow_up" | "check_not_fired";
+  revision: number;
+  botId: string;
+  channelId: string;
+  notificationSequence: string;
+  badgeCount: number;
+  title: string;
+  body: string;
+}
+
+export const requestNotificationPayload = (input: {
+  requestId: string; state: RequestNotificationPayload["state"]; revision: number; botId: string; channelId: string;
+}): RequestNotificationPayload => ({
+  schemaVersion: 1, kind: "request",
+  // One fact per request, revision and state: the same thing in the same state is announced once.
+  factKey: `request:${input.requestId}:${input.revision}:${input.state}`,
+  requestId: input.requestId, state: input.state, revision: input.revision, botId: input.botId, channelId: input.channelId,
+  notificationSequence: "0", badgeCount: 0,
+  title: "An Outcome needs your attention",
+  body: input.state === "needs_owner" ? "Open OutcomeGo to see what it is waiting for." : "Open OutcomeGo to see a request nobody is following up.",
+});

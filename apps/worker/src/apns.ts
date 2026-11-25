@@ -49,6 +49,10 @@ export function apnsPayload(
       },
     };
   }
+  if (payload.kind === "request") return {
+    aps: { alert: { title: payload.title, body: payload.body }, badge, sound: "default", "content-available": 1, "mutable-content": 1, "thread-id": payload.channelId },
+    data: { ...payload, notificationScope: device.notificationScope, badgeCount: badge },
+  };
   if (payload.kind === "outcome") return {
     aps: { alert: { title: payload.title, body: payload.body }, badge, sound: "default", "content-available": 1, "mutable-content": 1, "thread-id": payload.outcomeId },
     data: { ...payload, notificationScope: device.notificationScope, badgeCount: badge },
