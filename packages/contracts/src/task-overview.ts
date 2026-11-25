@@ -229,6 +229,22 @@ export interface CreatedCalendarFeed extends CalendarFeedView {
   url: string;
 }
 
+export interface ExternalCalendarSummary {
+  id: string;
+  name: string;
+  primary: boolean;
+}
+
+export interface ExternalCalendarListResponse {
+  calendars: ExternalCalendarSummary[];
+  unavailable?: { code: string; message: string };
+}
+
+export interface ExternalCalendarResponse {
+  items: TimeItem[];
+  unavailable?: { code: string; message: string };
+}
+
 export const SCHEDULE_RANGE_DAYS = 93;
 export const SCHEDULE_ITEM_LIMIT = 1000;
 

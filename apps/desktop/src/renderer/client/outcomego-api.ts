@@ -21,6 +21,11 @@ import type {
   AutomationWebhookPublicUrlCheck,
   AutomationWebhookPublicUrlView,
 } from "@outcomego/contracts/automation-webhooks";
+import type {
+  CalendarFeedListResponse,
+  CreatedCalendarFeed,
+  CreateCalendarFeedInput,
+} from "@outcomego/contracts/task-overview";
 
 const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
@@ -40,6 +45,12 @@ const schedule = createScheduleApi(request);
 export const api = {
   outcomes,
   schedule,
+  calendarFeeds: {
+    list: () => request<CalendarFeedListResponse>("/api/calendar/feeds"),
+    create: (input: CreateCalendarFeedInput) => request<CreatedCalendarFeed>("/api/calendar/feeds", { method: "POST", body: JSON.stringify(input) }),
+    revoke: (id: string) => request(`/api/calendar/feeds/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    rotate: (id: string) => request<CreatedCalendarFeed>(`/api/calendar/feeds/${encodeURIComponent(id)}/rotate`, { method: "POST" }),
+  },
   stopChatBranch: (channelId: string, branchId: string) =>
     request<{ ok: boolean }>(`/api/channels/${encodeURIComponent(channelId)}/branches/${encodeURIComponent(branchId)}/stop`, { method: "POST" }),
   chatBranches: (channelId: string, { archived, before, signal }: { archived: boolean; before?: string; signal: AbortSignal }) => {

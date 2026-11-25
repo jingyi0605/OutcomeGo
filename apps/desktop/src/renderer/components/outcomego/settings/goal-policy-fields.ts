@@ -83,7 +83,7 @@ export const GOAL_SETTINGS_GROUPS: readonly GoalSettingsGroup[] = [
   { id: "goal-activity", title: "Activity view", policyGroup: "activity", available: true },
   { id: "goal-todo", title: "To-dos", policyGroup: "todo", available: true },
   { id: "goal-auto-accept", title: "Auto-accept rules", available: true },
-  { id: "goal-calendar", title: "Calendar", available: false },
+  { id: "goal-calendar", title: "Calendar", available: true },
 ];
 
 export const visibleGoalSettingsGroups = (): GoalSettingsGroup[] => GOAL_SETTINGS_GROUPS.filter((group) => group.available);

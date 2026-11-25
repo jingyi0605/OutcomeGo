@@ -8,6 +8,7 @@ import { describePolicyField, parsePolicyInput, visibleGoalSettingsGroups, type 
 import OutcomeRoleSettings from "./outcome-role-settings";
 import { TodoAutoAcceptRules } from "./todo-auto-accept-rules";
 import { InteractiveSwitch, SectionLabel, SettingsGroup, SettingsRow, settingsInput, settingsSecondaryButton } from "./ui";
+import { CalendarSettings } from "./calendar-settings";
 
 type Features = ReturnType<typeof useFeatureSettings>;
 /** One entry of the metadata table; its `key` is the literal union the copy module is exhaustive over. */
@@ -31,6 +32,7 @@ export function GoalsSettingsView({ features, autoAcceptRules }: { features: Fea
           {group.id === "goal-roles" ? <OutcomeRoleSettings features={features} /> : null}
           {group.id === "goal-auto-accept" && autoAcceptRules && <TodoAutoAcceptRules client={autoAcceptRules} disabled={off || !features.loaded} />}
           {group.policyGroup ? <PolicyFields features={features} group={group} /> : null}
+          {group.id === "goal-calendar" ? <CalendarSettings /> : null}
         </GroupShell>
       ))}
       {off && <p className="px-2 text-[12px] text-foreground-secondary">{t("Turn on goal management to change these settings.")}</p>}
