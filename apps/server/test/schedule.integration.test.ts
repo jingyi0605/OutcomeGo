@@ -76,13 +76,64 @@ describe.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("owner schedule", () =
     expect(await response?.json()).toEqual({ items: [], truncated: false });
   });
 
+  test("projects cron, interval and historical event executions without projecting paused or deleted routines", async () => {
+    const { db, bot, ownerId, service } = await setup();
+    const reference = new Date("2026-03-07T15:00:00Z");
+    const query = { from: range.from, to: "2026-03-11T00:00:00Z", botId: bot.id, kinds: ["routine_run"] as const };
+    const create = (slug: string, fields: Parameters<typeof db.routine.create>[0]["data"]) => db.routine.create({ data: { ...fields, slug, name: slug } });
+    const base = { botId: bot.id, prompt: "Fixture", name: "Fixture", slug: "fixture", scheduleText: "0 9 * * *", scheduleKind: "cron" as const,
+      timezone: "America/New_York", cronExpression: "0 9 * * *", nextRunAt: new Date("2026-03-08T13:00:00Z") };
+    const cron = await create("alpha", base);
+    const interval = await create("beta", { ...base, scheduleKind: "interval", scheduleText: "@every 5m", intervalSeconds: 300, cronExpression: null,
+      nextRunAt: new Date("2026-03-07T15:02:00Z"), scheduleAnchorAt: new Date("2026-03-07T15:02:00Z") });
+    const event = await create("gamma", { ...base, scheduleKind: "event", scheduleText: "", cronExpression: null });
+    const paused = await create("delta", { ...base, pausedAt: reference, enabled: false });
+    const deleted = await create("epsilon", { ...base, deletedAt: reference });
+    const revision = await db.routineRevision.create({ data: { routineId: event.id, revision: 1, name: event.name, prompt: event.prompt,
+      scheduleText: event.scheduleText, scheduleKind: event.scheduleKind, timezoneMode: event.timezoneMode, timezone: event.timezone, enabled: true, source: "fixture" } });
+    const past = await db.routineExecution.create({ data: { routineId: event.id, routineRevisionId: revision.id, kind: "scheduled", status: "completed",
+      scheduledFor: new Date("2026-03-08T00:10:00Z"), events: [], dedupeKey: `fixture:${event.id}` } });
+
+    const { items } = await service.list(ownerId, query, reference, "America/New_York");
+    const forRoutine = (id: string) => items.filter((item) => item.link.id === id);
+    expect(forRoutine(cron.id).map((item) => item.start)).toEqual(["2026-03-08T13:00:00.000Z", "2026-03-09T13:00:00.000Z", "2026-03-10T13:00:00.000Z"]);
+    expect(forRoutine(interval.id)).toHaveLength(100);
+    expect(forRoutine(interval.id)[0]?.start).toBe("2026-03-08T00:02:00.000Z");
+    for (const routine of [event, paused, deleted]) expect(forRoutine(routine.id)).toEqual([]);
+    const history = await service.list(ownerId, query, now);
+    expect(history.items.filter((item) => item.link.id === event.id)).toMatchObject([
+      { id: `routine_run:${event.id}:${past.id}`, start: past.scheduledFor.toISOString(), timeBasis: "actual", editable: false },
+    ]);
+  });
+
+  test("surfaces active follow-ups and links the relevant conversation or the standalone todo", async () => {
+    const { db, bot, ownerId, service } = await setup();
+    const nextCheck = new Date("2026-03-08T14:55:00Z");
+    const message = await db.message.create({ data: { botId: bot.id, conversationId: bot.conversation!.id, role: "user", content: "Fixture request" } });
+    const run = await db.run.create({ data: { botId: bot.id, conversationId: bot.conversation!.id, userMessageId: message.id,
+      requestProgress: { state: "waiting", summary: "Fixture" }, requestNextCheckAt: nextCheck } });
+    const todo = { ownerId, title: "Fixture", status: "waiting" as const, followUpAt: nextCheck, createdBy: ownerId, createdVia: "owner_ui" as const, botId: bot.id };
+    const linked = await db.ownerTodoItem.create({ data: { ...todo, handoffMessageId: message.id } });
+    const standalone = await db.ownerTodoItem.create({ data: todo });
+    await db.ownerTodoItem.create({ data: { ...todo, status: "done" } });
+    const query = { ...range, botId: bot.id, kinds: ["follow_up"] as const };
+    const { items } = await service.list(ownerId, query, now);
+    expect(items).toHaveLength(3);
+    expect(items).toContainEqual(expect.objectContaining({ id: `follow_up:request:${run.id}`, title: "Fixture request", link: { type: "conversation", id: bot.conversation!.id }, editable: false }));
+    expect(items).toContainEqual(expect.objectContaining({ id: `follow_up:todo:${linked.id}`, link: { type: "conversation", id: bot.conversation!.id }, state: "follow_up" }));
+    expect(items).toContainEqual(expect.objectContaining({ id: `follow_up:todo:${standalone.id}`, link: { type: "todo", id: standalone.id } }));
+    await db.run.update({ where: { id: run.id }, data: { requestStoppedAt: now } });
+    expect((await service.list(ownerId, query, now)).items).toHaveLength(2);
+    expect((await service.list("another-owner", query, now)).items).toEqual([]);
+  });
+
   test("returns a stable first 1000 with a truncation flag over a 93-day range", async () => {
     const { db, ownerId, service } = await setup();
     await db.ownerTodoItem.createMany({ data: Array.from({ length: 1001 }, (_, index) => ({
       ownerId, title: `Fixture ${index}`, createdBy: ownerId, createdVia: "owner_ui" as const,
       scheduledAt: new Date(Date.parse(range.from) + index * 1_000),
     })) });
-    const query = { from: range.from, to: "2026-06-09T00:00:00Z" };
+    const query = { from: range.from, to: "2026-06-09T00:00:00Z", kinds: ["todo"] as const };
     const elapsed: number[] = [];
     for (let sample = 0; sample < 20; sample++) {
       const start = performance.now();
