@@ -3151,8 +3151,10 @@ export class AgentMessaging {
 export type { RoutineExecutionView, RoutineMutationInput, RoutineView } from "./routines";
 export {
   appendRoutineRunLedger,
+  inferRoutineScheduleAnchor,
   manualRoutineWakeContent,
   nextRoutineRun,
+  nextRoutineTriggerRun,
   normalizeRoutineSchedule,
   RoutineService,
   scheduledRoutineWakeContent,

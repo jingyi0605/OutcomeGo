@@ -237,7 +237,7 @@ export interface TimeItem {
   owner: "me" | "bot" | "external";
   botId?: string;
   outcomeId?: string;
-  link: { type: "outcome" | "work_item" | "todo" | "conversation" | "routine" | "external"; id: string };
+  link: { type: "outcome" | "work_item" | "todo" | "conversation" | "channel" | "routine" | "external"; id: string };
   editable: boolean;
   updatedAt: string;
 }
