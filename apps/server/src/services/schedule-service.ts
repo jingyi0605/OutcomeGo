@@ -45,10 +45,10 @@ export class ScheduleService {
     return this.collect(ownerId, { ...query, from, to }, now, timeZone ?? await readUserTimeZone(this.db));
   }
 
-  async collect(ownerId: string, query: Window, now: Date, timeZone: string): Promise<ScheduleResponse> {
+  async collect(ownerId: string, query: Window, now: Date, timeZone: string, limit: number | null = SCHEDULE_ITEM_LIMIT): Promise<ScheduleResponse> {
     const hasKind = (kind: TimeItemKind) => !query.kinds || query.kinds.includes(kind);
     const range = { gte: query.from, lt: query.to };
-    const take = SCHEDULE_ITEM_LIMIT + 1;
+    const take: { take?: number } = limit === null ? {} : { take: limit + 1 };
     const bot = query.botId ? { botId: query.botId } : {};
     const outcome = query.outcomeId ? { outcomeId: query.outcomeId } : {};
     const deadline = deadlineFormatter(timeZone);
@@ -56,7 +56,7 @@ export class ScheduleService {
     const goals = hasKind("goal_due") ? this.db.outcome.findMany({
       where: { ...bot, ...(query.outcomeId ? { id: query.outcomeId } : {}), dueAt: range },
       select: { id: true, botId: true, title: true, dueAt: true, status: true, acceptedAt: true, cancelledAt: true, updatedAt: true },
-      orderBy: [{ dueAt: "asc" }, { id: "asc" }], take,
+      orderBy: [{ dueAt: "asc" }, { id: "asc" }], ...take,
     }) : [];
 
     const work = async (kind: "work_item" | "human_task", field: "scheduledAt" | "dueAt" | "completedAt") => {
@@ -67,7 +67,7 @@ export class ScheduleService {
           dependsOn: true, scheduledAt: true, dueAt: true, completedAt: true, startedAt: true, estimateMinutes: true, updatedAt: true,
           outcome: { select: { acceptedAt: true, cancelledAt: true } },
           runs: { where: { status: { in: ["queued", "running"] } }, select: { id: true }, take: 1 } },
-        orderBy: [{ [field]: "asc" }, { id: "asc" }], take,
+        orderBy: [{ [field]: "asc" }, { id: "asc" }], ...take,
       });
       const dependencyKeys = [...new Set(rows.flatMap((row) => dependencyIds(row.dependsOn)))];
       const dependencies = dependencyKeys.length ? await this.db.outcomeWorkItem.findMany({
@@ -100,7 +100,7 @@ export class ScheduleService {
           ...(query.mine ? { executor: "owner" } : {}), status: { in: followUp ? ["waiting"] : ["open", "waiting", "done"] }, [field]: range },
         select: { id: true, title: true, executor: true, status: true, dueAt: true, scheduledAt: true, snoozeUntil: true,
           followUpAt: true, botId: true, linkedOutcomeId: true, handoffMessageId: true, updatedAt: true },
-        orderBy: [{ [field]: "asc" }, { id: "asc" }], take,
+        orderBy: [{ [field]: "asc" }, { id: "asc" }], ...take,
       });
       const messageIds = followUp ? rows.flatMap((row) => row.handoffMessageId ? [row.handoffMessageId] : []) : [];
       const runs = messageIds.length ? await this.db.run.findMany({
@@ -130,8 +130,8 @@ export class ScheduleService {
       ...(hasKind("work_item") && !query.mine ? [work("work_item", "scheduledAt"), work("work_item", "dueAt"), work("work_item", "completedAt")] : []),
       ...(hasKind("todo") ? [todos("scheduledAt"), todos("dueAt")] : []),
       ...(hasKind("follow_up") ? [todos("followUpAt")] : []),
-      ...(hasKind("follow_up") && !query.mine && !query.outcomeId ? [this.requestChecks(query, now)] : []),
-      ...(hasKind("routine_run") && !query.mine && !query.outcomeId ? [this.routineRuns(query, now, timeZone)] : []),
+      ...(hasKind("follow_up") && !query.mine && !query.outcomeId ? [this.requestChecks(query, now, take)] : []),
+      ...(hasKind("routine_run") && !query.mine && !query.outcomeId ? [this.routineRuns(query, now, timeZone, take)] : []),
     ]);
     const items: LocatedItem[] = goalRows.map((row) => ({
       at: row.dueAt!.getTime(), id: `goal_due:${row.id}`, kind: "goal_due", title: row.title, start: null,
@@ -140,19 +140,19 @@ export class ScheduleService {
       owner: "me", outcomeId: row.id, botId: row.botId, link: { type: "outcome", id: row.id },
       editable: !row.acceptedAt && !row.cancelledAt, updatedAt: row.updatedAt.toISOString(),
     }));
-    for (const source of sources) items.push(...source);
+    for (const source of sources) for (const item of source) items.push(item);
     items.sort((left, right) => left.at - right.at || left.id.localeCompare(right.id));
-    return { items: items.slice(0, SCHEDULE_ITEM_LIMIT).map(({ at, ...item }) => item), truncated: items.length > SCHEDULE_ITEM_LIMIT };
+    return { items: items.slice(0, limit ?? undefined).map(({ at, ...item }) => item), truncated: limit !== null && items.length > limit };
   }
 
-  private async requestChecks(query: Window, now: Date): Promise<LocatedItem[]> {
+  private async requestChecks(query: Window, now: Date, take: { take?: number }): Promise<LocatedItem[]> {
     const rows = await this.db.run.findMany({
       where: { requestNextCheckAt: { gte: query.from, lt: query.to }, requestStoppedAt: null,
         requestProgress: { path: ["state"], equals: "waiting" }, origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
         ...(query.botId ? { botId: query.botId } : {}) },
       select: { id: true, botId: true, conversationId: true, channelId: true, userMessageId: true,
         requestNextCheckAt: true, requestReconciliations: true, updatedAt: true },
-      orderBy: [{ requestNextCheckAt: "asc" }, { id: "asc" }], take: SCHEDULE_ITEM_LIMIT + 1,
+      orderBy: [{ requestNextCheckAt: "asc" }, { id: "asc" }], ...take,
     });
     if (!rows.length) return [];
     const [messages, feature] = await Promise.all([
@@ -172,7 +172,7 @@ export class ScheduleService {
     });
   }
 
-  private async routineRuns(query: Window, now: Date, timeZone: string): Promise<LocatedItem[]> {
+  private async routineRuns(query: Window, now: Date, timeZone: string, take: { take?: number }): Promise<LocatedItem[]> {
     const bot = query.botId ? { OR: [{ botId: query.botId }, { executorBotId: query.botId }] } : {};
     const historicEnd = query.to < now ? query.to : now;
     const futureStart = query.from > now ? query.from : now;
@@ -181,7 +181,7 @@ export class ScheduleService {
         where: { scheduledFor: { gte: query.from, lt: historicEnd }, routine: bot },
         select: { id: true, kind: true, events: true, scheduledFor: true, status: true, updatedAt: true,
           routine: { select: { id: true, name: true, botId: true, executorBotId: true, pausedAt: true } } },
-        orderBy: [{ scheduledFor: "asc" }, { id: "asc" }], take: SCHEDULE_ITEM_LIMIT + 1,
+        orderBy: [{ scheduledFor: "asc" }, { id: "asc" }], ...take,
       }) : [],
       futureStart < query.to ? this.db.routine.findMany({
         where: { ...bot, enabled: true, pausedAt: null, deletedAt: null, scheduleKind: { not: "event" }, nextRunAt: { lt: query.to } },

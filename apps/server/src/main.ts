@@ -24,6 +24,7 @@ import { pluginQueryRoutes } from "./routes/plugin-query";
 import { createActivityRoutes } from "./routes/activity";
 import { createTodoRoutes } from "./routes/todos";
 import { createScheduleRoutes } from "./routes/schedule";
+import { calendarFeedResponse, createCalendarFeedRoutes } from "./routes/calendar-feed";
 import { outcomeRoutes } from "./routes/outcome";
 import { exploreRoutes } from "./routes/explore";
 import { outcomeInboxRoutes } from "./routes/outcome-inbox";
@@ -108,9 +109,10 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
     close: (socket, code, reason) => isNetwork(socket.data) ? browserNetwork.websocket.close?.(socket as any, code, reason) : isVoice(socket.data) ? voiceWebsocket.close?.(socket as any, code, reason) : vnc.websocket.close?.(socket as any, code, reason),
   },
   async fetch(request, requestServer) {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/calendar/feed/")) return await calendarFeedResponse(app.calendarFeeds, request, url.pathname);
     if (request.method === "OPTIONS")
       return new Response(null, { status: 204, headers: corsHeaders });
-    const url = new URL(request.url);
     const path = url.pathname.replace(/^\/api\/v0(?=\/|$)/, "/api");
     const networkRequest=request;
     const requestIpServer={requestIP:()=>requestServer.requestIP(networkRequest)};
@@ -371,6 +373,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         createActivityRoutes(app.activity, app.ownerTodos),
         createTodoRoutes(app.ownerTodos),
         createScheduleRoutes(app.schedule, app.ownerTodos),
+        createCalendarFeedRoutes(app.calendarFeeds),
         (context: RouteContext) => exploreRoutes(context, app.explore),
         outcomeInboxRoutes,
         channelRoutes,
