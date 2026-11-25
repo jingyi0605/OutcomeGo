@@ -11,6 +11,7 @@ import {
 import { deriveTodoDisplayState } from "@outcomego/contracts/todo";
 import type { PrismaClient } from "@outcomego/db";
 import { INDEPENDENT_RUN_ORIGINS, inferRoutineScheduleAnchor, nextRoutineTriggerRun, readFeatureSettings, readUserTimeZone } from "@outcomego/messaging";
+import { listDatedRoutineSchedules } from "./dated-routine-schedule";
 
 type Window = Omit<ScheduleQuery, "from" | "to"> & { from: Date; to: Date };
 type LocatedItem = TimeItem & { at: number };
@@ -124,6 +125,9 @@ export class ScheduleService {
       });
     };
 
+    const dated = hasKind("scheduled_once") && !query.mine && !query.outcomeId
+      ? await listDatedRoutineSchedules(this.db, { ...query, ...take }) : [];
+    const datedIds = new Set(dated.map((row) => row.id));
     const [goalRows, ...sources] = await Promise.all([
       goals,
       ...(hasKind("human_task") ? [work("human_task", "scheduledAt"), work("human_task", "dueAt")] : []),
@@ -131,7 +135,8 @@ export class ScheduleService {
       ...(hasKind("todo") ? [todos("scheduledAt"), todos("dueAt")] : []),
       ...(hasKind("follow_up") ? [todos("followUpAt")] : []),
       ...(hasKind("follow_up") && !query.mine && !query.outcomeId ? [this.requestChecks(query, now, take)] : []),
-      ...(hasKind("routine_run") && !query.mine && !query.outcomeId ? [this.routineRuns(query, now, timeZone, take)] : []),
+      ...(hasKind("routine_run") && !query.mine && !query.outcomeId ? [this.routineRuns(query, now, timeZone, take, datedIds)] : []),
+      ...(hasKind("scheduled_once") && !query.mine && !query.outcomeId ? [this.onceItems(query, take)] : []),
     ]);
     const items: LocatedItem[] = goalRows.map((row) => ({
       at: row.dueAt!.getTime(), id: `goal_due:${row.id}`, kind: "goal_due", title: row.title, start: null,
@@ -140,6 +145,14 @@ export class ScheduleService {
       owner: "me", outcomeId: row.id, botId: row.botId, link: { type: "outcome", id: row.id },
       editable: !row.acceptedAt && !row.cancelledAt, updatedAt: row.updatedAt.toISOString(),
     }));
+    for (const row of dated) {
+      items.push({
+        at: row.runAt.getTime(), id: `scheduled_once:${row.id}`, kind: "scheduled_once", title: row.name,
+        start: row.runAt.toISOString(), end: null, allDay: false, timeBasis: "scheduled", state: "scheduled",
+        overdue: false, owner: "bot", botId: row.botId, link: { type: "routine", id: row.id },
+        editable: false, updatedAt: row.updatedAt.toISOString(),
+      });
+    }
     for (const source of sources) for (const item of source) items.push(item);
     items.sort((left, right) => left.at - right.at || left.id.localeCompare(right.id));
     return { items: items.slice(0, limit ?? undefined).map(({ at, ...item }) => item), truncated: limit !== null && items.length > limit };
@@ -172,19 +185,44 @@ export class ScheduleService {
     });
   }
 
-  private async routineRuns(query: Window, now: Date, timeZone: string, take: { take?: number }): Promise<LocatedItem[]> {
+  private async onceItems(query: Window, take: { take?: number }): Promise<LocatedItem[]> {
+    const rows = await this.db.routine.findMany({
+      where: { scheduleKind: "once", enabled: true, deletedAt: null, bot: { status: "active" },
+        onceAt: { gte: query.from, lt: query.to }, ...(query.botId ? { botId: query.botId } : {}) },
+      select: { id: true, name: true, botId: true, onceAt: true, revision: true, updatedAt: true,
+        executions: { where: { routineRevision: { scheduleKind: "once" }, OR: [
+          { kind: "preparation", status: "running" },
+          { kind: "scheduled", OR: [{ startedAt: { not: null } }, { status: "queued" }] },
+        ] }, orderBy: { createdAt: "desc" },
+          select: { kind: true, status: true, updatedAt: true, startedAt: true, routineRevision: { select: { revision: true } } } } },
+      orderBy: [{ onceAt: "asc" }, { id: "asc" }], ...take,
+    });
+    return rows.map((row) => {
+      const formal = row.executions.find((entry) => entry.kind === "scheduled" && (entry.startedAt || entry.routineRevision.revision === row.revision));
+      const preparing = row.executions.some((entry) => entry.kind === "preparation" && entry.status === "running" && entry.routineRevision.revision === row.revision);
+      return {
+        at: row.onceAt!.getTime(), id: `scheduled_once:${row.id}`, kind: "scheduled_once", title: row.name,
+        start: row.onceAt!.toISOString(), end: null, allDay: false, timeBasis: "scheduled",
+        state: formal?.status === "queued" ? "waiting" : formal?.status === "cancelled" ? "paused" : formal?.status ?? (preparing ? "preparing" : "scheduled"),
+        overdue: false, owner: "bot", ...(row.botId ? { botId: row.botId } : {}),
+        link: { type: "routine", id: row.id }, editable: false, updatedAt: formal?.updatedAt.toISOString() ?? row.updatedAt.toISOString(),
+      };
+    });
+  }
+
+  private async routineRuns(query: Window, now: Date, timeZone: string, take: { take?: number }, datedIds: ReadonlySet<string>): Promise<LocatedItem[]> {
     const bot = query.botId ? { OR: [{ botId: query.botId }, { executorBotId: query.botId }] } : {};
     const historicEnd = query.to < now ? query.to : now;
     const futureStart = query.from > now ? query.from : now;
     const [executions, routines] = await Promise.all([
       query.from < historicEnd ? this.db.routineExecution.findMany({
-        where: { scheduledFor: { gte: query.from, lt: historicEnd }, routine: bot },
+        where: { scheduledFor: { gte: query.from, lt: historicEnd }, kind: { not: "preparation" }, routine: bot, routineRevision: { scheduleKind: { not: "once" } } },
         select: { id: true, kind: true, events: true, scheduledFor: true, status: true, updatedAt: true,
           routine: { select: { id: true, name: true, botId: true, executorBotId: true, pausedAt: true } } },
         orderBy: [{ scheduledFor: "asc" }, { id: "asc" }], ...take,
       }) : [],
       futureStart < query.to ? this.db.routine.findMany({
-        where: { ...bot, enabled: true, pausedAt: null, deletedAt: null, scheduleKind: { not: "event" }, nextRunAt: { lt: query.to } },
+        where: { ...bot, enabled: true, pausedAt: null, deletedAt: null, scheduleKind: { in: ["cron", "interval"] }, nextRunAt: { lt: query.to } },
         select: { id: true, name: true, botId: true, executorBotId: true, createdAt: true, updatedAt: true, scheduleKind: true,
           scheduleText: true, trigger: true, timezone: true, cronExpression: true, intervalSeconds: true, scheduleAnchorAt: true, nextRunAt: true },
       }) : [],
@@ -203,6 +241,7 @@ export class ScheduleService {
       "actual", execution.status === "completed" || execution.status === "cancelled" ? execution.status :
         deriveRoutineDisplayState({ pausedAt: execution.routine.pausedAt, lastExecutionStatus: execution.status }), execution.updatedAt));
     for (const routine of routines) {
+      if (datedIds.has(routine.id)) continue;
       const anchor = await inferRoutineScheduleAnchor(this.db, routine);
       const next = (after: Date) => nextRoutineTriggerRun(routine.trigger as Record<string, unknown>, routine, after, timeZone, anchor);
       try {

@@ -1178,6 +1178,18 @@ export default function App() {
     [warmIds]
   );
 
+  const openScheduledRoutine = (routineId: string, botId?: string) => {
+    if (!botId) return;
+    const channelId = index.botById.get(botId)?.dmChannelId;
+    if (!channelId || !index.channelById.has(channelId)) return;
+    setCalendarOpen(false);
+    selectSidebarChannel(channelId);
+    setRoutineOpenTarget({ channelId, routineId, nonce: Date.now() });
+    setRoutineReturnMode("summary");
+    setInspectorMode("routine");
+    setDetailsOpen(true);
+  };
+
   const updateInspectorWidth = (width: number) => {
     const next = clampInspectorWidth(width, viewportWidth, effectiveSidebarWidth);
     if (inspectorResizeSessionRef.current) inspectorResizeSessionRef.current.width = next;
@@ -1637,6 +1649,8 @@ export default function App() {
                   onClose={() => setCalendarOpen(false)}
                   onOpenOutcome={(outcomeId) => { setCalendarOpen(false); setOutcomeTarget({ outcomeId }); }}
                   onOpenChannel={(channelId) => { setCalendarOpen(false); selectSidebarChannel(channelId); }}
+                  onOpenRoutine={openScheduledRoutine}
+                  onOpenScheduledGoal={(scheduledGoalId) => { setCalendarOpen(false); setOutcomeTarget({ scheduledGoalId }); }}
                 />
               </Suspense>
             )}
@@ -1653,6 +1667,7 @@ export default function App() {
                   bots={snapshot.bots}
                   onClose={() => setOutcomeTarget(null)}
                   onOpenChannel={(channelId) => selectSidebarChannel(channelId)}
+                  onOpenRoutine={openScheduledRoutine}
                 />
               </Suspense>
             )}

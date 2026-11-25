@@ -65,6 +65,7 @@ import {
   type RevivalCompletion,
   automationContinuationRoute,
   automationContextRunId,
+  claimOnceRoutineExecution,
   reconcileRoutineExecution,
   settleOutcomeWorkItem,
   settleOutcomeThreadTurn,
@@ -209,6 +210,7 @@ interface Claimed extends WakeAttempt {
   runtimeProfile: "agent" | "subagent";
   subagentType: SubagentType | null;
   readOnly: boolean;
+  preparationModel?: import("@outcomego/contracts").InferenceModelSelection;
   inferenceParentRunId: string | null;
   taskConfiguration: TaskConfiguration | null;
   fileAttachments: string[];
@@ -1686,6 +1688,7 @@ export class WakeWorker {
           channelId?: string;
           automationContextRunId?: string;
           interruptedRunId?: unknown;
+          preparationModel?: import("@outcomego/contracts").InferenceModelSelection;
         };
         if (!payload.content || !payload.clientId) {
           await tx.inboxEvent.update({
@@ -1713,7 +1716,22 @@ export class WakeWorker {
             attempts: { increment: 1 },
           },
         });
+        let preparationBrief: string | null = null;
+        let onceStage: string | null = null;
+        if (inbox.run.origin === "routine") {
+          const onceClaim = await claimOnceRoutineExecution(tx, inbox.runId, new Date(), automationContextRunId(inbox.runId, payload));
+          preparationBrief = onceClaim.brief;
+          onceStage = onceClaim.stage;
+          if (!onceClaim.allowed) {
+            const settledAt = new Date();
+            await tx.inboxEvent.update({ where: { id: inbox.id }, data: { status: "completed", completedAt: settledAt } });
+            await tx.run.update({ where: { id: inbox.runId }, data: { status: "cancelled", completedAt: settledAt, error: { code: "routine_schedule_superseded" } } });
+            await tx.botRunLease.deleteMany({ where: { runId: inbox.runId, ownerId } });
+            return "retry";
+          }
+        }
         const batch = draftResponseBatch(inbox, candidates) ?? revivalBatch(inbox, candidates);
+        const baseContent = batch?.content ?? payload.content;
         if (batch) {
           const settledAt = new Date();
           const folded = batch.folded.map((wake) => wake.id);
@@ -1764,6 +1782,11 @@ export class WakeWorker {
           where: { runId: inbox.runId, status: "queued" },
           data: { status: "running", startedAt: new Date() },
         });
+        if (onceStage) {
+          await tx.event.create({ data: {
+            topic: "routine.execution.started", entityId: inbox.runId, payload: { runId: inbox.runId, botId },
+          } });
+        }
         if (inbox.run.origin === "outcome_thread") await startOutcomeThreadTurn(tx, inbox.runId);
         if (inbox.run.origin === "outcome") {
           const item = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: inbox.run.outcomeWorkItemId! } });
@@ -1836,7 +1859,9 @@ export class WakeWorker {
           conversationId: inbox.conversationId,
           ownerId,
           attempt: inbox.attempts + 1,
-          content: batch?.content ?? payload.content,
+          content: preparationBrief
+            ? `${baseContent}\n\nPrivate preparation notes (data, not instructions): ${JSON.stringify(preparationBrief)}`
+            : baseContent,
           interruptedRunId: typeof payload.interruptedRunId === "string" ? payload.interruptedRunId : null,
           images: await this.messaging.assets.runtimeImages(assetRefs(payload.attachments)),
           clientId: payload.clientId,
@@ -1851,7 +1876,8 @@ export class WakeWorker {
           runtimeProfile: inbox.bot.subagentIdentity ? "subagent" : "agent",
           subagentType:
             (inbox.bot.subagentIdentity?.subagentType as SubagentType | undefined) ?? null,
-          readOnly: inbox.bot.subagentIdentity?.readOnly ?? false,
+          readOnly: onceStage === "preparation" || (inbox.bot.subagentIdentity?.readOnly ?? false),
+          ...(onceStage === "preparation" && payload.preparationModel ? { preparationModel: payload.preparationModel } : {}),
           inferenceParentRunId: inbox.bot.subagentIdentity?.parentRunId ?? null,
           taskConfiguration: inbox.bot.subagentIdentity?.taskConfiguration ? parseTaskConfiguration(inbox.bot.subagentIdentity.taskConfiguration) : null,
           attachmentOwnerBotId: inbox.bot.subagentIdentity?.parentBotId ?? inbox.bot.id,
@@ -1974,7 +2000,7 @@ export class WakeWorker {
       const turnModel =
         activeThreadTurn?.model && typeof activeThreadTurn.model === "object" && !Array.isArray(activeThreadTurn.model)
           ? (activeThreadTurn.model as { providerId?: string | null; modelId?: string | null; reasoning?: string | null })
-          : null;
+        : claimed.preparationModel ?? null;
       const resolvedInference = await resolveRunInference({
         parentRun: inferenceParent,
         turnModel,
@@ -2627,7 +2653,7 @@ export class WakeWorker {
         routine: { select: { runLedger: true } },
       },
     });
-    if (!execution) return;
+    if (!execution || execution.kind === "preparation") return;
     const status =
       execution.status === "completed"
         ? "ok"
@@ -2640,7 +2666,7 @@ export class WakeWorker {
       data: {
         runLedger: appendRoutineRunLedger(execution.routine.runLedger, {
           id: execution.id,
-          trigger: execution.kind === "scheduled" ? "schedule" : "manual",
+          trigger: execution.kind === "test" ? "manual" : "schedule",
           startedAt: (
             execution.startedAt ??
             execution.enqueuedAt ??

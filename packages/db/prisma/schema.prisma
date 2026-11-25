@@ -110,12 +110,14 @@ enum RoutineScheduleKind {
   cron
   interval
   event
+  once
   @@map("outcomego_routine_schedule_kind")
 }
 
 enum RoutineExecutionKind {
   scheduled
   test
+  preparation
   @@map("outcomego_routine_execution_kind")
 }
 
@@ -653,6 +655,8 @@ model Routine {
   enabled Boolean             @default(true)
   revision Int                 @default(1)
   nextRunAt DateTime?
+  onceAt DateTime?
+  onceStartedAt DateTime?
   validationError String?
   scheduleAnchorAt DateTime?
   lastRunAt DateTime?
@@ -684,6 +688,7 @@ model RoutineRevision {
   prompt String
   scheduleText String
   scheduleKind RoutineScheduleKind
+  onceTrigger Json?
   cronExpression String?
   intervalSeconds Int?
   timezoneMode String

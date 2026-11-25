@@ -22,3 +22,18 @@ test("routine creation preserves a supplied retry nonce and defaults other calle
     { ...input, clientId: "generated-1" },
   ]);
 });
+
+test("run advice posts the saved revision and retry nonce to the preparation endpoint", async () => {
+  const calls: unknown[] = [];
+  const client = createOpenTeamClient({
+    baseUrl: "http://fixture",
+    fetch: (async (url, init) => {
+      calls.push({ path: new URL(String(url)).pathname, method: init?.method, body: JSON.parse(String(init?.body)) });
+      return Response.json({ kind: "preparation" });
+    }) as typeof fetch,
+  });
+  expect(await client.prepareRoutine("routine", 3, "stable-advice")).toMatchObject({ kind: "preparation" });
+  expect(calls).toEqual([{
+    path: "/api/v0/routines/routine/prepare", method: "POST", body: { expectedRevision: 3, clientId: "stable-advice" },
+  }]);
+});

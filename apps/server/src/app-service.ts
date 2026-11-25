@@ -705,6 +705,10 @@ export class AppService {
       this.routines.detailOwner(await this.routines.owner(routineId), routineId)
     );
 
+  listScheduledGoals = () => serviceEffect(() => this.routines.listScheduledGoals());
+
+  scheduledGoal = (id: string) => serviceEffect(() => this.routines.scheduledGoal(id));
+
   private validateRoutineWebhookInput = (trigger: unknown): void => {
     if (containsWebhookTrigger(trigger)) {
       this.automationWebhooks.validateRoutineWebhookConfiguration();
@@ -800,6 +804,11 @@ export class AppService {
   runRoutineNow = (routineId: string, clientId: string) =>
     serviceEffect(async () =>
       this.routines.runNowOwner(await this.routines.owner(routineId), routineId, clientId)
+    );
+
+  prepareRoutine = (routineId: string, clientId: string, expectedRevision: number) =>
+    serviceEffect(async () =>
+      this.routines.prepareOwner(await this.routines.owner(routineId), routineId, clientId, expectedRevision)
     );
 
   routineExecutions = (routineId: string, limit: number) =>

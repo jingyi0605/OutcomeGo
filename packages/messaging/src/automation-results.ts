@@ -466,6 +466,10 @@ export async function wakeAutomationParent(
         "wake_parent_unavailable",
         "Automation context does not belong to this run"
       );
+    const execution = await tx.routineExecution.findUnique({ where: { runId: rootId }, select: { kind: true } });
+    if (execution?.kind === "preparation") {
+      throw new ApiError(403, "wake_parent_unavailable", "Preparation is private. Leave the brief in your final text.");
+    }
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`automation-result:${rootId}`}))`;
     // The caller stops the background work these runs started.
     const automation_run_ids = (

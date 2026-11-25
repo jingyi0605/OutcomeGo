@@ -248,6 +248,15 @@ var cronTriggerMember = external_exports.object({
   )
 });
 
+var onceTriggerMember = external_exports.object({
+  type: external_exports.literal("once"),
+  runAt: external_exports.string().datetime({ offset: true }).describe("The one future time when this routine runs."),
+  preparation: external_exports.object({
+    at: external_exports.string().datetime({ offset: true }).describe("Optional earlier time to prepare facts."),
+    instruction: external_exports.string().trim().min(1).max(20000).describe("What to prepare privately before the scheduled run.")
+  }).optional()
+});
+
 var slackListener2 = external_exports.object({
   type: external_exports.literal("slack"),
   channel: external_exports.string().trim().min(1).describe('A channel ("#eng"), a DM ("@dana"), or "*" for anywhere.'),
@@ -446,6 +455,7 @@ var triggerMember = external_exports.discriminatedUnion("type", [
 var automationTriggerShape = external_exports.union([
   external_exports.discriminatedUnion("type", [
     cronTriggerMember,
+    onceTriggerMember,
     slackListener2,
     githubListener2,
     originListener2,
@@ -571,7 +581,8 @@ var AUTOMATION_TRIGGER_SHAPE_LINES = [
   '  { "type": "group", "listeners": [ ...several listeners... ] }, where any one fires the same prompt. Cron and webhook can be grouped because this server owns both scheduling authorities; Origin can group with cron, Slack, and GitHub, but not with Microsoft Teams, Linear, Sentry, PagerDuty, email, or a plugin.',
   '  { "type": "cron", "schedule": "0 8 * * 1-5" }, a schedule written as a listener, in the same format as schedule. It belongs in a group, so one prompt fires both on time and on events; on its own, pass schedule instead.',
   "A bare array of listeners, [ { ... }, { ... } ], is shorthand for the group form.",
-  'A microsoftTeams trigger also takes "teamId": "<one Graph API team id>" in place of teamIds, "messageContainsIsRegex": true to read messageContains as a regular expression, and "blockUnauthenticatedTeamsUsers": true to ignore messages from unauthenticated Teams users.'
+  'A microsoftTeams trigger also takes "teamId": "<one Graph API team id>" in place of teamIds, "messageContainsIsRegex": true to read messageContains as a regular expression, and "blockUnauthenticatedTeamsUsers": true to ignore messages from unauthenticated Teams users.',
+  '  { "type": "once", "runAt": "<ISO 8601 timestamp with UTC offset>", "preparation"?: { "at": "<earlier timestamp with UTC offset>", "instruction": "<private preparation instructions>" } } (standalone only)',
 ];
 var INVALID_AUTOMATION_TRIGGER_MESSAGE = ["Not a valid trigger. Trigger shapes:", ...AUTOMATION_TRIGGER_SHAPE_LINES].join("\n");
 var automationTriggerWithInvalidMessage = external_exports.unknown().transform((value, ctx) => {
@@ -1953,6 +1964,8 @@ function describeListener(listener) {
     }
     case "webhook":
       return "When a webhook fires";
+    case "once":
+      return `Once at ${new Date(listener.runAt).toLocaleString()}`;
   }
 }
 

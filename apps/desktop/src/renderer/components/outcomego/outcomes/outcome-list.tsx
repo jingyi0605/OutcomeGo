@@ -6,6 +6,7 @@ import { useI18n } from "../../../lib/i18n";
 import { ChevronRight, Plus, Target } from "lucide-react";
 import { OutcomeButton, OutcomeEmptyState, OutcomeRefresh } from "./outcome-ui";
 import type { OutcomeExecutionBot } from "./outcome-execution-card";
+import { ScheduledRoutineGoals } from "./scheduled-routine-goals";
 
 export const outcomeStatusLabels: Record<OutcomeStatus, string> = {
   draft: "Draft",
@@ -27,12 +28,14 @@ export function OutcomeList({
   bots,
   onSelect,
   onCreate,
+  onOpenScheduledGoal,
   refreshVersion = 0,
 }: {
   client: OutcomeClient;
   bots: OutcomeExecutionBot[];
   onSelect: (id: string) => void;
   onCreate: () => void;
+  onOpenScheduledGoal?: (id: string) => void;
   refreshVersion?: number;
 }) {
   const { t } = useI18n();
@@ -152,6 +155,7 @@ export function OutcomeList({
           )}
         </OutcomeEmptyState>
       ))}
+      {!trackedOnly && onOpenScheduledGoal && <ScheduledRoutineGoals bots={bots} onOpen={onOpenScheduledGoal} refreshVersion={refreshVersion} />}
       <ul className={items?.length ? "outcome-rows" : undefined}>
         {items?.map((outcome) => (
           <li key={outcome.id}>

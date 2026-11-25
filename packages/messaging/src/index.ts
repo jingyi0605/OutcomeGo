@@ -787,6 +787,7 @@ export interface WakeInput {
   /** The run this typed message superseded; it gets the unfinished-tasks reminder when that run had dispatched. */
   interruptedRunId?: string;
   draftNotification?: { variant: "control" | "treatment" };
+  preparationModel?: import("@outcomego/contracts").InferenceModelSelection;
 }
 
 export interface ToolContext {
@@ -1104,6 +1105,7 @@ export class AgentMessaging {
           handoff: input.handoff,
           interruptedRunId: input.interruptedRunId,
           draftNotification: input.draftNotification,
+          preparationModel: input.preparationModel,
         }),
         priority: input.priority,
         availableAt: input.availableAt,
@@ -2394,7 +2396,9 @@ export class AgentMessaging {
       formatFriendlyDate(new Date(), timeZone)
     );
     const automationResults = !automation && channelId !== undefined ? await this.prisma.automationResult.findMany({
-      where: { wakeRunId: null, acknowledgedAt: null, run: { botId, channelId } },
+      where: { wakeRunId: null, acknowledgedAt: null, run: { botId, channelId,
+        OR: [{ routineExecution: null }, { routineExecution: { routineRevision: { onceTrigger: { equals: Prisma.DbNull } } } }],
+      } },
       orderBy: { createdAt: "asc" }, take: 20,
     }) : [];
     // A result names the routine it came from, not just its run.
@@ -3151,6 +3155,8 @@ export class AgentMessaging {
 export type { RoutineExecutionView, RoutineMutationInput, RoutineView } from "./routines";
 export {
   appendRoutineRunLedger,
+  claimOnceRoutineExecution,
+  isOnceTrigger,
   inferRoutineScheduleAnchor,
   manualRoutineWakeContent,
   nextRoutineRun,

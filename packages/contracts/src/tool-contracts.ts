@@ -345,10 +345,25 @@ adaptDescription("UpdateRoutine", [
 // shorthand the parser accepts is advertised beside the compact listener object.
 {
   const { description, ...listener } = contracts.UpdateRoutine!.inputSchema.properties.trigger;
+  const timestamp = {
+    type: "string",
+    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$",
+    description: "ISO 8601 date and time with seconds and a UTC offset.",
+  };
   contracts.UpdateRoutine!.inputSchema.properties.trigger = {
-    anyOf: [listener, { type: "array", items: listener, minItems: 1 }],
+    anyOf: [listener, { type: "array", items: listener, minItems: 1 }, {
+      type: "object", required: ["type", "runAt"], additionalProperties: false,
+      properties: {
+        type: { const: "once" },
+        runAt: timestamp,
+        preparation: { type: "object", required: ["at", "instruction"], additionalProperties: false,
+          properties: { at: timestamp, instruction: { type: "string", minLength: 1, maxLength: 20_000 } },
+        },
+      },
+    }],
     description,
   };
+  contracts.UpdateRoutine!.description += "\nFor a single future arrangement, use trigger.type=once with runAt. Even for a reminder, set preparation.at to an earlier offset timestamp when authorized records can help. Write preparation.instruction as a private read-only brief request. At runAt deliver the reminder or result with grounded suggestions when available. Clarify ambiguous times and follow existing approval requirements.";
 }
 
 // StopSubagent reaches this agent's subagents (and the background shells they started) and the peers

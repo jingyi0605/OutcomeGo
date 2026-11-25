@@ -1,3 +1,4 @@
+import { ApiError } from "@outcomego/contracts";
 import { json } from "../http";
 import { type RouteContext, run } from "./context";
 import { dispatchRoutes, effectRoute } from "./dispatch";
@@ -22,11 +23,17 @@ export async function routineRoutes(context: RouteContext): Promise<Response | u
     );
   }
 
-  const routineActionMatch = path.match(/^\/api\/routines\/([^/]+)\/(pause|resume|test)$/);
+  const routineActionMatch = path.match(/^\/api\/routines\/([^/]+)\/(pause|resume|test|prepare)$/);
   if (request.method === "POST" && routineActionMatch?.[1] && routineActionMatch[2]) {
     const input = await routineBody(request);
     if (routineActionMatch[2] === "test") {
       return json(await run(app.runRoutineNow(routineActionMatch[1], input.clientId)), 202);
+    }
+    if (routineActionMatch[2] === "prepare") {
+      if (input.expectedRevision === undefined) {
+        throw new ApiError(400, "invalid_routine", "expectedRevision is required to generate advice");
+      }
+      return json(await run(app.prepareRoutine(routineActionMatch[1], input.clientId, input.expectedRevision)), 202);
     }
     const lifecycleAction = routineActionMatch[2] === "pause" ? "pause" : "resume";
     return json(
@@ -59,6 +66,8 @@ export async function routineRoutes(context: RouteContext): Promise<Response | u
 }
 
 const routes = [
+  effectRoute("GET", /^\/api\/outcomes\/scheduled-goals$/, ({ app }) => app.listScheduledGoals()),
+  effectRoute("GET", /^\/api\/outcomes\/scheduled-goals\/([^/]+)$/, ({ app }, id) => app.scheduledGoal(id)),
   effectRoute("GET", /^\/api\/bots\/([^/]+)\/routines$/, ({ app }, id) => app.listRoutines(id)),
   effectRoute("GET", /^\/api\/channels\/([^/]+)\/routines$/, ({ app }, id) =>
     app.listGroupRoutines(id)

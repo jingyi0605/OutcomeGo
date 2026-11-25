@@ -10,7 +10,7 @@ import { routineRoutes } from "../src/routes/routine";
 const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 
 test.skipIf(!databaseUrl)(
-  "bot and group routine routes reject invalid schedules without changing saved routines",
+  "routine routes validate mutations and queue one-time advice without changing saved routines",
   async () => {
     const root = await mkdtemp(join(tmpdir(), "routine-validation-"));
     const environment = {
@@ -24,13 +24,15 @@ test.skipIf(!databaseUrl)(
     );
     Object.assign(process.env, environment);
     const app = new AppService();
+    app.boss.send = async () => "test-job";
     const botId = crypto.randomUUID();
     const groupId = crypto.randomUUID();
+    const channelId = crypto.randomUUID();
     const request = async (method: string, path: string, input: Record<string, unknown>) => {
       const req = new Request(`http://localhost${path}`, {
         method,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ clientId: crypto.randomUUID(), ...input }),
+        ...(method === "GET" ? {} : { body: JSON.stringify({ clientId: crypto.randomUUID(), ...input }) }),
       });
       try {
         const response = await routineRoutes({
@@ -65,6 +67,10 @@ test.skipIf(!databaseUrl)(
           members: { create: { botId, ordinal: 0 } },
         },
       });
+      await app.prisma.channel.create({ data: {
+        id: channelId, kind: "bot_dm", name: "Routine validation chat", directKey: `bot:${botId}`,
+        members: { create: { botId, ordinal: 0 } },
+      } });
       await app.agentData.initializeBot(botId);
 
       for (const path of [`/api/bots/${botId}/routines`, `/api/channels/${groupId}/routines`]) {
@@ -154,8 +160,33 @@ test.skipIf(!databaseUrl)(
           revision: 2,
         });
       }
+
+      const runAt = new Date(Date.now() + 3_600_000).toISOString();
+      const created = await request("POST", `/api/bots/${botId}/routines`, {
+        name: "Prepare before a meeting", prompt: "Remind me of the meeting", enabled: true,
+        trigger: { type: "once", runAt },
+      });
+      expect(created.status).toBe(201);
+      const { id: onceId, revision } = await created.json() as { id: string; revision: number };
+      const target = `/api/routines/${onceId}/prepare`;
+      const original = await app.prisma.routine.findUniqueOrThrow({ where: { id: onceId } });
+      expect((await request("POST", target, {})).status).toBe(400);
+      expect((await request("POST", target, { expectedRevision: revision + 1 })).status).toBe(409);
+      const accepted = await request("POST", target, { expectedRevision: revision });
+      expect(accepted.status).toBe(202);
+      const receipt = await accepted.json();
+      expect(receipt).toMatchObject({ routineId: onceId, revision, kind: "preparation", status: "queued" });
+      const history = await request("GET", `/api/routines/${onceId}/executions`, {});
+      expect(await history.json()).toEqual([{ ...(receipt as object), result: { summary: null, delivered: false } }]);
+      expect(await app.prisma.routine.findUniqueOrThrow({ where: { id: onceId } })).toEqual(original);
+      const goals = await request("GET", "/api/outcomes/scheduled-goals", {});
+      expect(await goals.json()).toContainEqual(expect.objectContaining({ id: onceId, runAt, state: "scheduled" }));
+      const goalPath = `/api/outcomes/scheduled-goals/${onceId}`;
+      expect(await (await request("GET", goalPath, {})).json()).toMatchObject({ id: onceId, executions: [{ kind: "preparation", status: "queued" }] });
+      expect((await request("DELETE", `/api/routines/${onceId}`, { expectedRevision: revision })).status).toBe(200);
+      expect(await (await request("GET", goalPath, {})).json()).toMatchObject({ id: onceId, state: "cancelled", executions: [{ kind: "preparation" }] });
     } finally {
-      await app.prisma.channel.deleteMany({ where: { id: groupId } });
+      await app.prisma.channel.deleteMany({ where: { id: { in: [groupId, channelId] } } });
       await app.prisma.bot.deleteMany({ where: { id: botId } });
       await Effect.runPromise(app.close());
       for (const key of Object.keys(environment)) {

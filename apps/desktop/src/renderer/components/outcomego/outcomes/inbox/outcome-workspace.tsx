@@ -15,6 +15,7 @@ import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { NewOutcomeForm } from "../thread/new-outcome-form";
 import { OutcomeButton } from "../outcome-ui";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../ui/dialog";
+import { ScheduledGoalDetail } from "../detail/scheduled-goal-detail";
 
 const OutcomeRouteView = lazy(() =>
   import("./outcome-route-view").then((module) => ({ default: module.OutcomeRouteView }))
@@ -28,11 +29,14 @@ type Route =
   | { kind: "explore" }
   | { kind: "decision"; id: string }
   | { kind: "outcome"; id: string; reviewRevision?: number }
+  | { kind: "scheduledGoal"; id: string }
   | { kind: "human"; id: string };
 type Section = "overview" | "all" | "inbox" | "explore";
 const SECTIONS: readonly string[] = ["overview", "all", "inbox", "explore"];
 const routeFor = (target: DesktopOutcomeTarget): Route =>
-  target.decisionId
+  target.scheduledGoalId
+    ? { kind: "scheduledGoal", id: target.scheduledGoalId }
+    : target.decisionId
     ? { kind: "decision", id: target.decisionId }
     : target.outcomeId
       ? { kind: "outcome", id: target.outcomeId }
@@ -42,12 +46,14 @@ export default function OutcomeWorkspace({
   onClose,
   bots,
   onOpenChannel,
+  onOpenRoutine,
 }: {
   target: DesktopOutcomeTarget;
   onClose: () => void;
   bots: OutcomeExecutionBot[];
   /** Opens a channel's conversation, where a request or a channel routine in the activity area leads. */
   onOpenChannel?: (channelId: string) => void;
+  onOpenRoutine?: (routineId: string, botId: string) => void;
 }) {
   const { t } = useI18n();
   // The owner's choices for the activity area, each falling back to the policy's initial value.
@@ -69,7 +75,7 @@ export default function OutcomeWorkspace({
   const [ideaOpen, setIdeaOpen] = useState(false);
   useEffect(() => {
     setRoute(routeFor(target));
-    setOrigin(target.decisionId ? "inbox" : target.outcomeId ? "all" : "overview");
+    setOrigin(target.decisionId ? "inbox" : target.outcomeId || target.scheduledGoalId ? "all" : "overview");
     // Reading the notification changes only its read marker, never the business state.
     if (target.channelId && target.notificationSequence)
       void api
@@ -93,6 +99,7 @@ export default function OutcomeWorkspace({
   };
   const review = (id: string, reviewRevision?: number) =>
     openRoute({ kind: "outcome", id, reviewRevision });
+  const openScheduledGoal = (id: string) => openRoute({ kind: "scheduledGoal", id });
   const selectedBotId = bots.some((bot) => bot.id === botId) ? botId : (bots[0]?.id ?? "");
   const tab: Section = SECTIONS.includes(route.kind) ? (route.kind as Section) : origin;
   const modalOpen = !SECTIONS.includes(route.kind);
@@ -171,6 +178,8 @@ export default function OutcomeWorkspace({
               onCreateGoal={() => openRoute({ kind: "new" })}
               onCreateIdea={() => setIdeaOpen(true)}
               onOpenChannel={onOpenChannel}
+              onOpenRoutine={onOpenRoutine}
+              onOpenScheduledGoal={openScheduledGoal}
               activityPolicy={{
                 cardMaxItems: policy["activity.cardMaxItems"] as number,
                 dashboardLayout: policy["activity.dashboardLayout"] as string,
@@ -184,6 +193,7 @@ export default function OutcomeWorkspace({
               bots={bots}
               onSelect={review}
               onCreate={() => openRoute({ kind: "new" })}
+              onOpenScheduledGoal={openScheduledGoal}
               refreshVersion={version}
             />
           )}
@@ -232,13 +242,14 @@ export default function OutcomeWorkspace({
                   ? "Decision"
                   : route.kind === "human"
                     ? "Human action"
-                    : "Goal details"
+                    : route.kind === "scheduledGoal" ? "Scheduled goal details" : "Goal details"
             )}
           </DialogTitle>
           <DialogDescription className="sr-only">
             {t("Review the goal and handle current decisions.")}
           </DialogDescription>
           <div className="outcome-page-content outcome-modal-body space-y-5">
+            {route.kind === "scheduledGoal" && <ScheduledGoalDetail key={route.id} id={route.id} bots={bots} />}
             {route.kind === "new" &&
               (bots.length > 0 ? (
                 <NewOutcomeForm client={api.outcomes} bots={bots} onCreated={() => closeModal()} />

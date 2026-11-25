@@ -62,6 +62,7 @@ const notifySoon = (outcomeId: string) => {
 
 export const refreshOutcomeViews = (event?: ProductEvent) => {
   if (!event || event.topic === "snapshot.required") notifyList(true);
+  else if (event.topic.startsWith("routine.") || event.topic === "goal.schedule.changed") notifyList(false);
   else if (event.topic === "goal.status.changed") {
     notifyList(false);
     if (event.entityId && listeners.has(event.entityId)) notifySoon(event.entityId);

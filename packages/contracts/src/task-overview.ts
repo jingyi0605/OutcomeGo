@@ -164,7 +164,7 @@ export function isWorkItemOverdue(
 // Routines
 // ---------------------------------------------------------------------------
 
-export type RoutineDisplayState = "running" | "failed" | "skipped" | "paused" | "idle";
+export type RoutineDisplayState = "running" | "failed" | "skipped" | "paused" | "idle" | "preparing";
 export type RoutineExecutionState = "queued" | "running" | "completed" | "failed" | "cancelled" | "skipped";
 
 /** The latest execution decides first; a pause never hides a failure or a run in flight. */
@@ -202,9 +202,10 @@ export function localDateOf(instant: Date, timeZone: string): string {
 // Shared read models (types only; sources are added by later tasks)
 // ---------------------------------------------------------------------------
 
-export const TIME_ITEM_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run", "external_event"] as const;
+export const TIME_ITEM_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run", "scheduled_once", "external_event"] as const;
 export type TimeItemKind = (typeof TIME_ITEM_KINDS)[number];
-export type CalendarFeedKind = Exclude<TimeItemKind, "external_event">;
+export const CALENDAR_FEED_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run"] as const;
+export type CalendarFeedKind = (typeof CALENDAR_FEED_KINDS)[number];
 
 export interface CreateCalendarFeedInput {
   name: string;
@@ -342,6 +343,7 @@ export interface RequestProgressDetailView extends RequestProgressView {
 
 export interface ActivityResponse {
   items: ActivityItem[];
+  upcoming?: Array<ActivityItem & { runAt: string }>;
   /** True when more than {@link ACTIVITY_LIST_LIMIT} items matched and the rest were left out. */
   truncated: boolean;
 }

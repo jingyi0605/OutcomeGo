@@ -25,12 +25,15 @@ export const ACTIVITY_STATE_STYLE: Record<string, ActivityStateStyle> = {
   blocked: { label: "Blocked", icon: "✕", tone: "fail", animated: false },
   no_follow_up: { label: "No one is following up", icon: "!", tone: "action", animated: false },
   completed: { label: "Completed", icon: "✓", tone: "pass", animated: false },
+  queued: { label: "Queued", icon: "⧗", tone: "plan", animated: false },
+  cancelled: { label: "Cancelled", icon: "–", tone: "muted", animated: false },
   running: { label: "Running", icon: "▶", tone: "review", animated: true },
   failed: { label: "Failed", icon: "✕", tone: "fail", animated: false },
   skipped: { label: "Skipped", icon: "–", tone: "muted", animated: false },
   paused: { label: "Paused", icon: "⏸", tone: "muted", animated: false },
   idle: { label: "Idle", icon: "◌", tone: "muted", animated: false },
   scheduled: { label: "Scheduled", icon: "◷", tone: "plan", animated: false },
+  preparing: { label: "Preparing", icon: "◷", tone: "plan", animated: false },
   deferred: { label: "Deferred", icon: "⏸", tone: "plan", animated: false },
 };
 

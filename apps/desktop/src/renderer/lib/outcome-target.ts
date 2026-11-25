@@ -4,6 +4,7 @@ import { OUTCOME_NOTIFICATION_CATEGORIES, type OutcomeNotificationCategory } fro
 export interface DesktopOutcomeTarget {
   outcomeId?: string;
   decisionId?: string;
+  scheduledGoalId?: string;
   category?: OutcomeNotificationCategory;
   channelId?: string;
   notificationSequence?: string;

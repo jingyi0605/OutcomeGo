@@ -12,7 +12,7 @@ import {
   renderUserMemorySystemPolicyPrompt,
   type PromptMemoryRecord,
 } from "./memory-rendering";
-import managedSkills from "./prompts/managed-skills.json";
+import managedSkills from "./prompts/managed-catalog";
 import { managedSkillAgents } from "./managed-skill-agents";
 import { safePackagePath } from "@outcomego/plugin-sdk";
 import { originalSkillMarkdown } from "@outcomego/plugin-sdk/skill-markdown";
@@ -38,6 +38,7 @@ import { basename, dirname, extname, join, relative, resolve, sep } from "node:p
 import {
   ApiError,
   BOT_MEMORY_LIST_LIMIT,
+  isOnceTrigger,
   type BotMemoryEntry,
   type BotMemoryList,
   parseBotRecipe,
@@ -2153,11 +2154,20 @@ export class AgentDataStore {
           cronExpression: null, intervalSeconds: null, timezoneMode: "installation" as const, timezone: userZone,
         };
         const now = new Date();
-        const schedulingChanged = triggerChanged || enabledChanged || Boolean(existing?.deletedAt);
+        const once = isOnceTrigger(parsed.trigger) ? parsed.trigger : null;
+        if (existing?.scheduleKind === "once" && !once) {
+          throw new Error("Create a new routine to switch between one-time and other schedules.");
+        }
+        if (once && existing?.onceStartedAt && (triggerChanged || existing.deletedAt)) {
+          throw new Error("Create a new arrangement to schedule another run.");
+        }
+        const schedulingChanged = triggerChanged || enabledChanged || Boolean(existing?.deletedAt) || Boolean(once && changed);
         const scheduleAnchorAt = !existing ? parsed.scheduleAnchorAt : schedulingChanged ? now :
           await inferRoutineScheduleAnchor(tx, existing);
         let nextRunAt = existing ? existing.nextRunAt : parsed.nextRunAt;
-        if (existing && schedulingChanged) {
+        if (existing?.onceStartedAt) {
+          nextRunAt = null;
+        } else if (existing && schedulingChanged) {
           nextRunAt = parsed.enabled && parsed.schedule
             ? nextRoutineTriggerRun(parsed.trigger, schedule, now, userZone, scheduleAnchorAt ?? now)
             : null;
@@ -2174,6 +2184,7 @@ export class AgentDataStore {
           triggerPresentation: parsed.triggerPresentation && !(triggerChanged && existing && JSON.stringify(existing.triggerPresentation) === JSON.stringify(parsed.triggerPresentation))
             ? asInputJson(parsed.triggerPresentation) : Prisma.JsonNull,
           provenance: parsed.provenance, ...schedule, enabled: parsed.enabled, revision, validationError: null,
+          onceAt: once ? new Date(once.runAt) : null,
           pausedAt: parsed.enabled ? null : (existing?.pausedAt ?? now), deletedAt: null,
           ...(!existing ? {
             nextRunAt, scheduleAnchorAt, lastRunAt: parsed.lastRunAt,
@@ -2224,6 +2235,7 @@ export class AgentDataStore {
           await tx.routineRevision.create({ data: {
             routineId: routine.id, revision, name: parsed.name, prompt: parsed.prompt,
             ...schedule, enabled: parsed.enabled, source: "filesystem",
+            ...(once ? { onceTrigger: asInputJson(once) } : {}),
             ...(!existing && parsed.projection ? { callId: parsed.projection.creationCallId, runId: parsed.projection.creationRunId } : {}),
           } });
         }
@@ -2262,8 +2274,9 @@ export class AgentDataStore {
         select: { id: true, name: true },
       });
       for (const routine of removed) {
-        await tx.routine.update({
-          where: { id: routine.id },
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`routine:${routine.id}`}))`;
+        await tx.routine.updateMany({
+          where: { id: routine.id, deletedAt: null },
           data: { enabled: false, nextRunAt: null, deletedAt: new Date() },
         });
         if (this.timelineEventSink) {

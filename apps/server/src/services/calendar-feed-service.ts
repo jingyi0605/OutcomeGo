@@ -1,12 +1,12 @@
 import { createHash, randomBytes } from "node:crypto";
 import { ApiError } from "@outcomego/contracts";
-import { TIME_ITEM_KINDS, type CalendarFeedKind, type CalendarFeedView, type CreateCalendarFeedInput, type CreatedCalendarFeed } from "@outcomego/contracts/task-overview";
+import { CALENDAR_FEED_KINDS, type CalendarFeedKind, type CalendarFeedView, type CreateCalendarFeedInput, type CreatedCalendarFeed } from "@outcomego/contracts/task-overview";
 import type { PrismaClient } from "@outcomego/db";
 import { readUserTimeZone } from "@outcomego/messaging";
 import { calendarFeedWindow, renderCalendarFeed } from "./icalendar";
 import type { ScheduleService } from "./schedule-service";
 
-const feedKinds = TIME_ITEM_KINDS.filter((kind) => kind !== "external_event");
+const feedKinds = CALENDAR_FEED_KINDS;
 const missing = () => new ApiError(404, "calendar_feed_not_found", "Calendar feed not found");
 const digest = (token: string) => createHash("sha256").update(token).digest("hex");
 const view = (row: { id: string; name: string; kinds: string[]; includeLinks: boolean; createdAt: Date; lastUsedAt: Date | null }): CalendarFeedView => ({

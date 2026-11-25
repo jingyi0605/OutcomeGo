@@ -2,8 +2,8 @@ import { expect, test } from "bun:test";
 import type { TimeItem } from "@outcomego/contracts/task-overview";
 import { calendarDays, dayStart, defaultCalendarKinds, itemsByDay } from "../src/renderer/components/outcomego/outcomes/calendar/calendar-dates";
 
-test("calendar sources start with the five task and follow-up kinds", () => {
-  expect(defaultCalendarKinds).toEqual(["goal_due", "human_task", "work_item", "todo", "follow_up"]);
+test("calendar sources include one-time arrangements by default", () => {
+  expect(defaultCalendarKinds).toEqual(["goal_due", "human_task", "work_item", "todo", "follow_up", "scheduled_once"]);
 });
 
 for (const [zone, date, following, hours] of [

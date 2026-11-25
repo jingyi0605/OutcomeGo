@@ -1,4 +1,5 @@
 import { useWindowVisible } from "../../hooks/use-window-active";
+import { isOnceTrigger } from "@outcomego/contracts";
 import { CalendarClock, CirclePause, LoaderCircle, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../client/outcomego-api";
@@ -167,6 +168,7 @@ function RoutineRows({
           t(key, params)
         );
         const parts = [
+          ...(isOnceTrigger(routine.trigger) ? [new Date(routine.trigger.runAt).toLocaleString()] : []),
           ...(schedules.length > 0 ? [describeRoutineSchedules(schedules)] : []),
           ...eventLabels,
         ];

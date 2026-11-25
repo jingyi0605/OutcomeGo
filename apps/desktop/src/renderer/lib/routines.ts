@@ -13,6 +13,11 @@ import { translateCurrent } from "./i18n-catalog";
 
 export type { RoutineExecutionView, RoutineView } from "@outcomego/contracts";
 
+export function routineLocalDateTime(value: string): string {
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+}
+
 /**
  * The routine summary refreshes while it is visible. Preserve the current
  * array when none of the fields that can change the visible rows changed, so
@@ -84,7 +89,7 @@ export const routineEventListeners = (trigger: unknown): Array<Record<string, un
   if (record.type === "group") {
     return (Array.isArray(record.listeners) ? record.listeners : []).flatMap(routineEventListeners);
   }
-  return typeof record.type === "string" && record.type !== "cron" ? [record] : [];
+  return typeof record.type === "string" && !["cron", "once"].includes(record.type) ? [record] : [];
 };
 
 /** Describes one event listener (email, Slack, GitHub, webhook, ...) for list and detail rows. */
@@ -389,6 +394,7 @@ export const routineTriggerValue = (
 };
 
 export const routineScheduleDrafts = (routine: RoutineView): RoutineScheduleDraft[] => {
+  if (routine.scheduleKind === "once") return [];
   if (routine.scheduleKind === "event" && routine.schedules.length === 0) return [];
   const presented = routinePresentationDrafts(routine.triggerPresentation);
   if (presented && presentationMatchesRoutine(presented, routine)) {

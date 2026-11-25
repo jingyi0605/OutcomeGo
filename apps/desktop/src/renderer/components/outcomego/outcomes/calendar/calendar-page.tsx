@@ -1,13 +1,16 @@
 import { CalendarDays, ChevronLeft, ChevronRight, Filter, RotateCcw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ScheduleQuery, TimeItem, TimeItemKind } from "@outcomego/contracts/task-overview";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { api } from "../../../../client/outcomego-api";
 import { localDateOf } from "@outcomego/contracts/task-overview";
 import { useI18n } from "../../../../lib/i18n";
 import { cn } from "../../../../lib/cn";
+import { ClientError } from "../../../../client/http";
+import { subscribeOutcomeListRefresh } from "../../../../lib/outcome-events";
+import { styleForActivity } from "../dashboard/activity-state";
 import { OutcomeButton } from "../outcome-ui";
-import { calendarDays, dayStart, defaultCalendarKinds, itemsByDay, movePeriod, moveToCalendarDate, type CalendarView } from "./calendar-dates";
+import { calendarDays, dayStart, defaultCalendarKinds, itemsByDay, movePeriod, moveToCalendarDate, shiftDate, type CalendarView } from "./calendar-dates";
 
 const kindLabels: Record<TimeItemKind, string> = {
   goal_due: "Goal deadlines",
@@ -16,6 +19,7 @@ const kindLabels: Record<TimeItemKind, string> = {
   todo: "To-dos",
   follow_up: "Follow-ups",
   routine_run: "Routines",
+  scheduled_once: "Upcoming work",
   external_event: "External calendar",
 };
 const EXTERNAL_STORAGE_KEY = "outcomego.goal-calendar";
@@ -34,7 +38,8 @@ type CalendarPageProps = {
   onClose: () => void;
   onOpenOutcome: (outcomeId: string) => void;
   onOpenChannel?: (channelId: string) => void;
-  onOpenRoutine?: (routineId: string) => void;
+  onOpenRoutine?: (routineId: string, botId?: string) => void;
+  onOpenScheduledGoal?: (id: string) => void;
 };
 
 function dateText(value: Date, timeZone: string, options: Intl.DateTimeFormatOptions): string {
@@ -44,7 +49,7 @@ function dateText(value: Date, timeZone: string, options: Intl.DateTimeFormatOpt
 function rangeFor(value: string, view: CalendarView, timeZone: string): { from: string; to: string } {
   const days = calendarDays(value, view);
   const from = dayStart(days[0]!, timeZone);
-  const to = new Date(dayStart(days.at(-1)!, timeZone).getTime() + 86_400_000);
+  const to = dayStart(shiftDate(days.at(-1)!, 1), timeZone);
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
@@ -61,7 +66,7 @@ function shiftedItemValue(item: TimeItem, targetDate: string, timeZone: string):
   return moveToCalendarDate(source, targetDate, timeZone);
 }
 
-function CalendarItem({ item, timeZone, onDragStart, onOpen }: { item: TimeItem; timeZone: string; onDragStart: (item: TimeItem) => void; onOpen: () => void }) {
+function CalendarItem({ item, timeZone, botName, onDragStart, onOpen }: { item: TimeItem; timeZone: string; botName?: string; onDragStart: (item: TimeItem) => void; onOpen: () => void }) {
   const { t } = useI18n();
   const time = item.allDay ? t("All day") : dateText(new Date(item.start ?? item.end ?? Date.now()), timeZone, { hour: "numeric", minute: "2-digit" });
   return (
@@ -79,11 +84,14 @@ function CalendarItem({ item, timeZone, onDragStart, onOpen }: { item: TimeItem;
     >
       <span className="block truncate font-medium">{item.title || t("Untitled")}</span>
       <span className="block truncate text-[10px] text-foreground-secondary">{time}{item.overdue ? ` · ${t("Overdue")}` : ""}</span>
+      {item.kind === "scheduled_once" && <span className="block truncate text-[10px] text-foreground-secondary">
+        {[botName, t(styleForActivity(item.state).label)].filter(Boolean).join(" · ")}
+      </span>}
     </button>
   );
 }
 
-function CalendarGrid({ days, view, items, timeZone, onDragStart, onDrop, onOpen }: { days: string[]; view: CalendarView; items: Map<string, TimeItem[]>; timeZone: string; onDragStart: (item: TimeItem) => void; onDrop: (date: string) => void; onOpen: (item: TimeItem) => void }) {
+function CalendarGrid({ days, view, items, timeZone, bots, onDragStart, onDrop, onOpen }: { days: string[]; view: CalendarView; items: Map<string, TimeItem[]>; timeZone: string; bots: OutcomeExecutionBot[]; onDragStart: (item: TimeItem) => void; onDrop: (date: string) => void; onOpen: (item: TimeItem) => void }) {
   const { t } = useI18n();
   return (
     <div className={cn("grid min-h-[420px] gap-px overflow-hidden rounded-lg border border-border bg-border", view === "day" ? "grid-cols-1" : "grid-cols-7")} role="grid" aria-label={t("Calendar") }>
@@ -96,7 +104,7 @@ function CalendarGrid({ days, view, items, timeZone, onDragStart, onDrop, onOpen
               {entries.length > 0 && <span className="rounded-full bg-subtle px-1.5 py-0.5 tabular-nums">{entries.length}</span>}
             </h3>
             <div className="space-y-1">
-              {entries.slice(0, view === "month" ? 3 : undefined).map((item) => <CalendarItem key={item.id} item={item} timeZone={timeZone} onDragStart={(value) => { onDragStart(value); }} onOpen={() => onOpen(item)} />)}
+              {entries.slice(0, view === "month" ? 3 : undefined).map((item) => <CalendarItem key={item.id} item={item} timeZone={timeZone} botName={bots.find((bot) => bot.id === item.botId)?.name} onDragStart={onDragStart} onOpen={() => onOpen(item)} />)}
               {view === "month" && entries.length > 3 && <p className="px-1 text-[10px] text-foreground-secondary">{t("{count} more", { count: entries.length - 3 })}</p>}
             </div>
           </section>
@@ -106,7 +114,7 @@ function CalendarGrid({ days, view, items, timeZone, onDragStart, onDrop, onOpen
   );
 }
 
-export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOpenRoutine }: CalendarPageProps) {
+export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOpenRoutine, onOpenScheduledGoal }: CalendarPageProps) {
   const { t } = useI18n();
   const [timeZone, setTimeZone] = useState("UTC");
   const [view, setView] = useState<CalendarView>("month");
@@ -120,45 +128,67 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
   const [error, setError] = useState(false);
   const [externalUnavailable, setExternalUnavailable] = useState<string | null>(null);
   const [dragged, setDragged] = useState<TimeItem | null>(null);
+  const generation = useRef(0);
   const days = useMemo(() => calendarDays(selectedDate, view), [selectedDate, view]);
   const grouped = useMemo(() => itemsByDay(items, timeZone), [items, timeZone]);
 
   const load = useCallback(async () => {
+    const request = ++generation.current;
     setLoading(true);
     setError(false);
     try {
-      const [zone, response] = await Promise.all([api.userTimeZone(), api.schedule.list({ ...rangeFor(selectedDate, view, timeZone), kinds: selectedKinds, ...(selectedBot ? { botId: selectedBot } : {}), ...(mine ? { mine: true } : {}) } satisfies ScheduleQuery)]);
-      setTimeZone(zone.timeZone);
+      const zone = await api.userTimeZone();
+      const range = rangeFor(selectedDate, view, zone.timeZone);
+      const query = { ...range, kinds: selectedKinds, ...(selectedBot ? { botId: selectedBot } : {}), ...(mine ? { mine: true } : {}) } satisfies ScheduleQuery;
+      let response: Awaited<ReturnType<typeof api.schedule.list>>;
+      try {
+        response = await api.schedule.list(query);
+      } catch (cause) {
+        if (!selectedKinds.includes("scheduled_once") || !(cause instanceof ClientError) || cause.status !== 400 || cause.code !== "invalid_request") throw cause;
+        const legacyKinds = selectedKinds.filter((kind) => kind !== "scheduled_once");
+        response = legacyKinds.length ? await api.schedule.list({ ...query, kinds: legacyKinds }) : { items: [], truncated: false };
+      }
       const external = externalSelection();
       let externalItems: TimeItem[] = [];
-      setExternalUnavailable(null);
+      let unavailable: string | null = null;
       if (external.connectionId && external.calendarId) {
-        const result = await api.externalCalendar.events({ ...external, ...rangeFor(selectedDate, view, timeZone) });
+        const result = await api.externalCalendar.events({ ...external, ...range });
         externalItems = result.items;
-        if (result.unavailable) setExternalUnavailable(result.unavailable.message);
+        unavailable = result.unavailable?.message ?? null;
       }
+      if (request !== generation.current) return;
+      setTimeZone(zone.timeZone);
+      setExternalUnavailable(unavailable);
       setItems([...response.items, ...externalItems]);
       setTruncated(response.truncated);
     } catch {
-      setError(true);
+      if (request === generation.current) setError(true);
     } finally {
-      setLoading(false);
+      if (request === generation.current) setLoading(false);
     }
-  }, [mine, selectedBot, selectedDate, selectedKinds, timeZone, view]);
+  }, [mine, selectedBot, selectedDate, selectedKinds, view]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     const refresh = () => void load();
+    const unsubscribe = subscribeOutcomeListRefresh(refresh);
     window.addEventListener("outcomego:external-calendar-changed", refresh);
-    return () => window.removeEventListener("outcomego:external-calendar-changed", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      generation.current++;
+      unsubscribe();
+      window.removeEventListener("outcomego:external-calendar-changed", refresh);
+      window.removeEventListener("focus", refresh);
+    };
   }, [load]);
 
   const move = (amount: number) => {
     setSelectedDate(movePeriod(selectedDate, view, amount));
   };
   const openItem = (item: TimeItem) => {
+    if (item.kind === "scheduled_once" && item.link.type === "routine") return onOpenScheduledGoal?.(item.link.id);
     if (item.outcomeId) return onOpenOutcome(item.outcomeId);
     if (item.link.type === "channel") return onOpenChannel?.(item.link.id);
-    if (item.link.type === "routine") return onOpenRoutine?.(item.link.id);
+    if (item.link.type === "routine") return onOpenRoutine?.(item.link.id, item.botId);
   };
   const reschedule = async (date: string) => {
     if (!dragged || !dragged.editable) return;
@@ -204,7 +234,7 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
         {truncated && <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{t("Too many items. Narrow the date range or filters.")}</p>}
         {error && <div role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-xs text-destructive">{t("Calendar could not be loaded.")} <button className="underline" onClick={() => void load()}>{t("Retry")}</button></div>}
         {externalUnavailable && <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{t("External calendar overlay unavailable")}: {externalUnavailable}</div>}
-        {loading ? <p role="status">{t("Loading calendar…")}</p> : items.length === 0 ? <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-sm text-foreground-secondary">{t("Nothing scheduled for this period.")}</div> : <CalendarGrid days={days} view={view} items={grouped} timeZone={timeZone} onDragStart={(item) => setDragged(item)} onDrop={(date) => void reschedule(date)} onOpen={openItem} />}
+        {loading ? <p role="status">{t("Loading calendar…")}</p> : items.length === 0 ? <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-sm text-foreground-secondary">{t("Nothing scheduled for this period.")}</div> : <CalendarGrid days={days} view={view} items={grouped} timeZone={timeZone} bots={bots} onDragStart={setDragged} onDrop={(date) => void reschedule(date)} onOpen={openItem} />}
       </div></div>
     </section>
   );

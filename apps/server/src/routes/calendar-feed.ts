@@ -1,5 +1,5 @@
 import { ApiError } from "@outcomego/contracts";
-import { TIME_ITEM_KINDS, type CalendarFeedKind, type CreateCalendarFeedInput } from "@outcomego/contracts/task-overview";
+import { CALENDAR_FEED_KINDS, type CalendarFeedKind, type CreateCalendarFeedInput } from "@outcomego/contracts/task-overview";
 import { corsHeaders, errorResponse, json } from "../http";
 import type { CalendarFeedService } from "../services/calendar-feed-service";
 import type { RouteContext } from "./context";
@@ -9,8 +9,8 @@ const uuid = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 function parseInput(value: unknown): CreateCalendarFeedInput {
   const input = value as Partial<CreateCalendarFeedInput> | null;
   const name = typeof input?.name === "string" ? input.name.trim() : "";
-  if (!name || name.length > 80 || !Array.isArray(input?.kinds) || !input.kinds.length || input.kinds.length >= TIME_ITEM_KINDS.length ||
-      !input.kinds.every((kind) => TIME_ITEM_KINDS.includes(kind) && (kind as string) !== "external_event") ||
+  if (!name || name.length > 80 || !Array.isArray(input?.kinds) || !input.kinds.length || input.kinds.length > CALENDAR_FEED_KINDS.length ||
+      !input.kinds.every((kind) => CALENDAR_FEED_KINDS.includes(kind)) ||
       (input.includeLinks !== undefined && typeof input.includeLinks !== "boolean")) {
     throw new ApiError(400, "invalid_request", "Use a title and select at least one supported calendar item kind");
   }

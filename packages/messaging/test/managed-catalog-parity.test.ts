@@ -3,7 +3,7 @@ import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse as yaml } from 'yaml';
-import managed from '../src/prompts/managed-skills.json';
+import managed from '../src/prompts/managed-catalog';
 import { AgentDataStore } from '../src/agent-data';
 import { buildGroupTurnPrompt } from '../src/index';
 import { normalizeMemoryContent } from '../src/memory-facts';

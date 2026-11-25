@@ -29,13 +29,29 @@ test("email routine triggers parse, describe, and validate against the model-fac
   // As the reference reports it: the union's own issue, then every trigger shape.
   expect(invalid).toStartWith('Invalid arguments:\ntrigger: Invalid input\ntrigger: Not a valid trigger. Trigger shapes:\n  { "type": "slack"');
   expect(invalid).toContain('{ "type": "email", "inbox": "<one of the user\'s connected Email plugin inbox addresses (ListEmailInboxes)>"');
-  expect(invalid).toEndWith('"blockUnauthenticatedTeamsUsers": true to ignore messages from unauthenticated Teams users.');
+  expect(invalid).toContain('"blockUnauthenticatedTeamsUsers": true to ignore messages from unauthenticated Teams users.');
   expect(normalizeMainToolArguments("UpdateRoutine", { action: "get", id: "brief" })).toEqual({ action: "get", id: "brief" });
   expect(normalizeMainToolArguments("UpdateRoutine", input).trigger).toEqual(trigger);
   expect(() => normalizeMainToolArguments("UpdateRoutine", { ...input, trigger: { type: "group", listeners: [{ type: "origin", repo: "o/r", events: ["pr-opened"] }, trigger] } })).toThrow("Origin can't be grouped with email");
   expect(describeTrigger(trigger)).toBe("When email arrives at bot@raghav.sh");
   expect(describeTrigger({ ...trigger, requireAuthPass: false })).toBe("When email arrives at bot@raghav.sh, including unauthenticated senders");
   expect(describeTrigger({ type: "group", listeners: [{ type: "cron", schedule: "0 9 * * 1-5" }, trigger] })).toContain("or when email arrives at bot@raghav.sh");
+});
+
+test("UpdateRoutine advertises and parses a standalone one-time trigger", async () => {
+  const { createToolValidator } = await import("@outcomego/plugin-sdk/json-schema");
+  const validate = createToolValidator(UPDATE_ROUTINE_TOOL.inputSchema);
+  const trigger = { type: "once", runAt: "2026-11-26T12:00:00+08:00", preparation: {
+    at: "2026-11-26T11:49:00+08:00", instruction: "Check relevant authorized notes.",
+  } };
+  const input = { action: "create", name: "Scheduled review", prompt: "Remind the owner.", trigger };
+  expect(validate(input).valid).toBe(true);
+  expect(normalizeMainToolArguments("UpdateRoutine", input).trigger).toEqual(trigger);
+  expect(validate({ ...input, trigger: [trigger] }).valid).toBe(false);
+  expect(validate({ ...input, trigger: { ...trigger, runAt: "2026-11-26T12:00:00" } }).valid).toBe(false);
+  for (const invalid of [[trigger], { type: "group", listeners: [trigger] }, { ...trigger, runAt: "2026-11-26T12:00:00" }]) {
+    expect(() => normalizeMainToolArguments("UpdateRoutine", { ...input, trigger: invalid })).toThrow("Not a valid trigger");
+  }
 });
 test("plugin routine triggers validate against the model-facing schema, parse, and describe", async () => {
   const { createToolValidator } = await import("@outcomego/plugin-sdk/json-schema");

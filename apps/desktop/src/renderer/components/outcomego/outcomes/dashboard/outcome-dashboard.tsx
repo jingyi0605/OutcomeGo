@@ -52,6 +52,7 @@ interface Loaded {
   moreSteps: boolean;
   /** Null when the area is not wanted or this server has no activity call: the area is then left out. */
   activity: ActivityItem[] | null;
+  upcoming: NonNullable<import("@outcomego/contracts/task-overview").ActivityResponse["upcoming"]>;
   /** Requests waiting on the owner. Empty when this server has no such call or it failed: the steps still show. */
   requests: NeedsMeItem[];
   todos: TodoAttentionItem[];
@@ -280,6 +281,8 @@ export function OutcomeDashboard({
   onCreateGoal,
   onCreateIdea,
   onOpenChannel,
+  onOpenRoutine,
+  onOpenScheduledGoal,
   activityPolicy,
   refreshVersion = 0,
 }: {
@@ -294,6 +297,8 @@ export function OutcomeDashboard({
   onCreateIdea: () => void;
   /** Opens a channel's conversation: where a request or a channel routine leads. Without it those rows are text only. */
   onOpenChannel?: (channelId: string) => void;
+  onOpenRoutine?: (routineId: string, botId: string) => void;
+  onOpenScheduledGoal?: (id: string) => void;
   /** The owner's choices for the activity area; each falls back to the policy's initial value. */
   activityPolicy?: { cardMaxItems?: number | undefined; dashboardLayout?: string | undefined };
   refreshVersion?: number;
@@ -321,14 +326,15 @@ export function OutcomeDashboard({
         inbox.list({ status: "pending" }).catch(() => ({ items: [], nextCursor: null })),
         // The owner's activity is only asked for when it will be shown. A server without it, or one that fails, just
         // leaves the area out: the goals and the owner's list do not depend on it.
-        layout.activity && outcomes.activity
-          ? outcomes.activity({ includeAll: showAll }).then((response) => response.items ?? null).catch(() => null)
+        (layout.activity || onOpenScheduledGoal) && outcomes.activity
+          ? outcomes.activity({ includeAll: showAll }).catch(() => null)
           : Promise.resolve(null),
         // Requests nobody can move join the owner's list. An older server just has none.
         outcomes.needsMe?.().catch(() => null) ?? Promise.resolve(null),
       ]);
       if (generation.current !== request) return;
-      setData({ outcomes: goals.items, steps: steps.items, moreSteps: steps.nextCursor !== null, activity,
+      setData({ outcomes: goals.items, steps: steps.items, moreSteps: steps.nextCursor !== null,
+        activity: activity?.items ?? null, upcoming: activity?.upcoming ?? [],
         requests: needsMe?.items ?? [], todos: needsMe?.todos ?? [], todoDigest: needsMe?.todoDigest ?? null });
     } catch {
       if (generation.current === request) setError(true);
@@ -350,7 +356,7 @@ export function OutcomeDashboard({
       window.clearInterval(interval);
       unsubscribe();
     };
-  }, [outcomes, inbox, showAll, layout.activity]);
+  }, [outcomes, inbox, showAll, layout.activity, Boolean(onOpenScheduledGoal)]);
   useEffect(() => {
     if (refreshVersion > 0) void load();
   }, [refreshVersion]);
@@ -396,10 +402,12 @@ export function OutcomeDashboard({
     bots.find((bot) => bot.id === outcome.botId)?.name ?? t("Bot");
   const todoHandoff = outcomes.todos && { bots, client: outcomes.todos, goals: outcomes, onOpenChannel, onSelectOutcome };
   const canOpenActivity = (item: ActivityItem) =>
-    item.link.type === "outcome" || (item.link.type === "channel" && onOpenChannel !== undefined);
+    item.link.type === "outcome" || (item.link.type === "channel" && onOpenChannel !== undefined) ||
+      (item.link.type === "routine" && onOpenRoutine !== undefined);
   const openActivity = (item: ActivityItem) => {
     if (item.link.type === "outcome") onSelectOutcome(item.link.id);
     else if (item.link.type === "channel") onOpenChannel?.(item.link.id);
+    else if (item.link.type === "routine") onOpenRoutine?.(item.link.id, item.botId);
   };
   const lane = (items: { rows: OutcomeSummary[]; total: number }) =>
     items.rows.length === 0 ? (
@@ -533,6 +541,24 @@ export function OutcomeDashboard({
         )}
       </section>
 
+      {!!data?.upcoming.length && (
+        <section aria-label={t("Upcoming work")} className="outcome-dash-section">
+          <SectionHeading title={t("Upcoming work")} count={String(data.upcoming.length)} />
+          <ul className="outcome-rows">
+            {data.upcoming.map((item) => (
+              <li key={item.id}>
+                <button type="button" className="outcome-row" disabled={!onOpenScheduledGoal} onClick={() => onOpenScheduledGoal?.(item.link.id)}>
+                  <span className="min-w-0 flex-1">
+                    <span className="outcome-row-title">{item.title}</span>
+                    <span className="outcome-row-meta">{bots.find((bot) => bot.id === item.botId)?.name ?? t("Bot")} · <time dateTime={item.runAt}>{new Date(item.runAt).toLocaleString()}</time> · {t(styleForActivity(item.state).label)}</span>
+                  </span>
+                  <ChevronRight aria-hidden="true" className="size-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {layout.activity && data?.activity != null && (
         <ActivitySection
           items={data.activity}

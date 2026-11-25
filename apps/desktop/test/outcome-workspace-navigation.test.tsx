@@ -4,8 +4,10 @@ import { act, type ReactNode } from "react";
 import type { Root } from "react-dom/client";
 import { OutcomeGoClientError } from "@outcomego/client-core";
 import type { OutcomeDetail, OutcomeListPage } from "@outcomego/contracts/outcomes";
+import type { RoutineExecutionView, RoutineView, ScheduledGoalDetail, ScheduledGoalSummary, UpdateRoutineInput } from "@outcomego/contracts";
 import { createOutcomeApi } from "../src/renderer/client/outcome-api";
 import { I18nProvider } from "../src/renderer/lib/i18n";
+import type { ActivityResponse, ScheduleQuery, ScheduleResponse } from "@outcomego/contracts/task-overview";
 let TooltipProvider: typeof import("../src/renderer/components/ui/tooltip").TooltipProvider;
 let OutcomeNavigation: typeof import("../src/renderer/components/outcomego/outcomes/outcome-navigation").OutcomeNavigation;
 let OutcomeList: typeof import("../src/renderer/components/outcomego/outcomes/outcome-list").OutcomeList;
@@ -27,10 +29,14 @@ const bots = [
 ];
 let current: OutcomeDetail;
 let list: (query: string) => Promise<OutcomeListPage>;
+let activity: ActivityResponse | undefined;
 const outcomes = createOutcomeApi(async <T,>(path: string, init?: RequestInit): Promise<T> => {
   const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
   calls.push({ path, body });
   if (path.startsWith("/api/todos?")) throw new OutcomeGoClientError("Not found", "not_found", 404);
+  if (path.startsWith("/api/activity")) {
+    return (activity ?? current) as T;
+  }
   if (path.startsWith("/api/outcomes?") || (path === "/api/outcomes" && !body))
     return (await list(path.split("?")[1] ?? "")) as T;
   if (path.endsWith("/thread")) return { threadId: null, turns: [] } as T;
@@ -66,6 +72,14 @@ const outcomes = createOutcomeApi(async <T,>(path: string, init?: RequestInit): 
 });
 const api = {
   outcomes,
+  scheduledGoals: async (): Promise<ScheduledGoalSummary[]> => [],
+  scheduledGoal: async (_id: string): Promise<ScheduledGoalDetail> => { throw new Error("No scheduled goal fixture"); },
+  prepareRoutine: async (_id: string, _revision: number, _clientId: string): Promise<RoutineExecutionView> => { throw new Error("No advice fixture"); },
+  setRoutineEnabled: async (_routine: RoutineView, _enabled: boolean): Promise<RoutineView> => { throw new Error("No lifecycle fixture"); },
+  deleteRoutine: async (_routine: RoutineView): Promise<void> => { throw new Error("No lifecycle fixture"); },
+  updateRoutine: async (_id: string, _input: UpdateRoutineInput): Promise<RoutineView> => { throw new Error("No lifecycle fixture"); },
+  schedule: { list: async (_query: ScheduleQuery): Promise<ScheduleResponse> => ({ items: [], truncated: false }) },
+  userTimeZone: async () => ({ timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
   outcomeInbox: {
     list: async () => ({ items: inboxItems, nextCursor: null }),
     decision: async () => decisionView,
@@ -183,6 +197,7 @@ beforeAll(async () => {
   ).default;
 });
 beforeEach(() => {
+  activity = undefined;
   calls.length = 0;
   readCalls.length = 0;
   resolveCalls.length = 0;
@@ -345,6 +360,147 @@ test("calendar navigation opens a separate calendar action", async () => {
   expect(calendar).toBeTruthy();
   await act(async () => calendar.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
   expect(opened).toBe(1);
+});
+
+test("dashboard and calendar open the scheduled goal inside goal management", async () => {
+  const { CalendarPage } = await import("../src/renderer/components/outcomego/outcomes/calendar/calendar-page");
+  const runAt = new Date().toISOString();
+  const botId = bots[0]!.id;
+  const routineId = "once-routine";
+  const title = "Review fixture notes";
+  const link = { type: "routine", id: routineId } as const;
+  activity = { items: [], truncated: false, upcoming: [{ id: `routine:${routineId}`, type: "routine", botId, title, state: "preparing", runAt,
+    reason: null, doing: null, progress: null, lastActivityAt: runAt, nextCheckAt: runAt, needsOwner: false, link }] };
+  const opened: string[] = [];
+  const originalDetail = api.scheduledGoal;
+  const openRoutine = () => { throw new Error("Scheduled goals must stay in goal management"); };
+  api.scheduledGoal = async (id) => {
+    opened.push(id);
+    return scheduledGoalFixture(id, title, runAt);
+  };
+  await mount(<Workspace target={{}} bots={bots} onClose={() => {}} onOpenRoutine={openRoutine} />);
+  const upcoming = host.querySelector('section[aria-label="Upcoming work"]');
+  expect(upcoming?.querySelectorAll("button")).toHaveLength(1);
+  const row = upcoming!.querySelector("button")!;
+  expect(row.textContent).toContain("Preparing");
+  await act(async () => row.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+  expect(document.querySelector('article[aria-label="Scheduled goal details"]')?.textContent).toContain(title);
+  const original = api.schedule.list;
+  const queries: ScheduleQuery[] = [];
+  api.schedule.list = async (query) => {
+    queries.push(query);
+    return { truncated: false, items: [{ id: `scheduled_once:${routineId}`, title, kind: "scheduled_once", botId,
+      start: runAt, end: null, allDay: false, timeBasis: "scheduled", state: "preparing", overdue: false,
+      owner: "bot", link, editable: false, updatedAt: runAt }] };
+  };
+  try {
+    const { useState } = await import("react");
+    function CalendarHost() {
+      const [scheduledGoalId, setScheduledGoalId] = useState<string>();
+      return scheduledGoalId
+        ? <Workspace target={{ scheduledGoalId }} bots={bots} onClose={() => {}} />
+        : <CalendarPage bots={bots} onClose={() => {}} onOpenOutcome={() => {}} onOpenRoutine={openRoutine} onOpenScheduledGoal={setScheduledGoalId} />;
+    }
+    await render(<CalendarHost />);
+    expect(queries[0]?.kinds).toContain("scheduled_once");
+    const cells = host.querySelectorAll(`[data-calendar-item="scheduled_once:${routineId}"]`);
+    expect(cells).toHaveLength(1);
+    expect(cells[0]?.textContent).toContain("Preparing");
+    await act(async () => cells[0]!.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+    expect(document.querySelector('article[aria-label="Scheduled goal details"]')?.textContent).toContain(title);
+    expect(opened).toEqual([routineId, routineId]);
+  } finally {
+    api.schedule.list = original;
+    api.scheduledGoal = originalDetail;
+  }
+});
+
+function scheduledGoalFixture(id: string, name: string, runAt: string): ScheduledGoalDetail {
+  const botId = bots[0]!.id;
+  return {
+    id, name, botId, runAt, state: "scheduled", executions: [],
+    routine: {
+      id, name, botId, revision: 1, ownerId: botId, ownerKind: "bot", channelId: null, folder: "fixture",
+      prompt: "Check the saved notes", schedule: "", schedules: [], scheduleKind: "once", cronExpression: null,
+      intervalSeconds: null, timezone: "UTC", timezoneMode: "pinned", enabled: true, nextRunAt: runAt,
+      lastRunAt: null, createdAt: runAt, updatedAt: runAt, latestExecution: null, trigger: { type: "once", runAt },
+      triggerPresentation: null,
+    },
+  };
+}
+
+test("all goals manages scheduled work and displays the planner's saved advice", async () => {
+  const original = { ...api };
+  const runAt = new Date(Date.now() + 3_600_000).toISOString();
+  let goal = scheduledGoalFixture("test-scheduled-goal", "Consult the customer", runAt);
+  const adviceCalls: unknown[][] = [];
+  const writeCalls: unknown[][] = [];
+  api.scheduledGoals = async () => [goal];
+  api.scheduledGoal = async () => structuredClone(goal);
+  api.prepareRoutine = async (id, revision, clientId) => {
+    adviceCalls.push([id, revision, clientId]);
+    if (adviceCalls.length === 1) throw new Error("Connection interrupted");
+    const queued: RoutineExecutionView = {
+      id: "preparation", routineId: id, runId: "planner-run", revision, kind: "preparation", status: "queued",
+      scheduledFor: runAt, enqueuedAt: runAt, startedAt: null, completedAt: null, skipReason: null, error: null, createdAt: runAt,
+    };
+    goal = { ...goal, executions: [queued] };
+    return queued;
+  };
+  api.setRoutineEnabled = async (routine, enabled) => {
+    writeCalls.push(["enable", routine.revision, enabled]);
+    goal = { ...goal, state: enabled ? "scheduled" : "paused", routine: { ...routine, enabled, revision: routine.revision + 1 } };
+    return goal.routine;
+  };
+  api.deleteRoutine = async (routine) => {
+    writeCalls.push(["cancel", routine.revision]);
+    goal = { ...goal, state: "cancelled", routine: { ...routine, revision: routine.revision + 1, enabled: false } };
+  };
+  try {
+    await mount(<Workspace target={{}} bots={bots} onClose={() => {}} />);
+    await showAllGoals();
+    const list = host.querySelector('section[aria-label="Scheduled goals"]');
+    expect(list).toBeTruthy();
+    await act(async () => list!.querySelector("button")!.click());
+    const detail = () => document.querySelector('article[aria-label="Scheduled goal details"]')!;
+    await click("Generate run advice", detail());
+    expect(detail().textContent).toContain("Connection interrupted");
+    await click("Generate run advice", detail());
+    expect(adviceCalls).toEqual([[goal.id, 1, expect.any(String)], adviceCalls[0]]);
+    expect(detail().textContent).toContain("Advice queued…");
+    goal = { ...goal, executions: [{ ...goal.executions[0]!, status: "completed", result: { summary: "Confirm the revised delivery date.", delivered: false } }] };
+    await act(async () => detail().querySelector<HTMLButtonElement>('button[aria-label="Refresh from server"]')!.click());
+    expect(detail().querySelector('section[aria-label="Run advice"]')?.textContent).toContain("Confirm the revised delivery date.");
+    await click("Pause", detail());
+    await click("Resume", detail());
+    await click("Cancel scheduled goal", detail());
+    expect(writeCalls).toEqual([["enable", 1, false], ["enable", 2, true]]);
+    await click("Confirm cancellation", detail());
+    expect(writeCalls.at(-1)).toEqual(["cancel", 3]);
+    expect(detail().textContent).toContain("Cancelled");
+    expect(detail().querySelector('section[aria-label="Run history"]')?.textContent).toContain("Confirm the revised delivery date.");
+  } finally {
+    Object.assign(api, original);
+  }
+});
+
+test("the calendar retries without the one-time source on a legacy server", async () => {
+  const { CalendarPage } = await import("../src/renderer/components/outcomego/outcomes/calendar/calendar-page");
+  const original = api.schedule.list;
+  const queries: ScheduleQuery[] = [];
+  api.schedule.list = async (query) => {
+    queries.push(query);
+    if (query.kinds?.includes("scheduled_once")) throw new OutcomeGoClientError("Invalid schedule filter", "invalid_request", 400);
+    return { items: [], truncated: false };
+  };
+  try {
+    await mount(<CalendarPage bots={bots} onClose={() => {}} onOpenOutcome={() => {}} />);
+    expect(queries).toHaveLength(2);
+    expect(queries[1]?.kinds).toEqual(["goal_due", "human_task", "work_item", "todo", "follow_up"]);
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  } finally {
+    api.schedule.list = original;
+  }
 });
 
 const option = (id: string, label: string, extra: Record<string, unknown> = {}) => ({

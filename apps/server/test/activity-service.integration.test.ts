@@ -521,7 +521,7 @@ describe.skipIf(!url)("one list from every source", () => {
 
   test("a list with nothing in it is simply empty", async () => {
     const t = await setup();
-    expect(await t.service.list({ botId: t.h.bot.id })).toEqual({ items: [], truncated: false });
+    expect(await t.service.list({ botId: t.h.bot.id })).toEqual({ items: [], upcoming: [], truncated: false });
   });
 });
 

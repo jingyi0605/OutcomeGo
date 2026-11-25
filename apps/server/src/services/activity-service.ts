@@ -21,6 +21,7 @@ import {
 } from "@outcomego/contracts/task-overview";
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import { INDEPENDENT_RUN_ORIGINS, OPEN_REQUEST_WORKER_STATUSES, readFeatureSettings } from "@outcomego/messaging";
+import { listDatedRoutineSchedules } from "./dated-routine-schedule";
 
 /** What the runtime keeps in `Run.requestProgress`: written by the bot, bounded by its tool. */
 interface StoredProgress {
@@ -81,10 +82,11 @@ export class ActivityService {
     const recentHours = query.recentHours ?? policy.recentCompletedHours;
     const cutoff = new Date(now.getTime() - recentHours * 3_600_000);
     // Each source reads its own records; they share the types, the derivation and the limit, and nothing else.
-    const [requests, routines, goalTasks] = await Promise.all([
+    const [requests, routines, goalTasks, upcoming] = await Promise.all([
       this.requestItems(query, cutoff, now, policy.checkOverdueMinutes),
       this.routineItems(query, cutoff),
       this.goalTaskItems(query, now),
+      this.upcoming(query),
     ]);
     // A thing has one id (`<type>:<source id>`), so the same thing seen twice collapses to one row.
     const byId = new Map<string, ActivityItem>();
@@ -92,7 +94,40 @@ export class ActivityService {
     const merged = [...byId.values()].sort(
       (a, b) => (a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : a.id < b.id ? -1 : 1)
     );
-    return { items: merged.slice(0, ACTIVITY_LIST_LIMIT), truncated: merged.length > ACTIVITY_LIST_LIMIT };
+    const upcomingIds = new Set(upcoming.map((item) => item.id));
+    const items = merged.filter((item) => !upcomingIds.has(item.id));
+    return { items: items.slice(0, ACTIVITY_LIST_LIMIT), upcoming: upcoming.slice(0, ACTIVITY_LIST_LIMIT),
+      truncated: items.length > ACTIVITY_LIST_LIMIT || upcoming.length > ACTIVITY_LIST_LIMIT };
+  }
+
+  private async upcoming(query: ActivityQuery): Promise<NonNullable<ActivityResponse["upcoming"]>> {
+    const take = ACTIVITY_LIST_LIMIT + 1;
+    const [rows, dated] = await Promise.all([
+      this.prisma.routine.findMany({
+        where: { scheduleKind: "once", onceAt: { not: null }, onceStartedAt: null, enabled: true, deletedAt: null,
+          ...(query.botId ? { botId: query.botId } : {}), bot: { status: "active" } },
+        orderBy: [{ onceAt: "asc" }, { id: "asc" }], take,
+        select: { id: true, botId: true, name: true, onceAt: true, revision: true, updatedAt: true,
+          executions: { where: { status: { in: ["queued", "running"] } }, select: { kind: true, status: true, routineRevision: { select: { revision: true } } } },
+        },
+      }),
+      listDatedRoutineSchedules(this.prisma, { botId: query.botId, take }),
+    ]);
+    const items = rows.map((row) => {
+      const active = row.executions.filter((execution) => execution.routineRevision.revision === row.revision);
+      const state: ActivityItem["state"] = active.some((execution) => execution.kind === "scheduled") ? "waiting"
+        : active.some((execution) => execution.kind === "preparation" && execution.status === "running") ? "preparing" : "scheduled";
+      return { ...row, state, runAt: row.onceAt! };
+    });
+    return [...items, ...dated.map((row) => ({ ...row, state: "scheduled" as const }))]
+      .sort((left, right) => left.runAt.getTime() - right.runAt.getTime() || left.id.localeCompare(right.id))
+      .slice(0, take)
+      .map((row) => {
+        const runAt = row.runAt.toISOString();
+        return { id: `routine:${row.id}`, type: "routine", botId: row.botId!, title: row.name, state: row.state, runAt,
+          reason: null, doing: null, progress: null, lastActivityAt: row.updatedAt.toISOString(), nextCheckAt: runAt,
+          needsOwner: false, link: { type: "routine", id: row.id } };
+      });
   }
 
   /**
@@ -206,13 +241,14 @@ export class ActivityService {
       where: {
         enabled: true,
         deletedAt: null,
-        ...(query.botId ? { OR: [{ botId: query.botId }, { executorBotId: query.botId }] } : {}),
+        OR: [{ scheduleKind: { not: "once" } }, { onceStartedAt: { not: null } }],
+        ...(query.botId ? { AND: { OR: [{ botId: query.botId }, { executorBotId: query.botId }] } } : {}),
       },
       orderBy: { updatedAt: "desc" },
       take: ROUTINE_SCAN_LIMIT,
       select: {
         id: true, name: true, botId: true, executorBotId: true, channelId: true, nextRunAt: true, pausedAt: true, updatedAt: true,
-        executions: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, error: true, skipReason: true, updatedAt: true } },
+        executions: { where: { kind: { not: "preparation" } }, orderBy: { createdAt: "desc" }, take: 1, select: { status: true, error: true, skipReason: true, updatedAt: true } },
       },
     });
     return routines.flatMap((routine): ActivityItem[] => {

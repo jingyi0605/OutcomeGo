@@ -11,7 +11,7 @@ import {
   readText,
   uniqueSlug,
 } from "./file-state";
-import { nextRoutineTriggerRun, normalizeRoutineSchedule } from "./routines";
+import { isOnceTrigger, nextRoutineTriggerRun, normalizeRoutineSchedule } from "./routines";
 
 const MAX_AUTOMATION_NAME = 80;
 
@@ -151,7 +151,16 @@ export const parseAutomationFile = async (
       ? { ...listener, schedule: schedules[scheduleIndex++]?.scheduleText }
       : listener),
   };
-  const schedule = schedules[0] ?? null;
+  const schedule = isOnceTrigger(trigger)
+    ? {
+        scheduleText: `Once at ${trigger.runAt}`,
+        scheduleKind: "once" as const,
+        cronExpression: null,
+        intervalSeconds: null,
+        timezoneMode: "installation" as const,
+        timezone: userZone,
+      }
+    : schedules[0] ?? null;
   let triggerPresentation: Record<string, unknown> | null = null;
   if (value.triggerPresentation && typeof value.triggerPresentation === "object") {
     try {
