@@ -253,12 +253,23 @@
   inset: -9px 0;
   content: "";
 }
+.deploy-hint {
+  position: relative;
+  display: inline-flex;
+}
+.deploy-hint:hover > .deploy-tip,
+.deploy-hint:focus-within > .deploy-tip,
 .deploy-engine:hover > .deploy-tip,
 .deploy-engine:has(input:focus-visible) > .deploy-tip {
   opacity: 1;
   visibility: visible;
   translate: var(--tip-x, 0) 0;
   transition-delay: 90ms;
+}
+/* One tip at a time: the pointer's wins over one left open by a press. */
+.deploy-guide:has(.deploy-hint:hover) .deploy-hint:focus-within:not(:hover) > .deploy-tip {
+  opacity: 0;
+  visibility: hidden;
 }
 /* It hangs over the form below, which must stay clickable through it. */
 .deploy-engine > .deploy-tip {
@@ -988,21 +999,29 @@
   color: var(--setup-faint);
 }
 
-/* System requirements & live host resource check panel. */
+.deploy-resource-button:focus-visible,
+.deploy-resources-summary:focus-visible {
+  outline: 2px solid var(--setup-accent);
+  outline-offset: 2px;
+}
+
+/* This computer's resources: a dial each, and the verdict. */
 .deploy-resources {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
   border: 1px solid color-mix(in srgb, var(--setup-line) 90%, transparent);
   border-radius: 22px;
   background: color-mix(in srgb, var(--setup-card) 86%, transparent);
   backdrop-filter: blur(18px) saturate(1.25);
-  padding: 18px 20px;
+  padding: 16px 18px;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 72%),
     0 16px 36px -22px rgb(20 26 56 / 16%),
     var(--setup-card-shadow);
-  animation: deploy-rise var(--spring-snappy-duration) var(--spring-snappy) 150ms both;
+  animation: deploy-rise var(--spring-snappy-duration) var(--spring-snappy) 150ms backwards;
 }
 :root[data-theme="dark"] .deploy-resources {
   box-shadow:
@@ -1010,122 +1029,69 @@
     0 20px 44px -22px rgb(0 0 0 / 50%),
     var(--setup-card-shadow);
 }
+.deploy-resources:has(.deploy-hint:hover, .deploy-hint:focus-within) {
+  z-index: 6;
+}
 .deploy-resources[data-tone="fail"] {
   border-color: color-mix(in srgb, var(--setup-danger) 42%, transparent);
 }
 .deploy-resources[data-tone="warn"] {
   border-color: color-mix(in srgb, var(--deploy-warn) 40%, transparent);
 }
-.deploy-resources-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px 14px;
-}
-.deploy-resources-title {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-}
-.deploy-resources-icon {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  flex-shrink: 0;
-  place-items: center;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--setup-accent) 13%, var(--setup-field));
-  color: var(--setup-accent);
-}
-.deploy-resources-title > div {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-.deploy-resources-title strong {
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 20px;
-}
-.deploy-resources-title small {
-  color: var(--setup-muted);
-  font-size: 12.5px;
-  line-height: 17px;
-}
-.deploy-resources-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--tone, var(--setup-accent)) 13%, var(--setup-panel));
-  padding: 5px 12px;
-  color: var(--tone, var(--setup-ink));
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 16px;
-  animation: deploy-pop var(--spring-bouncy-duration) var(--spring-bouncy) both;
-}
-.deploy-resources-summary[data-tone="pass"] {
-  --tone: var(--setup-success);
-}
-.deploy-resources-summary[data-tone="warn"] {
-  --tone: var(--deploy-warn);
-}
-.deploy-resources-summary[data-tone="fail"] {
-  --tone: var(--setup-danger);
-}
-.deploy-resources-summary[data-tone="checking"] {
-  --tone: var(--setup-accent);
-}
-.deploy-resources-summary[data-tone="unknown"] {
-  --tone: var(--setup-muted);
-}
-.deploy-summary-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: currentColor;
-}
-.deploy-resources-summary[data-tone="checking"] .deploy-summary-dot {
-  animation: deploy-breathe 1.2s ease-in-out infinite;
-}
 .deploy-resource-grid {
   display: grid;
+  flex: 1 1 340px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 6px;
 }
 .deploy-resource {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border: 1px solid var(--setup-line);
-  border-radius: 14px;
-  background: var(--setup-field);
-  padding: 12px 13px;
-  transition:
-    border-color 200ms ease,
-    background 200ms ease,
-    transform 180ms ease;
-  animation: deploy-rise var(--spring-snappy-duration) var(--spring-snappy) calc(180ms + var(--i, 0) * 55ms) both;
+  justify-content: center;
 }
-.deploy-resource:hover {
-  transform: translateY(-1px);
+.deploy-resource > .deploy-tip {
+  --tip-x: -50%;
+  bottom: calc(100% + 8px);
+  left: 50%;
+}
+.deploy-resource:first-child > .deploy-tip {
+  --tip-x: 0%;
+  left: 0;
+}
+.deploy-resource:last-child > .deploy-tip {
+  --tip-x: 0%;
+  right: 0;
+  left: auto;
+}
+.deploy-tip > .deploy-tip-ports {
+  font-variant-numeric: tabular-nums;
+}
+.deploy-resource-button {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  padding: 6px 2px;
+  color: var(--setup-ink);
+  font: inherit;
+  cursor: help;
+  transition: background 160ms ease;
+  animation: deploy-rise var(--spring-snappy-duration) var(--spring-snappy) calc(180ms + var(--i, 0) * 55ms) backwards;
+}
+.deploy-resource-button:hover {
+  background: var(--setup-field);
 }
 .deploy-resource[data-tone="pass"] {
   --res-tone: var(--setup-success);
 }
 .deploy-resource[data-tone="warn"] {
   --res-tone: var(--deploy-warn);
-  border-color: color-mix(in srgb, var(--deploy-warn) 36%, transparent);
-  background: color-mix(in srgb, var(--deploy-warn) 6%, var(--setup-field));
 }
 .deploy-resource[data-tone="fail"] {
   --res-tone: var(--setup-danger);
-  border-color: color-mix(in srgb, var(--setup-danger) 44%, transparent);
-  background: color-mix(in srgb, var(--setup-danger) 7%, var(--setup-field));
 }
 .deploy-resource[data-tone="checking"] {
   --res-tone: var(--setup-accent);
@@ -1133,78 +1099,99 @@
 .deploy-resource[data-tone="unknown"] {
   --res-tone: var(--setup-faint);
 }
-.deploy-resource-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.deploy-resource-icon {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  color: var(--res-tone, var(--setup-muted));
-}
-.deploy-resource-label {
-  min-width: 0;
-  flex: 1;
+.deploy-resource-button > strong {
+  max-width: 100%;
   overflow: hidden;
-  color: var(--setup-muted);
-  font-size: 12px;
-  font-weight: 550;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.deploy-resource-badge {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--res-tone, var(--setup-faint)) 14%, transparent);
-  padding: 2px 7px;
-  color: var(--res-tone, var(--setup-muted));
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 15px;
-  animation: deploy-fade 220ms ease-out both;
-}
-.deploy-resource-badge > i {
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: currentColor;
-}
-.deploy-resource-badge[data-tone="checking"] > i {
-  animation: deploy-breathe 1.2s ease-in-out infinite;
-}
-.deploy-resource-value {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 36px;
-}
-.deploy-resource-value > strong {
-  overflow: hidden;
-  color: var(--setup-ink);
   font-size: 15px;
   font-weight: 650;
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.015em;
   line-height: 20px;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
-.deploy-resource-value > small {
+.deploy-resource[data-tone="warn"] .deploy-resource-button > strong,
+.deploy-resource[data-tone="fail"] .deploy-resource-button > strong {
+  color: var(--res-tone);
+}
+.deploy-resource-button > small {
   color: var(--setup-muted);
   font-size: 11.5px;
   line-height: 15px;
+  white-space: nowrap;
+}
+.deploy-dial {
+  position: relative;
+  display: grid;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  place-items: center;
+}
+.deploy-dial > svg:first-child {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  transform: rotate(-90deg);
+}
+.deploy-dial-track {
+  stroke: color-mix(in srgb, var(--setup-ink) 9%, transparent);
+  stroke-width: 5;
+}
+.deploy-dial-fill {
+  stroke: var(--res-tone, var(--setup-accent));
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: calc(100 - var(--fill, 0) * 100);
+  transition: stroke-dashoffset 680ms var(--spring-smooth);
+  animation: deploy-dial 900ms cubic-bezier(0.22, 1, 0.36, 1) calc(260ms + var(--i, 0) * 70ms) backwards;
+}
+/* A round cap draws a dot even when there is nothing to show. */
+.deploy-resource[data-tone="unknown"] .deploy-dial-fill {
+  stroke: none;
+}
+.deploy-dial-notch {
+  stroke: var(--setup-ink);
+  stroke-width: 1.5;
+  opacity: 0.55;
+}
+.deploy-resource[data-tone="checking"] .deploy-dial > svg:first-child {
+  animation: deploy-dial-spin 1.1s linear infinite;
+}
+.deploy-dial-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  color: var(--res-tone, var(--setup-muted));
+}
+.deploy-dial-mark {
+  position: absolute;
+  right: -2px;
+  bottom: -1px;
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 2px solid var(--setup-card);
+  border-radius: 999px;
+  background: var(--res-tone);
+  color: #fff;
+  animation: deploy-pop var(--spring-bouncy-duration) var(--spring-bouncy) calc(520ms + var(--i, 0) * 70ms) backwards;
+}
+.deploy-dial-mark > svg {
+  width: 9px;
+  height: 9px;
 }
 .deploy-resource-skeleton {
   position: relative;
   display: block;
-  width: 72%;
-  height: 18px;
+  width: 44px;
+  height: 14px;
+  margin: 3px 0;
   overflow: hidden;
   border-radius: 6px;
   background: color-mix(in srgb, var(--setup-ink) 8%, transparent);
@@ -1212,81 +1199,70 @@
 .deploy-resource-skeleton::after {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgb(255 255 255 / 55%) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 55%) 50%, transparent 100%);
   content: "";
   animation: deploy-shimmer 1.35s ease-in-out infinite;
 }
 :root[data-theme="dark"] .deploy-resource-skeleton::after {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgb(255 255 255 / 14%) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 14%) 50%, transparent 100%);
 }
-.deploy-resource-bar {
-  position: relative;
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--setup-ink) 9%, transparent);
+.deploy-resources-verdict {
+  flex: 0 0 auto;
+  justify-content: center;
+  margin: 0 auto;
 }
-.deploy-resource-fill {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--res-tone, var(--setup-accent));
-  transform: scaleX(var(--fill, 0));
-  transform-origin: left center;
-  transition: transform 680ms var(--spring-smooth);
+.deploy-resources-verdict > .deploy-tip {
+  right: 0;
+  bottom: calc(100% + 8px);
 }
-.deploy-resource-bar[data-tone="checking"] .deploy-resource-fill {
-  width: 45%;
-  background: linear-gradient(90deg, transparent, var(--setup-accent), transparent);
-  transform: none;
-  animation: deploy-shimmer 1.4s ease-in-out infinite;
-}
-.deploy-resource-mark {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--mark, 0.5) * 100%);
-  width: 1.5px;
-  background: color-mix(in srgb, var(--setup-card) 85%, var(--setup-ink));
-  opacity: 0.7;
-  pointer-events: none;
-}
-.deploy-resource-ports {
+.deploy-resources-summary {
   display: flex;
+  min-width: 112px;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  border: 0;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--tone, var(--setup-accent)) 11%, transparent);
+  padding: 14px 14px 12px;
+  color: var(--tone, var(--setup-ink));
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 16px;
+  cursor: help;
+  animation: deploy-pop var(--spring-bouncy-duration) var(--spring-bouncy) both;
 }
-.deploy-resource-ports > span {
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--setup-ink) 7%, transparent);
-  padding: 2px 7px;
-  color: var(--setup-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 14px;
+.deploy-resources-summary > i {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--tone, var(--setup-accent));
+  color: #fff;
 }
-.deploy-resource-ports > span[data-tone="pass"] {
-  background: color-mix(in srgb, var(--setup-success) 15%, transparent);
-  color: var(--setup-success);
+.deploy-resources-verdict[data-tone="pass"] {
+  --tone: var(--setup-success);
 }
-.deploy-resource-ports > span[data-tone="warn"] {
-  background: color-mix(in srgb, var(--deploy-warn) 16%, transparent);
-  color: var(--deploy-warn);
+.deploy-resources-verdict[data-tone="warn"] {
+  --tone: var(--deploy-warn);
+}
+.deploy-resources-verdict[data-tone="fail"] {
+  --tone: var(--setup-danger);
+}
+.deploy-resources-verdict[data-tone="checking"] {
+  --tone: var(--setup-accent);
+}
+.deploy-resources-verdict[data-tone="checking"] .deploy-resources-summary > i {
+  animation: deploy-breathe 1.2s ease-in-out infinite;
+}
+.deploy-resources-verdict[data-tone="unknown"] {
+  --tone: var(--setup-muted);
 }
 .deploy-resources-note {
   display: flex;
+  flex-basis: 100%;
   align-items: center;
   gap: 8px;
   margin: 0;
@@ -1408,12 +1384,20 @@
   }
 }
 
-/* Medium windows: switch the 4 resource cards into a crisp 2x2 grid. */
-@media (max-width: 1320px) {
-  .deploy-resource-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@keyframes deploy-dial {
+  from {
+    stroke-dashoffset: 100;
   }
 }
+@keyframes deploy-dial-spin {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
+  }
+}
+
 /* Narrow windows: the lanes stack, and the facts give way to the picture. */
 @media (max-width: 1100px) {
   .deploy-guide-lanes {
@@ -1439,8 +1423,11 @@
     min-height: 44px;
   }
   .deploy-resources {
-    gap: 10px;
-    padding: 14px 16px;
+    padding: 10px 14px;
+  }
+  .deploy-resources-summary {
+    gap: 6px;
+    padding: 10px 12px;
   }
   .deploy-guide-advice {
     padding: 12px 16px;
@@ -1449,11 +1436,6 @@
 @media (prefers-reduced-motion: reduce) {
   .deploy-lane,
   .deploy-lane-sheen,
-  .deploy-resources,
-  .deploy-resource,
-  .deploy-resources-summary,
-  .deploy-resource-skeleton::after,
-  .deploy-resource-bar[data-tone="checking"] .deploy-resource-fill,
   .deploy-guide-advice,
   .deploy-guide-advice > i,
   .deploy-layer > em > i,
@@ -1462,14 +1444,19 @@
   .deploy-lane[data-selected] .deploy-link > i {
     animation: none;
   }
-  .deploy-lane,
-  .deploy-resource,
-  .deploy-resource-fill {
+  .deploy-resources,
+  .deploy-resources *,
+  .deploy-resources *::after {
+    animation: none !important;
+  }
+  .deploy-dial-fill {
+    transition: none;
+  }
+  .deploy-lane {
     transition-property: border-color, box-shadow, opacity;
   }
   .deploy-lane[data-selected],
-  .deploy-lane[data-interactive]:hover:not([data-selected]),
-  .deploy-resource:hover {
+  .deploy-lane[data-interactive]:hover:not([data-selected]) {
     transform: none;
   }
 }

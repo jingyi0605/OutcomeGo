@@ -379,4 +379,7 @@ test("the right panel displays local resource requirements and live check result
   expect(panel.textContent).toContain("Not enough disk space");
   expect(panel.querySelector('[data-id="disk"]')?.getAttribute("data-tone")).toBe("fail");
   expect(panel.querySelector('[data-id="memory"]')?.getAttribute("data-tone")).toBe("pass");
+  // Under each dial only the measured value; the rest is in its tip.
+  expect(["memory", "disk", "cpu", "port"].map((id) => panel.querySelector(`[data-id="${id}"] button strong`)!.textContent))
+    .toEqual(["16 GB", "4.2 GB", "10 cores", "8787"]);
 });

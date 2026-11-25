@@ -292,6 +292,8 @@ export interface ResourceCheckItem {
   requirementValues?: Record<string, string | number>;
   actual: string;
   actualValues?: Record<string, string | number>;
+  /** The measured value alone, for under the dial; reads `actualValues`. Absent when unmeasured. */
+  short?: string;
   status: string;
   tone: ResourceTone;
   /** Visual capacity meter fill (0..1) when applicable. */
@@ -334,15 +336,15 @@ export const evaluateHostResources = (probes: EngineProbes | null, selected: Eng
     const amount = formatGb(resources.memoryBytes);
     const ratio = clampRatio(resources.memoryBytes, 16 * 1024 ** 3);
     if (resources.memoryBytes < REQUIRED_MEMORY_BYTES) {
-      memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "{amount}", actualValues: { amount }, status: "Below 8 GB", tone: "warn", ratio, threshold: 0.5 };
+      memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "{amount}", actualValues: { amount }, short: "{amount}", status: "Below 8 GB", tone: "warn", ratio, threshold: 0.5 };
     } else if (guestMemoryBytes !== null && guestMemoryBytes < REQUIRED_GUEST_MEMORY_BYTES) {
       memory = {
         id: "memory", label: "Memory", requirement: "≥ 8 GB recommended",
-        actual: "{amount} (engine {guest})", actualValues: { amount, guest: formatGb(guestMemoryBytes) },
+        actual: "{amount} (engine {guest})", actualValues: { amount, guest: formatGb(guestMemoryBytes) }, short: "{guest}",
         status: "Engine memory low", tone: "warn", ratio: clampRatio(guestMemoryBytes, 8 * 1024 ** 3), threshold: 0.5,
       };
     } else {
-      memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "{amount}", actualValues: { amount }, status: "Meets requirement", tone: "pass", ratio, threshold: 0.5 };
+      memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "{amount}", actualValues: { amount }, short: "{amount}", status: "Meets requirement", tone: "pass", ratio, threshold: 0.5 };
     }
   } else {
     memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "Checked on deploy", status: "Unchecked", tone: "unknown", threshold: 0.5 };
@@ -356,8 +358,8 @@ export const evaluateHostResources = (probes: EngineProbes | null, selected: Eng
     const amount = formatGb(resources.diskAvailableBytes);
     const ratio = clampRatio(resources.diskAvailableBytes, 32 * 1024 ** 3);
     disk = resources.diskAvailableBytes >= REQUIRED_DISK_BYTES
-      ? { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "{amount} free", actualValues: { amount }, status: "Sufficient", tone: "pass", ratio, threshold: 0.25 }
-      : { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "{amount} free", actualValues: { amount }, status: "Not enough space", tone: "fail", ratio, threshold: 0.25 };
+      ? { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "{amount} free", actualValues: { amount }, short: "{amount}", status: "Sufficient", tone: "pass", ratio, threshold: 0.25 }
+      : { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "{amount} free", actualValues: { amount }, short: "{amount}", status: "Not enough space", tone: "fail", ratio, threshold: 0.25 };
   } else {
     disk = { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "Checked on deploy", status: "Unchecked", tone: "unknown", threshold: 0.25 };
   }
@@ -370,8 +372,8 @@ export const evaluateHostResources = (probes: EngineProbes | null, selected: Eng
     const ratio = clampRatio(resources.cpuCores, 8);
     const archLabel = resources.arch || "64-bit";
     cpu = resources.cpuCores >= RECOMMENDED_CPU_CORES
-      ? { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "{cores} cores · {arch}", actualValues: { cores: resources.cpuCores, arch: archLabel }, status: "Meets requirement", tone: "pass", ratio, threshold: 0.25 }
-      : { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "{cores} cores · {arch}", actualValues: { cores: resources.cpuCores, arch: archLabel }, status: "Limited CPU", tone: "warn", ratio, threshold: 0.25 };
+      ? { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "{cores} cores · {arch}", actualValues: { cores: resources.cpuCores, arch: archLabel }, short: "{cores} cores", status: "Meets requirement", tone: "pass", ratio, threshold: 0.25 }
+      : { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "{cores} cores · {arch}", actualValues: { cores: resources.cpuCores, arch: archLabel }, short: "{cores} cores", status: "Limited CPU", tone: "warn", ratio, threshold: 0.25 };
   } else {
     cpu = { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "Checked on deploy", status: "Unchecked", tone: "unknown", threshold: 0.25 };
   }
@@ -381,9 +383,9 @@ export const evaluateHostResources = (probes: EngineProbes | null, selected: Eng
   if (checking) {
     port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Checking…", status: "Checking…", tone: "checking" };
   } else if (resources?.apiPortAvailable === true) {
-    port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Port {port} free", actualValues: { port: apiPort }, status: "Available", tone: "pass" };
+    port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Port {port} free", actualValues: { port: apiPort }, short: "{port}", status: "Available", tone: "pass" };
   } else if (resources?.apiPortAvailable === false) {
-    port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Port {port} in use", actualValues: { port: apiPort }, status: "In use", tone: "warn" };
+    port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Port {port} in use", actualValues: { port: apiPort }, short: "{port}", status: "In use", tone: "warn" };
   } else {
     port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Checked on deploy", status: "Unchecked", tone: "unknown" };
   }

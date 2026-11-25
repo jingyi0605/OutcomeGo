@@ -1,18 +1,18 @@
 import {
-  AlertTriangle,
   Bot,
   Boxes,
   Check,
-  CheckCircle2,
   Container,
   Cpu,
-  Gauge,
   HardDrive,
   Laptop,
+  type LucideIcon,
   MemoryStick,
   Minus,
   Network,
-  XCircle,
+  ShieldCheck,
+  TriangleAlert,
+  X,
 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useI18n } from "../../lib/i18n";
@@ -22,12 +22,14 @@ import type {
   EngineOption,
   HostResourceReport,
   ResourceCheckItem,
+  ResourceTone,
 } from "../../lib/local-deploy-flow";
+import { DeployHint } from "./local-deploy-hint";
 import "./setup/local-deploy.css";
 
 // The picture beside the engine choice: the two ways to run OutcomeGo side by side, each drawn
-// as the layers it stacks on this computer, followed by live local resource checks against the
-// server's requirements and a clear recommendation.
+// as the layers it stacks on this computer, followed by this computer's resources as dials and a
+// clear recommendation.
 
 type Fact = { text: string; kind: "plus" | "minus" };
 const FACTS: Record<EngineKind, readonly Fact[]> = {
@@ -44,31 +46,47 @@ const FACTS: Record<EngineKind, readonly Fact[]> = {
 };
 const TITLES: Record<EngineKind, string> = { external: "Your container engine", managed: "OutcomeGo engine" };
 
-const ResourceIcon = ({ id }: { id: ResourceCheckItem["id"] }) => {
-  switch (id) {
-    case "memory":
-      return <MemoryStick className="size-4" strokeWidth={2} />;
-    case "disk":
-      return <HardDrive className="size-4" strokeWidth={2} />;
-    case "cpu":
-      return <Cpu className="size-4" strokeWidth={2} />;
-    case "port":
-      return <Network className="size-4" strokeWidth={2} />;
-  }
+const RESOURCE_ICONS: Record<ResourceCheckItem["id"], LucideIcon> = {
+  memory: MemoryStick,
+  disk: HardDrive,
+  cpu: Cpu,
+  port: Network,
 };
 
-const SummaryIcon = ({ tone }: { tone: HostResourceReport["tone"] }) => {
-  switch (tone) {
-    case "pass":
-      return <CheckCircle2 aria-hidden="true" className="size-3.5" strokeWidth={2.4} />;
-    case "warn":
-      return <AlertTriangle aria-hidden="true" className="size-3.5" strokeWidth={2.4} />;
-    case "fail":
-      return <XCircle aria-hidden="true" className="size-3.5" strokeWidth={2.4} />;
-    default:
-      return <i aria-hidden="true" className="deploy-summary-dot" />;
-  }
-};
+const TONE_ICONS: Partial<Record<ResourceTone, LucideIcon>> = { pass: Check, warn: TriangleAlert, fail: X };
+
+/** One resource as a dial: how much there is and, when that falls short, where enough begins. */
+function Dial({ item }: { item: ResourceCheckItem }) {
+  const Icon = RESOURCE_ICONS[item.id];
+  const Mark = TONE_ICONS[item.tone];
+  const short = item.tone === "warn" || item.tone === "fail";
+  // A port has no amount: its ring is whole once the answer is known.
+  const fill = item.tone === "checking" ? 0.25 : item.tone === "unknown" ? 0 : (item.ratio ?? 1);
+  return (
+    <span aria-hidden="true" className="deploy-dial">
+      <svg aria-hidden="true" viewBox="0 0 56 56">
+        <circle className="deploy-dial-track" cx="28" cy="28" r="24" />
+        <circle
+          className="deploy-dial-fill"
+          cx="28"
+          cy="28"
+          pathLength={100}
+          r="24"
+          style={{ "--fill": fill } as CSSProperties}
+        />
+        {short && item.threshold !== undefined ? (
+          <path className="deploy-dial-notch" d="M48.5 28h7" transform={`rotate(${item.threshold * 360} 28 28)`} />
+        ) : null}
+      </svg>
+      <Icon className="deploy-dial-icon" strokeWidth={2} />
+      {Mark ? (
+        <i className="deploy-dial-mark" key={item.tone}>
+          <Mark strokeWidth={3.2} />
+        </i>
+      ) : null}
+    </span>
+  );
+}
 
 export function EngineGuideVisual({
   options,
@@ -89,6 +107,7 @@ export function EngineGuideVisual({
 }) {
   const { t } = useI18n();
   const hostTag = platform === "darwin" ? "macOS" : platform === "win32" ? "Windows" : undefined;
+  const SummaryIcon = TONE_ICONS[resources.tone] ?? ShieldCheck;
 
   return (
     <div className="deploy-guide" data-busy={busy || undefined}>
@@ -179,77 +198,55 @@ export function EngineGuideVisual({
       </div>
 
       <section aria-label={t("System requirements & check")} className="deploy-resources" data-tone={resources.tone}>
-        <header className="deploy-resources-head">
-          <div className="deploy-resources-title">
-            <span aria-hidden="true" className="deploy-resources-icon">
-              <Gauge className="size-4" strokeWidth={2.1} />
-            </span>
-            <div>
-              <strong>{t("System requirements & check")}</strong>
-              <small>{t("Local resources required to run OutcomeGo server and bots")}</small>
-            </div>
-          </div>
-          <span className="deploy-resources-summary" data-tone={resources.tone} key={`${resources.tone}:${resources.summary}`}>
-            <SummaryIcon tone={resources.tone} />
-            <span>{t(resources.summary)}</span>
-          </span>
-        </header>
-
         <div className="deploy-resource-grid">
           {resources.items.map((item, index) => (
-            <div
-              className="deploy-resource"
+            <DeployHint
+              className="deploy-resource-button"
               data-id={item.id}
               data-tone={item.tone}
               key={item.id}
               style={{ "--i": index } as CSSProperties}
+              tip={<>
+                <b>{t(item.label)} · {t(item.status)}</b>
+                {item.tone === "checking" ? null : <span>{t(item.actual, item.actualValues)}</span>}
+                <span>{t(item.requirement, item.requirementValues)}</span>
+                {item.id === "port" ? <span className="deploy-tip-ports">{item.requirementValues?.port} · 6200–6299</span> : null}
+              </>}
+              wrapper="deploy-resource"
             >
-              <div className="deploy-resource-top">
-                <span aria-hidden="true" className="deploy-resource-icon">
-                  <ResourceIcon id={item.id} />
-                </span>
-                <span className="deploy-resource-label">{t(item.label)}</span>
-                <span className="deploy-resource-badge" data-tone={item.tone} key={`${item.tone}:${item.status}`}>
-                  <i aria-hidden="true" />
-                  {t(item.status)}
-                </span>
-              </div>
-
-              <div className="deploy-resource-value">
-                {item.tone === "checking" ? (
-                  <span aria-hidden="true" className="deploy-resource-skeleton" />
-                ) : (
-                  <strong>{t(item.actual, item.actualValues)}</strong>
-                )}
-                <small>{t(item.requirement, item.requirementValues)}</small>
-              </div>
-
-              {item.id === "port" ? (
-                <div aria-hidden="true" className="deploy-resource-ports">
-                  <span data-tone={item.tone}>{item.requirementValues?.port ?? 8787}</span>
-                  <span>6200–6299</span>
-                </div>
+              <Dial item={item} />
+              {item.tone === "checking" ? (
+                <span aria-hidden="true" className="deploy-resource-skeleton" />
               ) : (
-                <div aria-hidden="true" className="deploy-resource-bar" data-tone={item.tone}>
-                  <span
-                    className="deploy-resource-fill"
-                    style={{ "--fill": item.ratio ?? 0 } as CSSProperties}
-                  />
-                  {item.threshold !== undefined ? (
-                    <i className="deploy-resource-mark" style={{ "--mark": item.threshold } as CSSProperties} />
-                  ) : null}
-                </div>
+                <strong>{item.short ? t(item.short, item.actualValues) : "—"}</strong>
               )}
-            </div>
+              <small>{t(item.label)}</small>
+            </DeployHint>
           ))}
         </div>
+
+        <DeployHint
+          className="deploy-resources-summary"
+          data-tone={resources.tone}
+          key={`${resources.tone}:${resources.summary}`}
+          tip={<>
+            <b>{t("System requirements & check")}</b>
+            <span>{t("Local resources required to run OutcomeGo server and bots")}</span>
+          </>}
+          wrapper="deploy-resources-verdict"
+        >
+          <i aria-hidden="true">
+            <SummaryIcon className="size-5" strokeWidth={2.4} />
+          </i>
+          <span>{t(resources.summary)}</span>
+        </DeployHint>
 
         {resources.note ? (
           <p className="deploy-resources-note" data-tone={resources.note.tone} role="status">
             {resources.note.tone === "fail" ? (
-              <XCircle aria-hidden="true" className="size-3.5" strokeWidth={2.2} />
+              <X aria-hidden="true" className="size-3.5" strokeWidth={2.4} />
             ) : (
-              <AlertTriangle aria-hidden="true" className="size-3.5" strokeWidth={2.2} />
+              <TriangleAlert aria-hidden="true" className="size-3.5" strokeWidth={2.2} />
             )}
             <span>{t(resources.note.text, resources.note.values)}</span>
           </p>
