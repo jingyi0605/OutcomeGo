@@ -368,7 +368,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         botRoutes,
         routineRoutes,
         outcomeRoutes,
-        createActivityRoutes(app.activity),
+        createActivityRoutes(app.activity, app.ownerTodos),
         createTodoRoutes(app.ownerTodos),
         createScheduleRoutes(app.schedule, app.ownerTodos),
         (context: RouteContext) => exploreRoutes(context, app.explore),

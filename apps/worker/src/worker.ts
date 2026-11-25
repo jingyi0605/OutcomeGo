@@ -1,5 +1,5 @@
 import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, notifyRequestsNeedingOwner, dispatchDueScheduledWorkItems, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
-import { expireTodoSuggestions } from "@outcomego/messaging";
+import { dispatchTodoDigest, expireTodoSuggestions } from "@outcomego/messaging";
 import {
   isManagedDraftWake,
   isTreatmentDraftWake,
@@ -83,7 +83,7 @@ import type { PluginSkillAgent } from "@outcomego/plugin-sdk";
 import { Projection } from "./projection";
 import { workContinuously } from "./queue-dispatch";
 import { consumeComputerEvents } from "./computer-events";
-import { PushNotificationDispatcher } from "./push-notifications";
+import { PushNotificationDispatcher, pushAuthenticationModeFromEnvironment } from "./push-notifications";
 import { lockWakeAttempt, ownsWakeAttempt, type WakeAttempt } from "./wake-attempt";
 
 export { AUTOMATION_ATTEMPT_LIMIT, AUTOMATION_RETRY_DELAYS_MS } from "@outcomego/messaging";
@@ -727,6 +727,7 @@ export class WakeWorker {
       // A failed announcement must not stop the pass: the next pass repeats it, and the key keeps it to once.
       await notifyRequestsNeedingOwner(this.prisma).catch((error) => console.error("request-notification", error));
       await expireTodoSuggestions(this.prisma).catch((error) => console.error("todo-expiry", error));
+      await dispatchTodoDigest(this.prisma, pushAuthenticationModeFromEnvironment()).catch((error) => console.error("todo-digest", error));
       await this.releaseDueScheduledWork();
       const reconciliation = await this.agentData.reconcileAutomationFilesBatch(
         this.automationReconcileCursor,

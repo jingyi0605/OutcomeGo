@@ -286,7 +286,7 @@ export interface BadgeSyncNotificationPayload {
   mutedChannelId?: string;
 }
 
-export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload | import("./notification-content").OutcomeNotificationPayload | import("./notification-content").RequestNotificationPayload;
+export type PushNotificationPayload = AgentNotificationPayload | BadgeSyncNotificationPayload | import("./notification-content").OutcomeNotificationPayload | import("./notification-content").RequestNotificationPayload | import("./notification-content").TodoNotificationPayload;
 
 /** Transient multimodal payload used only between trusted OutcomeGo services. */
 export const RuntimeInlineImage = Schema.Struct({

@@ -52,6 +52,8 @@ export function fcmPayload(
   } else if (payload.kind === "request") {
     Object.assign(data, { factKey: payload.factKey, requestId: payload.requestId, state: payload.state, revision: String(payload.revision),
       botId: payload.botId, channelId: payload.channelId, notificationSequence: payload.notificationSequence, title: payload.title, body: payload.body });
+  } else if (payload.kind === "todo") {
+    Object.assign(data, { type: payload.type, title: payload.title, body: payload.body });
   } else if (payload.kind !== "badge-sync") {
     Object.assign(data, {
       channelId: payload.channelId,
