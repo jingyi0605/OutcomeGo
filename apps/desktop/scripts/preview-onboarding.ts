@@ -152,9 +152,25 @@ try {
     await chooser.getByText(/daily request and token limits/).waitFor();
     await chooser.getByText(/per-project limits/).waitFor();
     await chooser.getByText(/verified account/).waitFor();
-    assert.equal(await chooser.getByRole("link", { name: "Open OpenCode" }).getAttribute("href"), "https://opencode.ai/download");
-    await page.keyboard.press("Escape");
-    await chooser.waitFor({ state: "hidden" });
+    await chooser.getByText(/Use free models with key public/).waitFor();
+    await chooser.getByRole("button", { name: "Connect OpenCode Zen", exact: true }).click();
+    const openCodeTerms = page.getByRole("dialog", { name: "OpenCode Zen free-model terms" });
+    const agree = openCodeTerms.getByRole("button", { name: "Agree & continue", exact: true });
+    assert.equal(await agree.isDisabled(), true);
+    await openCodeTerms.getByRole("checkbox").check();
+    await agree.click();
+    await page.getByRole("heading", { name: "Enter your OpenCode Zen key" }).waitFor();
+    const keyField = page.getByLabel("API key", { exact: true });
+    assert.equal(await keyField.getAttribute("placeholder"), "public");
+    await keyField.fill("public");
+    assert.equal(await keyField.getAttribute("type"), "text");
+    await page.getByRole("button", { name: "Connect", exact: true }).click();
+    await page.getByRole("heading", { name: "It works!" }).waitFor();
+    assert.deepEqual(setup.saves.map((selection) => [selection.providerId, selection.modelId]), [["opencode", "big-pickle"]]);
+    assert.deepEqual(setup.tests.map((selection) => [selection.providerId, selection.modelId]), [["opencode", "big-pickle"]]);
+    assert.equal(await page.getByRole("combobox").count(), 1);
+    await page.reload();
+    await openModelChoice();
     const connect = async (provider: string) => {
       const offers = await openFreeModels();
       await offers.getByRole("button", { name: `Connect ${provider}`, exact: true }).click();

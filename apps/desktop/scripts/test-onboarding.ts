@@ -142,9 +142,15 @@ try {
     await free.click();
     const freeTerms = page.getByRole("dialog", { name: "Free and limited-use models" });
     await freeTerms.getByText(/20 requests per minute/i).waitFor();
-    assert.equal(await freeTerms.getByRole("link", { name: "Open OpenCode" }).getAttribute("href"), "https://opencode.ai/download");
+    await freeTerms.getByText(/Use free models with key public/i).waitFor();
+    await freeTerms.getByRole("button", { name: "Connect OpenCode Zen", exact: true }).click();
+    const openCodeTerms = page.getByRole("dialog", { name: "OpenCode Zen free-model terms" });
+    const agreeButton = openCodeTerms.getByRole("button", { name: "Agree & continue", exact: true });
+    assert.equal(await agreeButton.isDisabled(), true);
+    await openCodeTerms.getByRole("checkbox").check();
+    assert.equal(await agreeButton.isDisabled(), false);
     await page.keyboard.press("Escape");
-    await freeTerms.waitFor({ state: "hidden" });
+    await openCodeTerms.waitFor({ state: "hidden" });
     await title("Choose your bots' AI");
     await page.getByRole("button", { name: /^ChatGPT Your/ }).click();
     await page.getByRole("button", { name: /^Use an OpenAI API key/ }).click();

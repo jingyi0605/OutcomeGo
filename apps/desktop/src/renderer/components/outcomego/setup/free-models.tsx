@@ -74,9 +74,11 @@ function ProviderLogo({ name }: { name: string }) {
 
 export function FreeModelsDialog({
   onChoose,
+  onChooseOpenCode,
   onClose,
 }: {
   onChoose: (offer: FreeModelOffer) => void;
+  onChooseOpenCode?: () => void;
   onClose: () => void;
 }) {
   const { t } = useI18n();
@@ -115,24 +117,37 @@ export function FreeModelsDialog({
           <li className="grid gap-2 px-3 py-3 sm:grid-cols-[1fr_auto]">
             <div className="flex min-w-0 gap-3">
               <ProviderLogo name="opencode" />
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-semibold">{t("OpenCode Zen free models")}</h3>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {t("Available in the official OpenCode client. Quotas, rate limits, and data policies vary by model.")}
+                  {onChooseOpenCode
+                    ? t("Use free models with key public, or your own OpenCode API key. Quotas, rate limits, and data policies vary by model.")
+                    : t("Available in the official OpenCode client. Quotas, rate limits, and data policies vary by model.")}
                 </p>
                 <a className="mt-1 inline-flex items-center gap-1 text-xs underline underline-offset-2" href="https://opencode.ai/docs/zen/" rel="noopener noreferrer" target="_blank">
                   {t("Provider limits and terms")} <ExternalLink aria-hidden="true" className="size-3" />
                 </a>
               </div>
             </div>
-            <a
-              className={`${settingsSecondaryButton} w-fit self-center`}
-              href="https://opencode.ai/download"
-              rel="noopener noreferrer"
-              target="_blank"
-            >
-              {t("Open OpenCode")} <ExternalLink aria-hidden="true" className="size-3" />
-            </a>
+            {onChooseOpenCode ? (
+              <button
+                aria-label={t("Connect {provider}", { provider: "OpenCode Zen" })}
+                className={`${settingsSecondaryButton} w-fit self-center`}
+                onClick={onChooseOpenCode}
+                type="button"
+              >
+                {t("Connect")}
+              </button>
+            ) : (
+              <a
+                className={`${settingsSecondaryButton} w-fit self-center`}
+                href="https://opencode.ai/download"
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {t("Open OpenCode")} <ExternalLink aria-hidden="true" className="size-3" />
+              </a>
+            )}
           </li>
         </ul>
       </DialogContent>

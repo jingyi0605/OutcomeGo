@@ -45,6 +45,7 @@ import { LoadingOrb } from "../ui/loading-orb";
 import { AppIcon, CustomProviderIcon } from "./setup/app-icons";
 import { FreeModelsDialog, type FreeModelOffer } from "./setup/free-models";
 import { ModelPicker, modelOption } from "./setup/model-picker";
+import { OpenCodeFreeTermsDialog } from "./setup/opencode-terms-dialog";
 import { OpenAIMark, ProviderMark, ProviderTile } from "./setup/provider-marks";
 import { changeScreen } from "./setup/screen-transition";
 import {
@@ -652,7 +653,7 @@ function ModelScreen({
 }) {
   const { t } = useI18n();
   const [changing, setChanging] = useState(false);
-  const [dialog, setDialog] = useState<"custom" | "free" | null>(null);
+  const [dialog, setDialog] = useState<"custom" | "free" | "opencode-terms" | null>(null);
   // A model picked here is saved and tested again before Keep it.
   const [picked, setPicked] = useState(false);
   const [retest, setRetest] = useState(false);
@@ -683,8 +684,11 @@ function ModelScreen({
     void setup.reload();
   }, [setup]);
 
+  const hasOpenCode = Boolean(
+    setup.data?.providers.some((provider) => provider.id === "opencode")
+  );
   const others = (setup.data?.providers ?? []).filter(
-    (provider) => provider.id === "openrouter" || !NAMES[provider.id]
+    (provider) => provider.id === "openrouter" || provider.id === "opencode" || !NAMES[provider.id]
   );
   // Asked for a different AI while the saved one works: Back (or Esc) keeps it after all.
   const keepSaved =
@@ -877,7 +881,13 @@ function ModelScreen({
             {others.map((provider) => (
               <DropdownMenuItem
                 key={provider.id}
-                onSelect={() => onChoose(provider.id, provider.authMethods[0]?.type ?? "api_key")}
+                onSelect={() => {
+                  if (provider.id === "opencode") {
+                    setDialog("opencode-terms");
+                  } else {
+                    onChoose(provider.id, provider.authMethods[0]?.type ?? "api_key");
+                  }
+                }}
               >
                 {provider.name}
               </DropdownMenuItem>
@@ -905,6 +915,16 @@ function ModelScreen({
           onChoose={(offer) => {
             setDialog(null);
             onChoose(offer.providerId, "api_key", offer);
+          }}
+          onChooseOpenCode={hasOpenCode ? () => setDialog("opencode-terms") : undefined}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
+      {dialog === "opencode-terms" ? (
+        <OpenCodeFreeTermsDialog
+          onAccept={() => {
+            setDialog(null);
+            onChoose("opencode", "api_key");
           }}
           onClose={() => setDialog(null)}
         />

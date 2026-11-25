@@ -28,6 +28,7 @@ export class ServerSetupFixture {
   saves: ServerInferenceSettings[] = [];
   tests: ServerInferenceSettings[] = [];
   private openaiConnected = false;
+  private opencodeConnected = false;
   /** Providers added by hand, keyed by id, with the request that added them. */
   added = new Map<string, { input: AddInferenceProviderInput; key: string | null }>();
   private session: InferenceProviderAuthSessionView | null = null;
@@ -60,20 +61,32 @@ export class ServerSetupFixture {
     const view: ServerSettingsView = {
       inference: { ...this.inference },
       providers: [
-        ...["openrouter", "openai"].map((id) => ({
+        ...["openrouter", "openai", "opencode"].map((id) => ({
           id,
-          name: id === "openrouter" ? "OpenRouter" : "OpenAI",
+          name: id === "openrouter" ? "OpenRouter" : id === "opencode" ? "OpenCode Zen" : "OpenAI",
           custom: false,
           authMethods: [{ type: "api_key" as const, label: "API key", subscription: false }],
-          connected: id === "openrouter" || this.openaiConnected,
-          authType: id === "openrouter" || this.openaiConnected ? ("api_key" as const) : null,
+          connected:
+            id === "openrouter" ||
+            (id === "openai" && this.openaiConnected) ||
+            (id === "opencode" && this.opencodeConnected),
+          authType:
+            id === "openrouter" ||
+            (id === "openai" && this.openaiConnected) ||
+            (id === "opencode" && this.opencodeConnected)
+              ? ("api_key" as const)
+              : null,
           authSource: null,
           modelCount:
             id === "openrouter"
               ? (this.modelSettings ? 2 : 1) + extras.length
-              : this.openaiConnected
-                ? 1
-                : 0,
+              : id === "openai"
+                ? this.openaiConnected
+                  ? 1
+                  : 0
+                : this.opencodeConnected
+                  ? 2
+                  : 0,
         })),
         ...[...this.added].map(([id, { input, key }]) => ({
           id,
@@ -130,7 +143,33 @@ export class ServerSetupFixture {
                 : []),
               ...extras,
             ]
-          : this.openaiConnected
+          : provider === "opencode"
+            ? this.opencodeConnected
+              ? [
+                  {
+                    providerId: provider,
+                    modelId: "big-pickle",
+                    name: "big-pickle",
+                    reasoning: false,
+                    reasoningLevels: ["off"] as PiReasoningLevel[],
+                    defaultReasoningLevel: "off" as const,
+                    contextWindow: 128000,
+                    maxTokens: 16384,
+                    recommended: true,
+                  },
+                  {
+                    providerId: provider,
+                    modelId: "mimo-v2.6-flash-free",
+                    name: "mimo-v2.6-flash-free",
+                    reasoning: false,
+                    reasoningLevels: ["off"] as PiReasoningLevel[],
+                    defaultReasoningLevel: "off" as const,
+                    contextWindow: 128000,
+                    maxTokens: 16384,
+                  },
+                ]
+              : []
+            : this.openaiConnected
             ? [
                 {
                   providerId: provider,
@@ -181,6 +220,49 @@ export class ServerSetupFixture {
         modelId: selected.modelId,
         latencyMs: 12,
       });
+    }
+    if (path === "/api/v0/inference-providers/opencode/auth-sessions" && method === "POST") {
+      this.session = {
+        id: "qa-opencode",
+        providerId: "opencode",
+        authType: "api_key",
+        status: "waiting",
+        prompt: {
+          id: "qa-opencode-key",
+          type: "secret",
+          message: "Enter public for free models, or paste your OpenCode API key",
+          placeholder: "public",
+        },
+        authorizationUrl: null,
+        deviceCode: null,
+        messages: [],
+        error: null,
+      };
+      return Response.json(this.session);
+    }
+    if (this.session?.id === "qa-opencode") {
+      const sessionPath = "/api/v0/inference-provider-auth-sessions/qa-opencode";
+      if (path === sessionPath && method === "GET") return Response.json(this.session);
+      if (path === sessionPath && method === "DELETE") {
+        this.session = { ...this.session, status: "cancelled", prompt: null };
+        return Response.json(this.session);
+      }
+      if (path === `${sessionPath}/respond` && method === "POST") {
+        const { value } = input as { value: string };
+        const accepted = value === "public" || value === "qa-good-key";
+        if (accepted) this.opencodeConnected = true;
+        this.session = {
+          ...this.session,
+          status: accepted ? "connected" : "failed",
+          prompt: null,
+          error: accepted ? null : "401",
+        };
+        return Response.json(this.session);
+      }
+    }
+    if (path === "/api/v0/inference-providers/opencode" && method === "DELETE") {
+      this.opencodeConnected = false;
+      return Response.json({ ok: true });
     }
     if (this.modelSettings && path === "/api/v0/inference-providers/openrouter/auth-sessions" && method === "POST") {
       this.session = {
