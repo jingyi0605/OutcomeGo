@@ -203,6 +203,30 @@ export function localDateOf(instant: Date, timeZone: string): string {
 
 export const TIME_ITEM_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run", "external_event"] as const;
 export type TimeItemKind = (typeof TIME_ITEM_KINDS)[number];
+export type CalendarFeedKind = Exclude<TimeItemKind, "external_event">;
+
+export interface CreateCalendarFeedInput {
+  name: string;
+  kinds: CalendarFeedKind[];
+  includeLinks?: boolean;
+}
+
+export interface CalendarFeedView {
+  id: string;
+  name: string;
+  kinds: CalendarFeedKind[];
+  includeLinks: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export interface CalendarFeedListResponse {
+  items: CalendarFeedView[];
+}
+
+export interface CreatedCalendarFeed extends CalendarFeedView {
+  url: string;
+}
 
 export const SCHEDULE_RANGE_DAYS = 93;
 export const SCHEDULE_ITEM_LIMIT = 1000;

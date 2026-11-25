@@ -1641,8 +1641,25 @@ model User {
   username String?   @unique
   sessions      Session[]
   accounts      Account[]
+  calendarFeedTokens CalendarFeedToken[]
 
   @@map("outcomego_user")
+}
+
+model CalendarFeedToken {
+  id String @id @default(uuid()) @db.Uuid
+  userId String?
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name String @db.VarChar(80)
+  tokenHash String @unique(map: "outcomego_calendar_feed_token_hash_key") @db.Char(64)
+  kinds String[]
+  includeLinks Boolean @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  lastUsedAt DateTime? @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+
+  @@index([userId, revokedAt], map: "outcomego_calendar_feed_owner_revoked_idx")
+  @@map("outcomego_calendar_feed_token")
 }
 
 model Session {
