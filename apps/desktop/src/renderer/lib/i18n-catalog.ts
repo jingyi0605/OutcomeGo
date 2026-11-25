@@ -3620,6 +3620,11 @@ export const sourceTranslations: Record<string, string> = {
     "晨报里列出的标题数",
   "The most item titles the summary lists.":
     "晨报最多列出多少条事项标题。",
+
+  // 004.10 act
+  "Bot-registered": "机器人登记",
+  "Bot-registered only": "仅机器人登记",
+  "No matching bot-registered goals.": "没有符合条件的机器人登记目标。",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

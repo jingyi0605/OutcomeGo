@@ -578,6 +578,43 @@ test("all-goals status filtering queries the server and discards an obsolete res
   expect(host.textContent).toContain("Only paused goal");
 });
 
+test("the goal list marks bot-registered rows and filters them without losing the status filter", async () => {
+  const tracked = { ...outcomeFixture, title: "Alpha goal", trackingMode: "tracked" } as const;
+  const standard = { ...outcomeFixture, id: "standard", title: "Beta goal", trackingMode: "standard" } as const;
+  const legacy = { ...outcomeFixture, id: "legacy", title: "Legacy goal", trackingMode: undefined };
+  list = async (query) => ({
+    items: query.includes("trackingMode=tracked") ? [tracked] : [tracked, standard, legacy],
+    nextCursor: null,
+  });
+  await mount(<OutcomeList client={outcomes} bots={bots} onSelect={() => {}} onCreate={() => {}} />);
+  const rows = [...host.querySelectorAll(".outcome-row")];
+  expect(rows.map((row) => row.textContent?.includes("Bot-registered"))).toEqual([true, false, false]);
+  await input(host.querySelector("select")!, "approved");
+  const trackedOnly = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+  const toggle = async (checked: boolean) => {
+    trackedOnly.checked = checked;
+    await act(async () => {
+      trackedOnly.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    });
+  };
+  await toggle(true);
+  expect(calls.at(-1)!.path).toBe("/api/outcomes?status=approved&trackingMode=tracked");
+  expect(host.querySelectorAll(".outcome-row")).toHaveLength(1);
+  expect(host.textContent).toContain("Alpha goal");
+  expect(host.textContent).not.toContain("Beta goal");
+  list = async () => ({ items: [legacy], nextCursor: null });
+  await act(async () => {
+    host.querySelector('button[aria-label="Refresh from server"]')!
+      .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(host.textContent).not.toContain("Legacy goal");
+  expect(host.textContent).toContain("No matching bot-registered goals.");
+  list = async () => ({ items: [tracked, standard, legacy], nextCursor: null });
+  await toggle(false);
+  expect(calls.at(-1)!.path).toBe("/api/outcomes?status=approved");
+  expect(host.querySelectorAll(".outcome-row")).toHaveLength(3);
+});
+
 test("goal pagination retains existing goals, deduplicates overlap and passes the cursor", async () => {
   list = async (query) =>
     query
