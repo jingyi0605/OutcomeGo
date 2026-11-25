@@ -23,6 +23,7 @@ struct OutcomeInboxView: View {
   var body: some View {
     NavigationStack(path: $path) {
     NativeList {
+      NeedsMeTodosSection()
       Section {
         NavigationLink("All outcomes", value: OutcomeDestination.all)
         Picker("Category", selection: $category) {

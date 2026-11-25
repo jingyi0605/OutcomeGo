@@ -462,6 +462,10 @@ data class Plugin(
 )
 
 interface FeatureGateway {
+    suspend fun needsMeTodos(cursor: String? = null): Result<MobileTodoPage?> = Result.success(null)
+    suspend fun actOnTodo(item: MobileTodo, action: MobileTodoAction, snoozeUntil: java.time.Instant? = null): Result<Unit> =
+        Result.failure(UnsupportedOperationException("To-do actions are not available for this session."))
+
     suspend fun outcomeInbox(category: String? = null, cursor: String? = null): Result<com.outcomego.mobile.core.OutcomeInboxPage?> =
         Result.failure(UnsupportedOperationException("Outcome Inbox is not available for this session."))
     suspend fun hasPendingOutcomes(): Result<Boolean> =
