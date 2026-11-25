@@ -6,6 +6,7 @@ import type { AgentPromptContext } from "../src/agent-data";
 import {
   AUTOMATION_DELEGATING_SECTION,
   DELEGATING_SECTION,
+  OUTCOME_SECTION_ID,
   PARALLEL_TOOL_CALLS,
   PLATFORM_BASE_SYSTEM_PROMPT,
   ROUTINES_SECTION,
@@ -13,12 +14,14 @@ import {
   renderPlatformBaseSystemPrompt,
   renderSkillsSection,
 } from "../src/platform-system-prompt";
+import { OUTCOME_CHAT_TOOLS } from "@outcomego/contracts/outcome-chat";
 import { renderMainBoxSection, renderWorkerBoxSection, renderWorkerTimeSection } from "../src/worker-prompts";
 import { combinedGraphicalWorkerPrompt } from "../src/graphical-worker-prompts";
 import { REQUEST_BOX_HELP_TOOL, SEND_TO_USER_TOOL } from "@outcomego/contracts";
 import { referenceTool } from "@outcomego/contracts/tool-contracts";
 import managedSkills from "../src/prompts/managed-skills.json";
 import { AUTOMATION_RUN_INSTRUCTIONS } from "../src/automation-results";
+import platformPrompt from "../src/prompts/platform.json";
 
 const mainAgent = (id: string) => {
   const profileSnapshot: AgentPromptContext["profileSnapshot"] = {
@@ -125,6 +128,28 @@ describe("platform prompt integration", () => {
       // An explicit "create a goal" must not be satisfied by a routine alone.
       expect(on).toContain("An explicit request for a goal is an instruction");
       expect(on).toContain("a routine, TodoWrite, a shell job or a reminder never stands in for it");
+    }
+  });
+
+  test.each([
+    [{}, 27_328],
+    [{ plannerRole: true }, 27_545],
+    [{ directTextReply: true }, 25_797],
+    [{ managedSkills: false }, 31_320],
+  ] as const)("goal-enabled prompt %j stays within the Spec 004.10 baseline", (features, maximum) => {
+    expect(renderPlatformBaseSystemPrompt({ outcomes: true, managedSkills: true, sharing: true, ...features }).length)
+      .toBeLessThanOrEqual(maximum);
+  });
+
+  test("the goal section and TrackOutcome describe the same three exceptions to request tracking", () => {
+    const goalSection = platformPrompt.sections.find((section) => section.id === OUTCOME_SECTION_ID)?.text ?? "";
+    const trackTool = OUTCOME_CHAT_TOOLS.find((tool) => tool.name === "TrackOutcome");
+    expect(goalSection.length).toBeLessThan(4_853);
+    for (const guidance of [goalSection, trackTool?.description ?? ""]) {
+      expect(guidance).toContain("Task and ReportRequestProgress");
+      expect(guidance).toContain("explicitly asks to create or track a goal");
+      expect(guidance).toContain("plan approval, final acceptance or a human action");
+      expect(guidance).toContain("an inbox decision card");
     }
   });
 
