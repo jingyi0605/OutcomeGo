@@ -3,6 +3,7 @@ import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/
 import { OwnerTodoService } from "../src/services/owner-todo-service";
 import { createTodoRoutes } from "../src/routes/todos";
 import type { RouteContext } from "../src/routes/context";
+import { expireTodoSuggestions } from "@outcomego/messaging";
 
 const enabled = Boolean(process.env.OUTCOMEGO_TEST_DATABASE_URL);
 const cleanups: Array<() => Promise<void>> = [];
@@ -22,7 +23,7 @@ async function setup() {
     const rows = await db.ownerTodoItem.findMany({ where: { ownerId: { in: [owner, "local"] } }, select: { id: true } });
     await db.event.deleteMany({ where: { topic: "todo.changed", entityId: { in: rows.map((row) => row.id) } } });
     await db.ownerTodoItem.deleteMany({ where: { ownerId: { in: [owner, "local"] } } });
-    await db.idempotencyRecord.deleteMany({ where: { scope: { in: [`todo-create:${owner}`, "todo-create:local"] } } });
+    await db.idempotencyRecord.deleteMany({ where: { scope: { in: [`todo-create:${owner}`, "todo-create:local", "todo-agent:local"] } } });
     await db.featureSettings.deleteMany({ where: { id: "global" } });
     await fixture.cleanup();
   });
@@ -85,4 +86,71 @@ describe.skipIf(!enabled)("owner todo basics", () => {
     await db.featureSettings.update({ where: { id: "global" }, data: { outcomesEnabled: false } });
     await expect(route({ ...ctx, authMode: "disabled", request: new Request(request.url) })).rejects.toMatchObject({ code: "outcomes_disabled" });
   });
+});
+
+describe.skipIf(!enabled)("owner todo source gate and triage", () => {
+  async function turn(fixture: Awaited<ReturnType<typeof setup>>, origin: "user" | "agent" | "routine" | "event" | "background_revival", createdAt = now, conversationId = fixture.bot.conversation!.id) {
+    const { bot, db } = fixture;
+    const message = await db.message.create({ data: {
+      botId: bot.id, conversationId, role: "user", content: `Stored text: ${origin}`, createdAt,
+    } });
+    const run = await db.run.create({ data: { botId: bot.id, conversationId, userMessageId: message.id, origin } });
+    return { message, run, context: { runId: run.id, botId: bot.id, authMode: "disabled" as const } };
+  }
+
+  test("a later turn can reference a recent owner message, but synthetic, stale and foreign messages cannot authorize", async () => {
+    const fixture = await setup();
+    const { db, todos } = fixture;
+    const ownerTurn = await turn(fixture, "user");
+    const laterTurn = await turn(fixture, "agent");
+    const stale = await turn(fixture, "user", new Date("2026-11-23T10:00:00Z"));
+    const foreignBot = await db.bot.create({ data: { name: "Other", defaultDirectory: fixture.root, conversation: { create: {} } }, include: { conversation: true } });
+    cleanups.unshift(async () => { await db.bot.deleteMany({ where: { id: foreignBot.id } }); });
+    const foreign = await turn(fixture, "user", now, foreignBot.conversation!.id);
+    const input = { title: "Placeholder", clientRequestId: "owner-ref", ownerMessageRef: ownerTurn.message.id };
+    await db.featureSettings.update({ where: { id: "global" }, data: { taskPolicy: { "todo.ownerRef.maxTodosPerMessage": 1 } } });
+    const created = await todos.createFromTurn(laterTurn.context, "create", input, now);
+    expect(created).toMatchObject({ todo: { status: "open" }, reason: null });
+    expect(await todos.detail("local", created.todo.id, now)).toMatchObject({ ownerMessagePreview: "Stored text: user", createdVia: "owner_chat", authorizedByMessageId: ownerTurn.message.id });
+    expect(await todos.createFromTurn(laterTurn.context, "create", input, now)).toEqual(created);
+    const synthetic = await Promise.all((["routine", "event", "background_revival"] as const).map((origin) => turn(fixture, origin)));
+    for (const ref of [ownerTurn, stale, foreign, ...synthetic]) {
+      const result = await todos.createFromTurn(laterTurn.context, "create", { ...input, clientRequestId: ref.run.id, ownerMessageRef: ref.message.id }, now);
+      expect(result).toMatchObject({ reason: "owner_ref_invalid", todo: { status: "suggested" } });
+      expect((await todos.detail("local", result.todo.id, now)).authorizedByMessageId).toBeNull();
+    }
+    await expect(todos.createFromTurn(synthetic[0]!.context, "create", input, now)).rejects.toMatchObject({ status: 403 });
+    expect((await todos.createFromTurn(laterTurn.context, "create", { title: "Other", clientRequestId: "missing" }, now)).reason).toBe("owner_ref_missing");
+  });
+
+  for (const [kind, title] of [["alpha", "First item"], ["beta", "Second item"]] as const) {
+    test(`${kind}: source dedupe, pending cap, expiry and bulk triage`, async () => {
+      const fixture = await setup();
+      const { db, todos } = fixture;
+      const { context } = await turn(fixture, "event");
+      await db.featureSettings.update({ where: { id: "global" }, data: { taskPolicy: { "todo.suggestionTtlDays": 1, "todo.maxPendingSuggestionsPerBot": 1 } } });
+      const input = { title, summary: `Summary ${kind}`, clientRequestId: "original", sourceRef: { kind, id: "1", label: title }, dueAt: later };
+      const original = await todos.createFromTurn(context, "suggest", input, now);
+      expect(await todos.detail("local", original.todo.id, now)).toMatchObject({ status: "suggested", dueAt: "2026-11-25T12:00:00.000Z", expiresAt: "2026-11-26T10:00:00.000Z" });
+      const duplicate = await todos.createFromTurn(context, "suggest", { ...input, clientRequestId: "duplicate" }, now);
+      expect(duplicate.todo.id).toBe(original.todo.id);
+      const other = { ...input, clientRequestId: "other", sourceRef: { ...input.sourceRef, id: "2" } };
+      await expect(todos.createFromTurn(context, "suggest", other, now)).rejects.toMatchObject({ status: 429, code: "suggestion_limit_reached" });
+      expect(await expireTodoSuggestions(db, now)).toBe(0);
+      const future = new Date("2026-11-26T10:00:00Z");
+      expect(await expireTodoSuggestions(db, future)).toBe(1);
+      expect((await todos.detail("local", original.todo.id, future)).dismissReason).toBe("expired");
+      const next = await todos.createFromTurn(context, "suggest", other, future);
+      const accepted = await todos.bulk("local", { action: "accept", items: [{ id: next.todo.id, revision: 1 }] }, future);
+      expect(accepted.items[0]).toMatchObject({ status: "open", dueAt: "2026-11-25T12:00:00.000Z" });
+      await db.featureSettings.update({ where: { id: "global" }, data: { taskPolicy: { "todo.suggestionTtlDays": 0 } } });
+      const retry = await todos.createFromTurn(context, "suggest", { ...input, clientRequestId: "after-expiry" }, future);
+      expect(retry.todo.id).not.toBe(original.todo.id);
+      expect((await todos.detail("local", retry.todo.id, future)).expiresAt).toBeNull();
+      expect(await expireTodoSuggestions(db, new Date("2026-12-01T10:00:00Z"))).toBe(0);
+      expect((await todos.bulk("local", { action: "dismissBot", botId: context.botId }, future)).items).toHaveLength(1);
+      const ignored = await todos.createFromTurn(context, "suggest", { ...input, clientRequestId: "after-ignore" }, future);
+      expect(ignored.todo).toEqual({ id: retry.todo.id, status: "dismissed", revision: 2 });
+    });
+  }
 });

@@ -1,5 +1,5 @@
 import { ApiError } from "@outcomego/contracts";
-import { TodoAction, TodoActionInput, TodoCreate, TodoId, TodoListQuery, TodoUpdate } from "@outcomego/contracts/todo";
+import { TodoAction, TodoActionInput, TodoBulkInput, TodoCreate, TodoId, TodoListQuery, TodoUpdate } from "@outcomego/contracts/todo";
 import { json } from "../http";
 import type { OwnerTodoService } from "../services/owner-todo-service";
 import type { RouteContext } from "./context";
@@ -19,6 +19,7 @@ export const createTodoRoutes = (todos: OwnerTodoService) => async (context: Rou
   const body = () => request.json().catch(() => null);
   if (list && request.method === "GET") return json(await todos.list(ownerId, parse(TodoListQuery, Object.fromEntries(url.searchParams))));
   if (list && request.method === "POST") return json(await todos.create(ownerId, parse(TodoCreate, await body())), 201);
+  if (path === "/api/todos/bulk" && request.method === "POST") return json(await todos.bulk(ownerId, parse(TodoBulkInput, await body())));
   if (!match) return undefined;
   const id = parse(TodoId, match[1]);
   if (!match[2] && request.method === "GET") return json(await todos.detail(ownerId, id));

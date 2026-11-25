@@ -3172,6 +3172,7 @@ export {
   timestampUserTurn,
 } from "./timestamps";
 export { readUserTimeZone, userTimeZoneView } from "./user-time-zone";
+export { expireTodoRows, expireTodoSuggestions, publishTodoChanges } from "./owner-todo-lifecycle";
 export {
   featureSettingsView,
   readFeatureSettings,

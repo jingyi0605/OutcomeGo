@@ -1,25 +1,31 @@
 import { createHash } from "node:crypto";
 import { ApiError } from "@outcomego/contracts";
+import { messagePreviewText } from "@outcomego/contracts/message-preview";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import {
-  deriveTodoDisplayState, TodoSourceRef, type TodoAction, type TodoActionInput, type TodoCreate,
-  type TodoItemView, type TodoListQuery, type TodoListResponse, type TodoUpdate,
+  decideTodoSource, deriveTodoDisplayState, TodoCreateFromTurn, TodoSourceRef, TodoSuggest,
+  type TodoAction, type TodoActionInput, type TodoBulkInput, type TodoCreate,
+  type TodoItemView, type TodoListQuery, type TodoListResponse, type TodoTurnResponse, type TodoUpdate,
 } from "@outcomego/contracts/todo";
 import type { Prisma, PrismaClient } from "@outcomego/db";
-import { readFeatureSettings, readUserTimeZone } from "@outcomego/messaging";
+import { expireTodoRows, publishTodoChanges, readFeatureSettings, readUserTimeZone } from "@outcomego/messaging";
 
 type TodoRow = Prisma.OwnerTodoItemGetPayload<{}>;
 type Db = PrismaClient | Prisma.TransactionClient;
 const dayMs = 86_400_000;
+const hourMs = 3_600_000;
+const createOrigins = new Set(["user", "agent", "background_revival", "handoff_resume"]);
+const suggestOrigins = new Set([...createOrigins, "routine", "event"]);
 
 const notFound = () => new ApiError(404, "todo_not_found", "Todo not found");
 const invalidTransition = () => new ApiError(409, "todo_transition_invalid", "This action is unavailable in the current todo state");
 const dateOrNull = (value: string | null) => value === null ? null : new Date(value);
 
-function view(row: TodoRow, now: Date, timeZone: string): TodoItemView {
+function view(row: TodoRow, now: Date, timeZone: string, ownerMessagePreview: string | null): TodoItemView {
   const { ownerId, dedupeKey, sourceRef, ...fields } = row;
   return {
     ...fields,
+    ownerMessagePreview,
     sourceRef: TodoSourceRef.safeParse(sourceRef).data ?? null,
     dueAt: row.dueAt?.toISOString() ?? null,
     scheduledAt: row.scheduledAt?.toISOString() ?? null,
@@ -34,8 +40,27 @@ function view(row: TodoRow, now: Date, timeZone: string): TodoItemView {
   };
 }
 
-async function changed(tx: Prisma.TransactionClient, row: TodoRow) {
-  await tx.event.create({ data: { topic: "todo.changed", entityId: row.id, payload: { todoId: row.id, revision: row.revision } } });
+async function views(db: Db, rows: TodoRow[], now: Date): Promise<TodoItemView[]> {
+  if (!rows.length) return [];
+  const ids = rows.flatMap(({ authorizedByMessageId }) => authorizedByMessageId ? [authorizedByMessageId] : []);
+  const [timeZone, messages] = await Promise.all([
+    readUserTimeZone(db),
+    ids.length ? db.message.findMany({ where: { id: { in: ids }, role: "user" }, select: { id: true, content: true } }) : [],
+  ]);
+  const previews = new Map(messages.map(({ id, content }) => [id, messagePreviewText(content)]));
+  return rows.map((row) => view(row, now, timeZone, previews.get(row.authorizedByMessageId ?? "") ?? null));
+}
+
+const isActive = (row: TodoRow) => row.status === "open" || row.status === "waiting";
+const acceptData = { status: "open", acceptedBy: "owner", snoozeUntil: null, expiresAt: null } as const;
+const dismissData = (now: Date) => ({ status: "dismissed", dismissedAt: now, dismissReason: "owner", snoozeUntil: null } as const);
+const turnResult = ({ id, status, revision }: TodoRow): TodoTurnResponse["todo"] => ({ id, status, revision });
+const hashRequest = (fields: object) => createHash("sha256").update(JSON.stringify(Object.entries(fields).sort(([left], [right]) => left.localeCompare(right)))).digest("hex");
+
+export interface TodoTurnContext {
+  runId: string;
+  botId: string;
+  authMode: "required" | "disabled";
 }
 
 export class OwnerTodoService {
@@ -54,17 +79,26 @@ export class OwnerTodoService {
     return resolveTaskPolicy(feature.taskPolicy);
   }
 
+  private async ownerForTurn(db: Db, authMode: TodoTurnContext["authMode"]) {
+    if (authMode === "disabled") return "local";
+    const users = await db.user.findMany({ take: 2, select: { id: true } });
+    if (users.length !== 1) throw new ApiError(403, "todo_owner_unavailable", "A single OutcomeGo owner is required");
+    return users[0]!.id;
+  }
+
   async create(ownerId: string, input: TodoCreate, now = new Date()): Promise<TodoItemView> {
     const { clientRequestId, ...fields } = input;
     const scope = `todo-create:${ownerId}`;
-    const requestHash = createHash("sha256").update(JSON.stringify(Object.entries(fields).sort(([left], [right]) => left.localeCompare(right)))).digest("hex");
+    const requestHash = hashRequest(fields);
     return this.db.$transaction(async (tx) => {
       const policy = await this.settings(tx);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scope}), hashtext(${clientRequestId}))`;
       const receipt = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key: clientRequestId } } });
       if (receipt) {
         if (receipt.requestHash !== requestHash) throw new ApiError(409, "idempotency_conflict", "Idempotency key content changed");
-        return receipt.response as unknown as TodoItemView;
+        const { id } = receipt.response as { id: string };
+        const row = await tx.ownerTodoItem.findFirstOrThrow({ where: { id, ownerId } });
+        return (await views(tx, [row], now))[0]!;
       }
       const row = await tx.ownerTodoItem.create({ data: {
         ...fields, ownerId, createdVia: "owner_ui", createdBy: `user:${ownerId}`, acceptedBy: "owner",
@@ -72,21 +106,98 @@ export class OwnerTodoService {
         scheduledAt: fields.scheduledAt ? new Date(fields.scheduledAt) : null,
         createdAt: now, updatedAt: now,
       } });
-      const response = view(row, now, await readUserTimeZone(tx));
       await tx.idempotencyRecord.create({ data: {
         scope, key: clientRequestId, requestHash, status: "completed",
-        response: { ...response, sourceRef: null }, expiresAt: new Date(now.getTime() + Number(policy["todo.restoreRetentionDays"]) * dayMs),
+        response: { id: row.id }, expiresAt: new Date(now.getTime() + Number(policy["todo.restoreRetentionDays"]) * dayMs),
       } });
-      await changed(tx, row);
-      return response;
+      await publishTodoChanges(tx, [row]);
+      return (await views(tx, [row], now))[0]!;
     });
+  }
+
+  async createFromTurn(context: TodoTurnContext, operation: "create" | "suggest", raw: unknown, now = new Date()): Promise<TodoTurnResponse> {
+    const parsed = (operation === "create" ? TodoCreateFromTurn : TodoSuggest).safeParse(raw);
+    if (!parsed.success) throw new ApiError(400, "invalid_request", "Todo input failed validation");
+    const { clientRequestId, sourceRef, dueAt, scheduledAt, ...fields } = parsed.data;
+    const requestHash = hashRequest({ operation, botId: context.botId, ...parsed.data });
+    return this.db.$transaction(async (tx) => {
+      const policy = await this.settings(tx);
+      const run = await tx.run.findFirst({
+        where: { id: context.runId, botId: context.botId },
+        select: { id: true, botId: true, conversationId: true, origin: true, bot: { select: { conversation: { select: { id: true } } } } },
+      });
+      if (!run || run.bot.conversation?.id !== run.conversationId || !(operation === "create" ? createOrigins : suggestOrigins).has(run.origin)) {
+        throw new ApiError(403, "todo_turn_forbidden", "Todo creation is unavailable in this turn");
+      }
+      const ownerId = await this.ownerForTurn(tx, context.authMode);
+      const scope = `todo-agent:${ownerId}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scope}))`;
+      const log = { actor: `bot:${run.botId}`, runId: run.id, origin: run.origin };
+      const receipt = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key: clientRequestId } } });
+      if (receipt) {
+        if (receipt.requestHash !== requestHash) throw new ApiError(409, "idempotency_conflict", "Idempotency key content changed");
+        const { id, reason } = receipt.response as { id: string; reason: TodoTurnResponse["reason"] };
+        const row = await tx.ownerTodoItem.findFirstOrThrow({ where: { id, ownerId } });
+        return { todo: turnResult(row), reason };
+      }
+      const reference = "ownerMessageRef" in fields ? fields.ownerMessageRef : undefined;
+      const authorized = reference ? await this.validateOwnerMessageRef(tx, run, ownerId, reference, policy, now) : false;
+      const decision = decideTodoSource(operation, reference, authorized);
+      const dedupeKey = sourceRef ? `${sourceRef.kind}:${sourceRef.id}` : null;
+      const expired = await expireTodoRows(tx, now, { ownerId, OR: [{ botId: run.botId }, ...(dedupeKey ? [{ dedupeKey }] : [])] });
+      for (const row of expired) console.info("todo.expired", { ...log, todoId: row.id, reason: "expired" });
+      const existing = dedupeKey ? await tx.ownerTodoItem.findUnique({ where: { ownerId_dedupeKey: { ownerId, dedupeKey } } }) : null;
+      if (!existing && decision.status === "suggested") {
+        const cap = policy["todo.maxPendingSuggestionsPerBot"];
+        if (typeof cap === "number" && await tx.ownerTodoItem.count({ where: { ownerId, botId: run.botId, status: "suggested", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } }) >= cap) {
+          console.info("todo.rejected", { ...log, reason: "suggestion_limit_reached" });
+          throw new ApiError(429, "suggestion_limit_reached", "This bot has reached its pending suggestion limit");
+        }
+      }
+      const routineExecution = !existing && await tx.routineExecution.findUnique({ where: { runId: run.id }, select: { routineId: true } });
+      const ttl = Number(policy["todo.suggestionTtlDays"]);
+      const row = existing ?? await tx.ownerTodoItem.create({ data: {
+        ownerId, title: fields.title, note: "note" in fields ? fields.note : undefined,
+        summary: "summary" in fields ? fields.summary : undefined, tags: fields.tags, urgency: fields.urgency,
+        sourceRef, dedupeKey, botId: run.botId, createdBy: log.actor, createdByRunId: run.id,
+        createdByRoutineId: routineExecution ? routineExecution.routineId : null,
+        createdVia: decision.status === "open" ? "owner_chat" : "agent_turn", status: decision.status,
+        authorizedByMessageId: decision.status === "open" ? decision.authorizedByMessageId : null,
+        acceptedBy: decision.status === "open" ? "owner" : null,
+        expiresAt: decision.status === "suggested" && ttl > 0 ? new Date(now.getTime() + ttl * dayMs) : null,
+        dueAt: dueAt ? new Date(dueAt) : null, scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        createdAt: now, updatedAt: now,
+      } });
+      const reason = decision.reason;
+      await tx.idempotencyRecord.create({ data: {
+        scope, key: clientRequestId, requestHash, status: "completed", response: { id: row.id, reason },
+        expiresAt: new Date(now.getTime() + Number(policy["todo.restoreRetentionDays"]) * dayMs),
+      } });
+      if (!existing) await publishTodoChanges(tx, [row]);
+      console.info(existing ? "todo.deduplicated" : "todo.created", { ...log, todoId: row.id, status: row.status, reason });
+      return { todo: turnResult(row), reason };
+    });
+  }
+
+  private async validateOwnerMessageRef(tx: Prisma.TransactionClient, run: { botId: string; conversationId: string }, ownerId: string,
+    reference: string, policy: ReturnType<typeof resolveTaskPolicy>, now: Date): Promise<boolean> {
+    const cutoff = new Date(now.getTime() - Number(policy["todo.ownerRef.maxAgeHours"]) * hourMs);
+    const message = await tx.message.findFirst({
+      where: { id: reference, role: "user", conversationId: run.conversationId, botId: run.botId, createdAt: { gte: cutoff, lte: now } },
+      select: { id: true },
+    });
+    if (!message) return false;
+    const sourceRun = await tx.run.findFirst({ where: { userMessageId: reference, botId: run.botId, conversationId: run.conversationId, origin: "user" }, select: { id: true } });
+    if (!sourceRun) return false;
+    const cap = policy["todo.ownerRef.maxTodosPerMessage"];
+    return typeof cap !== "number" || await tx.ownerTodoItem.count({ where: { ownerId, authorizedByMessageId: reference } }) < cap;
   }
 
   async detail(ownerId: string, id: string, now = new Date()): Promise<TodoItemView> {
     await this.settings(this.db);
     const row = await this.db.ownerTodoItem.findFirst({ where: { id, ownerId } });
     if (!row) throw notFound();
-    return view(row, now, await readUserTimeZone(this.db));
+    return (await views(this.db, [row], now))[0]!;
   }
 
   async list(ownerId: string, query: TodoListQuery = {}, now = new Date()): Promise<TodoListResponse> {
@@ -111,12 +222,34 @@ export class OwnerTodoService {
       and.push({ OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] });
     }
     const limit = query.limit ?? 200;
-    const [rows, timeZone] = await Promise.all([
-      this.db.ownerTodoItem.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: limit + 1 }),
-      readUserTimeZone(this.db),
-    ]);
+    const rows = await this.db.ownerTodoItem.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: limit + 1 });
     const nextCursor = rows.length > limit ? rows[limit - 1]!.id : null;
-    return { items: rows.slice(0, limit).map((row) => view(row, now, timeZone)), nextCursor };
+    return { items: await views(this.db, rows.slice(0, limit), now), nextCursor };
+  }
+
+  async bulk(ownerId: string, input: TodoBulkInput, now = new Date()): Promise<{ items: TodoItemView[] }> {
+    return this.db.$transaction(async (tx) => {
+      await this.settings(tx);
+      if (input.action === "dismissBot") {
+        const rows = await tx.ownerTodoItem.updateManyAndReturn({ where: { ownerId, botId: input.botId, status: "suggested" },
+          data: { ...dismissData(now), updatedAt: now, revision: { increment: 1 } } });
+        await publishTodoChanges(tx, rows);
+        return { items: await views(tx, rows, now) };
+      }
+      const rows = [];
+      for (const item of [...input.items].sort((left, right) => left.id.localeCompare(right.id))) {
+        const row = await tx.ownerTodoItem.findFirst({ where: { id: item.id, ownerId } });
+        if (!row) throw notFound();
+        if (row.revision !== item.revision) throw new ApiError(409, "todo_conflict", "Todo has changed", { id: row.id, revision: row.revision });
+        if (input.action === "accept" ? row.status !== "suggested" : row.status !== "suggested" && !isActive(row)) throw invalidTransition();
+        const updated = await tx.ownerTodoItem.updateManyAndReturn({ where: { id: row.id, revision: item.revision, ownerId },
+          data: { ...(input.action === "accept" ? acceptData : dismissData(now)), updatedAt: now, revision: { increment: 1 } } });
+        if (!updated[0]) throw new ApiError(409, "todo_conflict", "Todo has changed", { id: row.id });
+        rows.push(updated[0]);
+      }
+      await publishTodoChanges(tx, rows);
+      return { items: await views(tx, rows, now) };
+    });
   }
 
   private async mutate(ownerId: string, id: string, revision: number, now: Date,
@@ -131,8 +264,8 @@ export class OwnerTodoService {
       const updated = await tx.ownerTodoItem.updateMany({ where: { id, ownerId, revision }, data: { ...data, revision: { increment: 1 }, updatedAt: now } });
       const row = await tx.ownerTodoItem.findUniqueOrThrow({ where: { id } });
       if (updated.count !== 1) throw conflict(row);
-      await changed(tx, row);
-      return view(row, now, await readUserTimeZone(tx));
+      await publishTodoChanges(tx, [row]);
+      return (await views(tx, [row], now))[0]!;
     });
   }
 
@@ -155,12 +288,12 @@ export class OwnerTodoService {
 
   act(ownerId: string, id: string, action: TodoAction, input: TodoActionInput, now = new Date()): Promise<TodoItemView> {
     return this.mutate(ownerId, id, input.revision, now, (row, retentionDays) => {
-      const active = row.status === "open" || row.status === "waiting";
+      const active = isActive(row);
       const suggestion = row.status === "suggested";
       switch (action) {
         case "accept":
           if (!suggestion) throw invalidTransition();
-          return { status: "open", acceptedBy: "owner", snoozeUntil: null, expiresAt: null };
+          return acceptData;
         case "snooze": {
           if (!active && !suggestion) throw invalidTransition();
           const until = input.snoozeUntil && new Date(input.snoozeUntil);
@@ -169,7 +302,7 @@ export class OwnerTodoService {
         }
         case "dismiss":
           if (!active && !suggestion) throw invalidTransition();
-          return { status: "dismissed", dismissedAt: now, dismissReason: "owner", snoozeUntil: null };
+          return dismissData(now);
         case "complete":
           if (!active) throw invalidTransition();
           return { status: "done", completedAt: now, completionNote: input.note ?? null, snoozeUntil: null };
