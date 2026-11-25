@@ -1,10 +1,11 @@
 import type { WorkItemView } from "@outcomego/contracts/outcomes";
 import { isWorkItemScheduleEditable } from "@outcomego/contracts/task-overview";
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useI18n } from "../../../../lib/i18n";
 import "../outcome-ui.css";
 import type { ScheduleChange } from "./schedule-edit";
 import { ScheduleEditor } from "./schedule-editor";
+import { buildTimelineTicks } from "./timeline-axis";
 import {
   buildTimelineLayout,
   formatEstimate,
@@ -35,10 +36,11 @@ export interface OutcomeTimelineProps {
   now?: Date;
 }
 
-const percent = (value: string, axis: NonNullable<TimelineLayout["axis"]>): number => {
+const percent = (value: string | Date, axis: NonNullable<TimelineLayout["axis"]>): number => {
   const start = Date.parse(axis.start);
-  const span = Math.max(Date.parse(axis.end) - start, 1);
-  return Math.min(100, Math.max(0, ((Date.parse(value) - start) / span) * 100));
+  const span = Date.parse(axis.end) - start;
+  const stamp = value instanceof Date ? value.getTime() : Date.parse(value);
+  return span > 0 ? Math.min(100, Math.max(0, ((stamp - start) / span) * 100)) : 50;
 };
 
 /** The overdue mark: an icon and words, so it never rests on color alone. Only rendered for a task that is overdue. */
@@ -63,14 +65,20 @@ function StatusBadge({ row }: { row: TimelineRow }) {
 }
 
 export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onChangeSchedule, now = new Date() }: OutcomeTimelineProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const chartScroll = useRef<HTMLDivElement>(null);
+  const todayMarker = useRef<HTMLSpanElement>(null);
   const layout = buildTimelineLayout(workItems as readonly TimelineWorkItem[], now, currentRevision, goal);
   if (layout.rows.length === 0) return null;
   const { axis } = layout;
   const timesKnown = layout.rows.some((row) => row.timesKnown);
   const when = (value: string) => new Date(value).toLocaleString();
-  const todayAt = axis ? percent(now.toISOString(), axis) : null;
+  const ticks = axis ? buildTimelineTicks(axis) : null;
+  const tickFormat = new Intl.DateTimeFormat(locale, {
+    month: "short", day: "numeric", ...(ticks?.unit === "hour" ? { hour: "numeric" } : {}),
+    ...(ticks?.unit === "week" ? { year: "numeric" } : {}),
+  });
   const rowBot = (row: TimelineRow) => botName?.(row.botId);
   const rowOwner = (row: TimelineRow) => (row.executorType === "human" ? t("You") : (rowBot(row) ?? t("Bot")));
   const rowIndex = new Map(layout.rows.map((row, index) => [row.id, index] as const));
@@ -78,18 +86,31 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
     const { key, value } = formatEstimate(minutes);
     return t(key, { value });
   };
+  const scrollToToday = () => {
+    const viewport = chartScroll.current;
+    const marker = todayMarker.current;
+    if (!viewport || !marker) return;
+    const fromViewportStart = marker.getBoundingClientRect().left - viewport.getBoundingClientRect().left;
+    viewport.scrollLeft += fromViewportStart - viewport.clientWidth / 2;
+  };
 
   return (
     <section className="outcome-timeline" aria-label={t("Timeline")}>
       <h4 className="outcome-timeline-title">{t("Timeline")}</h4>
       {!timesKnown && <p className="outcome-timeline-note">{t("This server does not report task times yet. Only order and status are shown.")}</p>}
 
-      {axis && (
-        <div className="outcome-timeline-chart" aria-hidden="true">
-          <div className="outcome-timeline-axis">
-            <span>{when(axis.start)}</span>
-            <span>{when(axis.end)}</span>
+      {axis && ticks && (<>
+        <button type="button" className="outcome-control outcome-timeline-today-button" onClick={scrollToToday}>{t("Back to today")}</button>
+        <div className="outcome-timeline-chart-scroll" ref={chartScroll} tabIndex={-1}>
+        <div className="outcome-timeline-chart" aria-hidden="true" style={{ minWidth: `calc(var(--timeline-label) + ${Math.max(24, (ticks.dates.length + 1) * 8)}rem)` }}>
+          <div className="outcome-timeline-axis" data-unit={ticks.unit}>
+            {ticks.dates.map((date) => (
+              <span key={date.getTime()} className="outcome-timeline-tick" style={{ left: `${percent(date, axis)}%` }}>
+                {tickFormat.format(date)}
+              </span>
+            ))}
           </div>
+          <div className="outcome-timeline-chart-body">
           {layout.goal && (
             <div className="outcome-timeline-row outcome-timeline-goal-row">
               <span className="outcome-timeline-label">
@@ -112,7 +133,10 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
                 title={`${row.title} · ${rowOwner(row)} · ${t(TIMELINE_STATUS[row.displayState].label)}`}
               >
                 <span aria-hidden="true" className="outcome-timeline-label-icon">{TIMELINE_STATUS[row.displayState].icon}</span>
-                <span className="outcome-timeline-label-text">{row.title}</span>
+                <span className="outcome-timeline-label-text">
+                  {row.title}
+                  {row.deferredUntil && <span className="outcome-timeline-defer">{t("Deferred until {time}", { time: when(row.deferredUntil) })}</span>}
+                </span>
                 {row.overdue && <OverdueBadge />}
               </span>
               <div className="outcome-timeline-track">
@@ -160,7 +184,6 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
                     style={{ left: `${percent(row.dueAt, axis)}%` }}
                   />
                 )}
-                {row.deferredUntil && <span className="outcome-timeline-defer">{t("Deferred until {time}", { time: when(row.deferredUntil) })}</span>}
               </div>
             </div>
           ))}
@@ -189,9 +212,8 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
             </svg>
           )}
           </div>
-          {todayAt !== null && (
             <div className="outcome-timeline-today-layer">
-              <span className="outcome-timeline-today" style={{ left: `${todayAt}%` }} />
+              <span ref={todayMarker} className="outcome-timeline-today" style={{ left: `${percent(now, axis)}%` }} />
               {layout.goal && (
                 <span
                   className="outcome-timeline-flag-line"
@@ -200,9 +222,10 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
                 />
               )}
             </div>
-          )}
+          </div>
         </div>
-      )}
+        </div>
+      </>)}
 
       {layout.unscheduled.length > 0 && (
         <section className="outcome-timeline-unscheduled" aria-label={t("Not scheduled")}>
@@ -227,6 +250,7 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
         </p>
       )}
 
+      <div className="outcome-timeline-table-scroll" role="region" aria-label={t("Task timeline as a list")} tabIndex={0}>
       <table className="outcome-timeline-table">
         <caption className="sr-only">{t("Task timeline as a list")}</caption>
         <thead>
@@ -313,6 +337,7 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
           })}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

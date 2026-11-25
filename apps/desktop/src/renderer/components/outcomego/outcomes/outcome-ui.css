@@ -2143,7 +2143,9 @@ button.outcome-chat-card-main:hover {
  * evidence (muted, small) can be told apart at a glance.
  */
 .outcome-brief,
-.outcome-chat-card {
+.outcome-chat-card,
+.outcome-timeline,
+.outcome-activity {
   --tone-action: light-dark(#966e2a, #d4b579);
   --tone-review: light-dark(#3f6fb5, #8db4ee);
   --tone-plan: light-dark(#2f7d73, #7cc4b9);
@@ -2479,9 +2481,22 @@ button.outcome-activity-link:focus-visible {
   /* One fixed label column shared by every row, the axis and the today line, so tracks line up. */
   --timeline-label: 12rem;
   --timeline-gap: 0.5rem;
+  --timeline-axis-padding: 3.75rem;
+  --timeline-axis-start: calc(var(--timeline-label) + var(--timeline-gap) + var(--timeline-axis-padding));
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
   color: var(--foreground);
+}
+.outcome-timeline-today-button {
+  justify-self: start;
+}
+.outcome-timeline-chart-scroll,
+.outcome-timeline-table-scroll {
+  overflow-x: auto;
+}
+.outcome-timeline-table-scroll {
+  container-type: inline-size;
 }
 .outcome-timeline-title,
 .outcome-timeline-unscheduled h5 {
@@ -2504,11 +2519,27 @@ button.outcome-activity-link:focus-visible {
   border-block: 0.5px solid var(--border);
 }
 .outcome-timeline-axis {
-  display: flex;
-  justify-content: space-between;
-  margin-left: calc(var(--timeline-label) + var(--timeline-gap));
+  position: relative;
+  height: 1.25rem;
+  margin-inline: var(--timeline-axis-start) var(--timeline-axis-padding);
   font-size: 0.6875rem;
   color: var(--foreground-secondary);
+}
+.outcome-timeline-tick {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  line-height: 1rem;
+}
+.outcome-timeline-tick::after {
+  content: "";
+  position: absolute;
+  inset: 1rem auto auto 50%;
+  height: 0.25rem;
+  border-left: 1px solid var(--border);
+}
+.outcome-timeline-chart-body {
+  position: relative;
 }
 .outcome-timeline-row {
   display: grid;
@@ -2518,20 +2549,18 @@ button.outcome-activity-link:focus-visible {
   padding-block: 0.1875rem;
   font-size: 0.75rem;
 }
-.outcome-timeline-axis {
-  padding-bottom: 0.1875rem;
-}
 .outcome-timeline-rows {
   position: relative;
   display: grid;
+  grid-auto-rows: 1fr;
 }
 /* Covers exactly the track area, one unit tall per row, so a point is a position on the axis and a row number. */
 .outcome-timeline-links {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(var(--timeline-label) + var(--timeline-gap));
-  width: calc(100% - var(--timeline-label) - var(--timeline-gap));
+  left: var(--timeline-axis-start);
+  width: calc(100% - var(--timeline-axis-start) - var(--timeline-axis-padding));
   height: 100%;
   overflow: visible;
   pointer-events: none;
@@ -2569,6 +2598,7 @@ button.outcome-activity-link:focus-visible {
 }
 .outcome-timeline-track {
   position: relative;
+  margin-inline: var(--timeline-axis-padding);
   height: 1rem;
   background: var(--subtle);
   border-radius: 3px;
@@ -2590,19 +2620,18 @@ button.outcome-activity-link:focus-visible {
   border-top: 1px dashed var(--foreground-secondary);
 }
 .outcome-timeline-defer {
-  position: absolute;
-  right: 0.25rem;
-  top: 0;
+  display: block;
+  white-space: normal;
   font-size: 0.6875rem;
   color: var(--tone-plan);
 }
 /* Covers exactly the track area (right of the label column) so a percentage is a position on the axis. */
 .outcome-timeline-today-layer {
   position: absolute;
-  top: 1.25rem;
+  top: 0;
   bottom: 0;
-  left: calc(var(--timeline-label) + var(--timeline-gap));
-  right: 0;
+  left: var(--timeline-axis-start);
+  right: var(--timeline-axis-padding);
   pointer-events: none;
 }
 .outcome-timeline-today {
@@ -2679,9 +2708,11 @@ button.outcome-activity-link:focus-visible {
   border: 1px dashed var(--segment-tone, var(--foreground-secondary));
   background: transparent;
   border-radius: 2px;
-  overflow: hidden;
 }
 .outcome-timeline-estimate-label {
+  position: absolute;
+  left: 100%;
+  top: -1px;
   padding: 0 0.25rem;
   font-size: 0.625rem;
   line-height: 0.75rem;
@@ -2726,6 +2757,9 @@ button.outcome-activity-link:focus-visible {
 }
 .outcome-timeline-editor-row > td {
   background: var(--subtle);
+}
+.outcome-timeline-editor-row .outcome-schedule-editor {
+  max-width: calc(100cqw - 1rem);
 }
 .outcome-schedule-editor {
   display: flex;
