@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TASK_POLICY_FIELDS } from "@outcomego/contracts/task-policy";
+import type { TodoAutoAcceptRulesClient } from "../src/renderer/client/todo-api";
 
 // Specs/004.10 task 2.9, requirements E1-E3. The api module is replaced so no request leaves the test.
 mock.module("../src/renderer/client/outcomego-api", () => ({
@@ -18,19 +19,33 @@ const features = (overrides: Partial<Features> = {}): Features => ({
   environmentNote: null, taskPolicy: {}, updatedAt: null, loaded: true, failed: false, update: async () => undefined as never, retry: () => undefined,
   ...overrides,
 });
-const render = (value: Features) => renderToStaticMarkup(createElement(I18nProvider, { children: createElement(GoalsSettingsView, { features: value }) }));
+const render = (value: Features, autoAcceptRules?: TodoAutoAcceptRulesClient) => renderToStaticMarkup(createElement(I18nProvider, { children: createElement(GoalsSettingsView, { features: value, autoAcceptRules }) }));
 const schedule = TASK_POLICY_FIELDS.filter((entry) => entry.group === "schedule");
 const activityFields = TASK_POLICY_FIELDS.filter((entry) => entry.group === "activity");
 
 describe("goal management page", () => {
   test("shows the master switch, planning and review, and scheduling groups, each with its deep-link anchor", () => {
     const html = render(features());
-    for (const anchor of ["goal-management", "goal-roles", "goal-schedule", "goal-activity"]) expect(html).toContain(`data-settings-anchor="${anchor}"`);
+    for (const anchor of ["goal-management", "goal-roles", "goal-schedule", "goal-activity", "goal-todo"]) expect(html).toContain(`data-settings-anchor="${anchor}"`);
   });
 
   test("does not show groups whose feature does not exist yet: no empty shells", () => {
     const html = render(features());
-    for (const later of ["goal-todo", "goal-auto-accept", "goal-calendar"]) expect(html).not.toContain(`data-settings-anchor="${later}"`);
+    for (const later of ["goal-auto-accept", "goal-calendar"]) expect(html).not.toContain(`data-settings-anchor="${later}"`);
+  });
+
+  test("the auto-accept rules group follows its settings anchor and the goal management switch", () => {
+    const rules: TodoAutoAcceptRulesClient = {
+      list: async () => ({ rules: [] }),
+      create: async () => { throw new Error("unexpected write"); },
+      update: async () => { throw new Error("unexpected write"); },
+      remove: async () => { throw new Error("unexpected write"); },
+    };
+    expect(render(features(), rules)).toContain('data-settings-anchor="goal-auto-accept"');
+    expect(render(features({ outcomesEnabled: false }), rules)).toContain('data-settings-anchor="goal-auto-accept" data-goals-disabled="true"');
+    for (const field of TASK_POLICY_FIELDS.filter((entry) => entry.group === "todo")) {
+      expect(render(features(), rules)).toContain(`data-policy-key="${field.key}"`);
+    }
   });
 
   test("with goal management on, every other group is usable", () => {
