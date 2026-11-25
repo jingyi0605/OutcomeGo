@@ -1,5 +1,5 @@
-import { Boxes, Check, Container, RefreshCw } from "lucide-react";
-import { type CSSProperties, useCallback, useEffect, useState } from "react";
+import { Boxes, Check, Container, RefreshCw, Star } from "lucide-react";
+import { type CSSProperties, useCallback, useEffect, useId, useState } from "react";
 import { useI18n } from "../../lib/i18n";
 import type { EngineProbe, EngineProbes } from "../../lib/local-deploy-contract";
 import type { EngineKind, EngineOption } from "../../lib/local-deploy-flow";
@@ -33,11 +33,12 @@ export function useEngineProbes(enabled: boolean) {
 }
 
 const TITLES: Record<EngineKind, string> = {
-  external: "Use an existing container engine",
-  managed: "Use the OutcomeGo managed engine",
+  external: "Existing engine",
+  managed: "OutcomeGo engine",
 };
 
-/** Where to deploy: the engine already on this computer, or the one OutcomeGo sets up itself. */
+/** Where to deploy: the engine already on this computer, or the one OutcomeGo sets up itself.
+ *  Each tile says its name and state; the explanation shows on hover or keyboard focus. */
 export function EnginePicker({
   options,
   selected,
@@ -52,6 +53,7 @@ export function EnginePicker({
   disabled?: boolean;
 }) {
   const { t } = useI18n();
+  const id = useId();
   const checking = options.some((option) => option.tone === "checking");
   const nothingToUse = !checking && options.every((option) => !option.selectable);
   return (
@@ -61,9 +63,15 @@ export function EnginePicker({
         <span aria-hidden="true" className="setup-label">
           {t("Container engine")}
         </span>
-        <button className="deploy-recheck" disabled={checking || disabled} onClick={onRecheck} type="button">
-          <RefreshCw aria-hidden="true" className="size-3" data-spin={checking || undefined} />
-          {t(checking ? "Checking…" : "Check again")}
+        <button
+          className="deploy-recheck"
+          disabled={checking || disabled}
+          onClick={onRecheck}
+          title={t(checking ? "Checking…" : "Check again")}
+          type="button"
+        >
+          <RefreshCw aria-hidden="true" className="size-3.5" data-spin={checking || undefined} />
+          <span className="sr-only">{t(checking ? "Checking…" : "Check again")}</span>
         </button>
       </div>
       <div className="deploy-engine-list">
@@ -78,6 +86,7 @@ export function EnginePicker({
             style={{ "--i": index } as CSSProperties}
           >
             <input
+              aria-describedby={`${id}-${option.kind}`}
               checked={selected === option.kind}
               disabled={!option.selectable}
               name="deploy-engine"
@@ -94,24 +103,26 @@ export function EnginePicker({
             </span>
             <span className="deploy-engine-body">
               <strong>{t(TITLES[option.kind])}</strong>
-              <span className="deploy-engine-sub">
-                <small>{t(option.about)}</small>
-                {option.recommended ? <span className="deploy-engine-badge">{t("Recommended")}</span> : null}
-                {!option.selectable && option.tone === "unavailable" ? (
-                  <span className="deploy-engine-badge" data-tone="unavailable">{t("Not available")}</span>
-                ) : null}
-              </span>
               <span className="deploy-engine-status" data-tone={option.tone} key={`${option.tone}:${option.status}`}>
                 <i aria-hidden="true" />
-                <b>
-                  {t(option.status)}
-                  {option.meta ? <em> · {option.meta}</em> : null}
-                </b>
-                <span>{t(option.detail)}</span>
+                <b>{t(option.status)}</b>
               </span>
             </span>
             <span aria-hidden="true" className="deploy-engine-radio">
               <Check className="size-3" strokeWidth={3.2} />
+            </span>
+            {option.recommended ? (
+              <span className="deploy-engine-star" title={t("Recommended")}>
+                <Star aria-hidden="true" className="size-3" fill="currentColor" strokeWidth={0} />
+                <span className="sr-only">{t("Recommended")}</span>
+              </span>
+            ) : null}
+            <span className="deploy-tip" id={`${id}-${option.kind}`} role="tooltip">
+              <b>
+                {t(option.about)}
+                {option.meta ? ` · ${option.meta}` : ""}
+              </b>
+              <span>{t(option.detail)}</span>
             </span>
           </label>
         ))}

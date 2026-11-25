@@ -10,7 +10,7 @@
   --deploy-warn: #ffb340;
 }
 
-/* Engine choice: two cards, like the other setup options, with what was found on this computer. */
+/* Engine choice: two tiles side by side, each a name and what was found on this computer. */
 .deploy-engines {
   display: flex;
   min-width: 0;
@@ -27,19 +27,21 @@
   gap: 12px;
 }
 .deploy-engine-list {
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 .deploy-engine {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
-  gap: 14px;
+  gap: 8px;
   border: 1px solid var(--setup-line);
   border-radius: 14px;
   background: var(--setup-panel);
-  padding: 12px 14px;
+  padding: 12px;
   cursor: pointer;
   transition:
     border-color 140ms ease,
@@ -70,18 +72,22 @@
 }
 .deploy-engine-tile {
   display: grid;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   place-items: center;
-  border-radius: 11px;
+  border-radius: 10px;
   color: #fff;
   box-shadow:
     inset 0 0.5px 0 rgb(255 255 255 / 35%),
     0 0 0 0.5px rgb(0 0 0 / 10%);
   transition:
     filter 200ms ease-out,
-    opacity 200ms ease-out;
+    opacity 200ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.deploy-engine[data-selected] .deploy-engine-tile {
+  transform: scale(1.06);
 }
 .deploy-engine[data-kind="external"] .deploy-engine-tile {
   background: linear-gradient(145deg, #58a9ff 0%, #0a84ff 55%, #0764d1 100%);
@@ -96,24 +102,13 @@
 .deploy-engine-body {
   display: flex;
   min-width: 0;
-  flex: 1;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 .deploy-engine-body > strong {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  line-height: 22px;
-}
-.deploy-engine-sub {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 8px;
-}
-.deploy-engine-sub > small {
-  color: var(--setup-muted);
-  font-size: 13px;
+  line-height: 20px;
 }
 .deploy-engine-badge {
   border-radius: 6px;
@@ -130,40 +125,25 @@
   color: var(--setup-muted);
 }
 .deploy-engine-status {
-  position: relative;
-  display: block;
-  margin-top: 5px;
-  padding-left: 16px;
-  font-size: 13px;
-  line-height: 19px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--setup-muted);
+  font-size: 12.5px;
+  line-height: 18px;
   animation: deploy-fade 260ms ease-out both;
 }
 .deploy-engine-status > i {
-  position: absolute;
-  top: 6px;
-  left: 1px;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  margin: 5.5px 0 0 1px;
   border-radius: 999px;
   background: var(--tone, var(--setup-faint));
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--tone, var(--setup-faint)) 18%, transparent);
 }
 .deploy-engine-status > b {
-  font-weight: 600;
-}
-.deploy-engine-status > b > em {
-  color: var(--setup-muted);
-  font-style: normal;
-  font-weight: 400;
-}
-.deploy-engine-status > span {
-  color: var(--setup-muted);
-  overflow-wrap: anywhere;
-}
-.deploy-engine-status > span::before {
-  margin: 0 5px;
-  color: var(--setup-faint);
-  content: "·";
+  font-weight: 550;
 }
 .deploy-engine-status[data-tone="ready"] {
   --tone: var(--setup-success);
@@ -184,11 +164,12 @@
   animation: deploy-breathe 1.2s ease-in-out infinite;
 }
 .deploy-engine-radio {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   display: grid;
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  align-self: center;
+  width: 20px;
+  height: 20px;
   place-items: center;
   border: 1.5px solid color-mix(in srgb, var(--setup-ink) 22%, transparent);
   border-radius: 999px;
@@ -212,6 +193,89 @@
 .deploy-engine[data-disabled] .deploy-engine-radio {
   border-style: dashed;
   opacity: 0.35;
+}
+/* The suggestion, as a star beside the tile; the picture spells the word. */
+.deploy-engine-star {
+  position: absolute;
+  top: 12px;
+  right: 40px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--setup-accent) 16%, var(--setup-panel));
+  color: var(--setup-accent);
+  animation: deploy-pop var(--spring-bouncy-duration) var(--spring-bouncy) both;
+}
+
+/* Explanations, out of sight until asked for. */
+.deploy-tip {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  width: max-content;
+  max-width: 250px;
+  flex-direction: column;
+  gap: 3px;
+  border: 1px solid var(--setup-line);
+  border-radius: 12px;
+  background: var(--setup-card);
+  padding: 9px 12px;
+  box-shadow: 0 14px 34px -12px rgb(10 14 36 / 32%);
+  color: var(--setup-ink);
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: normal;
+  cursor: default;
+  opacity: 0;
+  visibility: hidden;
+  translate: var(--tip-x, 0) 4px;
+  transition:
+    opacity 140ms ease,
+    translate 140ms ease,
+    visibility 0s 140ms;
+}
+.deploy-tip > b {
+  font-weight: 650;
+}
+.deploy-tip > span {
+  color: var(--setup-muted);
+}
+/* Covers the gap to the control, so the pointer can travel onto the tip. */
+.deploy-tip::before {
+  position: absolute;
+  z-index: -1;
+  inset: -9px 0;
+  content: "";
+}
+.deploy-engine:hover > .deploy-tip,
+.deploy-engine:has(input:focus-visible) > .deploy-tip {
+  opacity: 1;
+  visibility: visible;
+  translate: var(--tip-x, 0) 0;
+  transition-delay: 90ms;
+}
+/* It hangs over the form below, which must stay clickable through it. */
+.deploy-engine > .deploy-tip {
+  top: calc(100% + 8px);
+  width: calc(200% + 10px);
+  max-width: none;
+  pointer-events: none;
+}
+.deploy-engine:first-child > .deploy-tip {
+  left: -1px;
+}
+.deploy-engine:last-child > .deploy-tip {
+  right: -1px;
+}
+/* The tiles are the choice itself, so passing over one doesn't throw words at the person. */
+.deploy-engine:hover > .deploy-tip {
+  transition-delay: 450ms;
 }
 .deploy-recheck {
   display: inline-flex;
@@ -1410,7 +1474,17 @@
   }
 }
 
-/* The choice adds two cards to a screen that already has three fields; give them the room. */
+@media (prefers-reduced-motion: reduce) {
+  .deploy-engine-star {
+    animation: none;
+  }
+  .deploy-engine-tile,
+  .deploy-tip {
+    transition-property: opacity, visibility, border-color, box-shadow;
+  }
+}
+
+/* The choice adds two tiles to a screen that already has three fields; give them the room. */
 .setup-content:has(.deploy-engines) {
   padding-top: 4vh;
 }
@@ -1418,6 +1492,8 @@
   .setup-content:has(.deploy-engines) {
     padding-top: 1vh;
   }
+}
+@media (max-height: 760px) {
   .setup-content:has(.deploy-engines) > .setup-body {
     display: none;
   }

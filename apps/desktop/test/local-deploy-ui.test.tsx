@@ -345,7 +345,6 @@ test("when Docker is not installed, option 1 is disabled and cannot be selected"
   expect(radio("external").disabled).toBe(true);
   expect(card("external").hasAttribute("data-disabled")).toBe(true);
   expect(card("external").textContent).toContain("Not installed");
-  expect(card("external").textContent).toContain("Not available");
   expect(lane("external").hasAttribute("data-disabled")).toBe(true);
   expect(radio("managed").checked).toBe(true);
   expect(lane("managed").hasAttribute("data-selected")).toBe(true);
