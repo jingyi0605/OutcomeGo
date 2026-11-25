@@ -336,6 +336,15 @@ test("quick idea capture is a separate square button beside the Outcomes entry",
   }
 });
 
+test("calendar navigation opens a separate calendar action", async () => {
+  let opened = 0;
+  await mount(<OutcomeNavigation active={false} onOpen={() => {}} onOpenCalendar={() => opened++} />);
+  const calendar = host.querySelector('button[aria-label="Calendar"]')!;
+  expect(calendar).toBeTruthy();
+  await act(async () => calendar.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+  expect(opened).toBe(1);
+});
+
 const option = (id: string, label: string, extra: Record<string, unknown> = {}) => ({
   id,
   label,

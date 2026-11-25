@@ -1,4 +1,4 @@
-import { Lightbulb, Target } from "lucide-react";
+import { CalendarDays, Lightbulb, Target } from "lucide-react";
 import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
 import type { OutcomeActionCounts } from "../../../hooks/use-outcome-action-counts";
@@ -59,6 +59,7 @@ export function OutcomeNavigation({
   active,
   compact = false,
   onOpen,
+  onOpenCalendar,
   onNewIdea,
   ideaActive = false,
   badges = NO_BADGES,
@@ -66,6 +67,7 @@ export function OutcomeNavigation({
   active: boolean;
   compact?: boolean;
   onOpen: () => void;
+  onOpenCalendar?: () => void;
   /** Goals waiting for the owner's approval or acceptance, shown as colored count badges. */
   badges?: OutcomeActionCounts;
   /** Expanded sidebar only: shows a square quick-capture button beside the Outcomes entry. */
@@ -106,14 +108,18 @@ export function OutcomeNavigation({
   );
   if (compact)
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent side="right">{t("Outcomes")}</TooltipContent>
-      </Tooltip>
+      <div className="flex flex-col items-center gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipContent side="right">{t("Outcomes")}</TooltipContent>
+        </Tooltip>
+        {onOpenCalendar && <Tooltip><TooltipTrigger asChild><button type="button" aria-label={t("Calendar")} onClick={onOpenCalendar} className={cn(rowButtonClass(false), "mx-auto grid size-12 place-items-center")}><CalendarDays aria-hidden="true" className="size-[17px]" strokeWidth={1.6} /></button></TooltipTrigger><TooltipContent side="right">{t("Calendar")}</TooltipContent></Tooltip>}
+      </div>
     );
   return (
     <div className="mb-2 flex items-center gap-1">
       {button}
+      {onOpenCalendar && <Tooltip><TooltipTrigger asChild><button type="button" aria-label={t("Calendar")} onClick={onOpenCalendar} className={cn(rowButtonClass(false), "grid size-9 shrink-0 place-items-center")}><CalendarDays aria-hidden="true" className="size-[14px]" strokeWidth={1.6} /></button></TooltipTrigger><TooltipContent side="bottom">{t("Calendar")}</TooltipContent></Tooltip>}
       {showIdea && (
         <Tooltip>
           <TooltipTrigger asChild>

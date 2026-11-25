@@ -1,5 +1,5 @@
 import type { ChatBranchPage } from "@outcomego/contracts";
-import { createOutcomeApi } from "./outcome-api";
+import { createOutcomeApi, createScheduleApi } from "./outcome-api";
 import { createInboxApi } from "../components/outcomego/outcomes/inbox/inbox-api";
 import type { AttentionSample } from "../lib/outcome-attention";
 import { createHumanMaterialApi } from "../components/outcomego/outcomes/human-work/human-api";
@@ -35,9 +35,11 @@ export const outcomeGoClient = createOutcomeGoClient({
 export type { ChannelClientState, ClientBootstrapView } from "@outcomego/contracts";
 
 const outcomes = createOutcomeApi(request);
+const schedule = createScheduleApi(request);
 
 export const api = {
   outcomes,
+  schedule,
   stopChatBranch: (channelId: string, branchId: string) =>
     request<{ ok: boolean }>(`/api/channels/${encodeURIComponent(channelId)}/branches/${encodeURIComponent(branchId)}/stop`, { method: "POST" }),
   chatBranches: (channelId: string, { archived, before, signal }: { archived: boolean; before?: string; signal: AbortSignal }) => {

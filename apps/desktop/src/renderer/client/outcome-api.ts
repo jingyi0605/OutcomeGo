@@ -1,4 +1,4 @@
-import type { ActivityResponse, NeedsMeResponse } from "@outcomego/contracts/task-overview";
+import type { ActivityResponse, NeedsMeResponse, ScheduleQuery, ScheduleResponse } from "@outcomego/contracts/task-overview";
 import type {
   PlanningDraftView,
   CreateOutcomePlanInput,
@@ -68,6 +68,11 @@ export interface OutcomeClient {
   transcript(id: string, itemId: string, query?: { before?: number }): Promise<unknown>;
 }
 
+export interface ScheduleClient {
+  list(query: ScheduleQuery): Promise<ScheduleResponse>;
+  rescheduleTodo(id: string, field: "scheduledAt" | "dueAt", value: string): Promise<unknown>;
+}
+
 export function createOutcomeApi(
   request: <T>(path: string, init?: RequestInit) => Promise<T>
 ): OutcomeClient {
@@ -120,5 +125,25 @@ export function createOutcomeApi(
       request(
         `${outcomePath(id)}/work-items/${encodeURIComponent(itemId)}/transcript${query?.before !== undefined ? `?before=${query.before}` : ""}`
       ),
+  };
+}
+
+export function createScheduleApi(request: <T>(path: string, init?: RequestInit) => Promise<T>): ScheduleClient {
+  return {
+    list: (query) => {
+      const params = new URLSearchParams({ from: query.from, to: query.to });
+      for (const kind of query.kinds ?? []) params.append("kinds", kind);
+      if (query.botId) params.set("botId", query.botId);
+      if (query.outcomeId) params.set("outcomeId", query.outcomeId);
+      if (query.mine) params.set("mine", "true");
+      return request<ScheduleResponse>(`/api/schedule?${params}`);
+    },
+    rescheduleTodo: async (id, field, value) => {
+      const current = await request<{ revision: number }>(`/api/todos/${encodeURIComponent(id)}`);
+      return request(`/api/todos/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ revision: current.revision, [field]: value }),
+      });
+    },
   };
 }
