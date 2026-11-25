@@ -97,7 +97,7 @@ const registryClient = (source: RegistrySource, signal: AbortSignal, request: Re
     const response = await requireSuccess(await send(url));
     const data = JSON.parse((await readBounded(response, 16 * 1024)).toString());
     const value = data.token ?? data.access_token;
-    if (typeof value !== "string" || !/^[a-z0-9._~+/-]+=*$/i.test(value)) throw new Error("Invalid registry token");
+    if (typeof value !== "string" || !/^[\x21-\x7e]{1,8192}$/.test(value)) throw new Error("Invalid registry token");
     token = value;
   };
   return async (path: string, headers: Record<string, string>, followBlobRedirects = false) => {
@@ -128,7 +128,7 @@ const requireSuccess = async (response: Response) => {
 };
 
 const sampleSource = async (source: RegistrySource, architecture: string, cancel: AbortSignal | undefined, request: Request) => {
-  const deadline = AbortSignal.timeout(6_000);
+  const deadline = AbortSignal.timeout(10_000);
   const signal = cancel ? AbortSignal.any([cancel, deadline]) : deadline;
   const get = registryClient(source, signal, request);
   const manifest = async (digest: string): Promise<Manifest> => {

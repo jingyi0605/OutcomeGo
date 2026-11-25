@@ -62,9 +62,9 @@ test("uses scoped anonymous registry auth without accepting an arbitrary token r
     if (address.hostname === "ghcr.nju.edu.cn") return new Response(null, { status: 403 });
     if (address.pathname === "/token") {
       expect(address.searchParams.get("scope")).toBe(`repository:${official!.repository}:pull`);
-      return Response.json({ token: "anonymous-token" });
+      return Response.json({ token: "anonymous-token,part2" });
     }
-    if (new Headers(options.headers).get("Authorization") !== "Bearer anonymous-token") {
+    if (new Headers(options.headers).get("Authorization") !== "Bearer anonymous-token,part2") {
       return new Response(null, { status: 401, headers: { "WWW-Authenticate": 'Bearer realm="https://ghcr.io/token",service="ghcr.io",scope="ignored"' } });
     }
     if (address.pathname.endsWith(digest(index))) return new Response(index);
