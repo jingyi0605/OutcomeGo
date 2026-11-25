@@ -2,9 +2,11 @@ import { MISSED_SCHEDULE_REASON_CODE } from "./outcome-inbox-categories";
 import type {
   AgentWorkItemStatus,
   HumanWorkItemStatus,
+  OutcomeStatus,
   WorkItemExecutorType,
   WorkItemStatus,
 } from "./outcomes";
+import type { TodoDisplayState } from "./todo";
 
 /**
  * Display states shared by the activity view, the "needs me" queue, the goal timeline, the calendar and
@@ -181,9 +183,16 @@ export type DisplayState = RequestDisplayState | WorkItemDisplayState | RoutineD
 // Dates in the owner's time zone
 // ---------------------------------------------------------------------------
 
+let dateFormat: Intl.DateTimeFormat | undefined;
+let dateFormatZone: string | undefined;
+
 /** The calendar date (YYYY-MM-DD) an instant falls on in a time zone. Calendar and feed all-day items use it. */
 export function localDateOf(instant: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(instant);
+  if (!dateFormat || dateFormatZone !== timeZone) {
+    dateFormat = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
+    dateFormatZone = timeZone;
+  }
+  const parts = dateFormat.formatToParts(instant);
   const value = (type: string) => parts.find((part) => part.type === type)!.value;
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
@@ -192,24 +201,42 @@ export function localDateOf(instant: Date, timeZone: string): string {
 // Shared read models (types only; sources are added by later tasks)
 // ---------------------------------------------------------------------------
 
-export type TimeItemKind = "goal_due" | "work_item" | "human_task" | "todo" | "follow_up" | "routine_run" | "external_event";
+export const TIME_ITEM_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run", "external_event"] as const;
+export type TimeItemKind = (typeof TIME_ITEM_KINDS)[number];
+
+export const SCHEDULE_RANGE_DAYS = 93;
+export const SCHEDULE_ITEM_LIMIT = 1000;
+
+export interface ScheduleQuery {
+  from: string;
+  to: string;
+  kinds?: readonly TimeItemKind[];
+  botId?: string;
+  outcomeId?: string;
+  mine?: boolean;
+}
+
+export interface ScheduleResponse {
+  items: TimeItem[];
+  truncated: boolean;
+}
 
 export interface TimeItem {
   /** Stable: `<kind>:<source id>[:<sequence>]`. The same thing always has the same id (calendar feed UID). */
   id: string;
   kind: TimeItemKind;
   title: string;
-  /** ISO 8601, UTC. */
+  /** ISO 8601 UTC for timed items, YYYY-MM-DD in the owner's zone for all-day items. */
   start: string | null;
   end: string | null;
   allDay: boolean;
   timeBasis: "actual" | "scheduled" | "estimated" | "due";
-  state: DisplayState;
+  state: DisplayState | OutcomeStatus | TodoDisplayState;
   overdue: boolean;
   owner: "me" | "bot" | "external";
   botId?: string;
   outcomeId?: string;
-  link: { type: string; id: string };
+  link: { type: "outcome" | "work_item" | "todo" | "conversation" | "routine" | "external"; id: string };
   editable: boolean;
   updatedAt: string;
 }
