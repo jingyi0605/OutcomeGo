@@ -18,6 +18,16 @@ const kindLabels: Record<TimeItemKind, string> = {
   routine_run: "Routines",
   external_event: "External calendar",
 };
+const EXTERNAL_STORAGE_KEY = "outcomego.goal-calendar";
+
+function externalSelection(): { connectionId: string; calendarId: string; busyOnly: boolean } {
+  try {
+    const value = JSON.parse(localStorage.getItem(EXTERNAL_STORAGE_KEY) ?? "{}") as Record<string, unknown>;
+    return { connectionId: typeof value.connectionId === "string" ? value.connectionId : "", calendarId: typeof value.calendarId === "string" ? value.calendarId : "", busyOnly: value.busyOnly === true };
+  } catch {
+    return { connectionId: "", calendarId: "", busyOnly: false };
+  }
+}
 
 type CalendarPageProps = {
   bots: OutcomeExecutionBot[];
@@ -108,6 +118,7 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
   const [truncated, setTruncated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [externalUnavailable, setExternalUnavailable] = useState<string | null>(null);
   const [dragged, setDragged] = useState<TimeItem | null>(null);
   const days = useMemo(() => calendarDays(selectedDate, view), [selectedDate, view]);
   const grouped = useMemo(() => itemsByDay(items, timeZone), [items, timeZone]);
@@ -118,7 +129,15 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
     try {
       const [zone, response] = await Promise.all([api.userTimeZone(), api.schedule.list({ ...rangeFor(selectedDate, view, timeZone), kinds: selectedKinds, ...(selectedBot ? { botId: selectedBot } : {}), ...(mine ? { mine: true } : {}) } satisfies ScheduleQuery)]);
       setTimeZone(zone.timeZone);
-      setItems(response.items);
+      const external = externalSelection();
+      let externalItems: TimeItem[] = [];
+      setExternalUnavailable(null);
+      if (external.connectionId && external.calendarId) {
+        const result = await api.externalCalendar.events({ ...external, ...rangeFor(selectedDate, view, timeZone) });
+        externalItems = result.items;
+        if (result.unavailable) setExternalUnavailable(result.unavailable.message);
+      }
+      setItems([...response.items, ...externalItems]);
       setTruncated(response.truncated);
     } catch {
       setError(true);
@@ -127,6 +146,11 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
     }
   }, [mine, selectedBot, selectedDate, selectedKinds, timeZone, view]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const refresh = () => void load();
+    window.addEventListener("outcomego:external-calendar-changed", refresh);
+    return () => window.removeEventListener("outcomego:external-calendar-changed", refresh);
+  }, [load]);
 
   const move = (amount: number) => {
     setSelectedDate(movePeriod(selectedDate, view, amount));
@@ -179,6 +203,7 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
         </div>
         {truncated && <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{t("Too many items. Narrow the date range or filters.")}</p>}
         {error && <div role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-xs text-destructive">{t("Calendar could not be loaded.")} <button className="underline" onClick={() => void load()}>{t("Retry")}</button></div>}
+        {externalUnavailable && <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{t("External calendar overlay unavailable")}: {externalUnavailable}</div>}
         {loading ? <p role="status">{t("Loading calendar…")}</p> : items.length === 0 ? <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-sm text-foreground-secondary">{t("Nothing scheduled for this period.")}</div> : <CalendarGrid days={days} view={view} items={grouped} timeZone={timeZone} onDragStart={(item) => setDragged(item)} onDrop={(date) => void reschedule(date)} onOpen={openItem} />}
       </div></div>
     </section>

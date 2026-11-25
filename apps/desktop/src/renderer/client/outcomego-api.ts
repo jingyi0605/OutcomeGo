@@ -25,6 +25,8 @@ import type {
   CalendarFeedListResponse,
   CreatedCalendarFeed,
   CreateCalendarFeedInput,
+  ExternalCalendarListResponse,
+  ExternalCalendarResponse,
 } from "@outcomego/contracts/task-overview";
 
 const localTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -50,6 +52,13 @@ export const api = {
     create: (input: CreateCalendarFeedInput) => request<CreatedCalendarFeed>("/api/calendar/feeds", { method: "POST", body: JSON.stringify(input) }),
     revoke: (id: string) => request(`/api/calendar/feeds/${encodeURIComponent(id)}`, { method: "DELETE" }),
     rotate: (id: string) => request<CreatedCalendarFeed>(`/api/calendar/feeds/${encodeURIComponent(id)}/rotate`, { method: "POST" }),
+  },
+  externalCalendar: {
+    calendars: (connectionId: string) => request<ExternalCalendarListResponse>(`/api/schedule/external/calendars?connectionId=${encodeURIComponent(connectionId)}`),
+    events: (input: { connectionId: string; calendarId: string; from: string; to: string; busyOnly: boolean }) => {
+      const params = new URLSearchParams({ ...input, busyOnly: String(input.busyOnly) });
+      return request<ExternalCalendarResponse>(`/api/schedule/external?${params}`);
+    },
   },
   stopChatBranch: (channelId: string, branchId: string) =>
     request<{ ok: boolean }>(`/api/channels/${encodeURIComponent(channelId)}/branches/${encodeURIComponent(branchId)}/stop`, { method: "POST" }),

@@ -8,6 +8,7 @@ import { OutcomePlanService } from "./services/outcome-plan-service";
 import { ActivityService } from "./services/activity-service";
 import { ScheduleService } from "./services/schedule-service";
 import { CalendarFeedService } from "./services/calendar-feed-service";
+import { ExternalCalendarService } from "./services/external-calendar-service";
 import { OwnerTodoService } from "./services/owner-todo-service";
 import { OutcomeScheduleService } from "./services/outcome-schedule-service";
 import { OutcomeTaskReviewService } from "./services/outcome-task-review-service";
@@ -128,6 +129,7 @@ export class AppService {
   readonly activity: ActivityService;
   readonly schedule: ScheduleService;
   readonly calendarFeeds: CalendarFeedService;
+  readonly externalCalendar: ExternalCalendarService;
   readonly ownerTodos: OwnerTodoService;
   readonly outcomeTaskReviews: OutcomeTaskReviewService;
   readonly outcomeBriefs: OutcomeBriefService;
@@ -292,6 +294,10 @@ export class AppService {
       (path, init) => this.computerFetch(path, init ?? {}),
       this.agentData,
       this.agentData
+    );
+    this.externalCalendar = new ExternalCalendarService(
+      this.prisma,
+      (connection, toolName, args) => this.plugins.callHostTool(connection, toolName, args),
     );
     this.dingtalk = new DingTalkService(this.prisma, (path, init) => this.computerFetch(path, init));
     this.richMessages = new RichMessageService(

@@ -25,6 +25,7 @@ import { createActivityRoutes } from "./routes/activity";
 import { createTodoRoutes } from "./routes/todos";
 import { createScheduleRoutes } from "./routes/schedule";
 import { calendarFeedResponse, createCalendarFeedRoutes } from "./routes/calendar-feed";
+import { createExternalCalendarRoutes } from "./routes/external-calendar";
 import { outcomeRoutes } from "./routes/outcome";
 import { exploreRoutes } from "./routes/explore";
 import { outcomeInboxRoutes } from "./routes/outcome-inbox";
@@ -374,6 +375,7 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         createTodoRoutes(app.ownerTodos),
         createScheduleRoutes(app.schedule, app.ownerTodos),
         createCalendarFeedRoutes(app.calendarFeeds),
+        createExternalCalendarRoutes(app.externalCalendar, app.ownerTodos),
         (context: RouteContext) => exploreRoutes(context, app.explore),
         outcomeInboxRoutes,
         channelRoutes,
