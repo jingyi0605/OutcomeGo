@@ -175,15 +175,21 @@ const enginesFixture = (outputs: Record<string, unknown>, platform: NodeJS.Platf
   return { manager, calls };
 };
 
-test("engine probes read each engine without starting anything", async () => {
+test("engine probes read each engine and local host resources without starting anything", async () => {
   const entry = enginesFixture({
-    external: { state: "ready", reasons: [], engineVersion: "27.3.1", engine: { kind: "external", name: "Docker", version: "27.3.1" } },
+    external: { state: "ready", reasons: [], engineVersion: "27.3.1", memoryBytes: 8 * 1024 ** 3, engine: { kind: "external", name: "Docker", version: "27.3.1" } },
     managed: { state: "needs-setup", reasons: [], code: "WSL_NOT_ENABLED", engine: { kind: "managed-wsl", name: "OutcomeGo engine" } },
   });
-  expect(await entry.manager.engines()).toEqual({
-    external: { state: "ready", reasons: [], name: "Docker", version: "27.3.1" },
-    managed: { state: "needs-setup", code: "WSL_NOT_ENABLED", reasons: [], name: "OutcomeGo engine" },
+  const result = await entry.manager.engines();
+  expect(result.external).toEqual({ state: "ready", reasons: [], name: "Docker", version: "27.3.1", memoryBytes: 8 * 1024 ** 3 });
+  expect(result.managed).toEqual({ state: "needs-setup", code: "WSL_NOT_ENABLED", reasons: [], name: "OutcomeGo engine" });
+  expect(result.resources).toMatchObject({
+    apiPort: 8787,
+    arch: expect.any(String),
+    cpuCores: expect.any(Number),
+    memoryBytes: expect.any(Number),
   });
+  expect(typeof result.resources?.apiPortAvailable).toBe("boolean");
   expect(entry.calls.map(args => args.slice(0, 5)).sort()).toEqual([
     ["/bundled-cli.js", "engine", "status", "--json", "--engine"], ["/bundled-cli.js", "engine", "status", "--json", "--engine"],
   ]);
@@ -192,7 +198,10 @@ test("engine probes read each engine without starting anything", async () => {
 
 test("a failed or malformed engine probe reports unknown instead of failing the screen", async () => {
   const entry = enginesFixture({ external: { state: "exploded", reasons: [] } });
-  expect(await entry.manager.engines()).toEqual({ external: { state: "unknown", reasons: [] }, managed: { state: "unknown", reasons: [] } });
+  const result = await entry.manager.engines();
+  expect(result.external).toEqual({ state: "unknown", reasons: [] });
+  expect(result.managed).toEqual({ state: "unknown", reasons: [] });
+  expect(result.resources?.apiPort).toBe(8787);
 });
 
 test("engine probes keep reasons bounded and redact secret-looking lines", async () => {
@@ -207,7 +216,10 @@ test("engine probes keep reasons bounded and redact secret-looking lines", async
 
 test("a computer without a managed engine is only probed for its own", async () => {
   const entry = enginesFixture({ external: { state: "stopped", reasons: ["Start Docker."] } }, "linux");
-  expect(await entry.manager.engines()).toEqual({ external: { state: "stopped", reasons: ["Start Docker."] }, managed: null });
+  const result = await entry.manager.engines();
+  expect(result.external).toEqual({ state: "stopped", reasons: ["Start Docker."] });
+  expect(result.managed).toBeNull();
+  expect(result.resources?.apiPort).toBe(8787);
   expect(entry.calls).toHaveLength(1);
 });
 

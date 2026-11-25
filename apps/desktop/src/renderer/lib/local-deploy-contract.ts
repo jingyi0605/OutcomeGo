@@ -16,9 +16,19 @@ export type EngineProbe = {
   reasons: string[];
   name?: string;
   version?: string;
+  memoryBytes?: number;
+};
+/** Read-only snapshot of the local machine's resources needed to host OutcomeGo. */
+export type HostResources = {
+  memoryBytes: number | null;
+  diskAvailableBytes: number | null;
+  cpuCores: number | null;
+  arch: string;
+  apiPort: number;
+  apiPortAvailable: boolean | null;
 };
 /** `managed` is null on a computer that has no OutcomeGo-managed engine (anything but Windows and macOS). */
-export type EngineProbes = { external: EngineProbe; managed: EngineProbe | null };
+export type EngineProbes = { external: EngineProbe; managed: EngineProbe | null; resources?: HostResources };
 export type DeploymentResult = { url: string; username: string; directory: string; version: string; engine: (typeof engines)[number] };
 export type DeployPayload =
   | { type: "stage"; stage: Stage; status: (typeof statuses)[number]; current?: number; total?: number }

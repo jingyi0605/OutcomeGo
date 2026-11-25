@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import { createHmac, randomBytes, randomUUID } from "node:crypto";
-import { closeSync, mkdtempSync, openSync, readSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { arch, platform, release, tmpdir } from "node:os";
-import { delimiter, isAbsolute, join } from "node:path";
+import { closeSync, existsSync, mkdtempSync, openSync, readSync, readdirSync, rmSync, statSync, statfsSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
+import { arch, cpus, platform, release, tmpdir, totalmem } from "node:os";
+import { delimiter, dirname, isAbsolute, join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { safeErrorMessage } from "@outcomego/product-core/redaction";
 import { canManageLocalInstallation, readManagedInstallation, readPendingDeployment } from "./local-installation";
@@ -10,7 +11,7 @@ import { canManageLocalInstallation, readManagedInstallation, readPendingDeploym
 import {
   actions, codes, engineProbeStates, engines, fields, stackStates, stages, statuses,
   type Action, type Code, type DeployPayload, type DeployProgress, type EngineProbe, type EngineProbes,
-  type LocalDeployRequest, type LocalServerStatus, type Stage,
+  type HostResources, type LocalDeployRequest, type LocalServerStatus, type Stage,
 } from "../renderer/lib/local-deploy-contract";
 
 const record = (value: unknown): Record<string, unknown> | null =>
@@ -145,6 +146,72 @@ const terminateTree = (child: Child) => {
   child.once("close", () => { clearTimeout(timer); signal("SIGKILL"); });
 };
 
+const DEFAULT_API_PORT = 8787;
+
+const availableDiskBytes = (target: string): number | null => {
+  try {
+    let directory = target;
+    while (!existsSync(directory)) {
+      const parent = dirname(directory);
+      if (parent === directory) break;
+      directory = parent;
+    }
+    const filesystem = statfsSync(directory);
+    const bytes = Number(filesystem.bavail) * Number(filesystem.bsize);
+    return Number.isFinite(bytes) && bytes >= 0 ? Math.floor(bytes) : null;
+  } catch {
+    return null;
+  }
+};
+
+const isPortFree = (host: string, port: number): Promise<boolean> =>
+  new Promise((resolve) => {
+    const server = createServer();
+    let settled = false;
+    const finish = (free: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(free);
+    };
+    const timer = setTimeout(() => {
+      try { server.close(); } catch {}
+      finish(false);
+    }, 2_000);
+    timer.unref();
+    server.unref();
+    server.once("error", () => finish(false));
+    server.listen({ host, port, exclusive: true }, () => {
+      server.close(() => finish(true));
+    });
+  });
+
+const probeApiPortAvailable = async (platformName: NodeJS.Platform, port = DEFAULT_API_PORT): Promise<boolean | null> => {
+  try {
+    const hosts = platformName === "linux" ? ["127.0.0.1"] : ["127.0.0.1", "0.0.0.0"];
+    for (const host of hosts) {
+      if (!(await isPortFree(host, port))) return false;
+    }
+    return true;
+  } catch {
+    return null;
+  }
+};
+
+export const probeHostResources = async (directory: string, platformName: NodeJS.Platform): Promise<HostResources> => {
+  const memory = totalmem();
+  const cores = cpus().length;
+  const apiPortAvailable = await probeApiPortAvailable(platformName, DEFAULT_API_PORT);
+  return {
+    memoryBytes: Number.isFinite(memory) && memory > 0 ? Math.floor(memory) : null,
+    diskAvailableBytes: availableDiskBytes(directory),
+    cpuCores: Number.isSafeInteger(cores) && cores > 0 ? cores : null,
+    arch: arch(),
+    apiPort: DEFAULT_API_PORT,
+    apiPortAvailable,
+  };
+};
+
 interface ManagerOptions {
   directory: string;
   version: string;
@@ -153,6 +220,7 @@ interface ManagerOptions {
   platform?: NodeJS.Platform;
   environment?: NodeJS.ProcessEnv;
   installation?: typeof readManagedInstallation;
+  resources?: () => Promise<HostResources>;
   prepare?: (signal: AbortSignal) => Promise<string>;
   spawn?: typeof spawn;
   terminate?: (child: Child) => void;
@@ -299,15 +367,24 @@ export class LocalDeployManager {
             ? detection.reasons.slice(0, 5).filter((item): item is string => typeof item === "string" && item.length <= 400).map(redact) : [],
           ...(name ? { name } : {}),
           ...(version ? { version } : {}),
+          ...(count(detection.memoryBytes) ? { memoryBytes: detection.memoryBytes } : {}),
         };
       } catch { return unknown; }
     };
     const platformName = this.options.platform ?? process.platform;
-    const [external, managed] = await Promise.all([
+    const readResources = async (): Promise<HostResources | undefined> => {
+      try {
+        return await (this.options.resources ?? (() => probeHostResources(this.options.directory, platformName)))();
+      } catch {
+        return undefined;
+      }
+    };
+    const [external, managed, resources] = await Promise.all([
       probe("external"),
       platformName === "win32" || platformName === "darwin" ? probe("managed") : Promise.resolve(null),
+      readResources(),
     ]);
-    return { external, managed };
+    return { external, managed, ...(resources ? { resources } : {}) };
   }
 
   async service(action: "start" | "stop" | "uninstall" | "resources", args: string[], serverUrl?: string): Promise<LocalServerStatus> {
