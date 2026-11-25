@@ -911,6 +911,12 @@ async function openFirstGoal() {
     row.focus();
     row.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
+  await act(async () => {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  });
   expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
   return row;
 }
