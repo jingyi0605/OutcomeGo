@@ -20,7 +20,7 @@ import {
  */
 export const OUTCOME_THREAD_ROLES = ["planner", "reviewer"] as const;
 export type OutcomeThreadRole = (typeof OUTCOME_THREAD_ROLES)[number];
-export const OUTCOME_THREAD_PURPOSES = ["plan", "owner_message", "replan", "review", "review_task"] as const;
+export const OUTCOME_THREAD_PURPOSES = ["plan", "owner_message", "replan", "review", "review_task", "inspection"] as const;
 export type OutcomeThreadPurpose = (typeof OUTCOME_THREAD_PURPOSES)[number];
 export const OUTCOME_THREAD_TURN_STATUSES = ["queued", "running", "completed", "failed"] as const;
 export type OutcomeThreadTurnStatus = (typeof OUTCOME_THREAD_TURN_STATUSES)[number];
@@ -32,6 +32,11 @@ const Text = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_TH
 /** The owner's words about a goal; they reach the bot unchanged. */
 export const SendOutcomeThreadMessageInput = Schema.Struct({ text: Text, clientRequestId: ClientRequestId });
 export type SendOutcomeThreadMessageInput = typeof SendOutcomeThreadMessageInput.Type;
+
+export const RequestOutcomeInspectionInput = Schema.Struct({
+  clientRequestId: ClientRequestId,
+});
+export type RequestOutcomeInspectionInput = typeof RequestOutcomeInspectionInput.Type;
 
 /** A new goal described in the owner's own words; the chosen bot plans it. */
 export const CreateOutcomeThreadInput = Schema.Struct({
@@ -55,6 +60,7 @@ export interface OutcomeThreadTurnView {
   runId: string | null;
   model?: OutcomeThreadTurnModelView | null;
   workItemId?: string | null;
+  inspectionSource?: "manual" | "automatic";
   result?: unknown | null;
   createdAt: string;
   updatedAt: string;
@@ -225,6 +231,7 @@ export const OUTCOME_THREAD_TOOLS_BY_PURPOSE: Record<OutcomeThreadPurpose, reado
   replan: ["SaveOutcomeContract", "SavePlan", "CancelOutcome", "GetOutcome", "ListOutcomes"],
   review: ["GetOutcome", "SubmitPrereview"],
   review_task: ["GetOutcome", "ReviewTaskResult"],
+  inspection: ["GetOutcome"],
 };
 
 export const goalThreadToolsForPurpose = (purpose: OutcomeThreadPurpose): readonly OutcomeThreadToolName[] =>

@@ -77,6 +77,7 @@ export class OutcomeScheduleService {
           scheduledAt: next.scheduledAt,
           dueAt: next.dueAt,
           estimateMinutes: next.estimateMinutes,
+          ...(changed.includes("dueAt") || scheduledChanged ? { inspectionRevisionId: null } : {}),
           ...(statusReason !== undefined ? { statusReason } : {}),
         },
       });
@@ -111,7 +112,7 @@ export class OutcomeScheduleService {
         if (!dueAt) throw outcomeApiError("invalid_schedule", "dueAt must be an ISO 8601 time with a UTC offset", { fields: ["dueAt"] });
       }
       if ((outcome.dueAt?.getTime() ?? null) === (dueAt?.getTime() ?? null)) return this.outcomes.getInTransaction(tx, outcomeId);
-      await tx.outcome.update({ where: { id: outcomeId }, data: { dueAt } });
+      await tx.outcome.update({ where: { id: outcomeId }, data: { dueAt, inspectionRevisionId: null } });
       const revision = outcome.currentRevisionId
         ? await tx.outcomeContractRevision.findUnique({ where: { id: outcome.currentRevisionId }, select: { revision: true } })
         : null;

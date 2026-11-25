@@ -1356,6 +1356,17 @@
   - 对应需求：`requirements.md` 需求 A11.1 至 A11.6、D1 至 D4、非功能 6
   - 对应设计：`design.md` §2.5、§3.6、§3.10、§9.4
 
+- [ ] 7.9 目标与任务主动巡检
+  - 状态：IN_REVIEW
+  - 完成记录：加入目标和任务巡检字段、`inspection` 目标线程用途、手动分析接口、自动截止窗口扫描、修订级手动抑制和巡检策略设置。桌面目标详情提供目标与任务的“立即分析”入口，并展示手动和自动分析结果。自动巡检复用 reviewer Bot，只读分析并通过目标线程保存结果。改期会清除当前巡检标记，自动回合领取前会核对修订、截止时间和手动回合。
+  - 这一步到底做什么：在目标或任务接近截止时间时主动分析当前状态，允许所有者手动执行分析，并让手动分析抑制当前修订的自动分析。
+  - 先依赖什么：4.7、7.6、7.7
+  - 主要改哪里：`packages/db/prisma/schema.prisma`、`packages/messaging/src/outcome-inspections.ts`、`packages/messaging/src/outcome-threads.ts`、`apps/server/src/services/outcome-thread-service.ts`、`apps/server/src/routes/outcome.ts`、`apps/worker/src/worker.ts`、`apps/desktop/src/renderer/components/outcomego/outcomes/detail/outcome-detail.tsx`。
+  - 怎么算完成：手动分析立即入队；自动扫描对当前目标或任务修订最多入队一次；完成、取消、关闭对象不再巡检；手动分析后当前修订跳过自动巡检；新修订可以重新进入自动巡检；排队中的自动回合在手动分析后不会被 Worker 领取。
+  - 怎么验证：隔离数据库迁移、目标和任务自动扫描、手动接口幂等、修订抑制、截止窗口、改期清除、Worker 领取前复核、只读工具面和桌面详情测试。已通过 `packages/messaging/test/outcome-inspections.integration.test.ts`、`apps/worker/test/outcome-inspection.integration.test.ts`、`packages/db/test/outcome-inspection-migration.integration.test.ts` 及 `apps/desktop/test/outcome-detail.test.ts`、`apps/desktop/test/outcome-workspace-navigation.test.tsx`。
+  - 对应需求：`requirements.md` 需求 A12.1 至 A12.7、D3、E2
+  - 对应设计：`design.md` §3.11、§2.6、§2.7
+
 ---
 
 ## 阶段 8：ICS 订阅与外部日历叠加

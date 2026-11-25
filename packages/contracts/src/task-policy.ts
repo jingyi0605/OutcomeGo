@@ -10,7 +10,7 @@
  */
 
 export type TaskPolicyFieldType = "integer" | "boolean" | "time" | "enum";
-export type TaskPolicyGroup = "schedule" | "activity" | "todo";
+export type TaskPolicyGroup = "schedule" | "activity" | "todo" | "inspection";
 
 export interface TaskPolicyField {
   /** Dotted key, stored flat: `schedule.graceMinutes`. */
@@ -49,6 +49,8 @@ const POLICY_FIELDS = [
   { key: "todo.digest.enabled", group: "todo", type: "boolean", initial: false },
   { key: "todo.digest.localTime", group: "todo", type: "time", initial: "08:30" },
   { key: "todo.digest.maxTitles", group: "todo", type: "integer", unit: "items", min: 1, max: 50, initial: 5 },
+  { key: "inspection.enabled", group: "inspection", type: "boolean", initial: true },
+  { key: "inspection.leadHours", group: "inspection", type: "integer", unit: "hours", min: 1, max: 24 * 30, initial: 24 },
 ] as const satisfies readonly TaskPolicyField[];
 
 export type TaskPolicyKey = (typeof POLICY_FIELDS)[number]["key"];

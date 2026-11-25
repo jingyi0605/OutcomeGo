@@ -3,7 +3,7 @@ import type {
   OutcomeDetail as OutcomeDetailView,
   ContractRevisionView,
 } from "@outcomego/contracts/outcomes";
-import { OUTCOME_TERMINAL_STATUSES } from "@outcomego/contracts/outcomes";
+import { OUTCOME_TERMINAL_STATUSES, workThreadIsFinished } from "@outcomego/contracts/outcomes";
 import { ContractConfirmation } from "../planning/contract-confirmation";
 import type { ScheduleChange } from "../timeline/schedule-edit";
 import { GoalDue } from "./goal-due";
@@ -99,6 +99,7 @@ export function OutcomeDetail({
   const [stopping, setStopping] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [sentApprovalTurnIds, setSentApprovalTurnIds] = useState<string[]>([]);
+  const [inspectionBusy, setInspectionBusy] = useState<string | null>(null);
   const { view: threadView, reload: reloadThread } = useOutcomeThread(outcomeId, client);
   const requestIds = useRef(new OutcomeRequestIds());
   const generation = useRef(0);
@@ -474,6 +475,27 @@ export function OutcomeDetail({
       decide(outcomeId, { ...input, clientRequestId })
     );
   }
+  const requestInspection = async (workItemId?: string) => {
+    if (inspectionBusy) return;
+    const key = `inspection:${outcomeId}:${workItemId ?? "goal"}`;
+    const input = { clientRequestId: requestIds.current.for(key, {}) };
+    setInspectionBusy(key);
+    setError(null);
+    try {
+      if (workItemId) await client.inspectWorkItem?.(outcomeId, workItemId, input);
+      else await client.inspect?.(outcomeId, input);
+      requestIds.current.complete(key);
+      reloadThread();
+    } catch (inspectionError) {
+      setError(outcomeErrorMessage(inspectionError));
+    } finally {
+      setInspectionBusy(null);
+    }
+  };
+  const inspectionTurns = (threadView?.reviewTurns ?? []).filter((turn) => turn.purpose === "inspection");
+  const inspectionPending = (workItemId?: string) => inspectionTurns.some((turn) =>
+    (turn.workItemId ?? undefined) === workItemId && (turn.status === "queued" || turn.status === "running") && turn.inspectionSource === "manual");
+  const canInspect = !terminal && !historicalReview && revision?.status === "approved";
   return (
     <article aria-label="Outcome details" aria-busy={busy} className={inChat ? "outcome-detail space-y-2.5" : "outcome-detail space-y-5"}>
       <header className="flex items-center justify-between gap-3">
@@ -515,6 +537,15 @@ export function OutcomeDetail({
             busy={busy}
             onRefresh={() => void mutate("refresh", {}, () => client.get(outcomeId))}
           />
+          {canInspect && outcome.inspectionEnabled === true && typeof client.inspect === "function" && (
+            <OutcomeButton
+              variant="secondary"
+              disabled={inspectionBusy !== null || inspectionPending()}
+              onClick={() => void requestInspection()}
+            >
+              {inspectionPending() ? translateCurrent("Analyzing…") : translateCurrent("Analyze now")}
+            </OutcomeButton>
+          )}
           <OutcomeButton
             variant="ghost"
             iconOnly
@@ -976,6 +1007,17 @@ export function OutcomeDetail({
                               </ul>
                             </details>
                           )}
+                          {canInspect && item.inspectionEnabled === true && item.contractRevision === outcome.currentRevision &&
+                            typeof client.inspectWorkItem === "function" &&
+                            !workThreadIsFinished(item.status) && (
+                              <OutcomeButton
+                                variant="ghost"
+                                disabled={inspectionBusy !== null || inspectionPending(item.id)}
+                                onClick={() => void requestInspection(item.id)}
+                              >
+                                {inspectionPending(item.id) ? translateCurrent("Analyzing…") : translateCurrent("Analyze task")}
+                              </OutcomeButton>
+                            )}
                         <details className="outcome-technical">
                           <summary>{translateCurrent("Execution IDs and provenance")}</summary>
                           <p>
@@ -1129,6 +1171,22 @@ export function OutcomeDetail({
           </section>
         )}
       </div>
+      {!historicalReview && inspectionTurns.length > 0 && (
+        <section aria-label={translateCurrent("Analysis results")} className="space-y-2">
+          <h3 className="text-sm font-medium">{translateCurrent("Analysis results")}</h3>
+          {[...inspectionTurns].reverse().map((turn) => (
+            <div key={turn.id} className="outcome-card space-y-1">
+              <p className="text-xs text-foreground-secondary">
+                {turn.inspectionSource === "automatic" ? translateCurrent("Automatic analysis") : translateCurrent("Manual analysis")}
+                {turn.workItemId && ` · ${outcome.workItems.find((item) => item.id === turn.workItemId)?.title ?? turn.workItemId}`}
+                {` · ${new Date(turn.createdAt).toLocaleString()} · ${translateCurrent(turn.status)}`}
+              </p>
+              {turn.reply && <p className="whitespace-pre-wrap text-sm">{turn.reply}</p>}
+              {turn.status === "failed" && <p className="text-xs">{turn.error?.message ?? translateCurrent("Analysis did not finish.")}</p>}
+            </div>
+          ))}
+        </section>
+      )}
       {!historicalReview && !inChat && (
         <OutcomeThreadPanel key={outcomeId} outcomeId={outcomeId} client={client} closed={terminal} compact />
       )}

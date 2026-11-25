@@ -1589,7 +1589,7 @@ export const ComputerTurnRequest = Schema.Struct({
     Schema.Struct({
       threadId: Schema.String,
       outcomeId: Schema.String,
-      purpose: Schema.Literal("plan", "owner_message", "replan", "review", "review_task"),
+      purpose: Schema.Literal("plan", "owner_message", "replan", "review", "review_task", "inspection"),
     })
   ),
   channelId: Schema.String,

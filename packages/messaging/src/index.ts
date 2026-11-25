@@ -29,6 +29,7 @@ export { isReviewBatchEvidence, outcomeReviewBatchKey, readOutcomeReviewBatch, o
 export { appendOutcomeEvent, GOAL_SCHEDULE_CHANGED_TOPIC, publishGoalScheduleChanged, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
 export { startOutcomeThreadTurn, settleOutcomeThreadTurn, settleFinishedOutcomeThreadTurns, outcomeThreadContext, OUTCOME_THREAD_EVENT_TOPIC } from "./outcome-threads";
 export { enqueueOutcomeTurn, settleOutcomeWorkItem, emitReviewRequiredIfNeeded, enqueueOutcomePrereviewIfNeeded, dispatchQueuedOutcomeWorkItems, dispatchDueScheduledWorkItems, releaseHeldOutcomeTurn, DEFERRED_BY_AGENT_REASON, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
+export { AUTO_INSPECTION_ACTOR, dispatchDueOutcomeInspections, enqueueOutcomeInspection, inspectionSnapshot, readInspectionTarget } from "./outcome-inspections";
 export { recoverOutcomeWorkItem, recoverOutcomeWorkItems, routeOutcomeNextStep, OUTCOME_RECOVERY_PROMPT, type OutcomeRecoveryRuntime, type OutcomeNextFact } from "./outcome-recovery";
 export { outcomeDispatchEnabled } from "./outcome-availability";
 export { unavailableHumanActionPort, type DecisionEffect, type HumanActionPort, type HumanActionInput, type HumanActionResult } from "./outcome-actions";
@@ -2202,7 +2203,10 @@ export class AgentMessaging {
     const outcomeContext = outcome
       ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId)
       : goalThread
-        ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId, { globalInference })
+        ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId, {
+            globalInference,
+            runId: outcomeThreadId && context!.scopeId !== outcomeThreadId ? context!.scopeId : undefined,
+          })
         : null;
     const automation = context?.scope === "automation" || outcome || goalThread;
     const { outcomesEnabled, streamBotReplies } = await readFeatureSettings(this.prisma);

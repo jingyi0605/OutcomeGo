@@ -66,7 +66,7 @@ export function parsePolicyInput(entry: TaskPolicyField, text: string): PolicyIn
 
 export interface GoalSettingsGroup {
   /** Also the deep-link anchor that opens the page at this group. */
-  id: "goal-management" | "goal-roles" | "goal-schedule" | "goal-activity" | "goal-todo" | "goal-auto-accept" | "goal-calendar";
+  id: "goal-management" | "goal-roles" | "goal-schedule" | "goal-activity" | "goal-todo" | "goal-auto-accept" | "goal-calendar" | "goal-inspection";
   /** English title for the i18n catalog. */
   title: string;
   /** The metadata group whose fields it lists, when it is a policy group. */
@@ -84,6 +84,7 @@ export const GOAL_SETTINGS_GROUPS: readonly GoalSettingsGroup[] = [
   { id: "goal-todo", title: "To-dos", policyGroup: "todo", available: true },
   { id: "goal-auto-accept", title: "Auto-accept rules", available: true },
   { id: "goal-calendar", title: "Calendar", available: true },
+  { id: "goal-inspection", title: "Active inspection", policyGroup: "inspection", available: true },
 ];
 
 export const visibleGoalSettingsGroups = (): GoalSettingsGroup[] => GOAL_SETTINGS_GROUPS.filter((group) => group.available);

@@ -36,7 +36,7 @@ export function OutcomeThreadPanel({
   if (!client.thread || !client.sendThreadMessage) return null;
   const canWrite = composer && !closed;
   // Without a composer an empty thread has nothing to show.
-  if (!canWrite && view && view.turns.length === 0 && !error) return null;
+  if (!canWrite && view && view.turns.length === 0 && !view.reviewTurns?.length && !error) return null;
   const send = client.sendThreadMessage;
   async function submit() {
     const words = text;
@@ -134,7 +134,9 @@ export function OutcomeThreadPanel({
           {view.reviewTurns.map((turn) => (
             <div key={turn.id} className="space-y-1 rounded-lg bg-subtle/60 p-2.5 text-[12px]" data-turn-status={turn.status}>
               <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-foreground-secondary">
-                <span className="font-medium text-foreground">{purposeLabels[turn.purpose] ?? turn.purpose}</span>
+                <span className="font-medium text-foreground">{turn.purpose === "inspection"
+                  ? turn.inspectionSource === "automatic" ? t("Automatic analysis") : t("Manual analysis")
+                  : purposeLabels[turn.purpose] ?? turn.purpose}</span>
                 <span>· {t(turn.status)}</span>
                 {turn.workItemId && <span>· {turn.workItemId.slice(0, 8)}</span>}
                 {turn.model && (
@@ -149,7 +151,7 @@ export function OutcomeThreadPanel({
                 <p role="alert" className="text-xs text-destructive">
                   {turn.purpose === "review"
                     ? t("Preliminary review failed.")
-                    : t("Task review failed (passed as unreviewed).")}{" "}
+                    : turn.purpose === "inspection" ? t("Analysis did not finish.") : t("Task review failed (passed as unreviewed).")}{" "}
                   {turn.error?.message}
                 </p>
               )}

@@ -22,7 +22,7 @@ export const OUTCOME_THREAD_SYSTEM_PRIORITY = 285;
 export const OUTCOME_THREAD_EVENT_TOPIC = "goal.thread.updated";
 
 export const roleForThreadPurpose = (purpose: OutcomeThreadPurpose): OutcomeThreadRole =>
-  purpose === "review" || purpose === "review_task" ? "reviewer" : "planner";
+  purpose === "review" || purpose === "review_task" || purpose === "inspection" ? "reviewer" : "planner";
 
 /**
  * Checks whether a bot is an active primary bot with a conversation and active bot_dm channel.
@@ -115,6 +115,7 @@ export interface EnqueueOutcomeThreadTurnInput {
   model?: InferenceModelSelection | OutcomeThreadTurnModelView | null;
   workItemId?: string | null;
   priority?: number;
+  result?: Prisma.InputJsonObject;
 }
 
 function serializeTurnModel(
@@ -173,6 +174,7 @@ export async function enqueueOutcomeThreadTurn(
       clientRequestId: input.clientRequestId,
       ...(modelJson !== undefined ? { model: modelJson } : {}),
       ...(input.workItemId ? { workItemId: input.workItemId } : {}),
+      ...(input.result ? { result: input.result } : {}),
     },
   });
   const priority =

@@ -1,4 +1,4 @@
-import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, notifyRequestsNeedingOwner, dispatchDueScheduledWorkItems, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
+import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, notifyRequestsNeedingOwner, dispatchDueScheduledWorkItems, dispatchDueOutcomeInspections, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
 import { dispatchTodoDigest, expireTodoSuggestions } from "@outcomego/messaging";
 import { todoTurnMode } from "@outcomego/contracts/todo";
 import {
@@ -74,6 +74,10 @@ import {
   dispatchQueuedOutcomeWorkItems,
   recoverOutcomeWorkItems,
   outcomeDispatchEnabled,
+  AUTO_INSPECTION_ACTOR,
+  inspectionSnapshot,
+  readInspectionTarget,
+  readFeatureSettings,
   isOutcomeDecisionRevisionActive,
   transitionWorkItem,
   groupRoutineState,
@@ -733,6 +737,7 @@ export class WakeWorker {
       await expireTodoSuggestions(this.prisma).catch((error) => console.error("todo-expiry", error));
       await dispatchTodoDigest(this.prisma, pushAuthenticationModeFromEnvironment()).catch((error) => console.error("todo-digest", error));
       await this.releaseDueScheduledWork();
+      await dispatchDueOutcomeInspections(this.prisma, this.messaging).catch((error) => console.error("outcome-inspection", error));
       const reconciliation = await this.agentData.reconcileAutomationFilesBatch(
         this.automationReconcileCursor,
         AUTOMATION_RECONCILE_BATCH_SIZE
@@ -1565,9 +1570,32 @@ export class WakeWorker {
             if (!current || current.run.status !== "queued"
               || !(current.status === "pending" || current.status === "processing" && current.claimedAt && current.claimedAt < staleAt)) continue;
             const turn = await tx.outcomeThreadTurn.findUnique({
-              where: { runId: candidate.runId }, include: { thread: { select: { outcome: { select: { cancelledAt: true, acceptedAt: true } } } } },
+              where: { runId: candidate.runId }, include: { thread: { select: { outcomeId: true, outcome: { select: { cancelledAt: true, acceptedAt: true } } } } },
             });
-            if (!turn || turn.status === "completed" || turn.status === "failed" || turn.thread.outcome.cancelledAt || turn.thread.outcome.acceptedAt) {
+            let inspectionRunnable = true;
+            if (turn?.purpose === "inspection") {
+              const { outcomeId } = turn.thread;
+              const [lock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
+                SELECT pg_try_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`})) AS locked`;
+              if (!lock?.locked) continue;
+              const target = await readInspectionTarget(tx, outcomeId, turn.workItemId);
+              const snapshot = turn.result as ReturnType<typeof inspectionSnapshot> | null;
+              const currentSnapshot = target && inspectionSnapshot(target);
+              inspectionRunnable = Boolean(snapshot && currentSnapshot && snapshot.revisionId === currentSnapshot.revisionId &&
+                snapshot.dueAt === currentSnapshot.dueAt && snapshot.scheduledAt === currentSnapshot.scheduledAt);
+              if (inspectionRunnable && turn.triggerBy === AUTO_INSPECTION_ACTOR) {
+                const supersedingManualTurn = await tx.outcomeThreadTurn.findFirst({
+                  where: { threadId: turn.threadId, workItemId: turn.workItemId, purpose: "inspection",
+                    triggerBy: { not: AUTO_INSPECTION_ACTOR }, result: { equals: inspectionSnapshot(target!) },
+                    createdAt: { gte: turn.createdAt } }, select: { id: true },
+                });
+                const settings = await readFeatureSettings(tx);
+                inspectionRunnable = settings.outcomesEnabled && settings.taskPolicy?.["inspection.enabled"] !== false &&
+                  !supersedingManualTurn && Boolean(target?.dueAt && target.dueAt > new Date());
+              }
+              inspectionRunnable &&= outcomeDispatchEnabled();
+            }
+            if (!turn || turn.status === "completed" || turn.status === "failed" || turn.thread.outcome.cancelledAt || turn.thread.outcome.acceptedAt || !inspectionRunnable) {
               await tx.inboxEvent.updateMany({ where: { id: candidate.id, status: "pending" }, data: { status: "completed", completedAt: new Date() } });
               await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_thread_not_runnable" } } });
               continue;
@@ -1823,7 +1851,7 @@ export class WakeWorker {
           payload.automationContextRunId ?? inbox.runId,
           inbox.run.outcomeWorkItemId,
           inbox.run.outcomeThreadId,
-          threadTurn?.purpose === "review" || threadTurn?.purpose === "review_task" ? inbox.runId : null
+          threadTurn?.purpose === "review" || threadTurn?.purpose === "review_task" || threadTurn?.purpose === "inspection" ? inbox.runId : null
         );
         const contextSession = await tx.contextSession.upsert({
           where: {
@@ -1876,7 +1904,7 @@ export class WakeWorker {
           runtimeProfile: inbox.bot.subagentIdentity ? "subagent" : "agent",
           subagentType:
             (inbox.bot.subagentIdentity?.subagentType as SubagentType | undefined) ?? null,
-          readOnly: onceStage === "preparation" || (inbox.bot.subagentIdentity?.readOnly ?? false),
+          readOnly: onceStage === "preparation" || threadTurn?.purpose === "inspection" || (inbox.bot.subagentIdentity?.readOnly ?? false),
           ...(onceStage === "preparation" && payload.preparationModel ? { preparationModel: payload.preparationModel } : {}),
           inferenceParentRunId: inbox.bot.subagentIdentity?.parentRunId ?? null,
           taskConfiguration: inbox.bot.subagentIdentity?.taskConfiguration ? parseTaskConfiguration(inbox.bot.subagentIdentity.taskConfiguration) : null,

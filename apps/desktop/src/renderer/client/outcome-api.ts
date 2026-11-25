@@ -61,6 +61,8 @@ export interface OutcomeClient {
   setWorkItemSchedule?(id: string, workItemId: string, input: SetWorkItemScheduleInput): Promise<OutcomeDetail>;
   /** The owner sets or clears the goal's due date (specs/004.10). */
   setDue?(id: string, input: SetOutcomeDueInput): Promise<OutcomeDetail>;
+  inspect?(id: string, input: { clientRequestId: string }): Promise<OutcomeThreadTurnView>;
+  inspectWorkItem?(id: string, workItemId: string, input: { clientRequestId: string }): Promise<OutcomeThreadTurnView>;
   /** What every bot is doing (specs/004.10). Absent on a server that has no such call. */
   activity?(query?: { botId?: string; includeAll?: boolean; recentHours?: number }): Promise<ActivityResponse>;
   /** The requests that wait on the owner (specs/004.10). Absent on a server that has no such call. */
@@ -108,6 +110,8 @@ export function createOutcomeApi(
     setWorkItemSchedule: (id, workItemId, input) =>
       outcomePut(`${outcomePath(id)}/work-items/${encodeURIComponent(workItemId)}/schedule`, input),
     setDue: (id, input) => outcomePut(`${outcomePath(id)}/due`, input),
+    inspect: (id, input) => outcomePost(`${outcomePath(id)}/inspection`, input),
+    inspectWorkItem: (id, workItemId, input) => outcomePost(`${outcomePath(id)}/work-items/${encodeURIComponent(workItemId)}/inspection`, input),
     needsMe: () => request("/api/needs-me"),
     todos: createTodoApi(request),
     activity: (query = {}) => {

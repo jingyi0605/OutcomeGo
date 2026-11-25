@@ -861,6 +861,7 @@ export class RuntimeTools {
         // AwaitShell only waits on Shell's background commands.
         (tool.name !== "AwaitShell" || taskToolEnabled(active.taskConfiguration, SHELL_TOOL.name)));
     }
+    if (active.goalThread?.purpose === "inspection") return topLevelTools();
     const availableNativeTools = NATIVE_TOOLS.filter(
       (tool) =>
         (!active.readOnly || READONLY_NATIVE_TOOLS.includes(tool.name)) &&
@@ -965,6 +966,8 @@ export class RuntimeTools {
     signal?: AbortSignal,
     claimResponseCall?: () => boolean
   ): Promise<AgentToolResult<Record<string, unknown>>> {
+    if (active.goalThread?.purpose === "inspection" && tool !== "GetOutcome")
+      throw new Error("Goal analysis can only read the saved goal");
     if (tool === "Task")
       args = expandPluginAgent(active.pluginRuntimePackages ?? [], args as Record<string, unknown>);
     if (

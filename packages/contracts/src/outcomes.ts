@@ -919,6 +919,7 @@ export interface WorkItemView {
   estimateMinutes?: number | null;
   /** How many times the agent deferred this task. Absent on older servers. */
   deferCount?: number;
+  inspectionEnabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -985,6 +986,7 @@ export interface OutcomeDetail extends OutcomeSummary {
   /** Set when the Bot closed a tracked item without owner acceptance. */
   autoClosedAt?: string | null;
   closeSummary?: string | null;
+  inspectionEnabled?: boolean;
   currentRevisionView: ContractRevisionView | null;
   revisions: Array<
     Pick<ContractRevisionView, "id" | "revision" | "status" | "changeSummary" | "createdAt"> &

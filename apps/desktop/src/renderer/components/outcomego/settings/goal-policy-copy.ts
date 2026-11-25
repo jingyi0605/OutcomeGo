@@ -95,6 +95,16 @@ export function policyCopy(key: TaskPolicyKey): { title: string; description: st
         title: translateCurrent("Titles in the summary"),
         description: translateCurrent("The most item titles the summary lists."),
       };
+    case "inspection.enabled":
+      return {
+        title: translateCurrent("Enable active inspection"),
+        description: translateCurrent("Allow automatic analysis of goals and tasks that are approaching their deadlines."),
+      };
+    case "inspection.leadHours":
+      return {
+        title: translateCurrent("Start inspection before the deadline"),
+        description: translateCurrent("Automatic analysis becomes eligible this many hours before a goal or task is due."),
+      };
   }
 }
 

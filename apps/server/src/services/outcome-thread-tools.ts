@@ -213,7 +213,7 @@ export class OutcomeThreadTools {
           throw new ApiError(403, "outcome_thread_scope", "A goal's thread can only read its own goal in detail");
         if (!this.readTools) throw new ApiError(503, "outcome_chat_unavailable", "Reading goals is not available");
         const result = await this.readTools.execute(request, context, signal);
-        if (purpose !== "review") return result;
+        if (purpose !== "review" && purpose !== "inspection") return result;
         const detail = result as { outcome: OutcomeDetail };
         const revision = detail.outcome.currentRevisionView;
         const decisionRecords = revision ? await this.prisma.outcomeDecision.findMany({

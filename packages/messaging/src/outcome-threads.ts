@@ -665,6 +665,10 @@ export async function settleOutcomeThreadTurn(
         : {}),
     },
   });
+  if (turn.purpose === "inspection") {
+    await announceThreadTurn(tx, turn.thread.outcomeId, turn.id, completed ? "completed" : "failed");
+    return;
+  }
   const derivedStatus = await recomputeOutcomeStatus(tx, turn.thread.outcomeId, threadActor);
   if (unreviewedFallback) {
     if (derivedStatus === "review_pending") {
@@ -707,7 +711,7 @@ export async function outcomeThreadContext(
   db: Prisma.TransactionClient | PrismaClient,
   botId: string,
   threadId: string,
-  options?: { globalInference?: ServerInferenceSettings | null }
+  options?: { globalInference?: ServerInferenceSettings | null; runId?: string }
 ): Promise<string> {
   const thread = await db.outcomeThread.findFirst({
     where: { id: threadId, botId },
@@ -717,12 +721,12 @@ export async function outcomeThreadContext(
   const { outcome } = thread;
   const revision = outcome.currentRevision;
   const activeTurn = await db.outcomeThreadTurn.findFirst({
-    where: { threadId, status: { in: ["queued", "running"] } },
+    where: options?.runId ? { threadId, runId: options.runId } : { threadId, status: { in: ["queued", "running"] } },
     orderBy: { createdAt: "asc" },
     select: { purpose: true, workItemId: true },
   });
   const purpose = activeTurn?.purpose ?? "owner_message";
-  const isReviewerTurn = purpose === "review" || purpose === "review_task";
+  const isReviewerTurn = purpose === "review" || purpose === "review_task" || purpose === "inspection";
   const settings = await readFeatureSettings(db);
   const environmentNote = settings.environmentNote?.trim() || null;
   const parsedPlan = revision ? parseOutcomePlan(revision.plan) : null;
@@ -832,6 +836,16 @@ export async function outcomeThreadContext(
       "- Reject ONLY for serious errors (contradicting a covered required criterion or contract boundary, or key factual errors) or omissions (missing required output), citing the exact basis and reason. Each task may be rejected at most once.",
       "- Never reject for formatting, style, wording, naming, optional criteria, personal extra standards, optimization ideas, or extra work unless it violates an explicit boundaries.excluded item; put non-blocking suggestions in `note`. Never reject for missing external evidence—describe what evidence is missing in `note` so holistic review marks it `unclear`. For deterministic_check criteria, verify recorded pass evidence without re-running checks.",
       "- `note` is never sent to the executing bot; never phrase it as rework commands or use it to bypass rejection rules. Record your decision with ReviewTaskResult.",
+    ].join("\n");
+  }
+  if (purpose === "inspection") {
+    return [
+      "## Goal inspection",
+      JSON.stringify(contextPayload),
+      "You are performing a proactive inspection of the current goal or task. Inspect the saved state with GetOutcome and report the current status, blockers, missing information, next action and any time risk.",
+      "- This is an analysis pass. Do not change the contract, plan, schedule, task state or external systems.",
+      "- Use only facts present in the saved goal, task, outputs, evidence and progress records. Mark unknown facts as unknown.",
+      "- Keep the result concise and concrete. Mention whether the owner needs to act.",
     ].join("\n");
   }
   return [

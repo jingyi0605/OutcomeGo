@@ -93,7 +93,7 @@ const detailInclude = {
     where: { role: "reviewer" },
     include: {
       turns: {
-        where: { purpose: { in: ["review", "review_task"] } },
+        where: { purpose: { in: ["review", "review_task", "inspection"] } },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         select: { id: true, purpose: true, status: true, workItemId: true, result: true, createdAt: true, clientRequestId: true },
       },
@@ -946,6 +946,7 @@ export class OutcomeService {
       dueAt: row.dueAt?.toISOString() ?? null,
       autoClosedAt: row.autoClosedAt?.toISOString() ?? null,
       closeSummary: row.closeSummary,
+      inspectionEnabled: row.inspectionEnabled,
       currentRevisionView,
       revisions: row.revisions.map((entry) => ({ ...entry, createdAt: entry.createdAt.toISOString() })),
       workItems: row.workItems.map((item) => ({
@@ -973,6 +974,7 @@ export class OutcomeService {
         dueAt: item.dueAt?.toISOString() ?? null,
         estimateMinutes: item.estimateMinutes,
         deferCount: item.deferCount,
+        inspectionEnabled: item.inspectionEnabled,
         createdAt: item.createdAt.toISOString(),
         updatedAt: item.updatedAt.toISOString(),
       })),

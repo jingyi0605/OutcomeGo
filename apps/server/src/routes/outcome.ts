@@ -4,7 +4,7 @@ import {
   CancelOutcomeInput, DecideOutcomeAcceptanceInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, decodeOutcomeCursor, parseListOutcomesQuery,
   SetOutcomeDueInput, SetWorkItemScheduleInput,
 } from "@outcomego/contracts/outcomes";
-import { CreateOutcomeThreadInput, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
+import { CreateOutcomeThreadInput, RequestOutcomeInspectionInput, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
 import { OutcomeAttentionInput, ReconcileOutcomeInput } from "@outcomego/contracts/outcome-runtime";
 import { outcomeDispatchEnabled, type ActorRef } from "@outcomego/messaging";
 import { json, parseBody } from "../http";
@@ -48,6 +48,15 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (tail === "/thread/messages" && request.method === "POST") {
       requireOutcomeDispatch();
       return json(await app.outcomeThreads.send(id, await parseBody(request, SendOutcomeThreadMessageInput), actor), 202);
+    }
+    if (tail === "/inspection" && request.method === "POST") {
+      requireOutcomeDispatch();
+      return json(await app.outcomeThreads.inspect(id, null, await parseBody(request, RequestOutcomeInspectionInput), actor), 202);
+    }
+    const inspectionTask = tail?.match(/^\/work-items\/([\da-f-]{36})\/inspection$/i);
+    if (inspectionTask && request.method === "POST") {
+      requireOutcomeDispatch();
+      return json(await app.outcomeThreads.inspect(id, inspectionTask[1]!, await parseBody(request, RequestOutcomeInspectionInput), actor), 202);
     }
     if (tail === "/brief" && request.method === "GET")
       return json(await app.outcomeBriefs.get(await run(app.outcomes.get(id))));

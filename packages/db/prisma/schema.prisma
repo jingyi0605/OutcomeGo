@@ -2161,10 +2161,13 @@ model Outcome {
   closeSummary String?
   /// Owner-set deadline (specs/004.10). Not part of the contract hash; it never triggers re-approval.
   dueAt DateTime?
+  inspectionEnabled Boolean @default(true)
+  inspectionRevisionId String? @db.Uuid
 
   @@index([status, updatedAt], map: "outcomego_outcome_status_updated_at_idx")
   @@index([updatedAt, id], map: "outcomego_outcome_updated_at_id_idx")
   @@index([botId, status], map: "outcomego_outcome_bot_id_status_idx")
+  @@index([inspectionEnabled, dueAt], map: "outcomego_outcome_inspection_due_idx")
   @@map("outcomego_outcome")
 }
 
@@ -2194,6 +2197,7 @@ enum OutcomeThreadTurnPurpose {
   replan
   review
   review_task
+  inspection
   @@map("outcomego_outcome_thread_turn_purpose")
 }
 
@@ -2389,6 +2393,8 @@ model OutcomeWorkItem {
   estimateMinutes Int?
   /// How many times the agent deferred this task while it was running.
   deferCount Int                         @default(0)
+  inspectionEnabled Boolean              @default(true)
+  inspectionRevisionId String? @db.Uuid
   createdAt DateTime                    @default(now())
   updatedAt DateTime                    @updatedAt
 
@@ -2397,6 +2403,7 @@ model OutcomeWorkItem {
   @@unique([contractRevisionId, planKey], map: "outcomego_outcome_work_item_revision_id_plan_key_key")
   @@index([outcomeId, status, createdAt], map: "outcomego_outcome_work_item_outcome_id_status_created_at_idx")
   @@index([botId, executorType, status], map: "outcomego_outcome_work_item_bot_id_executor_type_status_idx")
+  @@index([inspectionEnabled, dueAt], map: "outcomego_outcome_work_item_inspection_due_idx")
   @@map("outcomego_outcome_work_item")
 }
 

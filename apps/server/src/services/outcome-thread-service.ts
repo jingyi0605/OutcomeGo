@@ -5,16 +5,20 @@ import {
   type OutcomeThreadPurpose,
   type OutcomeThreadTurnView,
   type OutcomeThreadView,
+  type RequestOutcomeInspectionInput,
   type SendOutcomeThreadMessageInput,
 } from "@outcomego/contracts/outcome-thread";
 import { OutcomeError, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
+  AUTO_INSPECTION_ACTOR,
   OUTCOME_THREAD_EVENT_TOPIC,
   OUTCOME_THREAD_PRIORITY,
+  enqueueOutcomeInspection,
   enqueueOutcomeThreadTurn,
   postOutcomeUpdateCard,
   readOutcomesEnabled,
+  readInspectionTarget,
   recomputeOutcomeStatus,
   resolveOutcomeRole,
   type ActorRef,
@@ -28,6 +32,7 @@ type TurnRow = {
   id: string;
   purpose: OutcomeThreadPurpose;
   trigger: string;
+  triggerBy?: string;
   status: OutcomeThreadTurnView["status"];
   reply: string | null;
   error: unknown;
@@ -60,6 +65,7 @@ export const outcomeThreadTurnView = (row: TurnRow): OutcomeThreadTurnView => {
     id: row.id,
     purpose: row.purpose,
     trigger: row.trigger,
+    ...(row.purpose === "inspection" ? { inspectionSource: row.triggerBy === AUTO_INSPECTION_ACTOR ? "automatic" as const : "manual" as const } : {}),
     status: row.status,
     reply: row.reply,
     error: error
@@ -180,20 +186,35 @@ export class OutcomeThreadService {
     });
   }
 
+  async inspect(
+    outcomeId: string,
+    workItemId: string | null,
+    input: RequestOutcomeInspectionInput,
+    actor: ActorRef
+  ): Promise<OutcomeThreadTurnView> {
+    await this.requireEnabled();
+    return outcomeWrite(this.prisma, `outcome-inspection:${outcomeId}:${workItemId ?? "goal"}`, input.clientRequestId, { workItemId, ...input }, async (tx) => {
+      await lockOutcome(tx, outcomeId);
+      const target = await readInspectionTarget(tx, outcomeId, workItemId);
+      if (!target) throw outcomeApiError("invalid_outcome_transition", "This goal or task is unavailable for analysis");
+      return outcomeThreadTurnView(await enqueueOutcomeInspection(tx, this.messaging, target, actor, input.clientRequestId));
+    });
+  }
+
   async list(outcomeId: string): Promise<OutcomeThreadView> {
     if (!(await this.prisma.outcome.findUnique({ where: { id: outcomeId }, select: { id: true } })))
       throw outcomeApiError("outcome_not_found", "Outcome not found");
     const threads = await this.prisma.outcomeThread.findMany({
       where: { outcomeId },
-      include: { turns: { orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 200 } },
+      include: { turns: { orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 200 } },
     });
-    const planner = threads.find((thread) => thread.role === "planner") ?? threads[0] ?? null;
+    const planner = threads.find((thread) => thread.role === "planner") ?? null;
     const reviewer = threads.find((thread) => thread.role === "reviewer") ?? null;
     return {
       threadId: planner?.id ?? null,
-      turns: (planner?.turns ?? []).map(outcomeThreadTurnView),
+      turns: (planner?.turns ?? []).reverse().map(outcomeThreadTurnView),
       reviewerThreadId: reviewer?.id ?? null,
-      reviewTurns: (reviewer?.turns ?? []).map(outcomeThreadTurnView),
+      reviewTurns: (reviewer?.turns ?? []).reverse().map(outcomeThreadTurnView),
     };
   }
 
