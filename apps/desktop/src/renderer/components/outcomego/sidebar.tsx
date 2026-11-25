@@ -2193,6 +2193,7 @@ function CompactSidebarContent({
   onNewBot,
   onOpenPlugins,
   onOpenOutcomes,
+  onOpenCalendar,
   outcomesActive,
   outcomeBadges,
 }: {
@@ -2204,6 +2205,7 @@ function CompactSidebarContent({
   onNewBot: () => void;
   onOpenPlugins: () => void;
   onOpenOutcomes?: () => void;
+  onOpenCalendar?: () => void;
   outcomesActive?: boolean;
   outcomeBadges?: OutcomeActionCounts;
 }) {
@@ -2274,6 +2276,7 @@ function CompactSidebarContent({
           compact
           active={Boolean(outcomesActive)}
           onOpen={onOpenOutcomes}
+          onOpenCalendar={onOpenCalendar}
           badges={outcomeBadges}
         />
       )}
@@ -2403,6 +2406,7 @@ export const Sidebar = memo(function Sidebar({
   onPreloadSearch,
   onSearch,
   onOpenOutcomes,
+  onOpenCalendar,
   onNewIdea,
   newIdeaActive = false,
   outcomesActive = false,
@@ -2433,6 +2437,7 @@ export const Sidebar = memo(function Sidebar({
   onPreloadSearch: () => void;
   onSearch: () => void;
   onOpenOutcomes?: () => void;
+  onOpenCalendar?: () => void;
   onNewIdea?: () => void;
   newIdeaActive?: boolean;
   outcomesActive?: boolean;
@@ -3016,6 +3021,7 @@ export const Sidebar = memo(function Sidebar({
               onNewBot={onNewBot}
               onOpenPlugins={onOpenPlugins}
               onOpenOutcomes={onOpenOutcomes}
+              onOpenCalendar={onOpenCalendar}
               outcomesActive={outcomesActive}
               outcomeBadges={outcomeBadges}
               onSelect={onSelect}
@@ -3045,6 +3051,7 @@ export const Sidebar = memo(function Sidebar({
                   <OutcomeNavigation
                     active={outcomesActive}
                     onOpen={onOpenOutcomes}
+                    onOpenCalendar={onOpenCalendar}
                     onNewIdea={onNewIdea}
                     ideaActive={newIdeaActive}
                     badges={outcomeBadges}

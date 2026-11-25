@@ -153,6 +153,7 @@ const ChatGoals = lazy(() => import("./components/outcomego/outcomes/chat-goals"
 const OutcomeWorkspace = lazy(
   () => import("./components/outcomego/outcomes/inbox/outcome-workspace")
 );
+const CalendarPage = lazy(() => import("./components/outcomego/outcomes/calendar/calendar-page").then((module) => ({ default: module.CalendarPage })));
 const LiveVoiceLayer = lazy(() =>
   import("./components/outcomego/live-voice/live-voice-layer").then((module) => ({
     default: module.LiveVoiceLayer,
@@ -441,6 +442,7 @@ export default function App() {
     };
   }, []);
   const [requestedOutcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   // Goal management is opt-in: while it is off no goal view can be shown, however it was requested.
   const outcomeTarget = outcomesEnabled ? requestedOutcomeTarget : null;
   const [requestedWorkThread, setWorkThread] = useState<OutcomeWorkThreadView | null>(null);
@@ -1577,6 +1579,7 @@ export default function App() {
                   }
                 : undefined
             }
+            onOpenCalendar={outcomesEnabled ? () => { setOutcomeTarget(null); setCalendarOpen(true); } : undefined}
             outcomesActive={Boolean(outcomeTarget)}
             outcomeBadges={outcomeBadges}
             onSelect={selectSidebarChannel}
@@ -1627,6 +1630,16 @@ export default function App() {
             </Suspense>
           )}
           <section className="relative flex min-w-0 flex-1 flex-col" data-workspace-main="">
+            {outcomesEnabled && calendarOpen && (
+              <Suspense fallback={<p className="grid flex-1 place-items-center" role="status">{t("Loading…")}</p>}>
+                <CalendarPage
+                  bots={snapshot.bots}
+                  onClose={() => setCalendarOpen(false)}
+                  onOpenOutcome={(outcomeId) => { setCalendarOpen(false); setOutcomeTarget({ outcomeId }); }}
+                  onOpenChannel={(channelId) => { setCalendarOpen(false); selectSidebarChannel(channelId); }}
+                />
+              </Suspense>
+            )}
             {outcomeTarget && (
               <Suspense
                 fallback={
@@ -1644,9 +1657,9 @@ export default function App() {
               </Suspense>
             )}
             <div
-              className={outcomeTarget ? "hidden" : "contents"}
-              inert={Boolean(outcomeTarget)}
-              aria-hidden={outcomeTarget ? true : undefined}
+              className={outcomeTarget || calendarOpen ? "hidden" : "contents"}
+              inert={Boolean(outcomeTarget || calendarOpen)}
+              aria-hidden={outcomeTarget || calendarOpen ? true : undefined}
             >
               {!workThread && !newBotPicker && !pendingBot && !landing && (
                 <DesktopHeader

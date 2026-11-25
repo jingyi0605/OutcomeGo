@@ -342,7 +342,6 @@ export const sourceTranslations: Record<string, string> = {
   "Checking current decisions…": "正在读取当前待办…",
   "Current decisions could not be loaded. Open Needs attention to retry.":
     "暂时无法读取当前待办，请前往“需要处理”重试。",
-  "Human tasks": "人工任务",
 
   "Cancel Outcome": "取消目标",
   "Review history": "验收历史",
@@ -3713,6 +3712,32 @@ export const sourceTranslations: Record<string, string> = {
   "Upgrade to goal": "升级成目标",
   "Instructions for the bot": "给机器人的指令",
   "Link created goal": "关联已创建的目标",
+
+  // 004.10 cal-fe
+  "Goal deadlines": "目标截止日",
+  "Human tasks": "人工任务",
+  "Bot tasks": "机器人任务",
+  "Follow-ups": "跟进时间",
+  "External calendar": "外部日历",
+  "All day": "全天",
+  "Drag to change the date": "拖动以改期",
+  "Read-only calendar item": "只读日历条目",
+  "Untitled": "无标题",
+  "{count} more": "还有 {count} 项",
+  "Back to outcomes": "返回目标",
+  "Previous period": "上一个时间段",
+  "Next period": "下一个时间段",
+  "Calendar view": "日历视图",
+  "Day": "日",
+  "Week": "周",
+  "Month": "月",
+  "Filters": "筛选",
+  "All bots": "所有机器人",
+  "Only mine": "只看我的",
+  "Too many items. Narrow the date range or filters.": "条目过多，请缩小日期范围或筛选条件。",
+  "Calendar could not be loaded.": "日历加载失败。",
+  "Loading calendar…": "正在加载日历…",
+  "Nothing scheduled for this period.": "这段时间没有安排。",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>
