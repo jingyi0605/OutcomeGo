@@ -1,7 +1,8 @@
 import { tailscaleStatus } from "./tailscale-command";
 import { installationCommand, renderSummary } from "./command-ui";
 import { printMessage, TerminalReport } from "./terminal";
-import { appendFileSync, readFileSync, rmSync } from "node:fs";
+import { appendFileSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline/promises";
 import semver from "semver";
@@ -28,6 +29,11 @@ import {
   writeManifest,
 } from "./config";
 import { CLI_VERSION, DEFAULT_REPOSITORY, PROJECT_NAME } from "./constants";
+import { validMemorySize } from "./deploy-resources";
+import { requireRecordedEngine } from "./engine/select";
+import { ManagedEngine } from "./engine/managed";
+import { pullReleaseImages } from "./engine/image-pull";
+import { hasImageSources, imageSourcesPath } from "./engine/image-sources";
 import { type ComposeProject, DOCKER_OUTPUT_HINT, requireComposeProject } from "./docker";
 import { printDoctor, runDoctor } from "./doctor";
 import { dockerMissing, renderDockerRequired, startDockerDesktop } from "./docker-preflight";
@@ -492,6 +498,7 @@ export const startCommand = async (
       2
     );
   }
+  if (manifest.engine && manifest.engine.kind !== "external") await requireRecordedEngine(paths, runner, manifest.engine.kind).ensureReady();
   await startProject(
     requireComposeProject(paths, runner, manifestProjectName(manifest)),
     paths,
@@ -580,6 +587,13 @@ const updateCommandUnlocked = async (
     );
     return;
   }
+  // The OutcomeGo engine isn't always running (after a restart, say) and nothing below starts it;
+  // `start` brings it up the same way. Doing it first means the busy check sees any services it
+  // brings back, and a stopped engine isn't reported as a missing Docker.
+  if (manifest.engine && manifest.engine.kind !== "external") {
+    report("checking", "Starting the OutcomeGo engine", target);
+    await requireRecordedEngine(paths, runner, manifest.engine.kind).ensureReady();
+  }
   const whenIdle = updateWaitsForIdle(options);
   if (whenIdle) await assertNoAgentWorking(paths);
   console.log(
@@ -609,14 +623,27 @@ const updateCommandUnlocked = async (
   let manifestUpdated = false;
   let backupPath: string | null = null;
   let previousImages: string[] | null = null;
+  // Services that run a registry mirror's copy of an image; only the OutcomeGo engine needs this.
+  let imageSources: Record<string, { image: string }> = {};
   try {
     writeFileAtomic(nextCompose, release.compose, 0o600);
-    assertUpdatePreflight(paths, runner, project, nextCompose);
+    assertUpdatePreflight(paths, project, nextCompose);
     maintenanceWarning("capture pre-update images", () => {
       previousImages = captureStackImages(paths, project, runner);
     });
     report("pulling", `Pulling OutcomeGo ${target} container images`, target);
-    project.runOrThrow(["pull"], { inherit: true, composeFile: nextCompose });
+    if (project.engine instanceof ManagedEngine) {
+      // Its virtual machine has no registry mirror setting, so pick the fastest registry from here,
+      // as the install did; going straight to ghcr.io can be very slow or fail.
+      imageSources = await pullReleaseImages(project, project.engine, nextCompose, {
+        record: (line) => console.log(line),
+        interrupted: () => {
+          throw new CliError("Docker was interrupted.", 130);
+        },
+      });
+    } else {
+      project.runOrThrow(["pull"], { inherit: true, composeFile: nextCompose });
+    }
     // Work may have started during the download; this is the last moment nothing has stopped.
     if (whenIdle) await assertNoAgentWorking(paths);
     maintenanceStarted = true;
@@ -638,6 +665,12 @@ const updateCommandUnlocked = async (
     persisted = writeUpdateState(paths, { ...persisted, backupPath });
     writeFileAtomic(paths.environment, nextEnvironment, 0o600);
     writeFileAtomic(paths.compose, release.compose, 0o600);
+    // The overrides file is named for the exact contents of the Compose file it belongs to, so the
+    // previous release's file is left alone and stays valid if this update is rolled back.
+    const sources = imageSourcesPath(paths.compose);
+    if (Object.keys(imageSources).length || hasImageSources(sources)) {
+      writeFileAtomic(sources, JSON.stringify({ services: imageSources }), 0o600);
+    }
     rmSync(nextCompose, { force: true });
     report("restarting", "Restarting the server, worker, and computer", target);
     newStackStarted = true;
@@ -800,11 +833,45 @@ const confirmation = async (question: string): Promise<boolean> => {
   }
 };
 
+export const resourcesSetCommand = async (
+  paths: InstallationPaths,
+  options: Pick<CliOptions, "computerMemory" | "desktopMemory" | "yes">,
+  runner: CommandRunner
+): Promise<void> => {
+  const { computerMemory, desktopMemory } = options;
+  if (!validMemorySize(computerMemory) || !validMemorySize(desktopMemory)) {
+    throw new CliError(cliTranslate("Both memory limits must be integer sizes of at least 16 MiB (for example 4g or 3584m)."), 2);
+  }
+  const manifest = requireInstallation(paths);
+  const warning = cliTranslate("Changing memory limits restarts the computer services and interrupts running tasks.");
+  if (!options.yes && !(await confirmation(warning))) return;
+  if (options.yes) printMessage(warning, "warning");
+  const releaseLock = acquireUpdateLock(paths);
+  try {
+    const project = requireComposeProject(paths, runner, manifestProjectName(manifest));
+    const previous = readFileSync(paths.environment, "utf8");
+    const updated = replaceEnvironmentValue(
+      replaceEnvironmentValue(previous, "OUTCOMEGO_COMPUTER_MEMORY_LIMIT", computerMemory),
+      "OUTCOMEGO_DESKTOP_MEMORY_LIMIT", desktopMemory
+    );
+    const recreate = ["up", "-d", "--no-deps", "--force-recreate", "computer", "computer-memory-init"];
+    writeFileAtomic(paths.environment, updated);
+    try {
+      project.runOrThrow(recreate);
+    } catch (error) {
+      writeFileAtomic(paths.environment, previous);
+      throw error;
+    }
+  } finally {
+    releaseLock();
+  }
+};
+
 export const uninstallCommand = async (
   paths: InstallationPaths,
   options: CliOptions,
   runner: CommandRunner,
-  dependencies: { removeCli?: () => string | null } = {}
+  dependencies: { removeCli?: () => string | null; preserveCli?: boolean; platform?: NodeJS.Platform } = {}
 ): Promise<void> => {
   const manifest = requireInstallation(paths);
   const question = options.purge
@@ -816,14 +883,23 @@ export const uninstallCommand = async (
     printMessage(cliTranslate("Uninstall cancelled."), "muted");
     return;
   }
-  const project = requireComposeProject(paths, runner, manifestProjectName(manifest));
-  project.runOrThrow(
-    options.purge ? ["down", "--volumes", "--remove-orphans"] : ["down", "--remove-orphans"],
-    { inherit: true }
-  );
+  const engine = requireRecordedEngine(paths, runner, manifest.engine?.kind);
+  if (options.purge && engine instanceof ManagedEngine) await engine.remove({ purgeData: true });
+  else {
+    if (engine instanceof ManagedEngine) await engine.ensureReady();
+    requireComposeProject(paths, runner, manifestProjectName(manifest)).runOrThrow(
+      options.purge ? ["down", "--volumes", "--remove-orphans"] : ["down", "--remove-orphans"],
+      { inherit: true }
+    );
+  }
+  const removeCli = () => dependencies.preserveCli ? null : (dependencies.removeCli ?? removeCurrentCli)();
   if (options.purge) {
-    rmSync(paths.directory, { recursive: true, force: true });
-    const cliPath = (dependencies.removeCli ?? removeCurrentCli)();
+    if (dependencies.preserveCli && (dependencies.platform ?? process.platform) === "win32") {
+      for (const entry of readdirSync(paths.directory)) {
+        if (entry.toLowerCase() !== "bin") rmSync(join(paths.directory, entry), { recursive: true, force: true });
+      }
+    } else rmSync(paths.directory, { recursive: true, force: true });
+    const cliPath = removeCli();
     console.log(
       renderSummary(
         "uninstall",
@@ -840,7 +916,7 @@ export const uninstallCommand = async (
     return;
   }
   writeManifest(paths, { ...manifest, uninstalledAt: new Date().toISOString() });
-  const cliPath = (dependencies.removeCli ?? removeCurrentCli)();
+  const cliPath = removeCli();
   console.log(
     renderSummary(
       "uninstall",

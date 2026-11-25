@@ -23,7 +23,12 @@ import {
   writeManifest,
 } from "../src/config";
 import * as config from "../src/config";
+import { DEFAULT_IMAGE_PREFIX } from "../src/constants";
 import { runDoctor } from "../src/doctor";
+import * as imageSources from "../src/engine/image-sources";
+import { ManagedEngine } from "../src/engine/managed";
+import * as engineSelect from "../src/engine/select";
+import { EngineError } from "../src/engine/types";
 import * as ports from "../src/ports";
 import {
   installCommand,
@@ -33,6 +38,7 @@ import {
   updateCommand,
   UPDATE_PROGRESS_PREFIX,
 } from "../src/lifecycle";
+import * as processes from "../src/process";
 import type { CommandRunner, RunOptions, RunResult } from "../src/process";
 import type { SetupPrompter } from "../src/setup";
 import { updateBusyMessage } from "@outcomego/contracts/server-updates";
@@ -682,6 +688,21 @@ describe("installed lifecycle", () => {
     temporaryDirectories.splice(temporaryDirectories.indexOf(directory), 1);
   });
 
+  test.each([false, true])("Windows desktop uninstall preserves its carrier (purge: %s)", async purge => {
+    const { directory, paths } = fixture();
+    const runner = new HealthyDockerRunner();
+    const carrier = join(directory, "bin", "outcomego.exe");
+    mkdirSync(join(directory, "bin"));
+    writeFileSync(carrier, "CLI fixture");
+    await uninstallCommand(paths, parseArguments(["uninstall", "--yes", ...(purge ? ["--purge"] : [])]), runner, {
+      preserveCli: true, platform: "win32", removeCli: () => { throw new Error("desktop attempted to remove the CLI"); },
+    });
+    expect(readFileSync(carrier, "utf8")).toBe("CLI fixture");
+    expect(existsSync(paths.environment)).toBe(!purge);
+    expect(existsSync(paths.manifest)).toBe(!purge);
+    expect(runner.calls.at(-1)?.args.includes("--volumes")).toBe(purge);
+  });
+
   test("updates the full Compose release and emits every desktop progress phase", async () => {
     const { paths } = fixture();
     const runner = new HealthyDockerRunner();
@@ -1042,6 +1063,144 @@ describe("installed lifecycle", () => {
       updateCommand(paths, parseArguments(["update", "--version", "1.3.0-rc.1"]), runner)
     ).rejects.toThrow("Refusing prerelease");
     expect(existsSync(paths.updateLock)).toBe(false);
+    expect(readManifest(paths)?.version).toBe("1.2.3");
+  });
+});
+
+describe("update on the OutcomeGo engine", () => {
+  const releaseImage = `${DEFAULT_IMAGE_PREFIX}-server@sha256:${"a".repeat(64)}`;
+  const mirrorImage = imageSources.registrySources(releaseImage)[1]!.reference;
+
+  /** The engine in its own virtual machine: `vm` runs inside it, and the host has no Docker at all. */
+  class FakeOutcomeEngine extends ManagedEngine {
+    override readonly kind = "managed-lima" as const;
+    constructor(
+      paths: config.InstallationPaths,
+      runner: CommandRunner,
+      private readonly start: () => Promise<void>
+    ) {
+      super({ paths, runner, architecture: "arm64", release: "22.5.0" });
+    }
+    override ensureReady() { return this.start(); }
+    protected override guest(args: readonly string[]) { return { command: "vm", args, env: {} }; }
+    protected override owned() { return true; }
+    override guestPath(path: string) { return path; }
+    override async stop() {}
+    override async remove() {}
+    override docker(args: readonly string[]) { return this.runner.run("vm-docker", args); }
+    override probeCompose() {
+      return { command: { executable: "vm-docker", prefix: ["compose"], version: "2.30.0", supported: true }, failures: [] };
+    }
+  }
+
+  class OutcomeEngineRunner extends HealthyDockerRunner {
+    override run(command: string, args: readonly string[], options?: RunOptions): RunResult {
+      const answer = (result: RunResult) => {
+        this.calls.push({ command, args, options });
+        return result;
+      };
+      if (command === "docker") return answer({ status: 127, stdout: "", stderr: "docker: command not found" });
+      if (args.includes("config") && args.includes("--format")) {
+        return answer({ status: 0, stdout: JSON.stringify({ services: { server: { image: releaseImage } } }), stderr: "" });
+      }
+      if (args[0] === "image" && args[1] === "inspect") {
+        // `--format` is the check for an image that is already on the engine; none is yet.
+        return args.includes("--format")
+          ? answer({ status: 1, stdout: "", stderr: "No such image" })
+          : answer({ status: 0, stdout: JSON.stringify([{ Id: `sha256:${"b".repeat(64)}`, RepoTags: [] }]), stderr: "" });
+      }
+      return super.run(command, args, options);
+    }
+  }
+
+  const setup = (options: { pulls?: "succeed" | "fail"; start?: () => void } = {}) => {
+    const events: string[] = [];
+    const { paths } = fixture("missing", () => {
+      events.push("busy-check");
+      return Response.json({ bots: [] });
+    });
+    // An installation's engine can't be changed once recorded, so record it afresh.
+    const recorded = readManifest(paths)!;
+    rmSync(paths.manifest);
+    writeManifest(paths, { ...recorded, engine: { kind: "managed-lima" } });
+    const runner = new OutcomeEngineRunner();
+    const engine = new FakeOutcomeEngine(paths, runner, async () => {
+      events.push("engine-ready");
+      options.start?.();
+    });
+    const streamed: Array<{ command: string; args: readonly string[] }> = [];
+    const spies = [
+      spyOn(engineSelect, "requireRecordedEngine").mockReturnValue(engine),
+      spyOn(imageSources, "rankImageSources").mockImplementation(async (sources) => [sources[1]!.reference, sources[0]!.reference]),
+      spyOn(processes, "runStreaming").mockImplementation(async (command, args) => {
+        streamed.push({ command, args });
+        return { status: options.pulls === "fail" ? 1 : 0 };
+      }),
+      spyOn(console, "log").mockImplementation(() => undefined),
+    ];
+    const update = () =>
+      updateCommand(paths, parseArguments(["update", "--version", "1.3.0", "--when-idle", ...releaseFixture()]), runner);
+    return { paths, runner, events, streamed, update, restore: () => spies.forEach((spy) => spy.mockRestore()) };
+  };
+
+  test("starts the engine first, pulls from the fastest registry and runs that copy", async () => {
+    const { paths, runner, events, streamed, update, restore } = setup();
+    try {
+      await update();
+    } finally {
+      restore();
+    }
+    expect(readManifest(paths)?.version).toBe("1.3.0");
+    // The engine comes up before the busy check, which then runs before the download and again before the stop.
+    expect(events).toEqual(["engine-ready", "busy-check", "busy-check"]);
+    // The engine itself was asked whether it is up; the host has no Docker to ask.
+    expect(runner.calls.some((call) => call.command === "vm-docker" && call.args[0] === "info")).toBe(true);
+    // One pull, from the mirror, inside the engine; Compose never pulled from the official registry.
+    expect(streamed).toHaveLength(1);
+    expect(streamed[0]!.command).toBe("vm");
+    expect(streamed[0]!.args.slice(-3)).toEqual(["image", "pull", mirrorImage]);
+    expect(runner.calls.some((call) => call.args.includes("pull"))).toBe(false);
+    // The new Compose file runs the mirror's copy, through a file named for that exact Compose file.
+    expect(JSON.parse(readFileSync(imageSources.imageSourcesPath(paths.compose), "utf8"))).toEqual({
+      services: { server: { image: mirrorImage } },
+    });
+    expect(runner.calls.some((call) => call.args.includes("up"))).toBe(true);
+  });
+
+  test("an engine that cannot start stops the update with its own error, before anything is downloaded or run", async () => {
+    const { paths, runner, events, streamed, restore } = setup({
+      start: () => {
+        throw new EngineError("ENGINE_START_FAILED");
+      },
+    });
+    try {
+      await expect(
+        updateCommand(paths, parseArguments(["update", "--version", "1.3.0", ...releaseFixture()]), runner)
+      ).rejects.toThrow("ENGINE_START_FAILED");
+    } finally {
+      restore();
+    }
+    expect(events).toEqual(["engine-ready"]);
+    expect(runner.calls).toEqual([]);
+    expect(streamed).toEqual([]);
+    expect(readUpdateState(paths)).toMatchObject({ status: "error" });
+    expect(readManifest(paths)?.version).toBe("1.2.3");
+  });
+
+  test("an image no registry can serve fails the update before any service is stopped", async () => {
+    const { paths, runner, update, restore } = setup({ pulls: "fail" });
+    const previousCompose = readFileSync(paths.compose, "utf8");
+    try {
+      const error = (await update().catch((reason) => reason)) as Error;
+      expect(error.message).toContain("previous Compose configuration was restored");
+      expect(error.message).toContain("the running services were never stopped");
+      expect(error.message).toContain("Image download failed");
+    } finally {
+      restore();
+    }
+    expect(readFileSync(paths.compose, "utf8")).toBe(previousCompose);
+    expect(existsSync(imageSources.imageSourcesPath(paths.compose))).toBe(false);
+    expect(runner.calls.some((call) => call.args.includes("stop"))).toBe(false);
     expect(readManifest(paths)?.version).toBe("1.2.3");
   });
 });

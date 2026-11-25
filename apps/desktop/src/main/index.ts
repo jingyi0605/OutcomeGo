@@ -73,13 +73,18 @@ import {
   type ComputerSettings,
   type ComputerSettingsStore,
 } from "./computer-settings";
-import { readManagedInstallation } from "./local-installation";
+import { canManageLocalInstallation, defaultInstallDirectory, readManagedInstallation } from "./local-installation";
+import { registerLocalDeployIpc } from "./local-deploy-ipc";
+import { BackgroundPreferences, shouldHideWindow, shouldStopOnQuit, supportsTray } from "./background-preferences";
 import { bindWindowActivity, windowIsActive, windowIsVisible } from "./window-activity";
 import {
   classifyDesktopUpdateError,
   type DesktopUpdateSnapshot,
+  type DesktopReleaseNotes,
   hasDesktopUpdateFeed,
   parseDesktopReleaseManifest,
+  parseDesktopReleaseNotes,
+  releaseTagForVersion,
 } from "./update-status";
 import { isTrustedAssetDownloadUrl } from "./download-assets";
 import { pinOutcomeGoUserDataPath } from "./user-data-path";
@@ -121,6 +126,12 @@ let durableSendJournals: DurableSendJournalStore | null = null;
 const activeNotifications = new Set<Notification>();
 const activityNotifications = new Map<string, Notification>();
 let isQuitting = false;
+let backgroundPreferences: BackgroundPreferences | undefined;
+let backgroundTray: ReturnType<typeof import("./tray").createTray> | undefined;
+let showBackgroundNotice: (() => void) | undefined;
+let hasStartedQuit = false;
+let explicitQuit = false;
+const quitFromMenu = () => { explicitQuit = true; app.quit(); };
 const localMachine = { machineId: "", label: hostname() };
 let machineEnrollment: DesktopMachineEnrollment | null = null;
 let browserNetwork: DesktopBrowserNetwork | null = null;
@@ -139,6 +150,7 @@ const messagesAccess =
 let enrollmentServerUrl: string | null = null;
 const windowBackground = () => (nativeTheme.shouldUseDarkColors ? "#080808" : "#fbfbfb");
 const releasePage = "https://github.com/jingyi0605/OutcomeGo/releases/latest";
+const releaseApiBase = "https://api.github.com/repos/jingyi0605/OutcomeGo/releases";
 // Builds without an update feed check the latest release and link to its download instead.
 const desktopSelfUpdates = app.isPackaged && hasDesktopUpdateFeed(process.resourcesPath);
 
@@ -244,12 +256,20 @@ const scheduleDesktopUpdateChecks = () => {
   desktopUpdateTimer.unref?.();
 };
 
+const bundledCliPath = app.isPackaged
+  ? join(app.getAppPath(), "dist-electron", "outcomego-cli.js")
+  : join(import.meta.dirname, "outcomego-cli.js");
 const tailscaleManager = new TailscaleManager({
-  cliPath: app.isPackaged
-    ? join(process.resourcesPath, "app.asar.unpacked", "dist-electron", "outcomego-cli.js")
-    : join(import.meta.dirname, "outcomego-cli.js"),
+  cliPath: bundledCliPath,
   executablePath: process.execPath,
 });
+let localServices: ReturnType<typeof loadLocalServices> | undefined;
+const loadLocalServices = async () => {
+  const { LocalDeployManager, localServiceArguments } = await import("./local-deploy");
+  return { manager: new LocalDeployManager({ directory: defaultInstallDirectory(), version: app.getVersion(), executablePath: process.execPath, bundledCli: bundledCliPath }), localServiceArguments };
+};
+const getLocalServices = () => localServices ??= loadLocalServices();
+const getBackgroundPreferences = () => backgroundPreferences ??= new BackgroundPreferences(join(app.getPath("userData"), "background-preferences.json"));
 
 const checkForDesktopUpdate = async (): Promise<DesktopUpdateSnapshot> => {
   publishDesktopUpdate({
@@ -773,6 +793,35 @@ ipcMain.handle("outcomego:local-server:detect", (event) => {
     : null;
 });
 
+registerLocalDeployIpc({
+  handle: ipcMain.handle.bind(ipcMain),
+  requireAuthSender,
+  load: getLocalServices,
+  isSupported: () => supportsTray(process.platform),
+  currentServer: () => enrollmentServerUrl ?? undefined,
+  onProgress: (event, progress) => {
+    const sender = event.sender;
+    if (!sender.isDestroyed() && mainWindow?.webContents === sender && sender.mainFrame === event.senderFrame) {
+      sender.send("outcomego:local-deploy:progress", progress);
+    }
+    if (progress.type === "result") void refreshLocalTray();
+  },
+  onServiceChanged: state => { void refreshLocalTray(state); },
+});
+ipcMain.handle("outcomego:background:get", (event, ...args: unknown[]) => {
+  requireAuthSender(event);
+  if (args.length) throw new Error("INVALID_INPUT");
+  return getBackgroundPreferences().get();
+});
+ipcMain.handle("outcomego:background:set", async (event, ...args: unknown[]) => {
+  requireAuthSender(event);
+  const [value] = args;
+  if (args.length !== 1 || typeof value !== "boolean") throw new Error("INVALID_INPUT");
+  const preferences = await getBackgroundPreferences().set({ stopServiceOnQuit: value });
+  backgroundTray?.refresh();
+  return preferences;
+});
+
 const providerSignIn = new ProviderSignInCallback();
 ipcMain.handle(
   "outcomego:provider-sign-in:capture",
@@ -812,6 +861,7 @@ ipcMain.handle("outcomego:machine:connect", (event, serverUrl: unknown) => {
     providerSignIn.cancel();
   }
   enrollmentServerUrl = nextServerUrl;
+  void refreshLocalTray();
   machineEnrollment?.configure(enrollmentServerUrl);
   return { machineId: localMachine.machineId };
 });
@@ -860,6 +910,28 @@ ipcMain.handle("outcomego:updates:open-download", async (event) => {
     return;
   }
   await shell.openExternal(desktopUpdateSnapshot.downloadUrl || releasePage);
+});
+
+const releaseNotesCache = new Map<string, DesktopReleaseNotes>();
+
+// The updater feed carries release notes as HTML, so read the Markdown source from the release itself.
+ipcMain.handle("outcomego:updates:release-notes", async (event, version: unknown) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) {
+    throw new Error("Update status is unavailable");
+  }
+  const tag = releaseTagForVersion(version);
+  if (!tag) throw new Error("Invalid release version");
+  const cached = releaseNotesCache.get(tag);
+  if (cached) return cached;
+  const response = await net.fetch(`${releaseApiBase}/tags/${tag}`, {
+    headers: { accept: "application/vnd.github+json", "user-agent": "OutcomeGo-Desktop" },
+  });
+  // A release without a published page has no notes to show; do not cache it in case it appears later.
+  if (response.status === 404) return { version: tag.slice(1), markdown: null, url: releasePage };
+  if (!response.ok) throw new Error(`Update service returned ${response.status}`);
+  const notes = parseDesktopReleaseNotes(await response.json(), tag.slice(1), releasePage);
+  releaseNotesCache.set(tag, notes);
+  return notes;
 });
 
 ipcMain.handle("outcomego:updates:install-client", async (event) => {
@@ -1204,11 +1276,13 @@ const createWindow = async () => {
   mainWindow.once("ready-to-show", () => mainWindow?.show());
   const disposeWindowActivity = bindWindowActivity(mainWindow);
   mainWindow.on("close", (event) => {
-    if (process.platform === "darwin" && !isQuitting) {
+    if (shouldHideWindow(process.platform, isQuitting)) {
       event.preventDefault();
       mainWindow?.hide();
+      showBackgroundNotice?.();
     }
   });
+  if (process.platform === "win32") mainWindow.on("session-end", () => { isQuitting = true; });
   // A reload or crash mid-recording in Settings must not leave the screenbot shortcut paused.
   // ...and nothing a ScreenBot asked of the old page (a send, a transcription) will be answered.
   mainWindow.webContents.on("did-start-loading", () => {
@@ -1232,7 +1306,7 @@ const createWindow = async () => {
     disposeWindowActivity();
     screenBotShortcut.setRecording(false);
     screenbot.closeOverlay();
-    // Nothing is left to say, and on Windows and Linux the app quits with its last window.
+    // Nothing is left to say once the main window has been destroyed.
     botDock.reset();
     pluginOAuth.closeAll();
     mainWindow = null;
@@ -1428,6 +1502,14 @@ const rebuildApplicationMenu = () => {
     shortcut.kind === "accelerator" ? shortcut.accelerator : null,
     keyboardShortcuts.get("settings")
   );
+  if (supportsTray(process.platform)) {
+    const appMenu = template[0];
+    if (Array.isArray(appMenu?.submenu)) {
+      appMenu.submenu = appMenu.submenu.map(item => item.role === "quit"
+        ? { label: item.label ?? (applicationMenuLocale === "zh-CN" ? "退出 OutcomeGo" : "Quit OutcomeGo"), accelerator: "CommandOrControl+Q", click: quitFromMenu }
+        : item);
+    }
+  }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(
       withBotDockToggle(template, applicationMenuLocale, botDock.enabled, (enabled) =>
@@ -1572,7 +1654,56 @@ ipcMain.handle("outcomego:application-menu-locale", (event, locale: unknown) => 
   }
   applicationMenuLocale = locale;
   rebuildApplicationMenu();
+  backgroundTray?.refresh();
 });
+
+let trayState: import("../renderer/lib/local-deploy-contract").LocalServerStatus["stack"]["state"] = "not-installed";
+let trayBusy = false;
+const refreshLocalTray = async (state?: typeof trayState) => {
+  if (!backgroundTray || isQuitting) return;
+  try {
+    const { manager } = await getLocalServices();
+    trayState = state ?? (await manager.status()).stack.state;
+    backgroundTray.refresh();
+  } catch {}
+};
+
+const startBackgroundServices = async () => {
+  const platform = process.platform;
+  if (platform !== "darwin" && platform !== "win32") return;
+  const { createTray, warnOnClose } = await import("./tray");
+  const preferences = getBackgroundPreferences();
+  const refresh = () => refreshLocalTray();
+  const operate = (action: "start" | "stop") => {
+    if (!enrollmentServerUrl || trayBusy) return;
+    trayBusy = true;
+    backgroundTray?.refresh();
+    void getLocalServices().then(({ manager }) => manager.service(action, [], enrollmentServerUrl ?? undefined))
+      .then(result => { trayState = result.stack.state; }).catch(() => { trayState = "unhealthy"; })
+      .finally(() => { trayBusy = false; backgroundTray?.refresh(); });
+  };
+  backgroundTray = createTray({
+    platform,
+    assets: app.isPackaged ? join(process.resourcesPath, "tray") : join(app.getAppPath(), "../../packages/design-tokens/assets"),
+    locale: () => applicationMenuLocale,
+    state: () => ({ local: Boolean(enrollmentServerUrl && canManageLocalInstallation(enrollmentServerUrl, readManagedInstallation())),
+      state: trayState, busy: trayBusy, stopServiceOnQuit: preferences.view().stopServiceOnQuit }),
+    refresh,
+    actions: { open: focusMainWindow, start: () => operate("start"), stop: () => operate("stop"), quit: quitFromMenu },
+  });
+  let warningPending = false;
+  showBackgroundNotice = () => {
+    if (warningPending) return;
+    warningPending = true;
+    void preferences.get().then(async ({ warnedOnClose }) => {
+      if (!warnedOnClose && warnOnClose(applicationMenuLocale, focusMainWindow)) await preferences.set({ warnedOnClose: true });
+    }).catch(() => undefined).finally(() => { warningPending = false; });
+  };
+  powerMonitor.on("shutdown", () => { isQuitting = true; });
+  const { manager } = await getLocalServices();
+  const current = await manager.restore(() => enrollmentServerUrl ?? undefined, () => isQuitting);
+  if (current) await refreshLocalTray(current.stack.state);
+};
 
 // Development builds can run beside an installed app by design, but packaged launches should
 // reuse the existing desktop instance instead of competing for its host bridge port.
@@ -1741,6 +1872,7 @@ if (!hasSingleInstanceLock) {
         },
       });
       await Promise.all([createWindow(), authStorageWarmup]);
+      void startBackgroundServices().catch(error => console.error("OutcomeGo tray", safeErrorMessage(error)));
       await screenBotShortcut.start();
       await keyboardShortcuts.start();
       // Screenshots and attachments half-written when the app last stopped can't be sent.
@@ -1851,7 +1983,20 @@ const quitOnSignal = () => {
 process.once("SIGINT", quitOnSignal);
 process.once("SIGTERM", quitOnSignal);
 
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
+  const server = enrollmentServerUrl;
+  if (!isQuitting && explicitQuit && server && shouldStopOnQuit(explicitQuit,
+    backgroundPreferences?.view().stopServiceOnQuit ?? false, canManageLocalInstallation(server, readManagedInstallation()))) {
+    event.preventDefault();
+    isQuitting = true;
+    const timer = setTimeout(() => app.exit(), 30_000);
+    void getLocalServices().then(({ manager }) => manager.service("stop", [], server))
+      .catch(() => undefined).finally(() => { clearTimeout(timer); app.quit(); });
+    return;
+  }
+  if (hasStartedQuit) return;
+  hasStartedQuit = true;
+  backgroundTray?.destroy();
   flushRendererStorage();
   pluginOAuth.closeAll();
   screenBotShortcut.dispose();
@@ -1871,5 +2016,5 @@ app.on("before-quit", () => {
 nativeTheme.on("updated", () => mainWindow?.setBackgroundColor(windowBackground()));
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
+  if (!supportsTray(process.platform)) app.quit();
 });

@@ -31,6 +31,10 @@ Before each update, `outcomego update` saves a copy of the database in the `back
 
 ## Make a backup
 
+### 托管引擎（待真机验收）
+
+使用 `outcomego engine docker -- compose …` 执行 Compose 命令；CLI 会带上已记录的项目、配置和引擎内路径。不要在宿主机切换 Docker context，也不要把宿主机的备份目录当成客户机的可写挂载。数据库的 `pg_dump` / `pg_restore` 仍经宿主机重定向；卷备份用 `outcomego engine docker -- run --rm -v <卷名>:/source:ro alpine:3.22 tar -czf - -C /source . > <备份文件>`，恢复时用 `run --rm -i` 把压缩包通过 stdin 传给 `tar -xzf -`，目标是已经确认的空卷。数据恢复前先在隔离安装验证，不用已有实例做试验。
+
 These commands work in Bash or zsh on macOS and Linux. They pause your bots while the backup runs, so let active work finish first.
 
 ```sh

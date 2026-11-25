@@ -22,6 +22,91 @@ const interpolate = (text: string, values?: Values): string =>
 
 /** English source string → Simplified Chinese. Keys are the English text itself. */
 const simplifiedChinese: Record<string, string> = {
+  "Enable virtualization in your firmware, then retry.": "请在固件设置中开启虚拟化，再重试。",
+  "Enable WSL before deploying the managed engine.": "请先启用 WSL，再部署托管引擎。",
+  "Allow the system change or use an existing engine.": "请允许系统变更，或使用已有引擎。",
+  "Start a local Docker-compatible engine and retry.": "请启动本机兼容 Docker 的引擎，再重试。",
+  "The engine did not start. Check diagnostics and retry.": "引擎未启动，请查看诊断后重试。",
+  "This engine lacks capabilities required by OutcomeGo.": "此引擎缺少 OutcomeGo 所需能力。",
+  "Download failed. Check your connection or proxy and retry.": "下载失败，请检查网络或代理后重试。",
+  "Required engine release file is missing.": "缺少必需的引擎发布文件。",
+  "The release could not be verified. Retry the download.": "无法验证发布资产，请重新下载。",
+  "Free the occupied port or choose another API port.": "请释放被占用的端口，或选择另一个 API 端口。",
+  "Free disk space before retrying deployment.": "请释放磁盘空间后重试。",
+  "Available memory is low. Add memory or confirm you want to continue.": "可用内存不足，请增加内存或确认继续。",
+  "Image download failed. Check your connection and retry.": "镜像下载失败，请检查网络后重试。",
+  "Local services could not start. Check diagnostics and retry.": "本地服务未能启动，请查看诊断后重试。",
+  "Local services did not become healthy. Check diagnostics and retry.": "本地服务未通过健康检查，请查看诊断后重试。",
+  "The owner account could not be created. Check your credentials and retry.": "未能创建管理员账户，请检查输入后重试。",
+  "A local service operation is already running.": "已有本地服务操作正在进行。",
+  "Update the desktop app to use a compatible command-line tool.": "请更新桌面应用，以使用兼容的命令行工具。",
+  "Deployment cancelled.": "部署已取消。",
+  "Deployment did not finish. Copy diagnostics and retry.": "部署未完成，请复制诊断信息并重试。",
+  "Supply container CLI arguments after --.": "请在 -- 后提供容器命令参数。",
+  "Unknown engine command; use status, start, stop, remove, or docker.": "未知引擎命令，请使用 status、start、stop、remove 或 docker。",
+  "Managed deployment requires Windows x64 (Windows 10 22H2 or Windows 11 23H2 or later). Connect to an existing server on unsupported hardware.": "托管部署要求 Windows x64（Windows 10 22H2、Windows 11 23H2 或更高版本）。设备不受支持时，请连接已有服务器。",
+  "Managed deployment requires macOS 13.5 or later on Apple Silicon or Intel. Use an existing container engine or server instead.": "托管部署要求 Apple Silicon 或 Intel Mac 运行 macOS 13.5 或更高版本。也可使用已有引擎或连接服务器。",
+  "Restart your computer, then reopen OutcomeGo to continue deployment.": "请重启电脑，然后重新打开 OutcomeGo 继续部署。",
+  "Windows could not report the WSL status.": "Windows 无法报告 WSL 状态。",
+  "The managed engine requires WSL 2.": "托管引擎需要 WSL 2。",
+  "Engine recovery is pending. Run outcomego engine rollback --yes for this installation.": "托管引擎等待恢复。请对该安装运行 outcomego engine rollback --yes。",
+  "Engine operation completed. Recovery files were retained at {path}.": "引擎操作已完成。恢复文件保留在 {path}。",
+  "Engine upgrade requires private Compose volumes without custom drivers or mounts.": "升级引擎只支持本安装的 Compose 数据卷，不支持自定义驱动或挂载。",
+  "The managed WSL engine requires NAT networking. Use an existing container engine or server if NAT is unavailable.": "WSL 托管引擎需要 NAT 网络。无法使用 NAT 时，请改用已有容器引擎或服务器。",
+  "The managed engine could not verify ownership of outcomego-engine.": "无法确认 outcomego-engine 的归属。",
+  "The managed virtual machine could not report its state.": "托管虚拟机无法报告状态。",
+  "Retry with the original API port: {port}.": "请使用原 API 端口 {port} 重试。",
+  "The selected container engine is unavailable on this host.": "此主机无法使用所选的容器引擎。",
+  "The recorded engine of an existing installation cannot be changed.": "不能更改现有安装已记录的容器引擎。",
+  "Install or repair a Docker-compatible container engine and its CLI.": "请安装或修复兼容 Docker 的容器引擎及其命令行工具。",
+  "Start your container engine or check the current Docker connection.": "请启动容器引擎或检查当前的 Docker 连接。",
+  "The container engine did not report its capabilities as JSON.": "容器引擎没有以 JSON 格式报告其能力。",
+  "Install or update Compose to {version} or newer.": "请安装 Compose {version} 或更高版本，或升级现有版本。",
+  "The container engine must report Linux container support.": "容器引擎必须支持 Linux 容器。",
+  "The container engine must report cgroup v2 support.": "容器引擎必须支持 cgroup v2。",
+  "OutcomeGo requires a rootful container engine.": "OutcomeGo 需要以 root 权限运行的容器引擎。",
+  "Docker-compatible engine": "兼容 Docker 的引擎",
+  "Unknown engine command; use status.": "未知的引擎命令；请使用 status。",
+  "Unknown resources command; use set.": "未知的资源命令；请使用 set。",
+  "The desktop app requires a compatible CLI version.": "桌面应用需要兼容版本的命令行工具。",
+  "Preparing local deployment.": "正在准备本机部署。",
+  "The deployment input is invalid.": "部署输入不合规。",
+  "The verified release does not specify valid deployment images.": "已验证的发布配置未指定有效的部署镜像。",
+  "Local deployment requires loopback bindings.": "本机部署要求端口只绑定到回环地址。",
+  "Local deployment requires a local Docker socket or named pipe.": "本机部署要求使用本机 Docker 套接字或命名管道。",
+  "The Compose project name is already used by another installation.": "该 Compose 项目名称已被其他安装使用。",
+  "Choose an API port outside the screen-viewer port range.": "请选择不在屏幕查看端口段内的 API 端口。",
+  "The engine is missing required capabilities: {capabilities}.": "引擎缺少所需能力：{capabilities}。",
+  "The engine capability probe could not finish.": "引擎能力探测未能完成。",
+  "The pulled computer image is not available by its verified digest.": "无法按已验证的摘要找到拉取的电脑镜像。",
+  "Pulling {service} from {registry}.": "正在从 {registry} 拉取 {service}。",
+  "Image pull failed from {registry}.": "从 {registry} 拉取镜像失败。",
+  "Automatic server updates could not be enabled.": "未能启用服务器自动更新。",
+  "Both memory limits must be integer sizes of at least 16 MiB (for example 4g or 3584m).": "两个内存上限都必须是不小于 16 MiB 的整数大小，例如 4g 或 3584m。",
+  "Changing memory limits restarts the computer services and interrupts running tasks.": "更改内存上限会重启电脑服务，并中断进行中的任务。",
+  "Only {available} is available near {directory}; deployment needs {required}.": "{directory} 所在磁盘仅有 {available} 可用空间；部署需要 {required}。",
+  "Your computer has {available} of memory; {required} is recommended.": "此电脑有 {available} 内存；建议至少 {required}。",
+  "The engine has {available} of memory; deployment recommends at least {required}.": "引擎有 {available} 内存；部署建议至少 {required}。",
+  "Port {port} on {address} is already in use by {container}.": "{address} 上的端口 {port} 已被 {container} 占用。",
+  "Port {port} on {address} is already in use by another local process.": "{address} 上的端口 {port} 已被其他本机进程占用。",
+  "Free port {port} or choose another API port.": "请释放端口 {port} 或选择其他 API 端口。",
+  "Free port {port}; the screen-viewer port range cannot be changed here.": "请释放端口 {port}；此处不能更改屏幕查看端口段。",
+  "Install Docker Engine and the Compose plugin: https://docs.docker.com/engine/install/":
+    "请安装 Docker Engine 和 Compose 插件：https://docs.docker.com/engine/install/",
+  "Install a Docker-compatible engine with Compose. Docker Desktop is one option: https://www.docker.com/products/docker-desktop/":
+    "请安装兼容 Docker 且支持 Compose 的引擎。也可选择安装 Docker Desktop：https://www.docker.com/products/docker-desktop/",
+  "Open a new terminal and run docker --version. If the engine is already installed, check that the docker command is on PATH and check the executable's permissions.":
+    "请打开新终端并运行 docker --version。如果已安装引擎，请检查 docker 是否在 PATH 中，并检查可执行文件权限。",
+  "Start your Docker-compatible engine and run docker info. Check the selected Docker context if it still fails.":
+    "请启动兼容 Docker 的引擎并运行 docker info。如果仍然失败，请检查当前 Docker context。",
+  "Start your Docker runtime with colima start (using the selected profile), then run docker info.":
+    "请用 colima start 启动所选配置，再运行 docker info。",
+  "Start your Docker runtime by opening OrbStack, then run docker info.":
+    "请打开 OrbStack 启动引擎，再运行 docker info。",
+  "Start your Docker runtime by opening Rancher Desktop, then run docker info.":
+    "请打开 Rancher Desktop 启动引擎，再运行 docker info。",
+  "Start your Docker runtime with podman machine start or start your Podman API service, then run docker info.":
+    "请运行 podman machine start 或启动 Podman API 服务，再运行 docker info。",
   "Show container health and server readiness": "显示容器健康状态和服务器就绪状态",
   "Check for installation problems": "检查安装问题",
   "Install the latest OutcomeGo release": "安装最新的 OutcomeGo 版本",
@@ -139,8 +224,8 @@ const simplifiedChinese: Record<string, string> = {
   "Docker Compose is too old or its version is unknown: {version}":
     "Docker Compose 版本过旧或无法确定：{version}",
   "Docker Compose could not run.": "无法运行 Docker Compose。",
-  "Install or update Docker Desktop or the Docker Compose plugin to {version} or newer. Verify with docker compose version, then retry.":
-    "请安装或更新 Docker Desktop 或 Compose 插件到 {version} 或更高版本。用 docker compose version 验证后重试。",
+  "Install or update Compose to {version} or newer for your container engine. Verify with docker compose version (or docker-compose version).":
+    "请为当前容器引擎安装或升级 Compose 到 {version} 或更高版本。用 docker compose version（或 docker-compose version）验证。",
   "OutcomeGo could not read its container states.": "OutcomeGo 无法读取容器状态。",
   "Run docker info to check the engine, then {command} to inspect Compose and configuration errors.":
     "运行 docker info 检查引擎，然后运行 {command} 查看 Compose 和配置错误。",
@@ -179,8 +264,6 @@ const simplifiedChinese: Record<string, string> = {
     "请安装或修复 Docker，然后打开新的终端运行 docker --version。",
   "Start your Docker runtime and wait for its engine to be ready. Run docker info; if it fails, inspect docker context ls and any DOCKER_HOST or DOCKER_CONTEXT overrides.":
     "请启动 Docker 运行时并等待其引擎就绪。运行 docker info；如果失败，请检查 docker context ls 以及 DOCKER_HOST 或 DOCKER_CONTEXT 覆盖设置。",
-  "Install or update Docker Desktop or the Compose plugin to {version} or newer. Verify with docker compose version (or docker-compose version).":
-    "请安装或更新 Docker Desktop 或 Compose 插件到 {version} 或更高版本。用 docker compose version（或 docker-compose version）验证。",
   "Restore the missing or invalid installation files from a known-good backup, or use outcomego install --dir <path> for a separate new installation.":
     "请从可信备份恢复缺失或无效的安装文件，或用 outcomego install --dir <path> 单独进行全新安装。",
   "Identify which application is using the reported port. Stop it if appropriate, or choose another API port during guided installation or outcomego setup; the screen-viewer ports must be available.":

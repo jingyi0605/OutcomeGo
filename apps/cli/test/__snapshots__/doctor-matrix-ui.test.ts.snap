@@ -10,10 +10,11 @@ exports[`doctor UI scenario matrix docker-missing has a stable 80-column termina
   Completed in 0.4s
 
   NEXT STEPS
-  1. Install Docker Desktop from
-     https://www.docker.com/products/docker-desktop/, then open a new terminal
-     and run docker --version. If Docker is already installed, check that its
-     command is on PATH and check the executable's permissions.
+  1. Install a Docker-compatible engine with Compose. Docker Desktop is one
+     option: https://www.docker.com/products/docker-desktop/. Open a new
+     terminal and run docker --version. If the engine is already installed,
+     check that the docker command is on PATH and check the executable's
+     permissions.
   2. After resolving the failed checks, run outcomego install again.
 
   HOST & SETUP ────────────────────────────────────────────────────────────────
@@ -46,13 +47,15 @@ exports[`doctor UI scenario matrix docker-missing has a stable 80-column termina
   ✗ 1 blocking problem found.
 
   NEXT STEPS ──────────────────────────
-  1. Install Docker Desktop from
+  1. Install a Docker-compatible engine
+  with Compose. Docker Desktop is one
+  option:
   https://www.docker.com/products/docker
-  -desktop/, then open a new terminal
-  and run docker --version. If Docker is
-  already installed, check that its
-  command is on PATH and check the
-  executable's permissions.
+  -desktop/. Open a new terminal and run
+  docker --version. If the engine is
+  already installed, check that the
+  docker command is on PATH and check
+  the executable's permissions.
   2. After resolving the failed checks,
   run outcomego install again."
 `;

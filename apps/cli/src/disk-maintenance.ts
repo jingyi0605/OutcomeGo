@@ -4,6 +4,7 @@ import { basename, join, resolve } from "node:path";
 import type { InstallationPaths } from "./config";
 import { parseEnvironment, writeFileAtomic } from "./config";
 import type { ComposeProject } from "./docker";
+import type { EngineProvider } from "./engine/types";
 import type { CommandRunner } from "./process";
 
 const IMAGE_ID = /^sha256:[a-f0-9]{64}$/;
@@ -35,8 +36,8 @@ const readLedger = (paths: InstallationPaths, name: string): unknown => {
   return JSON.parse(readFileSync(path, "utf8"));
 };
 
-const dockerJson = (runner: CommandRunner, args: string[]): unknown => {
-  const result = runner.run("docker", args);
+const dockerJson = (engine: EngineProvider, args: string[]): unknown => {
+  const result = engine.docker(args);
   if (result.status !== 0) throw new Error(`Docker inventory failed: ${result.stderr.trim()}`);
   return JSON.parse(result.stdout);
 };
@@ -53,15 +54,15 @@ const checkedIds = (value: unknown): string[] => {
 };
 
 const containerInventory = (
-  runner: CommandRunner
+  engine: EngineProvider
 ): Array<{ Image: string; Config: { Labels: Record<string, string> | null } }> => {
-  const result = runner.run("docker", ["container", "ls", "--all", "--quiet", "--no-trunc"]);
+  const result = engine.docker(["container", "ls", "--all", "--quiet", "--no-trunc"]);
   if (result.status !== 0)
     throw new Error("Could not inventory all running and stopped containers");
   const ids = result.stdout.trim().split(/\s+/).filter(Boolean);
   if (!ids.every((id) => /^[a-f0-9]{64}$/.test(id))) throw new Error("Invalid container inventory");
   if (!ids.length) return [];
-  const containers = dockerJson(runner, ["container", "inspect", ...ids]);
+  const containers = dockerJson(engine, ["container", "inspect", ...ids]);
   if (
     !Array.isArray(containers) ||
     containers.length !== ids.length ||
@@ -85,7 +86,7 @@ const containerInventory = (
 export const captureStackImages = (
   paths: InstallationPaths,
   project: ComposeProject,
-  runner: CommandRunner
+  _runner: CommandRunner
 ): string[] => {
   const result = project.run(["--profile", "*", "config", "--format", "json"]);
   if (result.status !== 0) throw new Error("Could not resolve full-stack image references");
@@ -105,7 +106,7 @@ export const captureStackImages = (
   }
   const ids: string[] = [];
   for (const ref of new Set(services.map((service) => service.image!))) {
-    const result = runner.run("docker", ["image", "inspect", ref]);
+    const result = project.engine.docker(["image", "inspect", ref]);
     // Disabled optional profiles may never have been pulled. No local image means
     // nothing to retain; any other inventory failure disables maintenance.
     const optional = services
@@ -121,7 +122,7 @@ export const captureStackImages = (
     ids.push(...checkedIds(images.map((image) => image.Id)));
   }
   checkedIds(ids);
-  for (const container of containerInventory(runner)) {
+  for (const container of containerInventory(project.engine)) {
     const labels = container.Config.Labels;
     if (
       labels?.["com.docker.compose.project"] === project.projectName &&
@@ -146,7 +147,7 @@ interface ImageLedger {
 export const retainStackImages = (
   paths: InstallationPaths,
   project: ComposeProject,
-  runner: CommandRunner,
+  _runner: CommandRunner,
   before: string[],
   after: string[]
 ): void => {
@@ -187,7 +188,7 @@ export const retainStackImages = (
   const tag = (id: string) => `${retentionRepository}:${id.slice(7)}`;
   const keep = new Set([...ledger.rollback, ...after]);
   for (const id of keep) {
-    const result = runner.run("docker", ["image", "tag", id, tag(id)]);
+    const result = project.engine.docker(["image", "tag", id, tag(id)]);
     if (result.status !== 0) throw new Error(`Could not protect rollback image ${id}`);
   }
   // Persist protection before any removal; failures leave extra images, never less recovery material.
@@ -198,8 +199,8 @@ export const retainStackImages = (
   for (const id of ledger.owned) {
     if (keep.has(id)) continue;
     // Refresh for each deletion. Docker also refuses non-forced removal if a container races us.
-    if (containerInventory(runner).some((container) => container.Image === id)) continue;
-    const result = runner.run("docker", ["image", "inspect", tag(id)]);
+    if (containerInventory(project.engine).some((container) => container.Image === id)) continue;
+    const result = project.engine.docker(["image", "inspect", tag(id)]);
     if (result.status !== 0) {
       // A missing marker grants no permission to remove by ID; other errors
       // mean inventory is unavailable, so stop the entire cleanup pass.
@@ -237,7 +238,7 @@ export const retainStackImages = (
     // own repository digest disappears with its tag and must stay protected until then.
     const digests = confirmedDigests.filter((ref) => !ref.startsWith(`${retentionRepository}@`));
     for (const ref of [...digests, tag(id)]) {
-      const removal = runner.run("docker", ["image", "rm", ref]);
+      const removal = project.engine.docker(["image", "rm", ref]);
       if (removal.status !== 0)
         throw new Error(`Could not remove retired image ${id}: ${removal.stderr.trim()}`);
     }

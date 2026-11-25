@@ -37,6 +37,29 @@ const installStub = (f: ReturnType<typeof statusFixture>, id: string) => {
 };
 
 describe.skipIf(process.platform === "win32")("actual status and health CLI commands", () => {
+  test("status --json returns only the read-only engine and stack snapshot", async () => {
+    const fixture = statusFixture("healthy");
+    try {
+      const env = installStub(fixture, "healthy");
+      const child = Bun.spawn([process.execPath, resolve(import.meta.dir, "../src/main.ts"), "status", "--dir", fixture.paths.directory, "--json"], {
+        env, stdout: "pipe", stderr: "pipe",
+      });
+      const [stdout, stderr, status] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+      expect(status).toBe(0);
+      expect(stderr).toBe("");
+      expect(JSON.parse(stdout)).toMatchObject({
+        engine: { engine: { kind: "external" } },
+        stack: { state: "running", services: expect.arrayContaining([expect.objectContaining({ Service: "server" })]) },
+        version: "1.2.3", apiPort: expect.any(Number), ownerUsername: expect.any(String),
+      });
+      const calls = readFileSync(env.OUTCOMEGO_TEST_CALLS, "utf8");
+      expect(calls).not.toMatch(/"(?:up|start|stop|exec|pull|down)"/);
+      for (const [path, contents] of fixture.before) expect(readFileSync(path, "utf8")).toBe(contents);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test("both aliases preserve active-update JSON output without probing Docker", async () => {
     const f = statusFixture("healthy");
     try {

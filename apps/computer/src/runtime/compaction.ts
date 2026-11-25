@@ -24,6 +24,7 @@ import {
   sha256,
 } from "../bot-compaction";
 import { textFromContent } from "./content";
+import { isOpenCodeUrl, type OpenCodeRequestOptions } from "../opencode-zen";
 import { inferenceReasoningOptions } from "./reasoning";
 import type { RuntimeTools } from "./tools";
 import type { ActiveTurn } from "./types";
@@ -448,6 +449,10 @@ export async function inferCompaction(
   // The summarization wrapper sends the normal model-visible schemas through
   // a stream-only session. Calling the model runtime directly gives us the same
   // surface while making tool execution structurally impossible.
+  const opencodeOptions =
+    model.provider === "opencode" || isOpenCodeUrl(model.baseUrl)
+      ? ({ opencodeCwd: active.cwd } satisfies OpenCodeRequestOptions)
+      : {};
   const result = request.external ? await modelRuntime.completeSimple(
     model,
     {
@@ -458,6 +463,7 @@ export async function inferCompaction(
     {
       signal,
       ...inferenceReasoningOptions(model, active.reasoning),
+      ...opencodeOptions,
       maxTokens: Math.min(request.external.maxTokens, model.maxTokens || request.external.maxTokens),
     }
   ) : await modelRuntime.completeSimple(
@@ -480,6 +486,7 @@ export async function inferCompaction(
     {
       signal,
       ...inferenceReasoningOptions(model, active.reasoning),
+      ...opencodeOptions,
     }
   );
   if (signal.aborted) throw new DOMException("Compaction aborted", "AbortError");

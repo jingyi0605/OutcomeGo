@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../../../client/outcomego-api";
 import type { OutcomeDetail as OutcomeDetailView } from "@outcomego/contracts/outcomes";
 import type { HumanWorkItemView } from "@outcomego/contracts/human-work";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { DecisionCard } from "./decision-card";
-import { OutcomeDetail } from "../detail/outcome-detail";
 import { HumanAction } from "../human-work/human-action";
 import { useI18n } from "../../../../lib/i18n";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { getCachedOutcomeActions, setCachedOutcomeActions } from "./outcome-card-cache";
+
+const OutcomeDetail = lazy(() => import("../detail/outcome-detail").then(module => ({ default: module.OutcomeDetail })));
 
 /** Pages a goal can show inside a modal without leaving the current screen. */
 export type OutcomeDetailRoute =
@@ -182,29 +183,31 @@ function OutcomeWithActions({
   const actionItems = useMemo(() => inbox.filter((item) => item.requiresAction), [inbox]);
   return (
     <div className="space-y-4">
-      <OutcomeDetail
-        outcomeId={outcomeId}
-        bots={bots}
-        client={api.outcomes}
-        inboxClient={api.outcomeInbox}
-        initialOutcome={initialOutcome}
-        reviewRevision={reviewRevision}
-        onReplanStarted={onClose}
-        onActionSubmitted={onSubmitted}
-        onReady={onReady}
-        useCache={useCache}
-        inChat={inChat}
-        onOpenDetails={onOpenDetails}
-        actionItems={actionItems}
-        actionsError={error}
-        actionsLoading={loading && !loadedOnceRef.current}
-        onAction={(item) => {
-          if (item.decisionId) onDecision(item.decisionId);
-          else if (item.category === "human_action_pending" && item.workItemId)
-            onHuman(item.workItemId);
-          else if (item.category === "acceptance_pending") onReceipt(item.contractRevision);
-        }}
-      />
+      <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+        <OutcomeDetail
+          outcomeId={outcomeId}
+          bots={bots}
+          client={api.outcomes}
+          inboxClient={api.outcomeInbox}
+          initialOutcome={initialOutcome}
+          reviewRevision={reviewRevision}
+          onReplanStarted={onClose}
+          onActionSubmitted={onSubmitted}
+          onReady={onReady}
+          useCache={useCache}
+          inChat={inChat}
+          onOpenDetails={onOpenDetails}
+          actionItems={actionItems}
+          actionsError={error}
+          actionsLoading={loading && !loadedOnceRef.current}
+          onAction={(item) => {
+            if (item.decisionId) onDecision(item.decisionId);
+            else if (item.category === "human_action_pending" && item.workItemId)
+              onHuman(item.workItemId);
+            else if (item.category === "acceptance_pending") onReceipt(item.contractRevision);
+          }}
+        />
+      </Suspense>
       {!inChat && items.length > 0 && (
         <details className="outcome-disclosure">
           <summary>{t("Human tasks")}</summary>

@@ -14,16 +14,18 @@ export interface ReleaseArtifact {
   compose: string;
 }
 
+export class ReleaseVerificationError extends CliError {}
+
 export const releaseComposeUrl = (repository: string, version: string): string =>
   `https://github.com/${normalizeRepository(repository)}/releases/download/v${normalizeVersion(version)}/outcomego-compose.yaml`;
 
-const fetchText = async (url: string, accept = "text/plain"): Promise<string> => {
+const fetchText = async (url: string, accept = "text/plain", signal?: AbortSignal): Promise<string> => {
   let response: Response;
   try {
     response = await fetch(url, {
       headers: { accept, "user-agent": "outcomego-cli" },
       redirect: "follow",
-      signal: AbortSignal.timeout(30_000),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
     });
   } catch (error) {
     throw new CliError(
@@ -131,6 +133,7 @@ export const downloadRelease = async (options: {
   checksumUrl?: string;
   signatureUrl?: string;
   allowUnsigned?: boolean;
+  signal?: AbortSignal;
 }): Promise<ReleaseArtifact> => {
   const version = normalizeVersion(options.version);
   const composeUrl = options.composeUrl ?? releaseComposeUrl(options.repository, version);
@@ -139,23 +142,27 @@ export const downloadRelease = async (options: {
     ? null
     : (options.signatureUrl ?? `${composeUrl}.sigstore.json`);
   const [compose, checksums, signature] = await Promise.all([
-    fetchText(composeUrl),
-    fetchText(checksumUrl),
-    signatureUrl ? fetchText(signatureUrl, "application/json") : Promise.resolve(null),
+    fetchText(composeUrl, "text/plain", options.signal),
+    fetchText(checksumUrl, "text/plain", options.signal),
+    signatureUrl ? fetchText(signatureUrl, "application/json", options.signal) : Promise.resolve(null),
   ]);
-  validateCompose(compose);
-  const filename = basename(new URL(composeUrl).pathname);
-  const expected = checksumFor(checksums, filename);
-  if (!expected) throw new CliError(`${checksumUrl} does not contain a checksum for ${filename}`);
-  const actual = createHash("sha256").update(compose).digest("hex");
-  if (actual !== expected) throw new CliError(`Checksum verification failed for ${composeUrl}`);
-  if (signature) {
-    await verifyReleaseSignature({
-      repository: options.repository,
-      version,
-      compose,
-      serializedBundle: signature,
-    });
+  try {
+    validateCompose(compose);
+    const filename = basename(new URL(composeUrl).pathname);
+    const expected = checksumFor(checksums, filename);
+    if (!expected) throw new CliError(`${checksumUrl} does not contain a checksum for ${filename}`);
+    const actual = createHash("sha256").update(compose).digest("hex");
+    if (actual !== expected) throw new CliError(`Checksum verification failed for ${composeUrl}`);
+    if (signature) {
+      await verifyReleaseSignature({
+        repository: options.repository,
+        version,
+        compose,
+        serializedBundle: signature,
+      });
+    }
+  } catch (error) {
+    throw new ReleaseVerificationError(error instanceof Error ? error.message : String(error));
   }
   return { version, composeUrl, checksumUrl, signatureUrl, compose };
 };

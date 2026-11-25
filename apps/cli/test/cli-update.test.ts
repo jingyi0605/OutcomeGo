@@ -11,6 +11,7 @@ import {
   isBunStandaloneExecutable,
   isStandaloneCliExecutable,
   promoteStagedCli,
+  prepareDesktopCli,
   readCliPromotion,
   removeCurrentCli,
   stageCliUpdate,
@@ -64,6 +65,29 @@ const artifactServer = (options: {
 };
 
 describe("CLI self-update", () => {
+  test("desktop CLI preparation reuses a matching carrier and installs only a validated replacement", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-desktop-carrier-"));
+    temporaryDirectories.push(directory);
+    const target = join(directory, "bin", "outcomego");
+    const source = join(directory, "bin", ".outcomego.update-test");
+    let staged = 0;
+    const stage = async () => {
+      staged++;
+      writeFileSync(source, "1.2.3", { mode: 0o700 });
+      return { source, target, version: "1.2.3" };
+    };
+    const inspect = async (file: string) => ({ status: 0, stdout: readFileSync(file, "utf8"), detail: null });
+    const supportsBootstrap = async () => true;
+    expect(await prepareDesktopCli({ version: "1.2.3", target, stage, inspect, supportsBootstrap })).toBe(target);
+    expect(readFileSync(target, "utf8")).toBe("1.2.3");
+    expect(await prepareDesktopCli({ version: "1.2.3", target, stage, inspect, supportsBootstrap })).toBe(target);
+    expect(staged).toBe(1);
+    await expect(prepareDesktopCli({ version: "1.2.3", target, stage, inspect, supportsBootstrap: async () => false })).rejects.toThrow("CLI_VERSION_MISMATCH");
+    expect(readFileSync(target, "utf8")).toBe("1.2.3");
+    await expect(prepareDesktopCli({ version: "1.2.4", target, stage: async () => { throw new Error("signature invalid"); }, inspect })).rejects.toThrow("signature invalid");
+    expect(readFileSync(target, "utf8")).toBe("1.2.3");
+  });
+
   test("detects Bun's virtual executable entrypoint on Unix and Windows", () => {
     expect(
       isBunStandaloneExecutable(["/usr/local/bin/outcomego", "/$bunfs/root/outcomego", "update"], {

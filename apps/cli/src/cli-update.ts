@@ -6,21 +6,46 @@ import {
   copyFileSync,
   existsSync,
   fsyncSync,
+  mkdirSync,
   openSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { gunzipSync } from "node:zlib";
-import { basename, dirname, join, resolve } from "node:path";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve, win32 } from "node:path";
 import { normalizeRepository, normalizeVersion } from "./config";
+import { DEFAULT_REPOSITORY } from "./constants";
+import { deployErrorExitCodes } from "./deploy-events";
 import { CliError } from "./errors";
+import { cliTranslate } from "./localization";
 import { verifyArtifactSignature } from "./release";
 
 export const CLI_UPDATE_SOURCE_ENV = "OUTCOMEGO_CLI_UPDATE_SOURCE";
 export const CLI_UPDATE_TARGET_ENV = "OUTCOMEGO_CLI_UPDATE_TARGET";
 export const CLI_UPDATE_VERSION_ENV = "OUTCOMEGO_CLI_UPDATE_VERSION";
 export const CLI_UPDATE_FOLLOWER_PID_ENV = "OUTCOMEGO_CLI_UPDATE_FOLLOWER_PID";
+export const DESKTOP_CLI_VERSION_ENV = "OUTCOMEGO_DESKTOP_CLI_VERSION";
+export const DESKTOP_CLI_PREPARE_ENV = "OUTCOMEGO_DESKTOP_CLI_PREPARE";
+
+export const desktopCliCarrierPath = (
+  platform = process.platform,
+  environment: NodeJS.ProcessEnv = process.env,
+  home = homedir()
+): string => platform === "win32"
+  ? win32.resolve(environment.LOCALAPPDATA?.trim() || win32.join(home, "AppData", "Local"), "OutcomeGo", "bin", "outcomego.exe")
+  : resolve(home, ".local", "bin", "outcomego");
+
+export const verifyDesktopCliVersion = (expected: string, actual: string): void => {
+  try {
+    if (normalizeVersion(expected) === normalizeVersion(actual)) return;
+  } catch {}
+  throw new CliError(
+    `CLI_VERSION_MISMATCH: ${cliTranslate("The desktop app requires a compatible CLI version.")}`,
+    deployErrorExitCodes.CLI_VERSION_MISMATCH
+  );
+};
 
 const MAX_COMPRESSED_CLI_BYTES = 128 * 1024 * 1024;
 const MAX_CLI_BYTES = 256 * 1024 * 1024;
@@ -137,10 +162,11 @@ const assertChecksum = (contents: Uint8Array, checksums: string, filename: strin
 };
 
 const candidateVersion = async (
-  executable: string
+  executable: string,
+  args = ["--version"]
 ): Promise<{ status: number | null; stdout: string; detail: string | null }> =>
   new Promise((resolvePromise) => {
-    const child = spawn(executable, ["--version"], {
+    const child = spawn(executable, args, {
       shell: false,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
@@ -464,5 +490,36 @@ export const removeStagedCli = (staged: StagedCliUpdate, platform = process.plat
     if (!samePath(staged.source, staged.target, platform)) rmSync(staged.source, { force: true });
   } catch {
     if (platform === "win32") scheduleWindowsRemoval(staged.source);
+  }
+};
+
+export const prepareDesktopCli = async (options: {
+  version: string;
+  target?: string;
+  stage?: typeof stageCliUpdate;
+  inspect?: typeof candidateVersion;
+  supportsBootstrap?: (executable: string) => Promise<boolean>;
+}): Promise<string> => {
+  const version = normalizeVersion(options.version);
+  const target = options.target ?? desktopCliCarrierPath();
+  const supportsBootstrap = options.supportsBootstrap ?? (async executable => {
+    const bootstrap = await candidateVersion(executable, ["bootstrap", "--help"]);
+    if (bootstrap.status !== 0 || !bootstrap.stdout.includes("bootstrap --json-progress")) return false;
+    const managed = await candidateVersion(executable, ["engine", "start", "--help"]);
+    return managed.status === 0 && managed.stdout.includes("outcomego engine start");
+  });
+  if (existsSync(target)) {
+    const current = await (options.inspect ?? candidateVersion)(target);
+    if (current.status === 0 && current.stdout.trim() === version && await supportsBootstrap(target)) return target;
+  }
+  mkdirSync(dirname(target), { recursive: true, mode: 0o700 });
+  const staged = await (options.stage ?? stageCliUpdate)({ repository: DEFAULT_REPOSITORY, version, executable: target });
+  try {
+    if (!await supportsBootstrap(staged.source)) verifyDesktopCliVersion(version, "");
+    if (existsSync(target)) promoteStagedCli({ ...staged, followerPid: null });
+    else renameSync(staged.source, target);
+    return target;
+  } finally {
+    removeStagedCli(staged);
   }
 };

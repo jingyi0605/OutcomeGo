@@ -3,15 +3,18 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { isOutcomeGoVersion } from "@outcomego/contracts/version-compatibility";
 
-interface Installation {
+export interface Installation {
   directory: string;
   version: string;
   apiPort: string;
   ownerUsername?: string;
+  engine?: "external" | "managed-wsl" | "managed-lima";
+  awaiting?: "reboot" | "elevation" | null;
+  uninstalled?: boolean;
 }
 
-const defaultInstallDirectory = (
-  environment: NodeJS.ProcessEnv,
+export const defaultInstallDirectory = (
+  environment: NodeJS.ProcessEnv = process.env,
   platform = process.platform,
   home = homedir()
 ) => {
@@ -56,12 +59,20 @@ export const readManagedInstallation = (
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
       version?: unknown;
       ownerUsername?: unknown;
+      uninstalledAt?: unknown;
+      engine?: { kind?: unknown };
     };
     if (typeof manifest.version !== "string" || !isOutcomeGoVersion(manifest.version)) return null;
     const values = environmentValues(readFileSync(environmentPath, "utf8"));
+    const engine = manifest.engine?.kind ?? "external";
+    if (engine !== "external" && engine !== "managed-wsl" && engine !== "managed-lima") return null;
+    const pending = readPendingDeployment(directory);
     return {
       directory,
       version: manifest.version,
+      engine,
+      ...(typeof manifest.uninstalledAt === "string" ? { uninstalled: true } : {}),
+      ...(pending ? { awaiting: pending.awaiting } : {}),
       apiPort: values.get("OUTCOMEGO_API_PORT") || "8787",
       ...(typeof manifest.ownerUsername === "string" && manifest.ownerUsername
         ? { ownerUsername: manifest.ownerUsername }
@@ -70,6 +81,19 @@ export const readManagedInstallation = (
   } catch {
     return null;
   }
+};
+
+export const readPendingDeployment = (directory: string): {
+  awaiting: "reboot" | "elevation";
+  ownerUsername: string | null;
+} | null => {
+  try {
+    const state = JSON.parse(readFileSync(join(directory, "deploy-state.json"), "utf8"));
+    if (state.schemaVersion === 1 && (state.awaiting === "reboot" || state.awaiting === "elevation")) {
+      return { awaiting: state.awaiting, ownerUsername: typeof state.ownerUsername === "string" && state.ownerUsername.length <= 256 ? state.ownerUsername : null };
+    }
+  } catch {}
+  return null;
 };
 
 const loopbackHost = (hostname: string) =>

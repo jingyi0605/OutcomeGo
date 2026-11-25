@@ -6,6 +6,8 @@ import {
   classifyDesktopUpdateError,
   hasDesktopUpdateFeed,
   parseDesktopReleaseManifest,
+  parseDesktopReleaseNotes,
+  releaseTagForVersion,
 } from "../src/main/update-status";
 
 describe("desktop update diagnostics", () => {
@@ -36,6 +38,45 @@ describe("desktop update diagnostics", () => {
     expect(() => parseDesktopReleaseManifest({ tag_name: "latest" }, "https://safe.test")).toThrow(
       "invalid release version"
     );
+  });
+
+  test("maps a version to its release tag and refuses anything else", () => {
+    expect(releaseTagForVersion("0.1.0-beta.24")).toBe("v0.1.0-beta.24");
+    expect(releaseTagForVersion("v1.2.3")).toBe("v1.2.3");
+    // Build metadata is not part of a release tag.
+    expect(releaseTagForVersion("0.1.0-beta.24+dev")).toBe("v0.1.0-beta.24");
+    expect(releaseTagForVersion("../../../etc/passwd")).toBeNull();
+    expect(releaseTagForVersion("1.2.3/../x")).toBeNull();
+    expect(releaseTagForVersion(undefined)).toBeNull();
+    expect(releaseTagForVersion(123)).toBeNull();
+  });
+
+  test("reads release notes from the release body", () => {
+    const fallback = "https://github.com/outcomego/latest";
+    expect(
+      parseDesktopReleaseNotes(
+        { body: "  ## What's Changed\r\n* one\r\n  ", html_url: "https://github.com/outcomego/r" },
+        "1.2.3",
+        fallback
+      )
+    ).toEqual({
+      version: "1.2.3",
+      markdown: "## What's Changed\n* one",
+      url: "https://github.com/outcomego/r",
+    });
+    expect(parseDesktopReleaseNotes({ body: "   " }, "1.2.3", fallback)).toEqual({
+      version: "1.2.3",
+      markdown: null,
+      url: fallback,
+    });
+    expect(parseDesktopReleaseNotes({ body: null }, "1.2.3", fallback).markdown).toBeNull();
+    expect(
+      parseDesktopReleaseNotes({ body: "x", html_url: "http://insecure.test" }, "1.2.3", fallback).url
+    ).toBe(fallback);
+    expect(parseDesktopReleaseNotes({ body: "x".repeat(100_000) }, "1.2.3", fallback).markdown).toHaveLength(
+      64_000
+    );
+    expect(() => parseDesktopReleaseNotes([], "1.2.3", fallback)).toThrow("malformed");
   });
 
   test("distinguishes signature, feed, network, download, and apply failures", () => {

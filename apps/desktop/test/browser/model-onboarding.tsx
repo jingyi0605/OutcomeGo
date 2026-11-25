@@ -62,12 +62,10 @@ function QA() {
   }, []);
   const [settingsOpen, setSettingsOpen] = React.useState(true);
   if (params.get("view") === "model-settings") return (
-    <I18nProvider>
-      <TooltipProvider>
-        <button onClick={() => setSettingsOpen(true)}>Open settings</button>
-        <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} target={params.has("anchor") ? {anchor: "inference-model", nonce: 1} : undefined} />
-      </TooltipProvider>
-    </I18nProvider>
+    <>
+      <button onClick={() => setSettingsOpen(true)}>Open settings</button>
+      <SettingsPanel open={settingsOpen} onOpenChange={setSettingsOpen} target={params.has("anchor") ? {anchor: "inference-model", nonce: 1} : undefined} />
+    </>
   );
   if (result) return <main style={{ padding: 60, font: "14px -apple-system" }}>{result}</main>;
   return params.get("view") === "settings" ? (
@@ -96,4 +94,10 @@ function QA() {
 
 const root = createRoot(document.getElementById("root")!);
 import.meta.hot?.dispose(() => root.unmount());
-root.render(<QA />);
+root.render(
+  <I18nProvider>
+    <TooltipProvider>
+      <QA />
+    </TooltipProvider>
+  </I18nProvider>
+);

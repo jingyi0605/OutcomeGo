@@ -1,6 +1,7 @@
 import { redactSensitiveText } from "@outcomego/product-core/redaction";
 import type { DoctorCheck } from "./doctor";
 import type { ComposeProject } from "./docker";
+import { ExternalEngine } from "./engine/external";
 import type { CommandRunner, RunResult } from "./process";
 
 export const boundedDoctorRunner = (runner: CommandRunner): CommandRunner => ({
@@ -49,7 +50,8 @@ export const checkContainers = (
       { level: "fail", label: "Container health", detail: "Docker returned invalid container IDs" },
     ];
   // Deliberately select only diagnostic fields: full inspect includes secrets.
-  const inspect = runner.run("docker", [
+  const engine = project.engine ?? new ExternalEngine(runner);
+  const inspect = engine.docker([
     "inspect",
     "--format",
     '{"service":{{json (index .Config.Labels "com.docker.compose.service")}},"state":{{json .State.Status}},"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}"none"{{end}},"exitCode":{{.State.ExitCode}},"restarts":{{.RestartCount}},"startedAt":{{json .State.StartedAt}}}',

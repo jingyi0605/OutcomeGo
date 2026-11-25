@@ -113,7 +113,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `apps/cli/src/engine/`（新增） | 引擎提供者接口与 `external`、`managed-wsl`、`managed-lima` 三个实现，以及引擎选择 | 安装清单、平台、环境 | 引擎检测结果、docker 与 compose 调用 |
 | `apps/cli/src/deploy-events.ts`（新增） | 进度事件与错误码的类型、序列化、脱敏 | 阶段状态、错误 | 单行 JSON |
-| `apps/cli/src/lifecycle.ts`（修改） | 新增 `bootstrap` 流程，复用下载、写配置、启动、创建 owner | 参数、stdin | 进度事件、退出码 |
+| `apps/cli/src/bootstrap.ts`（新增） | 非交互 `bootstrap` 流程，复用下载、写配置、启动编排和创建 owner 命令 | 参数、stdin | 进度事件、退出码 |
 | `apps/cli/src/process.ts`（修改） | 新增异步流式运行器，供拉镜像等长任务上报进度 | 命令、参数 | 逐行输出、退出状态 |
 | `apps/cli/src/update-agent*.ts`（修改） | 使用稳定的 CLI 载体，不再依赖 `process.argv` | 安装目录 | 可执行的代理命令 |
 | `apps/desktop/src/main/local-deploy.ts`（新增） | `LocalDeployManager`：运行 CLI、解析事件、取消、忙锁、脱敏 | IPC 请求 | 进度事件转发 |
@@ -132,20 +132,24 @@ flowchart LR
 2. 主进程的 `LocalDeployManager` 获取忙锁，按 §3.3.5 确定 CLI 载体，以 `bootstrap --json-progress` 启动子进程，把 owner 凭据以 JSON 写入 stdin 后立即关闭 stdin。
 3. CLI 的 `detect` 阶段检查平台、内存、磁盘、端口，并选择引擎（§3.3.4）；需要用户动作时发出 `action-required` 事件并以退出码 2 结束。
 4. `engine` 阶段：提供者的 `ensureReady`。`external` 引擎仅确认可用；`managed` 引擎按 §2.3.2 准备。
-5. `release` 阶段：下载并校验发布配置，写入 `compose.yaml`、`.env`、`installation.json`（含 `engine` 字段，§3.2.2）。首次安装失败时沿用现有回滚，不留半成品（`lifecycle.ts:393-408`）。
+5. `release` 阶段下载并校验发布配置；`configure` 写入 `compose.yaml` 和 `.env`。首次失败回滚本次写入，不删除数据卷；创建 owner 后才提交 `installation.json`（含 `engine` 字段，§3.2.2）。
 6. `configure` 阶段：按 §3.3.6 把内存限制写入 `.env`。
 7. `pull` 阶段：按镜像拉取并上报 N/M 进度；Compose 支持时可上报字节级进度（待 Spike 确认，§8.2）。
 8. `start` 与 `health` 阶段：启动栈并等待 `server` 健康，沿用现有 `startProject`。
 9. `owner` 阶段：执行 `compose exec server bun main.js owner-credentials` 创建 owner，写回 `installation.json` 的 `ownerUsername`，并调用 `ensureUpdateAgent`。
 10. CLI 输出 `result` 事件并以 0 退出；渲染进程用 `connectTo` 和刚输入的密码登录，登录后立即清除内存中的密码，进入现有的“选择 AI”流程。
 
-取消：渲染进程发 `local-deploy:cancel`，主进程终止子进程树；已下载的镜像层和引擎资产保留；`installation.json` 在首次安装未完成时已按步骤 5 回滚。
+镜像源选择（需求 2.7、任务 2.4）：托管引擎的首次 `bootstrap` 对签名配置中的公开 OutcomeGo GHCR 镜像与 Docker Hub 官方基础镜像先查本地缓存，再按摘要并行探测官方源、南京大学镜像和 DaoCloud 镜像。探测在短时限内校验清单字节的 SHA-256，选取目标架构的镜像层并读取有限样本，按样本传输速率排序。拉取失败时按排序尝试下一个合格的源。官方源测速失败时仍作为最后一个候选。诊断记录实际拉取目标，取消时停止探测和拉取。
+
+实际使用镜像源后，为引用同一镜像的服务生成仅覆盖 `image` 字段的 Compose 补充文件，文件名与原 Compose 内容的 SHA-256 绑定。托管引擎的后续启动、状态和维护使用同一镜像引用，`computer` 能力探测检查实际拉取的固定摘要。更新到其他 Compose 内容时沿用原有更新逻辑，回滚到原配置时恢复使用对应的补充文件。外部引擎、交互式安装、全局 Docker 配置和签名发布文件保持原有行为。
+
+取消：渲染进程发 `local-deploy:cancel`。macOS 主进程先发 `SIGTERM`；Windows 主进程通过单次部署的私有临时目录内的空文件通知 CLI，再由 CLI 取消当前步骤并回滚。Windows 使用进程环境中的 `OUTCOMEGO_BOOTSTRAP_CANCEL_FILE` 传递非秘密路径，stdin 仍在发送凭据后立即关闭。CLI 在退出时停止监测，桌面端清理临时目录。超时才强制终止进程树（Windows `taskkill /T /F`，macOS `SIGKILL`）。已下载的镜像层和引擎资产保留；`installation.json` 在首次安装未完成时按步骤 5 回滚。
 
 #### 2.3.2 Windows 启用 WSL 与重启续跑
 
 1. `detect` 通过 `wsl --status` 判断 WSL 是否可用。可用则跳到步骤 5。
-2. 不可用时 CLI 发出 `action-required`，`kind` 为 `elevate`。桌面端展示原因与用途，用户同意后，由提权辅助程序执行启用命令（具体命令与参数由 Spike D 确定，候选为 `wsl --install --no-distribution`），这是唯一的提权步骤。
-3. 启用完成后写入 `deploy-state.json`（`awaiting` 为 `reboot`，§3.2.4），并按 Spike D 的结论注册重启后的续跑入口（候选为 `RunOnce`）。
+2. 不可用时 CLI 发出 `action-required`，`kind` 为 `elevate`。桌面端展示原因与用途；只有用户点击授权后才调用独立入口 `engine enable-wsl --yes`，它以 UAC 运行固定的 `wsl --install --no-distribution`，这是唯一的提权步骤（待 Spike D 验证）。
+3. 启用完成后按实际退出状态更新 `deploy-state.json`（必要时 `awaiting` 为 `reboot`，§3.2.4）。M2 候选实现只在用户下次打开桌面端时续跑，不注册尚未验证的 `RunOnce` 项。
 4. 重启后桌面端启动，读取 `deploy-state.json`；若 WSL 已可用，向导恢复并提示“继续部署”。密码从不落盘，所以续跑时 SHALL 重新输入密码，用户名预填。
 5. 下载 rootfs 并校验 SHA-256 与签名，执行 `wsl --import outcomego-engine <目录> <tar> --version 2`，初始化 dockerd 与 Compose，验证 `docker info`。
 6. 虚拟化未开启、Windows 版本过低、CPU 架构不支持时，在步骤 1 之前给出对应的具体指引。
@@ -153,7 +157,7 @@ flowchart LR
 #### 2.3.3 桌面端启动时恢复本地服务
 
 1. 主进程读取安装清单（`readManagedInstallation` 的扩展版本）。没有安装则为“未部署”，不做任何事。
-2. 安装存在且为本地模式时，异步调用 `status --json` 取得引擎与栈状态，不阻塞首屏。
+2. 安装存在且为本地模式时，异步调用 `status --json` 取得引擎与栈状态，不阻塞首屏。已有 `uninstalledAt` 标记的安装不自动重建。
 3. 栈已停止则调用 `start` 拉起，并向渲染进程推送状态；失败时显示服务级状态与“一键诊断”。
 4. 存在未完成的 `deploy-state.json` 时，优先恢复部署向导（§2.3.2 步骤 4）。
 
@@ -164,10 +168,14 @@ flowchart LR
 3. 服务端更新沿用现有 `useServerUpdateStatus` 流程；本地模式下更新器可用。
 4. `managed` 引擎资产升级：用户确认 → 停栈 → 替换引擎 → 启动并验证；失败时回到旧引擎，数据卷保持不动。
 
+第 4 项由独立 CLI 的 `engine upgrade --version <版本> --yes` 明确触发，仅接受健康的本机托管栈。先验证目标版本资产且使用独立的按版本缓存，持有现有安装锁，停止 Compose 栈并确认没有运行中的容器。迁移只接受归属明确的 Compose 本地命名卷（普通 local 驱动，无自定义挂载），使用客户机 tar 经标准流收发归档，按原卷名和 Compose 归属重建，保留 Unix 数字所有者、权限及扩展属性。禁止直接覆盖旧磁盘。
+
+替换前记录恢复阶段。WSL 导出停机 VHDX，验证后才替换私有发行版；Lima 保留原实例目录与运行时。仅在恢复卷并通过原服务版本的健康检查后提交；失败自动还原旧引擎与服务。意外中断或回退失败时，普通管理命令拒绝操作，使用 `engine rollback --yes` 重试。成功后的回滚点保留，不提供会丢失后续写入的一键降级。第 1–3 项的桌面端和服务端更新不属于引擎升级。见 [验收结果](docs/acceptance-result.md)。
+
 #### 2.3.5 移除本地服务
 
 1. 用户在“设置 → 服务器”选择“移除”，界面区分“仅移除容器，保留数据”和“彻底删除（含数据卷）”；后者需二次确认并说明不可恢复。
-2. 主进程调用 `uninstall --yes`（保留数据）或 `uninstall --purge --yes`（删除）。
+2. 主进程调用 `uninstall --yes`（保留数据）或 `uninstall --purge --yes`（删除）。桌面调用保留已验证的独立 CLI 载体；Windows 保留安装目录下的 `bin`，以免尝试删除正在运行的可执行文件。终端调用行为不变。
 3. 彻底删除且为 `managed` 引擎时，调用 `engine remove --purge-data`：Windows 注销 `outcomego-engine`，macOS 删除虚拟机与磁盘镜像；同时清理 `deploy-state.json` 与续跑入口。
 4. 完成后界面回到欢迎页的双入口。
 
@@ -224,7 +232,8 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | `engine.kind` | `"external" \| "managed-wsl" \| "managed-lima"` | 否 | 创建栈时所用的引擎 | 缺省视为 `external`，兼容旧安装 |
 | `engine.name` | `string` | 否 | 托管引擎的实例名，如 `outcomego-engine` | 仅 `managed` |
-| `engine.version` | `string` | 否 | 托管引擎资产版本 | 仅 `managed` |
+| `engine.version` | `string` | 否 | 容器运行时报告的版本 | 不用于选择发布资产 |
+| `engine.assetVersion` | `string` | 否 | 已提交的托管引擎资产版本 | 旧清单缺省时不推断版本 |
 | `engine.createdAt` | `string` | 否 | 创建时间 | ISO 8601 |
 
 约束：栈创建且数据卷存在后，`engine.kind` 不得被静默修改；更换引擎属于数据迁移，不在本 Spec 范围。
@@ -262,6 +271,7 @@ flowchart LR
 | `phase` | `string` | 是 | 最近一次进入的阶段 | 取 §3.2.3 的 `stage` 值或 `awaiting-reboot` |
 | `engineKind` | `string` | 是 | 本次部署选择的引擎 | |
 | `awaiting` | `"reboot" \| "elevation" \| null` | 是 | 正在等待的用户动作 | |
+| `ownerUsername` | `string` | 否 | 续跑时可预填的 owner 用户名 | 不保存密码 |
 | `startedAt`、`updatedAt` | `string` | 是 | 时间 | ISO 8601 |
 | `lastError` | `{ code, message }` | 否 | 最近一次失败 | 已脱敏 |
 
@@ -288,6 +298,7 @@ flowchart LR
 - 输入：stdin 为 `BootstrapRequest` JSON；不要求 TTY。
 - 输出：stdout 为 `DeployProgressEvent` 的 NDJSON；stderr 为脱敏的诊断文本。
 - 校验：缺少或非法的 stdin、不合规的用户名或密码，以 `INVALID_INPUT` 在触碰安装目录之前结束；重复的变更类操作（安装目录已被锁）以 `BUSY` 结束。
+- 本机外部引擎只接受本地 Unix 套接字或 Windows 命名管道；远程 Docker 上下文不可用于 `bootstrap`，旧 CLI 命令的连接方式不变。
 - 幂等：安装已存在且 owner 已配置时，只做启动与健康检查并输出 `result`，不覆盖 `.env`；`installation.json` 缺失但目录残留时按首次安装处理。
 - 退出码：0 成功；2 需要用户动作（含 `action-required`）；3 可重试的失败；130 被取消；1 其他错误。现有 CLI 只使用 1（默认）、2（预检或诊断未通过，见 `lifecycle.ts`、`tailscale-command.ts:278`）和 130，退出码 3 是新增约定，不与现有用法冲突。
 - 错误：见 §5.1。
@@ -319,6 +330,8 @@ flowchart LR
 | `outcomego:local-server:start`、`stop` | invoke | 无 | 状态快照 | 受忙锁保护 |
 | `outcomego:local-server:remove` | invoke | `{ purgeData: boolean }` | 状态快照 | `purgeData` 为真时界面必须已做二次确认 |
 | `outcomego:local-server:diagnostics` | invoke | 无 | `string`（脱敏诊断文本） | 供“复制诊断信息” |
+| `outcomego:local-server:resources` | invoke | `{ computerMemory, desktopMemory }` | 状态快照 | 3.5 的内存调整；已确认会中断任务 |
+| `outcomego:background:get`、`outcomego:background:set` | invoke | 无；`stopServiceOnQuit: boolean` | `BackgroundPreferences` | 只读写当前桌面端的本机退出偏好 |
 
 preload 暴露：在 `localServer` 上新增 `status`、`start`、`stop`、`remove`、`diagnostics`；新增 `localDeploy: { start, cancel, onProgress }`；类型同步到 `renderer/env.d.ts`。
 
@@ -336,12 +349,16 @@ preload 暴露：在 `localServer` 上新增 `status`、`start`、`stop`、`remo
 | `managed-wsl` | Windows | 专用发行版 `outcomego-engine` 内的 dockerd | `wsl.exe -d outcomego-engine --cd <WSL 路径> --exec docker compose …` | 安装目录经 `/mnt/c/…` 读取 `compose.yaml` 与 `.env`；不暴露 TCP socket |
 | `managed-lima` | macOS | 专用虚拟机内的 dockerd | 在虚拟机内执行 compose，安装目录以只读方式共享 | 由 Spike C 确定共享与端口转发方式 |
 
+候选实现（2026-11-24，待真机门）：WSL 使用注册表中的发行版 `BasePath` 和版本核对归属及 WSL 2，仅运行专用发行版。通过 `/usr/bin/wslinfo --networking-mode` 确认实际网络模式为 NAT 后才启动 Docker，不修改用户网络配置。Lima 用独立 `LIMA_HOME`、`vz`、只读安装目录和限制为 API 与 viewer 的回环转发；不沿引擎目录的符号链接读写，已解包的运行时仅在有已校验安装记录且可执行文件摘要匹配时复用。两端只使用固定 Unix Docker 套接字。引擎资产按 CLI 版本和宿主架构从签名发布按需获取，不采用全局 `limactl` 或未验证的本地产物。验收与发行仍受 Q1–Q4、Q11、Q13 约束。
+
+Windows 资产发布默认关闭。CI 从固定 SHA-256 的 Debian amd64 基础镜像和固定时间的 Debian HTTPS 签名仓库快照构建 rootfs，实际安装的软件包名称和版本必须与 `THIRD-PARTY-NOTICES` 一致，组包时保留数字所有者并归一化归档元数据。任务 4.1 的前置门批准后，发布负责人显式启用 `RELEASE_WINDOWS_ENGINE`。现有发布签名作业签引擎归档，发布作业将归档纳入同版本 `SHA256SUMS`。CLI 遇到归档或发布校验材料返回 HTTP 404/410 时，以 `ASSET_VERIFICATION_FAILED` 阻止导入并指出缺失的版本和文件，不归因于网络；瞬时下载错误仍可重试（需求 5.5、10.5、14.1–14.3、14.5、14.6）。
+
 要点：
 
 - `deploy/compose.yaml` 只用命名卷，所以“在引擎内执行 compose”只需要读取 `--file` 与 `--env-file`，不需要映射任何数据目录。
 - 备选方案（Spike B 失败时启用）：把安装目录复制到引擎内作为执行副本，宿主机目录为权威来源，每次变更前同步。
 - `ComposeProject.invocation`（`docker.ts:102-121`）改为向提供者索取调用描述；`disk-maintenance.ts`（第 39、58、108、190、202、240 行）、`doctor-probes.ts:52`、`stack.ts:61` 的直接 `docker` 调用改走 `EngineProvider.docker`。
-- 预检（需求 4.6）：提供者在 `detect` 内检查 `computer` 所需能力（cgroup v2、`systempaths` 选项支持、`/dev/net/tun`），缺失时列出具体项。
+- 预检（需求 4.6）：`detect` 只读核对 Linux 容器、cgroup v2、rootful 引擎和 Compose，不将 `ready` 视为容器能力已验证。2.1 提供 `probeComputerCapabilities(engine, image)`；2.4 在首次 `bootstrap` 中调用，使用签名验证后的发布配置指定的确切 `computer` 镜像摘要。镜像已缓存时在 `pull` 前探测，未缓存则在正常 `pull` 后、`compose up` 前探测。不另下载镜像；探测容器禁用网络、不发布端口、不挂载数据、不运行应用入口，完成后自动移除。探测验证 `systempaths=unconfined`、私有 cgroup v2 可写和 `/dev/net/tun`，已确认不兼容则以 `ENGINE_INCOMPATIBLE` 和具体缺失项阻止服务栈启动；探测执行失败与镜像未缓存分别处理，不误报能力不兼容。
 - 引擎选择规则：安装清单已记录 `engine` 时必须使用它；首次部署且 `--engine auto` 时，优先使用可用的 `external`，其次是当前平台的 `managed`；Linux 只允许 `external`。
 - 端口：托管引擎只转发到 `127.0.0.1`，端口集合固定为 API 端口与 6200–6299。
 - 保活（待 Spike D 验证，Q13）：需求 7.3 与需求 13 要求关闭窗口、退出应用后本地服务仍运行。macOS 的虚拟机预期由独立的管理进程持有，应用退出后可继续运行（凭对 Lima 架构的理解，需 Spike C 确认）。Windows 的 WSL 实例在其进程退出后会被回收；第三方资料给出实例空闲超时默认约 15 秒，微软官方文档未核实。因此 `managed-wsl` 预计需要一个脱离桌面端进程树的保活进程，并在发行版内启用 systemd 让 dockerd 自动启动，具体做法由 Spike D 确定。
@@ -360,9 +377,9 @@ preload 暴露：在 `localServer` 上新增 `status`、`start`、`stop`、`remo
 
 默认采用 (b)，最终选择由 Spike E（任务 1.7）确认。落地要求：
 
-- 标准位置已有版本兼容的 CLI 时直接复用，不重复下载。
+- 标准位置已有版本匹配且支持 `bootstrap --help` 的 CLI 时直接复用，不重复下载；同版本旧构建未带新命令时，不传入凭据。
 - 桌面端记录自己期望的 CLI 版本（与桌面端版本一致），启动时比对，不一致则按校验后的版本替换。
-- 桌面端内置的 `outcomego-cli.js` 继续服务 Tailscale 管理，后续可统一到同一载体，但不属于本 Spec。
+- 桌面端内置的 `outcomego-cli.js` 继续服务现有 Tailscale 管理；另以一次性内部准备入口复用现有下载、签名校验和换版实现。准备进程退出后，部署和更新代理只运行独立载体；准备进程不接收凭据。桌面端不跨应用直接导入 CLI 源码。
 - 更新代理的 `DOCKER_*` 环境透传保留，供 `external` 引擎使用；引擎选择改由安装清单承担，不再依赖环境变量。
 
 #### 3.3.6 资源公式
@@ -375,10 +392,11 @@ preload 暴露：在 `localServer` 上新增 `status`、`start`、`stop`、`remo
 - `computerLimit = min(12 GiB, floor(guestMem × 0.75))`，与 `outcomego-memory-init.c` 的 75% 规则一致。
 - `desktopLimit = max(1 GiB, computerLimit − 1 GiB)`。
 - 仅当 `computerLimit < 12 GiB` 时写入 `OUTCOMEGO_COMPUTER_MEMORY_LIMIT` 与 `OUTCOMEGO_DESKTOP_MEMORY_LIMIT`，否则保持 compose 默认值。
+- 桌面设置输入至少 1 GiB；客户机内存可知时，任一手动值超过其 75% 则提示并按上限提交。若上限本身不足 1 GiB，则拒绝调整。终端 `resources set` 保留原有大小校验。
 - macOS 托管引擎：虚拟机内存由 OutcomeGo 设定，`guestMem = clamp(宿主机内存 × 0.5, 4 GiB, 8 GiB)`。
 - Windows 托管引擎：WSL2 虚拟机内存是全局的，不修改 `.wslconfig`，只读取实际值；低于 4 GiB 时警告并给出手工调整说明（需求 9.5）。
 - 宿主机内存低于 8 GiB（沿用 `MINIMUM_RECOMMENDED_MEMORY_BYTES`）或 `guestMem` 低于 4 GiB 时，`detect` 发出 `confirm-low-memory` 动作，用户确认后才继续。
-- 磁盘：下载前检查引擎资产与镜像所需空间；具体数值待 Spike F 测得总体积。
+- 磁盘：下载前检查安装目录与适用的托管引擎资产目录所在文件系统；初值沿用 `MINIMUM_RECOMMENDED_DISK_BYTES`（8 GiB），待 Spike F 实测校准。外部引擎的磁盘由用户管理，宿主机检查不等同于外部引擎客户机的剩余容量。
 
 #### 3.3.7 托盘与窗口生命周期
 
@@ -393,8 +411,8 @@ preload 暴露：在 `localServer` 上新增 `status`、`start`、`stop`、`remo
 | 托盘图标 | 菜单栏状态项，使用模板图标 | 任务栏通知区域图标，使用 `.ico` | 无 |
 | 关闭主窗口 | 隐藏（现有） | 隐藏（新增，现状为退出） | 退出（现有） |
 | `window-all-closed` | 不退出（现有） | 不退出（新增） | 退出（现有） |
-| 点击图标 | 弹出菜单 | 左键显示主窗口，右键弹出菜单 | 无 |
-| 退出入口 | 托盘“退出”、应用菜单“退出”（⌘Q） | 托盘“退出” | 现有 |
+| 点击图标 | 左键显示主窗口，右键弹出菜单 | 左键显示主窗口，右键弹出菜单 | 无 |
+| 退出入口 | 托盘“退出”、应用菜单“退出”（⌘Q） | 托盘“退出”、应用菜单“退出” | 现有 |
 | 关机、注销 | `before-quit` 触发，`isQuitting` 置真 | `before-quit` 不触发，监听 `session-end` 置位 | 现有 |
 | 自更新 | `isQuitting = true` 后 `quitAndInstall`（现有） | 同左 | 现有 |
 
@@ -582,7 +600,7 @@ stateDiagram-v2
 ### 5.3 处理策略
 
 1. 输入验证错误（用户名、密码、端口、版本）：在 `detect` 之前以 `INVALID_INPUT` 拒绝并用 `field` 指出出错字段，不触碰安装目录。规则只在 CLI 里定义一份，桌面端渲染进程不重复实现，只做“非空、两次密码一致”的前置检查，其余以 CLI 返回为准。
-2. 业务规则错误（端口占用、磁盘、内存、引擎不兼容）：在拉取镜像之前发现，退出码 2，附具体数值与处理建议。
+2. 业务规则错误（端口占用、磁盘、内存、只读可确认的引擎不兼容）：在拉取镜像之前发现，退出码 2，附具体数值与处理建议。需隔离容器确认的不兼容按 §3.3.4 在镜像可用后、启动服务栈前处理。
 3. 外部依赖错误（网络、镜像仓库、引擎启动）：保留已完成步骤，退出码 3，界面提供“重试”。
 4. 重试：重新执行 `bootstrap`，各阶段按幂等规则跳过已满足的步骤。
 5. 取消：终止子进程树；首次安装未完成时回滚安装目录；已下载内容保留。
@@ -732,7 +750,7 @@ stateDiagram-v2
 | Q4 | Windows 启用 WSL 的准确命令与参数、重启后续跑入口（`RunOnce` 等）的可靠性 | 1.6 | §2.3.2 |
 | Q5 | CLI 载体选型 (a)/(b)/(c)；Windows 上常驻进程是否真的会阻塞桌面自更新 | 1.7 | §3.3.5、需求 8 |
 | Q6 | 单个桌面的真实内存占用；镜像总体积；首次部署耗时基线；WSL2 虚拟机默认内存比例 | 1.8 | §3.3.6、需求 9、非功能需求 1 |
-| Q7 | Compose 2.20 是否支持 `pull --progress=json`；不支持时是否接受“按镜像”粒度进度 | 2.4 | 进度粒度 |
+| Q7 | 已核对 Compose 2.20.0 源码：`pull` 无 `--progress` 子命令参数；按镜像 N/M 上报，见 [核查记录](docs/20261123-Compose拉取进度核查.md) | 2.4 | 进度粒度 |
 | Q8 | 托管 CI runner 是否支持 WSL2 与 Apple Virtualization | 1.3、1.5 | §7.3 的测试位置 |
 | Q9 | 已决定（2026-11-23）：默认保持本地服务运行。Windows 与 macOS 都有托盘图标，关闭窗口不退出应用 | 3.6、3.7 | 需求 7.3、需求 13 |
 | Q10 | 已决定（2026-11-23）：只支持 Windows x64；托管引擎最低 macOS 13.5，依据见 §3.3.8。仍待 Spike C 确认 Intel Mac 的客户机内核，Spike A、D 验证后可放宽 Windows 版本下限 | 1.3、1.5、1.6 | 范围、§3.3.8 |

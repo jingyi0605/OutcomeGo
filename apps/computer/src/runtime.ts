@@ -1,4 +1,5 @@
 import { createModelRuntime } from "./model-runtime";
+import { isOpenCodeUrl, type OpenCodeRequestOptions, runOpenCodeStream } from "./opencode-zen";
 import { providerIdleFetch } from "./runtime/provider-idle-fetch";
 import { prepareCompactionHistory, recoverStagedPiCompaction } from "./runtime/compaction-history";
 import type { ComputerInferenceRequest } from "@outcomego/contracts/service-protocol";
@@ -708,31 +709,41 @@ export class ComputerRuntime {
     let usage: { inputTokens?: number; cachedInputTokens?: number; outputTokens?: number; reasoningTokens?: number } = {};
     try {
       signal.throwIfAborted();
-      const stream = modelRuntime.streamSimple(
-        model,
-        {
-          systemPrompt: request.instructions,
-          messages: [
-            {
-              role: "user",
-              content: [{ type: "text", text: request.prompt }, ...(request.images ?? [])],
-              timestamp: Date.now(),
-            },
-          ] as never,
-          tools: [],
-        },
-        {
-          signal,
-          ...inferenceReasoningOptions(model, request.reasoning),
-          ...(request.maxTokens ? { maxTokens: request.maxTokens } : {}),
-          ...(connection?.sessionId ? {
-            sessionId: connection.sessionId,
-            // Reuse only the transport. "websocket" sends full input every time
-            // (unlike websocket-cached); Pi retains its normal SSE fallback.
-            transport: "websocket" as const,
-          } : {}),
-        }
-      );
+      const streamOpts = {
+        signal,
+        ...inferenceReasoningOptions(model, request.reasoning),
+        ...(request.maxTokens ? { maxTokens: request.maxTokens } : {}),
+        ...(model.provider === "opencode" || isOpenCodeUrl(model.baseUrl)
+          ? ({ opencodeCwd: request.cwd } satisfies OpenCodeRequestOptions)
+          : {}),
+        ...(connection?.sessionId ? {
+          sessionId: connection.sessionId,
+          // Reuse only the transport. "websocket" sends full input every time
+          // (unlike websocket-cached); Pi retains its normal SSE fallback.
+          transport: "websocket" as const,
+        } : {}),
+      };
+      const context = {
+        systemPrompt: request.instructions,
+        messages: [
+          {
+            role: "user",
+            content: [{ type: "text", text: request.prompt }, ...(request.images ?? [])],
+            timestamp: Date.now(),
+          },
+        ] as never,
+        tools: [],
+      };
+      const stream =
+        model.provider !== "opencode" && isOpenCodeUrl(model.baseUrl)
+          ? runOpenCodeStream(
+              (adaptedModel, adaptedContext, adaptedOptions) =>
+                modelRuntime.streamSimple(adaptedModel, adaptedContext, adaptedOptions),
+              model,
+              context,
+              streamOpts
+            )
+          : modelRuntime.streamSimple(model, context, streamOpts);
       // completeSimple uses this same stream and result. Observe only timings;
       // start/content-block events do not establish that any output arrived.
       for await (const event of stream) {
@@ -911,11 +922,27 @@ export class ComputerRuntime {
     // dispatcher, but embedded sessions need their own response-body guard.
     const stream = session.agent.streamFunction;
     const deadlines = streamDeadlines(this.streamTimers);
-    session.agent.streamFunction = deadlines.wrap((model, context, options) => stream(model, context,
-      model.api === "openai-completions" ? {
+    session.agent.streamFunction = deadlines.wrap((model, context, options) => {
+      const nextOptions = {
         ...options,
-        fetch: providerIdleFetch(options?.fetch ?? fetch, settingsManager.getHttpIdleTimeoutMs()),
-      } : options));
+        ...(model.api === "openai-completions"
+          ? { fetch: providerIdleFetch(options?.fetch ?? fetch, settingsManager.getHttpIdleTimeoutMs()) }
+          : {}),
+        ...(model.provider === "opencode" || isOpenCodeUrl(model.baseUrl)
+          ? ({ opencodeCwd: cwd } satisfies OpenCodeRequestOptions)
+          : {}),
+      };
+      if (model.provider !== "opencode" && isOpenCodeUrl(model.baseUrl)) {
+        return runOpenCodeStream(
+          (adaptedModel, adaptedContext, adaptedOptions) =>
+            stream(adaptedModel, adaptedContext, adaptedOptions),
+          model,
+          context,
+          nextOptions
+        );
+      }
+      return stream(model, context, nextOptions);
+    });
     session.subscribe((event) => deadlines.observe(event));
     retryFirstOutputStalls(session);
     return session;

@@ -19,6 +19,14 @@ import {
   replacementFor,
   requireInferenceModel,
 } from "./inference-models";
+import {
+  applyOpenCodeSessionHeaders,
+  isOpenCodeExcludedModel,
+  isOpenCodeFreeModel,
+  isOpenCodeUrl,
+  isOpenCodeZenUrl,
+  OPENCODE_ANONYMOUS_KEY,
+} from "./opencode-zen";
 
 export const CHAT_PROVIDERS = new Set(Object.keys(CHAT_PROVIDER_DEFINITIONS));
 const iconField = (icon: string | undefined) => (icon ? { icon } : {});
@@ -434,6 +442,9 @@ export class ChatProviderRegistry {
         headers.set("authorization", `Bearer ${auth.apiKey}`);
     }
     headers.set("accept", "application/json");
+    if (isOpenCodeUrl(url.toString())) {
+      applyOpenCodeSessionHeaders(headers, url.toString());
+    }
     const entries: Entry[] = [];
     const cursors = new Set<string>();
     for (let page = 0; page < 20; page++) {
@@ -503,16 +514,21 @@ export class ChatProviderRegistry {
       [...borrowed, ...availableInferenceModels(runtime, id)].map((m) => [m.id, m])
     );
     const custom = !CHAT_PROVIDERS.has(id) && Boolean(config);
+    const isOpenCodeZen = id === "opencode" || isOpenCodeZenUrl(base);
+    const isZenPublic = isOpenCodeZen && auth.apiKey === OPENCODE_ANONYMOUS_KEY;
     const models = [
       ...new Map(
         entries
           .filter((m) => !replacementFor(id, m.id))
+          .filter((m) => !(isOpenCodeZen && isOpenCodeExcludedModel(m.id)))
+          .filter((m) => !isZenPublic || isOpenCodeFreeModel(m.id, known.get(m.id)))
           .filter((m) =>
             id === "openrouter"
               ? openRouterChatModel(m)
               : isChatModel(
                   m,
                   known.has(m.id) ||
+                    (isOpenCodeZen && isOpenCodeFreeModel(m.id, known.get(m.id))) ||
                     (id === "openai" &&
                       (known.has(m.id.split(":")[1] ?? "") ||
                         /^(?:gpt-[3-9]|o[1-9](?:-|$)|chatgpt-)/.test(m.id)) &&
@@ -535,7 +551,7 @@ export class ChatProviderRegistry {
                 (config?.api as Api) ??
                 CHAT_PROVIDER_DEFINITIONS[id]?.api ??
                 "openai-completions",
-              baseUrl: base,
+              baseUrl: (id === "opencode" ? existing?.baseUrl : undefined) ?? base,
               reasoning:
                 (advertised ? advertised.levels.some((level) => level !== "off") : undefined) ??
                 (typeof m.thinking === "boolean" ? m.thinking : undefined) ??

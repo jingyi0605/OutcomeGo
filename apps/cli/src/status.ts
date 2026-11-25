@@ -7,14 +7,13 @@ import {
   readManifest,
   type InstallationPaths,
 } from "./config";
-import { PROJECT_NAME } from "./constants";
-import {
-  ComposeProject,
-  dockerDaemon,
-  dockerVersion,
-  MINIMUM_COMPOSE_VERSION,
-  probeCompose,
-} from "./docker";
+import { API_PORT, PROJECT_NAME } from "./constants";
+import { ComposeProject } from "./docker";
+import { MINIMUM_COMPOSE_VERSION } from "./engine/external";
+import { externalComposeAdvice } from "./engine/external-guidance";
+import { requireRecordedEngine } from "./engine/select";
+import type { EngineKind } from "./engine/types";
+import { engineStatus } from "./engine/status";
 import { commandDiagnostic, dockerFailureCheck } from "./docker-diagnostics";
 import { boundedDoctorRunner } from "./doctor-probes";
 import { CliError } from "./errors";
@@ -25,6 +24,7 @@ import { ACCESS_MODES, accessLabel, type AccessMode } from "./setup-values";
 import { assertOwnServer } from "./stack";
 import { expectedServices, readServiceStates } from "./startup";
 import { isSetupJob, renderStatus, statusState, type StatusReport } from "./status-ui";
+import { activeUpdateProcess } from "./update-safety";
 
 /** A bounded, read-only snapshot. Doctor performs the deeper checks and inference request. */
 export const collectStatus = async (
@@ -83,12 +83,14 @@ export const collectStatus = async (
 
   let environment: ReadonlyMap<string, string>;
   let owner: string | undefined;
+  let engineKind: EngineKind;
   try {
     const manifest = readManifest(paths);
     if (!manifest) throw new Error("The installation manifest is missing.");
     report.version = manifest.version;
     report.project = normalizeProjectName(manifest.projectName || PROJECT_NAME);
     owner = manifest.ownerUsername;
+    engineKind = manifest.engine.kind;
     report.username = owner?.trim() || undefined;
     environment = parseEnvironment(readFileSync(paths.environment, "utf8"));
     const access = environment.get("OUTCOMEGO_ACCESS_MODE") || "local";
@@ -109,6 +111,22 @@ export const collectStatus = async (
     );
   }
 
+  let engine;
+  try {
+    engine = requireRecordedEngine(paths, runner, engineKind);
+  } catch (error) {
+    return blocked(
+      "Container engine",
+      error instanceof Error ? error.message : String(error),
+      command("engine status")
+    );
+  }
+  if (engine.kind !== "external") {
+    const detection = await engine.detect();
+    if (detection.state === "stopped") { report.services = []; return report; }
+    if (detection.state !== "ready") return blocked("Container engine", detection.reasons.join(" "), command("engine start"));
+  }
+
   if (environment.get("OUTCOMEGO_ACCESS_MODE") === "tailscale") {
     const status = await tailscaleStatus(paths, runner);
     if (status.issue)
@@ -121,17 +139,17 @@ export const collectStatus = async (
       );
   }
 
-  const cli = dockerVersion(runner);
+  const cli = engine.version();
   if (cli.status !== 0) {
     const check = dockerFailureCheck("cli", cli);
     return blocked(check.label, check.detail, check.action!, check.diagnostic);
   }
-  const daemon = dockerDaemon(runner);
+  const daemon = engine.daemon();
   if (daemon.status !== 0) {
     const check = dockerFailureCheck("daemon", daemon);
     return blocked(check.label, check.detail, check.action!, check.diagnostic);
   }
-  const compose = probeCompose(runner);
+  const compose = engine.probeCompose();
   if (!compose.command?.supported)
     return blocked(
       "Docker Compose",
@@ -140,15 +158,12 @@ export const collectStatus = async (
             version: compose.command.version,
           })
         : cliTranslate("Docker Compose could not run."),
-      cliTranslate(
-        "Install or update Docker Desktop or the Docker Compose plugin to {version} or newer. Verify with docker compose version, then retry.",
-        { version: MINIMUM_COMPOSE_VERSION }
-      ),
+      externalComposeAdvice(MINIMUM_COMPOSE_VERSION),
       compose.failures.map(({ command, result }) => commandDiagnostic(command, result)).join("\n")
     );
   try {
     report.services = readServiceStates(
-      new ComposeProject(paths, compose.command, runner, report.project)
+      new ComposeProject(paths, compose.command, runner, report.project, engine)
     );
   } catch (error) {
     return blocked(
@@ -250,6 +265,30 @@ export const collectStatus = async (
     report.nextDetail = cliTranslate("For deeper database, queue, storage, and model checks:");
   }
   return report;
+};
+
+export const statusJson = async (paths: InstallationPaths, suppliedRunner: CommandRunner) => {
+  const runner = boundedDoctorRunner(suppliedRunner);
+  const report = await collectStatus(paths, runner);
+  const manifest = readManifest(paths);
+  const engine = await engineStatus(runner, paths).catch(() => ({
+    engine: { kind: manifest?.engine.kind }, state: "unsupported", reasons: [],
+  }));
+  const environment = existsSync(paths.environment)
+    ? parseEnvironment(readFileSync(paths.environment, "utf8"))
+    : null;
+  const updating = activeUpdateProcess(paths) !== null;
+  const states = {
+    "NOT INSTALLED": "not-installed", "STATUS UNKNOWN": "unhealthy", "NEEDS ATTENTION": "unhealthy",
+    STOPPED: "stopped", STARTING: "starting", RUNNING: "running",
+  } as const;
+  return {
+    engine,
+    stack: { state: updating ? "updating" : states[statusState(report)], services: report.services ?? [] },
+    version: manifest?.version ?? null,
+    apiPort: environment ? Number(environment.get("OUTCOMEGO_API_PORT") || API_PORT) : null,
+    ownerUsername: manifest?.ownerUsername ?? null,
+  };
 };
 
 export const statusCommand = async (

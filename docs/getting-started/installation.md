@@ -4,6 +4,12 @@ Install the server on the machine that will host your bots. The desktop app can 
 
 ## Requirements
 
+### 桌面端本机部署（Spec 012，待发布验收）
+
+在支持本机部署的测试版桌面端，欢迎页可选“在这台电脑部署”或“连接已有服务器”。默认优先复用已就绪的本机兼容引擎；托管模式使用 `outcomego-engine`。托管模式要求 Windows x64（Windows 10 22H2 / build 19045、Windows 11 23H2 / build 22631 或更高）或 macOS 13.5 及以上（Apple Silicon、Intel）。Linux 继续走下文的终端安装流程。
+
+Windows 托管模式要求支持 NAT 检测的 WSL 2；若已启用其他网络模式，可改用本机兼容引擎或连接已有服务器。Windows 上关闭窗口只隐藏窗口。点击通知区域图标唤回，右键菜单可退出。默认退出桌面端也不停止本地服务。托管资产未通过发布验收前，正式版本仍使用现有安装路径。
+
 | Requirement | What you need |
 | --- | --- |
 | Operating system | macOS, Windows, or Linux on x64 or arm64 |

@@ -113,6 +113,10 @@ try {
     const title = (value: string) =>
       page.getByRole("heading", { name: value, exact: true }).waitFor();
     const button = (name: string) => page.getByRole("button", { name, exact: true });
+    // The server check waits for Start exploring before it moves on to the AI step.
+    const startExploring = () => page.getByRole("button", { name: /^Start exploring/ }).click();
+    await title("All systems go");
+    await startExploring();
     await title("You're already connected");
     for (const back of ["button", "escape"]) {
       await button("Use a different AI").click();
@@ -124,6 +128,24 @@ try {
     }
 
     await button("Use a different AI").click();
+    await title("Choose your bots' AI");
+    const choices = page.locator(".setup-content .setup-option strong");
+    assert.deepEqual(await choices.allTextContents(), [
+      "ChatGPT", "Claude", "Add a custom provider", "Free and limited-use models",
+    ]);
+    const custom = page.getByRole("button", { name: /^Add a custom provider/ });
+    await custom.click();
+    const addProvider = page.getByRole("dialog", { name: "Add provider" });
+    await addProvider.getByRole("textbox", { name: "API base URL" }).waitFor();
+    await addProvider.getByRole("button", { name: "Cancel" }).click();
+    const free = page.getByRole("button", { name: /^Free and limited-use models/ });
+    await free.click();
+    const freeTerms = page.getByRole("dialog", { name: "Free and limited-use models" });
+    await freeTerms.getByText(/20 requests per minute/i).waitFor();
+    assert.equal(await freeTerms.getByRole("link", { name: "Open OpenCode" }).getAttribute("href"), "https://opencode.ai/download");
+    await page.keyboard.press("Escape");
+    await freeTerms.waitFor({ state: "hidden" });
+    await title("Choose your bots' AI");
     await page.getByRole("button", { name: /^ChatGPT Your/ }).click();
     await page.getByRole("button", { name: /^Use an OpenAI API key/ }).click();
     await page.getByRole("textbox", { name: "API key" }).fill("qa-invalid-key");
@@ -181,9 +203,22 @@ try {
     await page.screenshot({ path: join(output, `${mode}-arrival.png`), animations: "disabled" });
     await button("Open it").click();
     await page.getByText("Opened bot: Other QA bot", { exact: true }).waitFor();
+    setup = new ServerSetupFixture(true);
+    setup.inference = { ...setup.inference, modelId: "" };
+    await page.reload();
+    await startExploring();
+    await title("Choose your bots' AI");
+    await custom.click();
+    await addProvider.getByRole("textbox", { name: "Name", exact: true }).fill("QA Gateway");
+    await addProvider.getByRole("textbox", { name: "API base URL" }).fill("https://provider.example/v1");
+    await addProvider.getByLabel("API key", { exact: true }).fill("qa-good-key");
+    await addProvider.getByRole("button", { name: "Add", exact: true }).click();
+    await title("It works!");
+    assert.equal(setup.inference.providerId, "custom-qa-gateway");
+    assert.equal(setup.tests.at(-1)?.providerId, "custom-qa-gateway");
     assert.deepEqual(errors, []);
     console.log(
-      `${mode}: saved AI Back/Esc, refused alternative, search key rollback, voice key reset, PUT save/rollback/retry, bot error recovery passed`
+      `${mode}: AI choices, free-model terms, custom provider, saved AI Back/Esc, refused alternative, search key rollback, voice key reset, PUT save/rollback/retry, and bot error recovery passed`
     );
     await page.close();
   }

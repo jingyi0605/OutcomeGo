@@ -18,9 +18,8 @@ import type { InstallationPaths } from "./config";
 import { ensureDirectory, writeFileAtomic } from "./config";
 import { MINIMUM_UPDATE_DISK_BYTES } from "./constants";
 import type { ComposeProject } from "./docker";
-import { dockerDaemon } from "./docker";
+import { assertNoEngineRecovery } from "./engine/upgrade-transaction";
 import { CliError } from "./errors";
-import type { CommandRunner } from "./process";
 
 export type PersistedUpdatePhase =
   | "checking"
@@ -134,7 +133,8 @@ export const activeUpdateProcess = (paths: InstallationPaths): number | null => 
     : null;
 };
 
-export const acquireUpdateLock = (paths: InstallationPaths): (() => void) => {
+export const acquireUpdateLock = (paths: InstallationPaths, allowEngineRecovery = false): (() => void) => {
+  if (!allowEngineRecovery) assertNoEngineRecovery(paths);
   ensureDirectory(paths.directory);
   const ownerPath = join(paths.updateLock, "owner.json");
   const claim = () => {
@@ -155,20 +155,23 @@ export const acquireUpdateLock = (paths: InstallationPaths): (() => void) => {
     } catch {
       owner = null;
     }
-    if (typeof owner?.pid === "number" && processIsAlive(owner.pid)) {
+    const publishing = typeof owner?.pid !== "number" && Date.now() - statSync(paths.updateLock).mtimeMs < 30_000;
+    if (publishing || (typeof owner?.pid === "number" && processIsAlive(owner.pid))) {
       throw new CliError(
-        `Another OutcomeGo setup or update is already running (process ${owner.pid}). Wait for it to finish, then try again.`
+        `Another OutcomeGo setup or update is already running${typeof owner?.pid === "number" ? ` (process ${owner.pid})` : ""}. Wait for it to finish, then try again.`
       );
     }
     rmSync(paths.updateLock, { recursive: true, force: true });
     claim();
   }
-  return () => rmSync(paths.updateLock, { recursive: true, force: true });
+  const release = () => rmSync(paths.updateLock, { recursive: true, force: true });
+  try { if (!allowEngineRecovery) assertNoEngineRecovery(paths); }
+  catch (error) { release(); throw error; }
+  return release;
 };
 
 export const assertUpdatePreflight = (
   paths: InstallationPaths,
-  runner: CommandRunner,
   project: ComposeProject,
   composeFile: string
 ): void => {
@@ -179,8 +182,16 @@ export const assertUpdatePreflight = (
       `OutcomeGo needs at least 4 GiB free to update safely; only ${(available / 1024 ** 3).toFixed(1)} GiB is available.`
     );
   }
-  const daemon = dockerDaemon(runner);
-  if (daemon.status !== 0) throw new CliError("The Docker daemon is not reachable.");
+  // Ask the engine the installation runs on, not whatever `docker` the host happens to have: the
+  // OutcomeGo engine lives in its own virtual machine or WSL 2 environment.
+  const daemon = project.engine.docker(["info", "--format", "{{.ServerVersion}}"]);
+  if (daemon.status !== 0) {
+    throw new CliError(
+      project.engine.kind === "external"
+        ? "The Docker daemon is not reachable."
+        : "The OutcomeGo engine is not reachable."
+    );
+  }
   project.runOrThrow(["config", "--quiet"], { composeFile });
 };
 

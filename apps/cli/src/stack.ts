@@ -1,5 +1,6 @@
 import { VIEWER_PORT_END, VIEWER_PORT_START } from "./constants";
 import type { ComposeProject } from "./docker";
+import { ExternalEngine } from "./engine/external";
 import { CliError } from "./errors";
 import type { HealthResult } from "./health";
 import { occupiedHost, viewerPorts } from "./ports";
@@ -58,7 +59,7 @@ export const describePortOccupant = (
   host: string,
   port: number
 ): PortOccupant => {
-  const result = runner.run("docker", [
+  const result = new ExternalEngine(runner).docker([
     "ps",
     "--filter",
     `publish=${port}`,

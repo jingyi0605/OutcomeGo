@@ -13,9 +13,12 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { registerDatabaseBackup, retainDatabaseBackups } from "../src/disk-maintenance";
 import { installationPaths } from "../src/config";
+import type { ComposeProject } from "../src/docker";
+import type { EngineKind } from "../src/engine/types";
 import {
   activeUpdateProcess,
   acquireUpdateLock,
+  assertUpdatePreflight,
   readUpdateEvents,
   readUpdateState,
   writeUpdateState,
@@ -119,5 +122,47 @@ describe("update transaction safety", () => {
     expect(readdirSync(paths.backups).sort()).toEqual(
       [names[4]!, "my-own-dump.sql", "postgres-notes.txt"].sort()
     );
+  });
+});
+
+describe("update preflight", () => {
+  const preflight = (kind: EngineKind, status: number) => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), "outcomego-update-preflight-")));
+    temporaryDirectories.push(directory);
+    const asked: Array<readonly string[]> = [];
+    const checked: string[] = [];
+    // Only the engine the installation runs on can answer; there is no host `docker` to ask.
+    const project = {
+      engine: {
+        kind,
+        docker: (args: readonly string[]) => {
+          asked.push(args);
+          return { status, stdout: "28.0.0", stderr: "" };
+        },
+      },
+      runOrThrow: (args: readonly string[]) => void checked.push(args[0]!),
+    } as unknown as ComposeProject;
+    const composeFile = join(directory, "compose.yaml.next");
+    writeFileSync(composeFile, "services: {}\n");
+    return { run: () => assertUpdatePreflight(installationPaths(directory), project, composeFile), asked, checked };
+  };
+
+  test.each(["external", "managed-lima", "managed-wsl"] as const)(
+    "asks the %s engine whether its daemon answers, then validates the new Compose file",
+    (kind) => {
+      const check = preflight(kind, 0);
+      expect(check.run).not.toThrow();
+      expect(check.asked).toEqual([["info", "--format", "{{.ServerVersion}}"]]);
+      expect(check.checked).toEqual(["config"]);
+    }
+  );
+
+  test("names the engine that is down, and stops before validating anything", () => {
+    const docker = preflight("external", 1);
+    expect(docker.run).toThrow("The Docker daemon is not reachable.");
+    expect(docker.checked).toEqual([]);
+    for (const kind of ["managed-lima", "managed-wsl"] as const) {
+      expect(preflight(kind, 1).run).toThrow("The OutcomeGo engine is not reachable.");
+    }
   });
 });

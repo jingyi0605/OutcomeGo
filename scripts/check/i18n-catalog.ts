@@ -14,6 +14,7 @@ const ts = (tsModule as unknown as { default?: typeof tsModule }).default ?? tsM
 const root = resolve(import.meta.dir, "../..");
 const rendererDir = resolve(root, "apps/desktop/src/renderer");
 const catalogFile = resolve(rendererDir, "lib/i18n-catalog.ts");
+const localServiceCatalogFile = resolve(rendererDir, "lib/local-service-catalog.ts");
 
 const readSource = async (path: string) =>
   ts.createSourceFile(
@@ -27,21 +28,21 @@ const readSource = async (path: string) =>
 const collectFiles = async (dir: string): Promise<string[]> =>
   (await Array.fromAsync(new Bun.Glob("**/*.{ts,tsx}").scan({ cwd: dir, absolute: true }))).sort();
 
-const catalogEntries = async (): Promise<Map<string, string>> => {
-  const file = await readSource(catalogFile);
+const catalogEntries = async (path: string, name: string): Promise<Map<string, string>> => {
+  const file = await readSource(path);
   let entries: Map<string, string> | undefined;
   const visit = (node: ts.Node): void => {
     if (
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
-      node.name.text === "sourceTranslations" &&
+      node.name.text === name &&
       node.initializer &&
       ts.isObjectLiteralExpression(node.initializer)
     ) {
       entries = new Map(
         node.initializer.properties.map((property) => {
           if (!ts.isPropertyAssignment(property)) {
-            throw new Error(`Unsupported catalog entry in ${catalogFile}: ${property.getText()}`);
+            throw new Error(`Unsupported catalog entry in ${path}: ${property.getText()}`);
           }
           const name = property.name;
           const key = ts.isIdentifier(name) ? name.text : name.text;
@@ -58,7 +59,7 @@ const catalogEntries = async (): Promise<Map<string, string>> => {
   };
   visit(file);
   if (!entries || entries.size === 0)
-    throw new Error("No catalog entries found in i18n-catalog.ts");
+    throw new Error(`No catalog entries found in ${path}`);
   return entries;
 };
 
@@ -95,10 +96,12 @@ const usedKeys = async (): Promise<Map<string, string[]>> => {
   return used;
 };
 
-const catalog = await catalogEntries();
+const mainCatalog = await catalogEntries(catalogFile, "sourceTranslations");
+const localCatalog = await catalogEntries(localServiceCatalogFile, "localServiceTranslations");
+const catalog = new Map([...mainCatalog, ...localCatalog]);
 const used = await usedKeys();
 
-const keys = [...catalog.keys()];
+const keys = [...mainCatalog.keys(), ...localCatalog.keys()];
 const duplicates = [...new Set(keys.filter((key, index) => keys.indexOf(key) !== index))];
 const missing = [...used.keys()].filter((key) => !catalog.has(key)).sort();
 const unused = keys.filter((key) => !used.has(key)).sort();

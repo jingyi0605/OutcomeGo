@@ -1,0 +1,1454 @@
+/* The posters beside a running deployment (local-deploy-showcase.tsx, local-deploy-scenes.tsx).
+   One room, one light, one glass: every poster shares the same air and the same three colours
+   (ice, periwinkle, lilac), and holds a single object and two lines of words. Pictures are drawn
+   on a 720 × 440 canvas and scaled to the stage. Stories arrive with transitions ([data-on]);
+   endless motion is animation, which the pause button holds. Reduced motion keeps fades only
+   (end of file). Built on the setup tokens and springs (setup.css). */
+
+/* ─── The room ─────────────────────────────────────────────────────────────────────── */
+
+.setup-visual:has(> .deploy-showcase) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+}
+.setup-visual[data-enter]:has(> .deploy-showcase) {
+  animation: setup-fade-in 700ms ease-out backwards;
+}
+.setup-stage:has(.deploy-guide),
+.setup-stage:has(.deploy-showcase) {
+  transition:
+    --setup-tint 900ms ease-in-out,
+    --setup-tint-2 900ms ease-in-out,
+    --setup-glow 1200ms ease-in-out,
+    --setup-glow-2 1200ms ease-in-out;
+}
+.setup-stage:has(.deploy-showcase) {
+  --setup-tint: #eff2fd;
+  --setup-tint-2: #e8ecfd;
+  --setup-glow: #d6dffe;
+  --setup-glow-2: #e6defe;
+}
+:root[data-theme="dark"] .setup-stage:has(.deploy-showcase) {
+  --setup-tint: #0a0d1c;
+  --setup-tint-2: #10152c;
+  --setup-glow: #1a2456;
+  --setup-glow-2: #261d52;
+}
+.setup-stage .setup-dots {
+  transition: opacity 600ms ease;
+}
+.setup-stage:has(.deploy-showcase) .setup-dots {
+  opacity: 0;
+}
+
+.deploy-showcase {
+  --ink: #1b2044;
+  --muted: #5a6188;
+  --ice: #8accff;
+  --accent: #7f8cff;
+  --lilac: #bda6ff;
+  --pearl: #ffffff;
+  --visor: #20264f;
+  --glow-ink: 88 102 210;
+  /* Glass: what light does to it. */
+  --g-fill: linear-gradient(
+    152deg,
+    rgb(255 255 255 / 74%) 0%,
+    rgb(255 255 255 / 26%) 40%,
+    rgb(224 231 255 / 22%) 66%,
+    rgb(210 200 255 / 44%) 100%
+  );
+  --g-edge: linear-gradient(
+    140deg,
+    #ffffff 0%,
+    rgb(255 255 255 / 60%) 22%,
+    rgb(150 170 255 / 36%) 48%,
+    rgb(190 160 255 / 42%) 66%,
+    rgb(140 210 255 / 72%) 84%,
+    #ffffff 100%
+  );
+  --g-inner:
+    inset 0 1px 1px rgb(255 255 255 / 95%), inset 0 0 34px rgb(255 255 255 / 52%),
+    inset 0 -26px 44px -24px rgb(var(--glow-ink) / 30%), 0 0 0 0.5px rgb(var(--glow-ink) / 14%);
+  --g-shadow:
+    0 48px 84px -30px rgb(var(--glow-ink) / 44%), 0 16px 32px -16px rgb(var(--glow-ink) / 24%);
+  --s-body:
+    radial-gradient(36% 26% at 33% 19%, rgb(255 255 255 / 96%), transparent),
+    radial-gradient(54% 30% at 62% 97%, rgb(255 255 255 / 88%), transparent),
+    radial-gradient(
+      circle at 50% 44%,
+      rgb(228 233 255 / 52%) 24%,
+      rgb(172 184 255 / 62%) 62%,
+      rgb(122 136 246 / 84%) 100%
+    );
+  --line: rgb(var(--glow-ink) / 24%);
+  --fill: rgb(var(--glow-ink) / 15%);
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--ink);
+  container: showcase / size;
+}
+:root[data-theme="dark"] .deploy-showcase {
+  --ink: #f5f6ff;
+  --muted: #a4abcf;
+  --pearl: #e6eaff;
+  --visor: #12162f;
+  --glow-ink: 4 6 24;
+  --g-fill: linear-gradient(
+    152deg,
+    rgb(206 216 255 / 24%) 0%,
+    rgb(170 184 255 / 11%) 40%,
+    rgb(140 150 255 / 10%) 68%,
+    rgb(190 160 255 / 18%) 100%
+  );
+  --g-edge: linear-gradient(
+    140deg,
+    rgb(255 255 255 / 76%) 0%,
+    rgb(255 255 255 / 20%) 24%,
+    rgb(150 170 255 / 14%) 48%,
+    rgb(190 160 255 / 26%) 68%,
+    rgb(140 210 255 / 50%) 86%,
+    rgb(255 255 255 / 60%) 100%
+  );
+  --g-inner:
+    inset 0 1px 1px rgb(255 255 255 / 26%), inset 0 0 30px rgb(150 168 255 / 12%),
+    inset 0 -22px 40px -22px rgb(140 150 255 / 26%);
+  --g-shadow: 0 44px 80px -30px rgb(2 4 18 / 80%), 0 14px 30px -14px rgb(2 4 18 / 60%);
+  --s-body:
+    radial-gradient(36% 26% at 33% 19%, rgb(255 255 255 / 84%), transparent),
+    radial-gradient(54% 30% at 62% 97%, rgb(190 208 255 / 58%), transparent),
+    radial-gradient(
+      circle at 50% 44%,
+      rgb(88 102 214 / 34%) 24%,
+      rgb(96 112 236 / 50%) 62%,
+      rgb(150 166 255 / 78%) 100%
+    );
+  --line: rgb(170 184 255 / 26%);
+  --fill: rgb(176 190 255 / 18%);
+}
+
+/* The light in the room: three soft bodies that drift a step with every page. */
+.showcase-air i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 92cqmax;
+  aspect-ratio: 1;
+  margin: -46cqmax;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ice) 34%, transparent), transparent);
+  transform: translate(
+    calc(-26cqw + cos(var(--turn) * 0.9rad) * 7cqw),
+    calc(-20cqh + sin(var(--turn) * 0.9rad) * 6cqh)
+  );
+  transition: transform 2200ms var(--spring-gentle);
+}
+.showcase-air i:nth-child(2) {
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--lilac) 34%, transparent), transparent);
+  transform: translate(
+    calc(30cqw + cos(var(--turn) * 0.9rad + 2rad) * 7cqw),
+    calc(24cqh + sin(var(--turn) * 0.9rad + 2rad) * 6cqh)
+  );
+}
+.showcase-air i:nth-child(3) {
+  width: 64cqmax;
+  margin: -32cqmax;
+  background: radial-gradient(closest-side, rgb(255 255 255 / 84%), transparent);
+  transform: translate(
+    calc(cos(var(--turn) * 0.9rad + 4rad) * 4cqw),
+    calc(-8cqh + sin(var(--turn) * 0.9rad + 4rad) * 3cqh)
+  );
+}
+:root[data-theme="dark"] .showcase-air i {
+  opacity: 0.42;
+}
+:root[data-theme="dark"] .showcase-air i:nth-child(3) {
+  background: radial-gradient(closest-side, rgb(92 112 255 / 60%), transparent);
+}
+
+/* ─── Frame ────────────────────────────────────────────────────────────────────────── */
+
+.showcase-track {
+  position: absolute;
+  inset: 0;
+}
+.showcase-poster {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(4px, 2.4cqh, 28px);
+  padding: clamp(20px, 5.5cqh, 64px) clamp(20px, 5cqw, 64px) clamp(84px, 13.5cqh, 132px);
+}
+.showcase-scene {
+  position: relative;
+  min-height: 0;
+  container-type: size;
+}
+.showcase-canvas {
+  --fit: clamp(0.42, min(tan(atan2(100cqw, 720px)), tan(atan2(100cqh, 440px))), 1.5);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 720px;
+  height: 440px;
+  margin: -220px 0 0 -360px;
+  font-size: 15px;
+  line-height: 1.3;
+  scale: var(--fit);
+  user-select: none;
+  word-break: keep-all;
+}
+.showcase-canvas > div,
+.vg-fill {
+  position: absolute;
+  inset: 0;
+}
+.showcase-canvas > div {
+  perspective: 1300px;
+}
+
+.showcase-copy {
+  position: relative;
+  text-align: center;
+  /* Chinese wraps at punctuation, not inside a word; a phrase too long for the line still breaks. */
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+.showcase-copy h2 {
+  margin: 0;
+  background: linear-gradient(180deg, var(--ink) 20%, color-mix(in srgb, var(--ink) 66%, var(--accent)) 100%);
+  background-clip: text;
+  font-size: clamp(26px, min(5.2cqw, 6.4cqh), 52px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.22;
+  text-wrap: balance;
+  -webkit-text-fill-color: transparent;
+}
+.showcase-copy p {
+  margin: clamp(6px, 1.4cqh, 14px) 0 0;
+  color: var(--muted);
+  font-size: clamp(14px, 1.8cqw, 18px);
+  line-height: 1.55;
+  text-wrap: balance;
+}
+
+/* Pages pass like windows in space: the old one slips back and aside as the new one comes
+   forward, always a page apart; the words fade between them. What arrives doesn't hold its last
+   frame (backwards, not both): a held opacity would cut the glass off from what is behind it. */
+.deploy-showcase {
+  --shift: 1;
+}
+.deploy-showcase[data-direction="back"] {
+  --shift: -1;
+}
+.showcase-poster[data-state="entering"] > .showcase-scene {
+  animation: showcase-in 900ms var(--spring-gentle) backwards;
+}
+.showcase-poster[data-state="leaving"] > .showcase-scene {
+  animation: showcase-out 900ms var(--spring-gentle) both;
+}
+.showcase-poster[data-state="entering"] > .showcase-copy > * {
+  animation: showcase-words 620ms ease-out 300ms backwards;
+}
+.showcase-poster[data-state="entering"] > .showcase-copy > * + * {
+  animation-delay: 400ms;
+}
+.showcase-poster[data-state="leaving"] > .showcase-copy {
+  animation: setup-fade-out 240ms ease-in both;
+}
+.showcase-poster[data-state="leaving"] {
+  pointer-events: none;
+}
+@keyframes showcase-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--shift) * 74cqw)) scale(0.82);
+  }
+}
+@keyframes showcase-out {
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--shift) * -74cqw)) scale(0.82);
+  }
+}
+@keyframes showcase-words {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(6px);
+  }
+}
+
+/* The ornament: pages and pause on one small piece of glass, as under a window in space. */
+.showcase-nav {
+  position: absolute;
+  z-index: 2;
+  bottom: clamp(20px, 4.4cqh, 44px);
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateX(-50%);
+}
+.showcase-ornament.vg {
+  position: relative;
+  display: flex;
+  height: 40px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 6px 0 12px;
+}
+.showcase-page {
+  display: grid;
+  height: 32px;
+  padding: 0 4px;
+  place-items: center;
+}
+.showcase-page > span {
+  display: block;
+  width: 7px;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
+  transition:
+    width 620ms var(--spring-gentle),
+    background 200ms ease;
+}
+.showcase-page:hover > span {
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+.showcase-page[aria-current] > span {
+  width: 34px;
+}
+.showcase-page i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--lilac), var(--accent));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 120ms linear;
+}
+.showcase-toggle,
+.showcase-arrow {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: var(--muted);
+  place-items: center;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    opacity 240ms ease;
+}
+.showcase-toggle {
+  margin-left: 4px;
+}
+.showcase-toggle:hover,
+.showcase-arrow:hover {
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+  color: var(--ink);
+}
+/* The arrows show up for whoever reaches for them. */
+.showcase-arrow {
+  opacity: 0;
+}
+.deploy-showcase:hover .showcase-arrow,
+.showcase-nav:has(:focus-visible) .showcase-arrow {
+  opacity: 1;
+}
+.showcase-nav button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Small stages: the picture gives way first, the second line last. */
+@container showcase (max-height: 430px) {
+  .showcase-copy p {
+    display: none;
+  }
+}
+
+/* ─── Glass ────────────────────────────────────────────────────────────────────────── */
+
+.vg {
+  position: absolute;
+  border-radius: 34px;
+  background: var(--g-fill);
+  box-shadow: var(--g-shadow), var(--g-inner);
+}
+/* Its edge catches the light. */
+.vg::before {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--g-edge);
+  content: "";
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  padding: 1.4px;
+  pointer-events: none;
+}
+/* Windows frost what is behind them, and a glint crosses them now and then. */
+:is(.vs-contract, .vs-window, .vs-card) {
+  overflow: hidden;
+  backdrop-filter: blur(14px) saturate(1.35);
+}
+:is(.vs-contract, .vs-window, .vs-card)::after {
+  position: absolute;
+  inset: -30% 0;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgb(255 255 255 / 34%) 49%,
+    rgb(255 255 255 / 12%) 54%,
+    transparent 60%
+  );
+  content: "";
+  pointer-events: none;
+  transform: translateX(-100%);
+  animation: vg-glint 7s ease-in-out 900ms infinite;
+}
+:root[data-theme="dark"] :is(.vs-contract, .vs-window, .vs-card)::after {
+  opacity: 0.4;
+}
+@keyframes vg-glint {
+  0% {
+    transform: translateX(-100%);
+  }
+  34%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+.vg-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 999px;
+  padding: 12px 22px 12px 18px;
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translate(-50%, 18px) scale(0.9);
+  transition:
+    opacity 420ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+  white-space: nowrap;
+}
+.vg-capsule[data-on] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.vg-capsule > i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 24%, transparent);
+  animation: vg-breathe 2.4s ease-in-out infinite;
+}
+.vg-sphere {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2);
+  border-radius: 50%;
+  background: var(--s-body);
+  box-shadow:
+    inset 0 0 calc(var(--s) * 0.12) rgb(255 255 255 / 66%),
+    inset 0 calc(var(--s) * -0.08) calc(var(--s) * 0.16) rgb(112 122 255 / 34%),
+    0 0 0 0.5px rgb(var(--glow-ink) / 20%),
+    0 calc(var(--s) * 0.22) calc(var(--s) * 0.34) calc(var(--s) * -0.16) rgb(var(--glow-ink) / 62%);
+}
+:root[data-theme="dark"] .vg-sphere {
+  box-shadow:
+    inset 0 0 calc(var(--s) * 0.14) rgb(186 200 255 / 34%),
+    inset 0 calc(var(--s) * -0.08) calc(var(--s) * 0.16) rgb(120 134 255 / 36%),
+    0 0 calc(var(--s) * 0.34) rgb(104 122 255 / 30%);
+}
+/* The rim splits the light into the three colours, and turns slowly. */
+.vg-sphere > i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 20deg,
+    #ffffff,
+    var(--ice),
+    rgb(255 255 255 / 30%),
+    var(--lilac),
+    #ffffff,
+    var(--accent),
+    rgb(255 255 255 / 30%),
+    #ffffff
+  );
+  mask: radial-gradient(closest-side, transparent calc(100% - 2.4px), #000 calc(100% - 1.6px));
+  animation: vg-turn 26s linear infinite;
+}
+.vg-sphere > b {
+  position: absolute;
+  top: calc(50% - var(--s) * 0.15);
+  left: calc(50% + var(--s) * 0.08);
+  width: calc(var(--s) * 0.08);
+  height: calc(var(--s) * 0.168);
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--visor), color-mix(in srgb, var(--visor) 72%, var(--accent)));
+  transition: translate 700ms var(--spring-snappy);
+  animation: vg-blink 5.4s ease-in-out infinite;
+}
+.vg-sphere > b + b {
+  left: calc(50% + var(--s) * 0.268);
+}
+:root[data-theme="dark"] .vg-sphere > b {
+  background: #ffffff;
+  box-shadow: 0 0 18px rgb(190 204 255 / 80%);
+}
+.vg-sphere[data-down] > b {
+  translate: calc(var(--s) * -0.16) calc(var(--s) * 0.06);
+}
+.vg-robot {
+  position: absolute;
+  filter: drop-shadow(0 0 1.4px rgb(var(--glow-ink) / 62%)) drop-shadow(0 14px 14px rgb(var(--glow-ink) / 42%));
+}
+.vg-robot svg {
+  display: block;
+}
+.vg-tick {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+.vg-tick path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition:
+    opacity 80ms ease 120ms,
+    stroke-dashoffset 420ms ease-out 120ms;
+}
+.vg-tick[data-on] path {
+  opacity: 1;
+  stroke-dashoffset: 0;
+}
+.vg-lines :is(ellipse, circle, path) {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.4;
+}
+.vs-float {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: vg-float 9s ease-in-out infinite;
+}
+/* A second pane behind the first, deeper in the room. */
+.vs-float::before {
+  position: absolute;
+  top: 34px;
+  left: 214px;
+  width: 348px;
+  height: 296px;
+  border-radius: 34px;
+  background: linear-gradient(150deg, rgb(255 255 255 / 42%), rgb(255 255 255 / 8%));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 52%);
+  content: "";
+  /* Only what stands out past the front pane shows; its other edges would cross the words. */
+  mask: linear-gradient(250deg, #000 4%, transparent 22%);
+  transform: translateZ(-110px);
+}
+:root[data-theme="dark"] .vs-float::before {
+  background: linear-gradient(150deg, rgb(190 204 255 / 12%), rgb(190 204 255 / 2%));
+  box-shadow: inset 0 0 0 1px rgb(190 204 255 / 14%);
+}
+.vs-computer .vs-float::before {
+  top: -4px;
+  left: 190px;
+  width: 440px;
+  border-radius: 40px;
+}
+@keyframes vg-float {
+  0%,
+  100% {
+    transform: rotateX(7deg) rotateY(-13deg);
+  }
+  50% {
+    transform: translateY(-9px) rotateX(3deg) rotateY(-6deg);
+  }
+}
+@keyframes vg-bob {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+@keyframes vg-breathe {
+  50% {
+    opacity: 0.5;
+  }
+}
+@keyframes vg-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes vg-blink {
+  0%,
+  94%,
+  100% {
+    transform: none;
+  }
+  97% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* ─── 1 · Attention ────────────────────────────────────────────────────────────────── */
+
+.vs-focus > .vg-sphere {
+  top: 196px;
+  left: 360px;
+  z-index: 2;
+}
+.vs-halo {
+  z-index: 3;
+}
+.vs-halo path {
+  fill: none;
+  filter: drop-shadow(0 2px 8px rgb(140 154 255 / 80%));
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+.vs-halo-back {
+  opacity: 0.8;
+}
+.vs-bead {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background:
+    radial-gradient(40% 34% at 34% 26%, #ffffff, transparent),
+    radial-gradient(circle, color-mix(in srgb, var(--accent) 34%, #ffffff), var(--accent));
+  box-shadow: 0 8px 14px -4px rgb(var(--glow-ink) / 50%);
+  offset-path: path("M 661 153.7 A 304 92 -8 1 1 59 238.3 A 304 92 -8 1 1 661 153.7");
+  offset-rotate: 0deg;
+  animation:
+    vs-orbit 54s linear infinite,
+    vs-depth 54s ease-in-out infinite,
+    vs-layer 54s linear infinite;
+  animation-delay: calc(var(--p) * -54s);
+}
+@keyframes vs-orbit {
+  to {
+    offset-distance: 100%;
+  }
+}
+/* Through `transform`: the `scale` property would shrink the orbit, not the bead. */
+@keyframes vs-depth {
+  0%,
+  50%,
+  100% {
+    opacity: 0.8;
+    transform: scale(0.8);
+  }
+  25% {
+    opacity: 1;
+    transform: scale(1.16);
+  }
+  75% {
+    opacity: 0.34;
+    transform: scale(0.5);
+  }
+}
+@keyframes vs-layer {
+  0%,
+  50% {
+    z-index: 4;
+  }
+  50.01%,
+  99.99% {
+    z-index: 1;
+  }
+}
+.vs-call {
+  z-index: 5;
+  top: 346px;
+  left: 360px;
+}
+
+/* ─── 2 · Outcomes ─────────────────────────────────────────────────────────────────── */
+
+.vs-contract {
+  top: 56px;
+  left: 176px;
+  width: 348px;
+  height: 296px;
+  padding: 40px 42px;
+}
+.vs-contract > u {
+  display: block;
+  width: 108px;
+  height: 14px;
+  margin-bottom: 28px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--lilac));
+}
+.vs-contract p {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 0 0 22px;
+}
+.vs-contract p > span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--fill);
+  box-shadow: inset 0 1px 2px rgb(var(--glow-ink) / 24%);
+  color: #fff;
+  place-items: center;
+  transition:
+    background 420ms ease,
+    box-shadow 420ms ease,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.vs-contract p[data-on] > span {
+  background: linear-gradient(140deg, var(--accent), var(--lilac));
+  box-shadow: 0 10px 18px -8px rgb(112 122 255 / 80%);
+  transform: scale(1.06);
+}
+.vs-contract .vg-tick {
+  width: 24px;
+  height: 24px;
+}
+.vs-contract p > i {
+  width: calc(var(--w) * 100%);
+  height: 12px;
+  border-radius: 999px;
+  background: var(--fill);
+  transition: background 420ms ease;
+}
+.vs-contract p[data-on] > i {
+  background: rgb(127 140 255 / 36%);
+}
+.vs-seal {
+  position: absolute;
+  top: 244px;
+  left: 452px;
+  width: 116px;
+  height: 116px;
+  opacity: 0;
+  transform: translateZ(90px) scale(0.5);
+  transition:
+    opacity 360ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.vs-seal[data-on] {
+  opacity: 1;
+  transform: translateZ(90px);
+}
+.vs-seal > .vg-tick {
+  position: absolute;
+  inset: 24px;
+  color: var(--visor);
+  stroke-width: 2;
+}
+:root[data-theme="dark"] .vs-seal > .vg-tick {
+  color: #fff;
+}
+
+/* ─── 3 · A computer of its own ────────────────────────────────────────────────────── */
+
+.vs-window {
+  top: 18px;
+  left: 148px;
+  width: 440px;
+  height: 296px;
+  border-radius: 40px;
+  padding: 26px 30px;
+}
+.vs-window header {
+  display: grid;
+  width: 210px;
+  height: 26px;
+  margin: 0 auto 16px;
+  border-radius: 999px;
+  background: var(--fill);
+  box-shadow: inset 0 1px 2px rgb(var(--glow-ink) / 22%);
+  padding: 0 14px;
+  align-items: center;
+}
+.vs-window header i {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(127 140 255 / 50%);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 700ms steps(14);
+}
+.vs-window header i[data-on] {
+  transform: scaleX(0.72);
+}
+.vs-window p {
+  display: flex;
+  height: 48px;
+  align-items: center;
+  gap: 18px;
+  margin: 0;
+  border-radius: 18px;
+  padding: 0 16px;
+  transition: background 300ms ease;
+}
+.vs-window p[data-lit] {
+  background: rgb(255 255 255 / 66%);
+}
+:root[data-theme="dark"] .vs-window p[data-lit] {
+  background: rgb(200 210 255 / 16%);
+}
+.vs-window p > b {
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: var(--fill);
+  transition: background 400ms ease;
+}
+.vs-window p[data-on] > b {
+  background: linear-gradient(140deg, var(--ice), var(--accent));
+}
+.vs-window p > i {
+  width: calc(var(--w) * 250px);
+  height: 11px;
+  border-radius: 999px;
+  background: var(--fill);
+}
+/* Where the bot is looking. */
+.vs-gaze {
+  position: absolute;
+  z-index: 2;
+  top: 78px;
+  right: 46px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(127 140 255 / 90%), rgb(127 140 255 / 24%) 62%, transparent);
+  transform: translateY(calc(var(--row) * 48px));
+  transition:
+    transform 640ms var(--spring-snappy),
+    scale 420ms ease;
+}
+.vs-gaze::after {
+  position: absolute;
+  inset: 4px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  content: "";
+  transition:
+    inset 420ms ease,
+    border-color 420ms ease;
+}
+.vs-gaze[data-yours]::after {
+  inset: -7px;
+  border-color: var(--accent);
+}
+.vs-grabber {
+  position: absolute;
+  top: 332px;
+  left: 320px;
+  display: flex;
+  width: 124px;
+  align-items: center;
+  gap: 9px;
+}
+.vs-grabber i {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
+}
+.vs-grabber i + i {
+  width: 96px;
+  height: 8px;
+}
+.vs-takeover {
+  top: 288px;
+  left: 556px;
+}
+.vs-computer > .vg-robot {
+  top: 246px;
+  left: 92px;
+  animation: vg-bob 6s ease-in-out infinite;
+}
+
+/* ─── 4 · Teamwork ─────────────────────────────────────────────────────────────────── */
+
+.vs-work {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background:
+    radial-gradient(40% 34% at 34% 26%, #ffffff, transparent),
+    radial-gradient(circle, color-mix(in srgb, var(--ice) 50%, #ffffff), var(--accent));
+  box-shadow:
+    0 0 0 8px rgb(127 140 255 / 16%),
+    0 0 34px rgb(127 140 255 / 80%);
+  offset-path: path("M144 176 Q 252 40 360 176 Q 468 40 576 176");
+  offset-rotate: 0deg;
+  opacity: 0;
+  transition:
+    offset-distance 1200ms cubic-bezier(0.5, 0, 0.2, 1),
+    opacity 400ms ease;
+}
+.vs-work[data-on] {
+  opacity: 1;
+}
+.vs-member {
+  position: absolute;
+  top: 204px;
+  width: 0;
+}
+.vs-member > .vg-robot {
+  z-index: 1;
+  top: 0;
+  left: -56px;
+  opacity: 0.62;
+  transform: translateY(6px);
+  transition:
+    opacity 500ms ease,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.vs-member[data-on] > .vg-robot {
+  opacity: 1;
+  transform: none;
+}
+.vs-disc {
+  top: 98px;
+  left: -78px;
+  width: 156px;
+  height: 46px;
+  border-radius: 50%;
+  transition: box-shadow 600ms ease;
+}
+.vs-member[data-on] > .vs-disc {
+  box-shadow:
+    0 0 46px rgb(127 140 255 / 46%),
+    var(--g-shadow),
+    var(--g-inner);
+}
+.vs-member small {
+  position: absolute;
+  top: 162px;
+  left: -80px;
+  width: 160px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 550;
+  text-align: center;
+}
+
+/* ─── 5 · Routines ─────────────────────────────────────────────────────────────────── */
+
+.vs-face {
+  top: 78px;
+  left: 222px;
+  width: 276px;
+  height: 276px;
+  border-radius: 50%;
+}
+.vs-dial circle {
+  fill: none;
+  stroke: var(--line);
+  stroke-dasharray: 270 90;
+  stroke-linecap: round;
+  stroke-width: 5;
+  transform: rotate(135deg);
+  transform-origin: 360px 216px;
+}
+.vs-dial circle[data-fill] {
+  stroke: url("#dial");
+  stroke-dasharray: calc(var(--progress) * 270px) 360px;
+  stroke-width: 6;
+  transition: stroke-dasharray 1100ms cubic-bezier(0.45, 0, 0.2, 1);
+}
+.vs-mark,
+.vs-moon {
+  position: absolute;
+  top: 216px;
+  left: 360px;
+  width: 0;
+  height: 0;
+}
+.vs-mark {
+  transform: rotate(calc(135deg + var(--at) * 270deg)) translateX(202px);
+}
+.vs-mark::after {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  content: "";
+  transition:
+    background 500ms ease,
+    box-shadow 500ms ease;
+}
+.vs-mark[data-on]::after {
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+.vs-moon {
+  z-index: 2;
+  transform: rotate(calc(135deg + var(--progress) * 270deg)) translateX(176px);
+  transition: transform 1100ms cubic-bezier(0.45, 0, 0.2, 1);
+}
+.vs-moon i {
+  position: absolute;
+  top: -19px;
+  left: -19px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, #ffffff 44%, color-mix(in srgb, var(--ice) 60%, #ffffff));
+  box-shadow:
+    0 0 0 6px rgb(255 255 255 / 34%),
+    0 0 40px rgb(140 176 255 / 90%),
+    0 10px 20px -6px rgb(var(--glow-ink) / 50%);
+}
+.vs-time p {
+  position: absolute;
+  top: 154px;
+  left: 0;
+  display: grid;
+  width: 720px;
+  margin: 0;
+  gap: 6px;
+  justify-items: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 420ms ease,
+    transform 620ms var(--spring-gentle);
+}
+.vs-time p[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.vs-time strong {
+  font-size: 66px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 250;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+.vs-time small {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 550;
+}
+
+/* ─── 6 · Decisions ────────────────────────────────────────────────────────────────── */
+
+.vs-ripples i {
+  position: absolute;
+  top: 216px;
+  left: 360px;
+  width: 640px;
+  height: 640px;
+  margin: -320px;
+  border: 1.6px solid var(--line);
+  border-radius: 50%;
+  opacity: 0;
+  animation: vs-ripple 7.5s linear infinite;
+}
+.vs-ripples i:nth-child(2) {
+  animation-delay: -2.5s;
+}
+.vs-ripples i:nth-child(3) {
+  animation-delay: -5s;
+}
+@keyframes vs-ripple {
+  from {
+    opacity: 0;
+    transform: scale(0.1);
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+.vs-card {
+  top: 62px;
+  left: 182px;
+  display: grid;
+  width: 356px;
+  height: 306px;
+  border-radius: 46px;
+  padding: 34px 28px 28px;
+  justify-items: center;
+  align-content: space-between;
+  opacity: 0;
+  transform: translateZ(-240px) translateY(26px);
+  transition:
+    opacity 520ms ease-out,
+    transform 900ms var(--spring-gentle);
+}
+.vs-card[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.vs-card > .vg-robot {
+  position: relative;
+}
+.vs-card > strong {
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+.vs-card > div {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+}
+.vs-card > div > span {
+  display: flex;
+  height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  background: var(--fill);
+  font-size: 17px;
+  font-weight: 600;
+  transition:
+    background 400ms ease,
+    box-shadow 400ms ease,
+    opacity 400ms ease,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.vs-card > div > span[data-best] {
+  color: var(--ink);
+}
+.vs-card > div > span[data-gazed] {
+  background: linear-gradient(120deg, #7180f6, #9a86f2);
+  box-shadow: 0 16px 28px -12px rgb(112 122 255 / 90%);
+  color: #fff;
+}
+.vs-card > div > span[data-press] {
+  transform: scale(0.95);
+}
+.vs-card[data-answered] > div > span:not([data-best]) {
+  opacity: 0.4;
+}
+.vs-card .vg-tick {
+  width: 22px;
+  height: 22px;
+  margin-right: -30px;
+}
+.vs-touch {
+  position: absolute;
+  z-index: 3;
+  top: 256px;
+  left: 448px;
+  width: 38px;
+  height: 38px;
+  border: 2px solid rgb(255 255 255 / 95%);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 255 255 / 70%), rgb(255 255 255 / 10%));
+  box-shadow: 0 8px 20px rgb(var(--glow-ink) / 44%);
+  opacity: 0;
+  transform: translate(60px, 60px) scale(1.2);
+  transition:
+    opacity 360ms ease,
+    transform 800ms var(--spring-gentle);
+}
+.vs-touch[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.vs-touch[data-press] {
+  transform: scale(0.72);
+}
+
+/* ─── 7 · Connections ──────────────────────────────────────────────────────────────── */
+
+.vs-connect > .vg-sphere {
+  top: 214px;
+  left: 360px;
+}
+.vs-ring {
+  position: absolute;
+  top: 214px;
+  left: 360px;
+  width: 0;
+  height: 0;
+  animation: vg-turn 90s linear infinite;
+}
+.vs-ring > span {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transform: rotate(var(--a)) translateX(-30px);
+  transition:
+    opacity 500ms ease-out,
+    transform 900ms var(--spring-gentle);
+}
+.vs-ring > span[data-on] {
+  opacity: 1;
+  transform: rotate(var(--a));
+}
+/* Something arriving: a light runs from the tool to the app. */
+.vs-ring u {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 14px var(--accent);
+  opacity: 0;
+  animation: vs-arrive 6.4s ease-in infinite;
+  animation-delay: calc(var(--i) * -1.7s);
+}
+@keyframes vs-arrive {
+  0%,
+  62% {
+    opacity: 0;
+    transform: translateX(148px);
+  }
+  70% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(72px);
+  }
+}
+.vs-ring b {
+  top: -36px;
+  left: 142px;
+  display: grid;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  color: var(--ink);
+  place-items: center;
+  rotate: calc(var(--a) * -1);
+  animation: vs-unturn 90s linear infinite;
+}
+@keyframes vs-unturn {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+.vs-ring b > i {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(180deg, var(--ink), color-mix(in srgb, var(--ink) 62%, var(--accent)));
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+}
+
+/* ─── 8 · Yours ────────────────────────────────────────────────────────────────────── */
+
+.vs-dome {
+  position: absolute;
+  top: 246px;
+  left: 360px;
+}
+.vs-dome > .vg-sphere {
+  opacity: 0.62;
+}
+.vs-plates {
+  position: absolute;
+  top: 246px;
+  left: 360px;
+  animation: vg-bob 8s ease-in-out infinite;
+}
+.vs-plates i {
+  --lift: calc(46px - var(--z) * 46px);
+  position: absolute;
+  top: -56px;
+  left: -56px;
+  width: 112px;
+  height: 112px;
+  border: 1.4px solid rgb(255 255 255 / 92%);
+  border-radius: 26px;
+  background: linear-gradient(
+    135deg,
+    rgb(255 255 255 / 88%),
+    color-mix(in srgb, var(--tone) 62%, rgb(255 255 255 / 50%)) 70%
+  );
+  box-shadow:
+    7px 7px 0 -1px color-mix(in srgb, var(--tone) 70%, #ffffff),
+    24px 24px 34px rgb(var(--glow-ink) / 30%);
+  opacity: 0;
+  transform: translateY(calc(var(--lift) - 90px)) scaleY(0.56) rotate(45deg);
+  transition:
+    opacity 420ms ease-out,
+    transform 900ms var(--spring-gentle);
+}
+.vs-plates i[data-on] {
+  opacity: 0.94;
+  transform: translateY(var(--lift)) scaleY(0.56) rotate(45deg);
+}
+.vs-home {
+  z-index: 2;
+  top: 364px;
+  left: 360px;
+  padding: 11px 20px;
+}
+.vs-home svg {
+  color: var(--accent);
+}
+.vs-model {
+  position: absolute;
+  top: 246px;
+  left: 360px;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transform: rotate(var(--angle)) translateY(-170px);
+  transition:
+    opacity 600ms ease-out,
+    transform 900ms var(--spring-gentle);
+}
+.vs-model[data-on] {
+  opacity: 0.8;
+  transform: rotate(var(--angle)) translateY(-206px);
+}
+.vs-model[data-picked] {
+  opacity: 1;
+}
+.vs-model u {
+  position: absolute;
+  top: 32px;
+  left: -1px;
+  width: 2px;
+  height: 34px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), transparent);
+  opacity: 0;
+  transform: scaleY(0);
+  transform-origin: top;
+  transition:
+    opacity 300ms ease,
+    transform 500ms ease-out;
+}
+.vs-model[data-picked] u {
+  opacity: 1;
+  transform: none;
+}
+.vs-model b {
+  position: absolute;
+  top: -27px;
+  left: -27px;
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  rotate: calc(var(--angle) * -1);
+  transition: scale var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.vs-model[data-picked] b {
+  scale: 1.16;
+}
+.vs-model[data-picked] .vg-sphere {
+  box-shadow:
+    0 0 0 6px rgb(127 140 255 / 20%),
+    0 0 40px rgb(127 140 255 / 70%);
+}
+.vs-model svg {
+  position: relative;
+  color: var(--visor);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+:root[data-theme="dark"] .vs-model svg {
+  color: #fff;
+}
+.vs-model[data-picked] svg {
+  opacity: 1;
+}
+
+/* ─── Pause and reduced motion ─────────────────────────────────────────────────────── */
+
+/* Paused posters hold their endless motion; stories hold their beat (see useBeat). Page turns
+   still run, so a page picked while paused arrives. */
+.deploy-showcase[data-paused] .showcase-canvas *,
+.deploy-showcase[data-paused] .showcase-canvas *::before,
+.deploy-showcase[data-paused] .showcase-canvas *::after {
+  animation-play-state: paused;
+}
+
+/* Less motion: posters still take turns, but they fade, and nothing drifts. */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes showcase-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes showcase-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes showcase-words {
+    from {
+      opacity: 0;
+    }
+  }
+  .setup-stage:has(.deploy-guide),
+  .setup-stage:has(.deploy-showcase),
+  .showcase-air i {
+    transition: none;
+  }
+  .showcase-canvas *,
+  .showcase-canvas *::before,
+  .showcase-canvas *::after {
+    animation: none !important;
+    transition: opacity 320ms ease !important;
+  }
+  /* Beads stay where their lap would have them. */
+  .vs-bead {
+    offset-distance: calc(var(--p) * 100%);
+  }
+  .vs-float {
+    transform: rotateX(5deg) rotateY(-9deg);
+  }
+  .showcase-page > span {
+    transition: background 200ms ease;
+  }
+}

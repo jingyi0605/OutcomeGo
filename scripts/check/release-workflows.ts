@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { verifyEngineNotices } from "../../apps/cli/scripts/engine-assets";
 
 const read = (path: string) => readFile(path, "utf8");
 const fail = (message: string): never => {
@@ -7,6 +8,20 @@ const fail = (message: string): never => {
 const requireText = (text: string, expected: string, label: string): void => {
   if (!text.includes(expected)) fail(`${label} is missing: ${expected}`);
 };
+
+const [engineFlag, engineInventory, sectionFlag, sectionValue] = process.argv.slice(2);
+if (engineFlag !== undefined) {
+  const section = sectionValue ?? "windows";
+  if (
+    engineFlag !== "--engine-components" ||
+    !engineInventory ||
+    (sectionFlag !== undefined && sectionFlag !== "--section")
+  ) {
+    fail("expected --engine-components <engine-components.json> [--section <windows|macos>]");
+  }
+  verifyEngineNotices(JSON.parse(await read(engineInventory)), await read("THIRD-PARTY-NOTICES"), section);
+  console.log(`Engine component inventory matches THIRD-PARTY-NOTICES (${section}).`);
+}
 
 const [ci, release, constants, desktop, android, cliInstaller, imageVerification] = await Promise.all([
   read(".github/workflows/ci.yml"),
@@ -51,6 +66,22 @@ requireText(constants, 'DEFAULT_IMAGE_PREFIX = "ghcr.io/jingyi0605/outcomego"', 
 requireText(release, '/outcomego"', "release GHCR identity");
 requireText(release, "apps/cli/release/*", "CLI intermediate artifact upload");
 requireText(release, "outcomego-linux-x64.gz", "versionless CLI release asset");
+requireText(release, "if: vars.RELEASE_WINDOWS_ENGINE == 'true'", "Windows engine approval gate");
+requireText(release, "--engine-components", "Windows engine notice verification");
+requireText(release, "--file apps/cli/engine-assets/windows-x64.Dockerfile", "Windows engine recipe");
+requireText(release, 'apps/cli/scripts/engine-assets.ts --windows-rootfs "$stage/rootfs.tar" "$stage/staged"', "Windows engine staging");
+requireText(release, "name: windows-engine", "Windows engine signing input");
+requireText(release, "bun apps/cli/scripts/sign-release.ts dist/core/outcomego-engine-windows-x64.tar.gz", "Windows engine signature");
+requireText(release, "outcomego-engine-windows-x64.tar.gz.sigstore.json", "Windows engine release requirement");
+requireText(release, "if: vars.RELEASE_MACOS == 'true'", "macOS engine approval gate");
+requireText(release, "name: macos-engine-${{ matrix.architecture }}", "macOS engine asset artifact");
+requireText(release, "bun apps/cli/scripts/build-macos-engine.ts", "macOS engine staging");
+requireText(release, "name: macos-engine-components", "macOS engine component inventory artifact");
+requireText(release, "bun apps/cli/scripts/sign-release.ts \"$asset\"", "macOS engine signature");
+requireText(release, "engine-components-macos.json", "macOS engine notice inventory");
+requireText(release, "Expected two macOS runtime assets", "macOS engine architecture coverage");
+requireText(release, "runner: macos-15", "macOS arm64 desktop runner");
+requireText(release, "runner: macos-15-intel", "macOS x64 desktop runner");
 if (release.includes("aiteamos-") || release.includes("create-legacy-cli-aliases")) {
   fail("the next release must not generate legacy aiteamos-* CLI assets");
 }

@@ -8,13 +8,14 @@ import type { CSSProperties } from "react";
 
 type MarkProps = { size?: number; className?: string };
 
-function mark(viewBox: string, d: string, fill = "currentColor") {
+function mark(viewBox: string, d: string, fill = "currentColor", fillRule?: "evenodd") {
   return function Mark({ size = 20, className }: MarkProps) {
     return (
       <svg
         aria-hidden="true"
         className={className}
         fill={fill}
+        fillRule={fillRule}
         height={size}
         viewBox={viewBox}
         width={size}
@@ -42,6 +43,7 @@ export const OpenRouterMark = mark(
   "19.82 -36.43 365.56 365.56",
   "M303.95 17.2c42.8 0 77.49 34.69 77.49 77.49s-34.69 77.49-77.49 77.49l76.86 76.86c9.76 9.76 2.85 26.46-10.96 26.46h-220.88c-71.33 0-129.15-57.82-129.15-129.15S77.64 17.2 148.97 17.2h154.98ZM148.97 68.86c-42.8 0-77.49 34.69-77.49 77.49s34.69 77.49 77.49 77.49 77.49-34.69 77.49-77.49-34.69-77.49-77.49-77.49Z"
 );
+export const OpenCodeMark = mark("0 0 24 24", "M16 6H8v12h8V6zm4 16H4V2h16v20z", "currentColor", "evenodd");
 export const DeepgramMark = mark(
   "-2.1 .85 24 24",
   "M16.63 5.24C18.69 7.33 19.8 10.09 19.75 13.02V13.02C19.66 18.91 14.71 23.7 8.71 23.7H.28C.12 23.7.04 23.51.16 23.39L4.26 19.27C4.33 19.2 4.42 19.16 4.51 19.16H8.79C12.23 19.16 15.11 16.42 15.21 13.04C15.26 11.32 14.63 9.69 13.43 8.46C12.22 7.22 10.61 6.54 8.89 6.54H4.54V13.56C4.54 13.62 4.5 13.67 4.43 13.67H.11C.05 13.67 0 13.62 0 13.56V2.11C0 2.05.05 2 .11 2H8.89C11.82 2 14.57 3.15 16.63 5.24Z"
@@ -52,6 +54,7 @@ const TILES = {
   openai: { Mark: OpenAIMark, background: "#000000", color: "#ffffff", scale: 0.66 },
   anthropic: { Mark: AnthropicMark, background: "#CC9B7A", color: "#1F1F1E", scale: 0.58 },
   openrouter: { Mark: OpenRouterMark, background: "#000000", color: "#ffffff", scale: 0.61 },
+  opencode: { Mark: OpenCodeMark, background: "#131316", color: "#ffffff", scale: 0.62 },
   deepgram: { Mark: DeepgramMark, background: "#080808", color: "#ffffff", scale: 0.7 },
 } as const;
 export type TileProvider = keyof typeof TILES;
@@ -85,6 +88,7 @@ const MARKS: Record<string, ReturnType<typeof mark>> = {
   "claude-code": ClaudeMark,
   anthropic: AnthropicMark,
   openrouter: OpenRouterMark,
+  opencode: OpenCodeMark,
   deepgram: DeepgramMark,
 };
 

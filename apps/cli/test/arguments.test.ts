@@ -201,6 +201,12 @@ describe("CLI arguments", () => {
     expect(parseArguments(["update", "--json-progress"]).jsonProgress).toBe(true);
   });
 
+  test("accepts the read-only JSON snapshot option for status and health", () => {
+    for (const command of ["status", "health"]) {
+      expect(parseArguments([command, "--json"])).toMatchObject({ command: "status", json: true });
+    }
+  });
+
   test("rejects recognized options when they do not apply to the command", () => {
     expect(() => parseArguments(["status", "--force"])).toThrow("Unknown option for status");
     expect(() => parseArguments(["install", "--purge"])).toThrow("Unknown option for install");
@@ -211,6 +217,6 @@ describe("CLI arguments", () => {
     expect(() => parseArguments(["explode"])).toThrow("Unknown command");
     expect(() => parseArguments(["statsu"])).toThrow('Did you mean "status"?');
     expect(() => parseArguments(["provider", "logn"])).toThrow('Did you mean "login"?');
-    expect(() => parseArguments(["status", "--json"])).toThrow("Unknown option");
+    expect(() => parseArguments(["status", "--json-status"])).toThrow("Unknown option");
   });
 });

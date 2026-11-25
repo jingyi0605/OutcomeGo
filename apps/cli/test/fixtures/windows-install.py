@@ -204,8 +204,8 @@ Invoke-Expression ([System.IO.File]::ReadAllText($env:NATIVE_INSTALL_SCRIPT))
                               'outcomego setup' in cleaned, 'Cancellation was not actionable', output)
                     else:
                         expected = {
-                            'missing-docker': 'Install Docker Desktop',
-                            'stopped': 'Open Docker Desktop',
+                            'missing-docker': 'Install a Docker-compatible engine with Compose',
+                            'stopped': 'Start your Docker-compatible engine and run docker info',
                             'no-compose': '2.20.0',
                             'old-compose': '2.20.0',
                             'noninteractive': 'interactive terminal',

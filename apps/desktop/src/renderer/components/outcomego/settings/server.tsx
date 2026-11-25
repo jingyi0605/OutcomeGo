@@ -11,6 +11,7 @@ import { settingsSecondaryButton } from "./ui";
 import { useI18n } from "../../../lib/i18n";
 
 const BrowserNetworkSettings = lazy(() => import("./browser-network"));
+const ServerLocationSettings = lazy(() => import("./server-location"));
 const ComputerNetworkPolicyDialog = lazy(() =>
   import("./computer-network-policy").then((module) => ({ default: module.ComputerNetworkPolicyDialog }))
 );
@@ -21,6 +22,7 @@ export default function ServerSettings() {
   const { status: server, loading } = useServerUpdateStatus(window.outcomego?.versions.app ?? null);
   return (
     <>
+      <Suspense fallback={null}><ServerLocationSettings /></Suspense>
       <Suspense fallback={null}>
         <BrowserNetworkSettings />
       </Suspense>

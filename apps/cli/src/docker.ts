@@ -1,18 +1,20 @@
-import { existsSync, readFileSync } from "node:fs";
-import { parseEnvironment, type InstallationPaths } from "./config";
+import { existsSync } from "node:fs";
+import type { InstallationPaths } from "./config";
 import { PROJECT_NAME } from "./constants";
+import {
+  ADDRESS_POOLS_EXHAUSTED,
+  addressPoolsExhausted,
+  ExternalEngine,
+  MINIMUM_COMPOSE_VERSION,
+} from "./engine/external";
+import { EngineError, type ComposeCommand, type EngineProvider } from "./engine/types";
+import { externalComposeAdvice } from "./engine/external-guidance";
+import { requireRecordedEngine } from "./engine/select";
 import { CliError } from "./errors";
 import type { CommandRunner, RunResult } from "./process";
-import semver from "semver";
 
-export const MINIMUM_COMPOSE_VERSION = "2.20.0";
-
-export interface ComposeCommand {
-  executable: string;
-  prefix: readonly string[];
-  version: string;
-  supported: boolean;
-}
+export { composeProcessEnvironment, findCompose, MINIMUM_COMPOSE_VERSION } from "./engine/external";
+export type { ComposeCommand } from "./engine/types";
 
 export const DOCKER_OUTPUT_HINT = "see the Docker output above";
 
@@ -22,102 +24,27 @@ const usefulFailure = (result: RunResult): string =>
   result.error?.message ||
   `command failed; ${DOCKER_OUTPUT_HINT}`;
 
-const ADDRESS_POOLS_EXHAUSTED = "all predefined address pools have been fully subnetted";
-
 export const ADDRESS_POOLS_EXHAUSTED_ADVICE =
   "Docker has no free subnets left for new networks. Remove unused networks with `docker network prune`, " +
   "or, if a VPN or cloud network route overlaps Docker's 172.17-31.x / 192.168.x defaults (check `ip route`), " +
   'set a non-overlapping pool in /etc/docker/daemon.json, e.g. {"default-address-pools":[{"base":"10.200.0.0/16","size":24}]}, ' +
   "restart Docker, and try again.";
 
-// Inherited Compose output is not captured, so probe for subnet exhaustion directly.
-const addressPoolsExhausted = (runner: CommandRunner): boolean => {
-  const name = `outcomego-subnet-probe-${process.pid}`;
-  const probe = runner.run("docker", ["network", "create", name]);
-  if (probe.status === 0) {
-    runner.run("docker", ["network", "rm", name]);
-    return false;
-  }
-  return `${probe.stderr}${probe.stdout}`.includes(ADDRESS_POOLS_EXHAUSTED);
-};
-
-export const dockerVersion = (runner: CommandRunner): RunResult =>
-  runner.run("docker", ["--version"]);
-
-export const dockerDaemon = (runner: CommandRunner): RunResult =>
-  runner.run("docker", ["info", "--format", "{{.ServerVersion}}"]);
-
-export const composeProcessEnvironment = (
-  paths: InstallationPaths,
-  inherited: NodeJS.ProcessEnv = process.env
-): NodeJS.ProcessEnv => {
-  const environment = { ...inherited };
-  if (!existsSync(paths.environment)) return environment;
-  for (const key of parseEnvironment(readFileSync(paths.environment, "utf8")).keys()) {
-    delete environment[key];
-  }
-  return environment;
-};
-
-export const probeCompose = (
-  runner: CommandRunner
-): { command: ComposeCommand | null; failures: Array<{ command: string; result: RunResult }> } => {
-  const command = (executable: string, prefix: readonly string[], version: string) => {
-    const parsed = semver.coerce(version);
-    return {
-      executable,
-      prefix,
-      version,
-      supported: Boolean(parsed && semver.gte(parsed, MINIMUM_COMPOSE_VERSION)),
-    };
-  };
-  const plugin = runner.run("docker", ["compose", "version"]);
-  if (plugin.status === 0) {
-    return { command: command("docker", ["compose"], plugin.stdout.trim()), failures: [] };
-  }
-  const standalone = runner.run("docker-compose", ["version"]);
-  if (standalone.status === 0) {
-    return { command: command("docker-compose", [], standalone.stdout.trim()), failures: [] };
-  }
-  return {
-    command: null,
-    failures: [
-      { command: "docker compose version", result: plugin },
-      { command: "docker-compose version", result: standalone },
-    ],
-  };
-};
-
-export const findCompose = (runner: CommandRunner): ComposeCommand | null =>
-  probeCompose(runner).command;
-
 export class ComposeProject {
   constructor(
     readonly paths: InstallationPaths,
     readonly command: ComposeCommand,
     private readonly runner: CommandRunner,
-    readonly projectName = PROJECT_NAME
+    readonly projectName = PROJECT_NAME,
+    readonly engine: EngineProvider = new ExternalEngine(runner)
   ) {}
 
-  invocation(args: readonly string[], composeFile = this.paths.compose) {
+  invocation(args: readonly string[], composeFile = this.paths.compose, useImageSources = true) {
     if (!existsSync(composeFile)) throw new CliError(`Compose file not found: ${composeFile}`);
-    return {
-      command: this.command.executable,
-      args: [
-        ...this.command.prefix,
-        "--project-name",
-        this.projectName,
-        "--project-directory",
-        this.paths.directory,
-        "--env-file",
-        this.paths.environment,
-        "--file",
-        composeFile,
-        ...args,
-      ],
-      cwd: this.paths.directory,
-      env: composeProcessEnvironment(this.paths),
-    };
+    return this.engine.composeInvocation(
+      { paths: this.paths, projectName: this.projectName, command: this.command, composeFile, useImageSources },
+      args
+    );
   }
 
   run(
@@ -125,13 +52,14 @@ export class ComposeProject {
     options: {
       inherit?: boolean;
       composeFile?: string;
+      useImageSources?: boolean;
       input?: string;
       inputFile?: string;
       outputFile?: string;
       timeoutMs?: number;
     } = {}
   ): RunResult {
-    const invocation = this.invocation(args, options.composeFile);
+    const invocation = this.invocation(args, options.composeFile, options.useImageSources);
     return this.runner.run(invocation.command, invocation.args, {
       cwd: invocation.cwd,
       env: invocation.env,
@@ -152,7 +80,7 @@ export class ComposeProject {
       // Ctrl-C reaches Docker Compose too; it stops and exits 130.
       if (result.status === 130) throw new CliError("Docker Compose was interrupted.", 130);
       const exhausted = options.inherit
-        ? args[0] === "up" && addressPoolsExhausted(this.runner)
+        ? args[0] === "up" && addressPoolsExhausted(this.engine)
         : `${result.stderr}${result.stdout}`.includes(ADDRESS_POOLS_EXHAUSTED);
       if (exhausted) throw new CliError(ADDRESS_POOLS_EXHAUSTED_ADVICE);
       throw new CliError(`Docker Compose failed: ${usefulFailure(result)}`);
@@ -165,16 +93,18 @@ export const requireComposeProject = (
   runner: CommandRunner,
   projectName = PROJECT_NAME
 ): ComposeProject => {
-  const compose = findCompose(runner);
+  const engine = requireRecordedEngine(paths, runner);
+  if (engine.kind !== "external" && !engine.isLocal()) throw new EngineError("ENGINE_UNAVAILABLE");
+  const compose = engine.probeCompose().command;
   if (!compose) {
     throw new CliError(
-      "Docker Compose is not available. Install Docker Desktop or the Docker Compose plugin first."
+      `Docker Compose is not available. ${externalComposeAdvice(MINIMUM_COMPOSE_VERSION)}`
     );
   }
   if (!compose.supported) {
     throw new CliError(
-      `OutcomeGo requires Docker Compose ${MINIMUM_COMPOSE_VERSION} or newer; found ${compose.version || "an unknown version"}. Update Docker Desktop or the Compose plugin first.`
+      `OutcomeGo requires Docker Compose ${MINIMUM_COMPOSE_VERSION} or newer; found ${compose.version || "an unknown version"}. ${externalComposeAdvice(MINIMUM_COMPOSE_VERSION)}`
     );
   }
-  return new ComposeProject(paths, compose, runner, projectName);
+  return new ComposeProject(paths, compose, runner, projectName, engine);
 };

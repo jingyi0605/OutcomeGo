@@ -239,6 +239,23 @@ contextBridge.exposeInMainWorld("outcomego", {
   },
   localServer: {
     detect: request("local-server:detect"),
+    status: request("local-server:status"),
+    start: request("local-server:start"),
+    stop: request("local-server:stop"),
+    remove: request<[{ purgeData: boolean }]>("local-server:remove"),
+    diagnostics: request("local-server:diagnostics"),
+    resources: request<[{ computerMemory: string; desktopMemory: string }]>("local-server:resources"),
+  },
+  localDeploy: {
+    start: request<[unknown]>("local-deploy:start"),
+    cancel: request<[string]>("local-deploy:cancel"),
+    engines: request("local-deploy:engines"),
+    enableWsl: request<[true]>("local-deploy:enable-wsl"),
+    onProgress: (callback: (value: unknown) => void) => subscribe("local-deploy:progress", callback),
+  },
+  backgroundPreferences: {
+    get: request("background:get"),
+    set: request<[boolean]>("background:set"),
   },
   providerSignIn: {
     capture: request<[authorizationUrl: string, redirectUri: string]>("provider-sign-in:capture"),
@@ -287,6 +304,7 @@ contextBridge.exposeInMainWorld("outcomego", {
     status: request("updates:status"),
     check: request("updates:check"),
     openDownload: request("updates:open-download"),
+    releaseNotes: request<[version: string]>("updates:release-notes"),
     installClient: request("updates:install-client"),
     getChannel: request("updates:get-channel"),
     setChannel: (channel: string) => {

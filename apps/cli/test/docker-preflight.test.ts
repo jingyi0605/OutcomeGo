@@ -127,8 +127,8 @@ describe("Docker required", () => {
   test("is a short block with the install link and how to continue", () => {
     for (const width of [24, 40, 80]) {
       for (const [platform, link] of [
-        ["darwin", "Install Docker Desktop: https://www.docker.com/products/docker-desktop/"],
-        ["win32", "Install Docker Desktop: https://www.docker.com/products/docker-desktop/"],
+        ["darwin", "Install a Docker-compatible engine with Compose. Docker Desktop is one option: https://www.docker.com/products/docker-desktop/"],
+        ["win32", "Install a Docker-compatible engine with Compose. Docker Desktop is one option: https://www.docker.com/products/docker-desktop/"],
         [
           "linux",
           "Install Docker Engine and the Compose plugin: https://docs.docker.com/engine/install/",

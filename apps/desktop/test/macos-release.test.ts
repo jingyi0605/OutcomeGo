@@ -20,6 +20,9 @@ const verificationSource = Bun.file(
 const entitlementsSource = Bun.file(
   new URL("../build/entitlements.mac.plist", import.meta.url)
 ).text();
+const engineEntitlementsSource = Bun.file(
+  new URL("../../cli/engine-assets/entitlements.engine.mac.plist", import.meta.url)
+).text();
 
 describe("macOS distribution release", () => {
   test("uses the OutcomeGo app icon on every desktop platform", async () => {
@@ -169,5 +172,11 @@ describe("macOS distribution release", () => {
     ]) {
       expect(entitlements).toContain(`<key>${entitlement}</key>`);
     }
+  });
+
+  test("provides the Virtualization entitlement for the managed engine helper", async () => {
+    expect(await engineEntitlementsSource).toContain(
+      "<key>com.apple.security.virtualization</key>"
+    );
   });
 });
