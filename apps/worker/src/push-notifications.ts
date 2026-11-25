@@ -1,4 +1,5 @@
 import { suppressMobileNotification } from "@outcomego/contracts/notification-presence";
+import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import {
   HELD_NOT_FINAL,
   notificationMessageIsSettlement,
@@ -6,6 +7,7 @@ import {
   unreadBadgeCount,
   reconcileOutcomeInboxNotifications,
   outcomeNotificationIsCurrent,
+  readFeatureSettings,
 } from "@outcomego/messaging";
 import { ApnsSettingsStore } from "@outcomego/db/apns-settings";
 import {
@@ -153,7 +155,7 @@ export class PushNotificationDispatcher {
       where: {
         AND: [{ id: { in: [...deviceIds] } }, deliverablePushDeviceWhere(this.authMode, checkedAt)],
       },
-      include: { authSession: { select: { expiresAt: true } } },
+      include: { authSession: { select: { expiresAt: true, userId: true } } },
     });
     return devices.filter((device) =>
       pushDeviceSessionIsDeliverable(device, this.authMode, checkedAt)
@@ -175,7 +177,7 @@ export class PushNotificationDispatcher {
         if (
           !device ||
           payload.schemaVersion !== 1 ||
-          !(payload.kind === "badge-sync" || payload.kind === "outcome" || payload.kind === "request" || isAgentNotificationKind(payload.kind))
+          !(payload.kind === "badge-sync" || payload.kind === "outcome" || payload.kind === "request" || payload.kind === "todo" || isAgentNotificationKind(payload.kind))
         ) {
           return [];
         }
@@ -222,12 +224,17 @@ export class PushNotificationDispatcher {
             )
               ? await notificationRouting(tx, this.authMode) : null;
             const allowed = await Promise.all(
-              sendable.map((item) =>
-                item.payload.kind !== "badge-sync" &&
-                (item.device.platform === "ios" || item.device.platform === "android") &&
-                routing &&
-                suppressMobileNotification(routing, item.device.platform)
-                ? false : this.notificationIsDeliverable(tx, item.payload))
+              sendable.map((item) => {
+                if (item.payload.kind === "todo") {
+                  const current = finalDeviceById.get(item.device.id);
+                  const ownerId = this.authMode === "disabled" ? "local" : current?.authSession?.userId;
+                  if (!current || ownerId !== item.payload.ownerId) return false;
+                }
+                if (item.payload.kind !== "badge-sync" && routing &&
+                  (item.device.platform === "ios" || item.device.platform === "android") &&
+                  suppressMobileNotification(routing, item.device.platform)) return false;
+                return this.notificationIsDeliverable(tx, item.payload);
+              })
             );
             // "Final summary only": a progress message is set aside, not discarded. Its settlement
             // can still arrive, and markSettlementMessage releases the held delivery then.
@@ -316,7 +323,7 @@ export class PushNotificationDispatcher {
     tx: Prisma.TransactionClient,
     payload: PushNotificationPayload
   ): Promise<boolean> {
-    if (payload.kind === "badge-sync" || payload.kind === "outcome" || payload.kind === "request" || !payload.messageSequence) return true;
+    if (payload.kind === "badge-sync" || payload.kind === "outcome" || payload.kind === "request" || payload.kind === "todo" || !payload.messageSequence) return true;
     return notificationMessageIsSettlement(tx, payload.channelId, payload.messageSequence);
   }
 
@@ -325,6 +332,11 @@ export class PushNotificationDispatcher {
     payload: PushNotificationPayload
   ): Promise<boolean> {
     if (payload.kind === "badge-sync") return true;
+    if (payload.kind === "todo") {
+      const [settings, routing] = await Promise.all([readFeatureSettings(tx), notificationRouting(tx, this.authMode)]);
+      const policy = resolveTaskPolicy(settings.taskPolicy);
+      return settings.outcomesEnabled && routing.smartEnabled && Boolean(policy[payload.type === "urgent" ? "todo.highUrgencyNotify" : "todo.digest.enabled"]);
+    }
     if (payload.kind === "outcome") {
       const [bot, activity, state, preferences] = await Promise.all([
         tx.bot.findUnique({ where: { id: payload.botId } }),

@@ -1,4 +1,5 @@
 import { MISSED_SCHEDULE_REASON_CODE } from "./outcome-inbox-categories";
+import type { TodoAttentionItem, TodoDigest } from "./todo";
 import type {
   AgentWorkItemStatus,
   HumanWorkItemStatus,
@@ -312,6 +313,8 @@ export interface NeedsMeItem {
 
 export interface NeedsMeResponse {
   items: NeedsMeItem[];
+  todos?: TodoAttentionItem[];
+  todoDigest?: TodoDigest | null;
 }
 
 const ZONE_RANK: Record<NeedsMeZone, number> = { exception: 0, blocked: 1 };
