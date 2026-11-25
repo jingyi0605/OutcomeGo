@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, expect, mock, test } from "
 import { parseHTML } from "linkedom";
 import { act, type ReactNode } from "react";
 import type { Root } from "react-dom/client";
+import { OutcomeGoClientError } from "@outcomego/client-core";
 import type { OutcomeDetail, OutcomeListPage } from "@outcomego/contracts/outcomes";
 import { createOutcomeApi } from "../src/renderer/client/outcome-api";
 import { I18nProvider } from "../src/renderer/lib/i18n";
@@ -29,6 +30,7 @@ let list: (query: string) => Promise<OutcomeListPage>;
 const outcomes = createOutcomeApi(async <T,>(path: string, init?: RequestInit): Promise<T> => {
   const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
   calls.push({ path, body });
+  if (path.startsWith("/api/todos?")) throw new OutcomeGoClientError("Not found", "not_found", 404);
   if (path.startsWith("/api/outcomes?") || (path === "/api/outcomes" && !body))
     return (await list(path.split("?")[1] ?? "")) as T;
   if (path.endsWith("/thread")) return { threadId: null, turns: [] } as T;
