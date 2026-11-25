@@ -3620,6 +3620,8 @@ export const sourceTranslations: Record<string, string> = {
     "晨报里列出的标题数",
   "The most item titles the summary lists.":
     "晨报最多列出多少条事项标题。",
+  // 004.10 close
+  "Back to today": "回到今天",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>
