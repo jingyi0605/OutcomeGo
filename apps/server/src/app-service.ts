@@ -6,6 +6,7 @@ import { OutcomePlanningService } from "./services/outcome-planning-service";
 import { OutcomeThreadService } from "./services/outcome-thread-service";
 import { OutcomePlanService } from "./services/outcome-plan-service";
 import { ActivityService } from "./services/activity-service";
+import { OwnerTodoService } from "./services/owner-todo-service";
 import { OutcomeScheduleService } from "./services/outcome-schedule-service";
 import { OutcomeTaskReviewService } from "./services/outcome-task-review-service";
 import { OutcomeThreadTools } from "./services/outcome-thread-tools";
@@ -123,6 +124,7 @@ export class AppService {
   readonly outcomePlans: OutcomePlanService;
   readonly outcomeSchedule: OutcomeScheduleService;
   readonly activity: ActivityService;
+  readonly ownerTodos: OwnerTodoService;
   readonly outcomeTaskReviews: OutcomeTaskReviewService;
   readonly outcomeBriefs: OutcomeBriefService;
   readonly explore: ExploreService;
@@ -299,6 +301,7 @@ export class AppService {
     this.outcomePlans = new OutcomePlanService(this.prisma, this.outcomes, this.messaging);
     this.outcomeSchedule = new OutcomeScheduleService(this.prisma, this.outcomes, this.messaging);
     this.activity = new ActivityService(this.prisma);
+    this.ownerTodos = new OwnerTodoService(this.prisma);
     this.outcomeTaskReviews = new OutcomeTaskReviewService(this.prisma, this.outcomes, this.messaging);
     this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);

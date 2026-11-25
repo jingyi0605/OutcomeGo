@@ -242,6 +242,48 @@ enum SubagentStatus {
   @@map("outcomego_subagent_status")
 }
 
+enum OwnerTodoStatus {
+  suggested
+  open
+  waiting
+  done
+  dismissed
+  @@map("outcomego_owner_todo_status")
+}
+
+enum OwnerTodoExecutor {
+  owner
+  bot
+  external
+  @@map("outcomego_owner_todo_executor")
+}
+
+enum OwnerTodoCreatedVia {
+  owner_ui
+  owner_chat
+  agent_turn
+  @@map("outcomego_owner_todo_created_via")
+}
+
+enum OwnerTodoAcceptedBy {
+  owner
+  rule
+  @@map("outcomego_owner_todo_accepted_by")
+}
+
+enum OwnerTodoUrgency {
+  low
+  normal
+  high
+  @@map("outcomego_owner_todo_urgency")
+}
+
+enum OwnerTodoDismissReason {
+  owner
+  expired
+  @@map("outcomego_owner_todo_dismiss_reason")
+}
+
 enum PluginInstallStatus {
   installed
   error
@@ -386,6 +428,50 @@ model TodoItem {
   @@unique([botId, position], map: "outcomego_todo_item_bot_id_position_key")
   @@index([botId, status, position], map: "outcomego_todo_item_bot_id_status_position_idx")
   @@map("outcomego_todo_item")
+}
+
+model OwnerTodoItem {
+  id String @id @default(uuid()) @db.Uuid
+  ownerId String
+  title String
+  note String?
+  status OwnerTodoStatus @default(open)
+  executor OwnerTodoExecutor @default(owner)
+  createdVia OwnerTodoCreatedVia
+  createdByRunId String? @db.Uuid
+  createdByRoutineId String? @db.Uuid
+  authorizedByMessageId String? @db.Uuid
+  acceptedBy OwnerTodoAcceptedBy?
+  autoAcceptRuleId String? @db.Uuid
+  urgency OwnerTodoUrgency @default(normal)
+  sourceRef Json?
+  summary String?
+  dedupeKey String?
+  createdBy String
+  botId String? @db.Uuid
+  tags String[] @default([])
+  dueAt DateTime? @db.Timestamptz(3)
+  scheduledAt DateTime? @db.Timestamptz(3)
+  snoozeUntil DateTime? @db.Timestamptz(3)
+  followUpAt DateTime? @db.Timestamptz(3)
+  linkedOutcomeId String? @db.Uuid
+  handoffBotId String? @db.Uuid
+  handoffMessageId String? @db.Uuid
+  expiresAt DateTime? @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  completionNote String?
+  dismissedAt DateTime? @db.Timestamptz(3)
+  dismissReason OwnerTodoDismissReason?
+  revision Int @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([ownerId, dedupeKey], map: "outcomego_owner_todo_dedupe_key")
+  @@index([ownerId, status, dueAt], map: "outcomego_owner_todo_owner_status_due_idx")
+  @@index([status, expiresAt], map: "outcomego_owner_todo_status_expires_idx")
+  @@index([botId, status], map: "outcomego_owner_todo_bot_status_idx")
+  @@index([ownerId, authorizedByMessageId], map: "outcomego_owner_todo_authorization_idx")
+  @@map("outcomego_owner_todo_item")
 }
 
 model Subagent {
