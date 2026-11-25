@@ -13,10 +13,10 @@ const instant = TodoInstant.nullable().optional();
 const revision = z.number().int().min(1).max(2_147_483_647);
 
 export const TodoSourceRef = z.object({
-  kind: z.string().trim().min(1).max(40),
+  kind: z.string().trim().min(1).max(40).refine((value) => !value.includes(":")),
   id: z.string().trim().min(1).max(200),
   label: z.string().trim().min(1).max(120),
-}).strict();
+}).strict().refine((ref) => !Object.values(ref).some((value) => /(?:\b[a-z][\w+.-]*:\/\/|\bwww\.)/i.test(value)));
 export type TodoSourceRef = z.infer<typeof TodoSourceRef>;
 
 export const TodoCreate = z.object({
@@ -29,6 +29,32 @@ export const TodoCreate = z.object({
   clientRequestId: z.string().trim().min(1).max(200),
 }).strict();
 export type TodoCreate = z.infer<typeof TodoCreate>;
+
+export const TodoCreateFromTurn = TodoCreate.extend({
+  ownerMessageRef: TodoId.optional(),
+  sourceRef: TodoSourceRef.optional(),
+});
+export const TodoSuggest = TodoCreate.omit({ note: true }).extend({
+  sourceRef: TodoSourceRef,
+  summary: z.string().trim().min(1).max(300),
+});
+export type TodoCreateFromTurn = z.infer<typeof TodoCreateFromTurn>;
+export type TodoSuggest = z.infer<typeof TodoSuggest>;
+export type TodoSourceDecision =
+  | { status: "open"; reason: null; authorizedByMessageId: string }
+  | { status: "suggested"; reason: "suggestion" | "owner_ref_missing" | "owner_ref_invalid" };
+
+export function decideTodoSource(operation: "create" | "suggest", reference: string | undefined, valid: boolean): TodoSourceDecision {
+  if (operation === "suggest") return { status: "suggested", reason: "suggestion" };
+  if (!reference) return { status: "suggested", reason: "owner_ref_missing" };
+  if (!valid) return { status: "suggested", reason: "owner_ref_invalid" };
+  return { status: "open", reason: null, authorizedByMessageId: reference };
+}
+
+export interface TodoTurnResponse {
+  todo: Pick<TodoItemView, "id" | "status" | "revision">;
+  reason: TodoSourceDecision["reason"];
+}
 
 export const TodoUpdate = TodoCreate.omit({ clientRequestId: true }).partial().extend({
   revision,
@@ -47,6 +73,13 @@ export const TodoActionInput = {
 } as const;
 export type TodoAction = z.infer<typeof TodoAction>;
 export type TodoActionInput = { revision: number; snoozeUntil?: string; note?: string };
+
+export const TodoBulkInput = z.union([
+  z.object({ action: z.enum(["accept", "dismiss"]), items: z.object({ id: TodoId, revision }).strict().array().min(1).max(200) }).strict()
+    .refine(({ items }) => new Set(items.map(({ id }) => id)).size === items.length),
+  z.object({ action: z.literal("dismissBot"), botId: TodoId }).strict(),
+]);
+export type TodoBulkInput = z.infer<typeof TodoBulkInput>;
 
 export const TodoListQuery = z.object({
   view: TodoView.optional(),
@@ -72,6 +105,7 @@ export interface TodoItemView {
   createdByRunId: string | null;
   createdByRoutineId: string | null;
   authorizedByMessageId: string | null;
+  ownerMessagePreview: string | null;
   acceptedBy: "owner" | "rule" | null;
   autoAcceptRuleId: string | null;
   urgency: z.infer<typeof TodoUrgency>;
