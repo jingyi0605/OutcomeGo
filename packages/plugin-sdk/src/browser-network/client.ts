@@ -26,6 +26,7 @@ import {
   resolveTargetAddresses,
   type TargetAddress,
 } from "./policy";
+import type { lookup } from "node:dns/promises";
 import type { Duplex } from "node:stream";
 import { Duplex as NodeDuplex } from "node:stream";
 import type { Socket } from "node:net";
@@ -221,6 +222,7 @@ export class BrowserNetworkClient {
       machineId?: string;
       deploymentId?: string;
       dial?: (target: OpenTarget, signal: AbortSignal) => Promise<Duplex>;
+      lookup?: typeof lookup;
       resolver?: (route: NetworkRoute) => string;
       diagnostic?: ((diagnostic: NetworkDnsDiagnostic) => void) | NetworkDiagnosticSink;
       changed?: () => void;
@@ -492,6 +494,7 @@ export class BrowserNetworkClient {
           checkedAt: new Date().toISOString(),
         };
         const addresses = await resolveTargetAddresses(target, controller.signal, {
+          lookup: this.options.lookup,
           resolver: diagnostic.resolver,
           onResolved: (event) => {
             diagnostic.addresses = event.addresses.map((value) => value.address);

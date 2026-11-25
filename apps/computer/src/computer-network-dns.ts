@@ -1,9 +1,164 @@
 import { createSocket } from "node:dgram";
-import { createConnection, createServer, type Socket } from "node:net";
+import { lookup as systemLookup, Resolver } from "node:dns/promises";
+import type { LookupAddress, LookupAllOptions, LookupOneOptions } from "node:dns";
+import { readFileSync, statSync } from "node:fs";
+import { createConnection, createServer, isIP, type Socket } from "node:net";
 import { networkInterfaces } from "node:os";
 import { Agent, request } from "node:https";
 import { connect } from "node:tls";
 import type { Duplex } from "node:stream";
+
+export type DnsServerEndpoint = { host: string; port: number };
+export type ResolvConfUpstreams = {
+  direct: DnsServerEndpoint[];
+  hasDockerEmbedded: boolean;
+};
+
+const isLoopbackOrUnspecified = (host: string): boolean => {
+  const lower = host.toLowerCase();
+  if (lower.startsWith("127.") || lower === "0.0.0.0") return true;
+  if (lower === "::1" || lower === "::" || lower.startsWith("::ffff:127.")) return true;
+  return /^0(:0)*:[01]$/.test(lower);
+};
+
+const parseEndpointToken = (raw: string): DnsServerEndpoint | undefined => {
+  const token = raw.trim();
+  if (!token || token.startsWith("host(")) return undefined;
+  let host = token;
+  let port = 53;
+  const bracketed = /^\[([^\]]+)\]:(\d+)$/.exec(token);
+  if (bracketed) {
+    host = bracketed[1]!;
+    port = Number(bracketed[2]!);
+    if (isIP(host) !== 6) return undefined;
+  } else if (isIP(token) === 0) {
+    const colon = token.lastIndexOf(":");
+    if (colon <= 0) return undefined;
+    host = token.slice(0, colon);
+    port = Number(token.slice(colon + 1));
+    if (isIP(host) !== 4) return undefined;
+  }
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return undefined;
+  if (isIP(host) === 0 || isLoopbackOrUnspecified(host)) return undefined;
+  return { host, port };
+};
+
+/** Parses `/etc/resolv.conf` (including Docker Engine's `# ExtServers: [...]`
+ * comment) to find upstream DNS servers reachable directly from the marked
+ * worker. Docker forwards non-`host(...)` ExtServers from inside the container's
+ * network namespace without SO_MARK, so container policy routing breaks `127.0.0.11`
+ * forwarding on WSL2, Lima/macOS, and hosts without host-loopback resolvers. */
+export function parseResolvConf(content: string): ResolvConfUpstreams {
+  const direct: DnsServerEndpoint[] = [];
+  const seen = new Set<string>();
+  let hasDockerEmbedded = false;
+  const add = (endpoint: DnsServerEndpoint | undefined) => {
+    if (!endpoint) return;
+    const key = `${endpoint.host}|${endpoint.port}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    direct.push(endpoint);
+  };
+  for (const rawLine of content.split(/\r?\n/)) {
+    const trimmed = rawLine.trim();
+    if (!trimmed) continue;
+    const extMatch = /^#\s*ExtServers:\s*\[(.*)\]\s*$/.exec(trimmed);
+    if (extMatch) {
+      for (const token of extMatch[1]!.split(/\s+/)) add(parseEndpointToken(token));
+      continue;
+    }
+    if (trimmed.startsWith("#") || trimmed.startsWith(";")) continue;
+    const code = trimmed.split(/[;#]/, 1)[0]!.trim();
+    const parts = code.split(/\s+/);
+    if (parts[0] === "nameserver" && parts[1]) {
+      if (parts[1] === "127.0.0.11") hasDockerEmbedded = true;
+      else add(parseEndpointToken(parts[1]));
+    }
+  }
+  return { direct, hasDockerEmbedded };
+}
+
+const resolvCache = new Map<
+  string,
+  { mtimeMs: number; size: number; value: ResolvConfUpstreams }
+>();
+
+export function readResolvConfUpstreams(path = "/etc/resolv.conf"): ResolvConfUpstreams {
+  try {
+    const stat = statSync(path);
+    const cached = resolvCache.get(path);
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) return cached.value;
+    const value = parseResolvConf(readFileSync(path, "utf8"));
+    resolvCache.set(path, { mtimeMs: stat.mtimeMs, size: stat.size, value });
+    return value;
+  } catch {
+    return { direct: [], hasDockerEmbedded: true };
+  }
+}
+
+export function formatDnsServerSpec(endpoint: DnsServerEndpoint): string {
+  if (endpoint.port === 53) return endpoint.host;
+  return endpoint.host.includes(":")
+    ? `[${endpoint.host}]:${endpoint.port}`
+    : `${endpoint.host}:${endpoint.port}`;
+}
+
+export function orderDnsServers(
+  servers: readonly DnsServerEndpoint[],
+  preferIpv4 = !globalIpv6Address()
+): DnsServerEndpoint[] {
+  if (!preferIpv4 || servers.length <= 1) return [...servers];
+  const v4: DnsServerEndpoint[] = [];
+  const v6: DnsServerEndpoint[] = [];
+  for (const server of servers) (isIP(server.host) === 6 ? v6 : v4).push(server);
+  return [...v4, ...v6];
+}
+
+const hostsCache = new Map<
+  string,
+  { mtimeMs: number; size: number; entries: Map<string, LookupAddress[]> }
+>();
+
+const parseHostsFile = (content: string): Map<string, LookupAddress[]> => {
+  const entries = new Map<string, LookupAddress[]>();
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.split("#", 1)[0]!.trim();
+    if (!line) continue;
+    const parts = line.split(/\s+/);
+    if (parts.length < 2) continue;
+    const address = parts[0]!;
+    const family = isIP(address);
+    if (family !== 4 && family !== 6) continue;
+    for (let i = 1; i < parts.length; i++) {
+      const name = parts[i]!.toLowerCase();
+      let list = entries.get(name);
+      if (!list) {
+        list = [];
+        entries.set(name, list);
+      }
+      if (!list.some((item) => item.address === address)) list.push({ address, family });
+    }
+  }
+  return entries;
+};
+
+export function lookupHostsFile(hostname: string, hostsPath = "/etc/hosts"): LookupAddress[] {
+  try {
+    const stat = statSync(hostsPath);
+    let cached = hostsCache.get(hostsPath);
+    if (!cached || cached.mtimeMs !== stat.mtimeMs || cached.size !== stat.size) {
+      cached = {
+        mtimeMs: stat.mtimeMs,
+        size: stat.size,
+        entries: parseHostsFile(readFileSync(hostsPath, "utf8")),
+      };
+      hostsCache.set(hostsPath, cached);
+    }
+    return cached.entries.get(hostname.toLowerCase()) ?? [];
+  } catch {
+    return [];
+  }
+}
 
 /** A global IPv6 address on a real interface; link-local and unique-local are not routable. */
 export function globalIpv6Address(): string | undefined {
@@ -30,6 +185,21 @@ export async function probeIpv6Route(
     socket.once("timeout", () => finish(false));
     socket.once("error", () => finish(false));
   });
+}
+
+/** QNAME of the single question, lowercased without a trailing dot. */
+export function questionName(query: Buffer): string | undefined {
+  let offset = 12;
+  const labels: string[] = [];
+  while (offset < query.length) {
+    const length = query[offset]!;
+    if (!length) return offset + 5 <= query.length ? labels.join(".").toLowerCase() : undefined;
+    // Compression is invalid in a question; refuse rather than guess.
+    if (length > 63 || offset + 1 + length >= query.length) return undefined;
+    labels.push(query.subarray(offset + 1, offset + 1 + length).toString("ascii"));
+    offset += length + 1;
+  }
+  return undefined;
 }
 
 /** QTYPE of the single question, as an offset-free answer to "is this an AAAA lookup?". */
@@ -77,6 +247,8 @@ export function createDnsExchange(
     dohHost?: string;
     dockerResolver?: string;
     dockerResolverPort?: number;
+    resolvConfPath?: string;
+    upstreamResolvers?: () => ResolvConfUpstreams;
   } = {}
 ) {
   type Job = {
@@ -103,12 +275,25 @@ export function createDnsExchange(
     throw new Error("Invalid DNS deadline");
   const resolver = options.resolver ?? (() => "doh");
   const dohHost = options.dohHost ?? "doh.pub";
+  const explicitDockerResolver = options.dockerResolver !== undefined;
   const dockerResolver = options.dockerResolver ?? "127.0.0.11";
   const dockerResolverPort = options.dockerResolverPort ?? 53;
+  const getUpstreams =
+    options.upstreamResolvers ??
+    (() => readResolvConfUpstreams(options.resolvConfPath ?? "/etc/resolv.conf"));
 
-  const dockerDns = (query: Buffer, signal: AbortSignal): Promise<Buffer> =>
+  const udpDnsQuery = (
+    endpoint: DnsServerEndpoint,
+    query: Buffer,
+    signal: AbortSignal,
+    budgetMs: number
+  ): Promise<Buffer> =>
     new Promise((resolve, reject) => {
-      const socket = createSocket("udp4");
+      if (signal.aborted) {
+        reject(new Error("DNS cancelled"));
+        return;
+      }
+      const socket = createSocket(isIP(endpoint.host) === 6 ? "udp6" : "udp4");
       let timer: ReturnType<typeof setTimeout> | undefined;
       const close = () => {
         clearTimeout(timer);
@@ -136,11 +321,128 @@ export function createDnsExchange(
         resolve(response);
       });
       signal.addEventListener("abort", abort, { once: true });
-      timer = setTimeout(() => fail(new Error("Docker DNS timeout")), timeoutMs);
-      socket.send(query, dockerResolverPort, dockerResolver, (error) => {
+      timer = setTimeout(() => fail(new Error("Docker DNS timeout")), Math.max(1, budgetMs));
+      socket.send(query, endpoint.port, endpoint.host, (error) => {
         if (error) fail(new Error("Docker DNS unavailable"));
       });
     });
+
+  const tcpDnsQuery = (
+    endpoint: DnsServerEndpoint,
+    query: Buffer,
+    signal: AbortSignal,
+    budgetMs: number
+  ): Promise<Buffer> =>
+    new Promise((resolve, reject) => {
+      if (signal.aborted) {
+        reject(new Error("DNS cancelled"));
+        return;
+      }
+      const socket = createConnection({ host: endpoint.host, port: endpoint.port });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let buffered = Buffer.alloc(0);
+      const close = () => {
+        clearTimeout(timer);
+        signal.removeEventListener("abort", abort);
+        socket.destroy();
+      };
+      const fail = (error: Error) => {
+        close();
+        reject(error);
+      };
+      const abort = () => fail(new Error("DNS cancelled"));
+      socket.on("error", () => fail(new Error("Docker DNS TCP unavailable")));
+      socket.on("close", () => fail(new Error("Docker DNS TCP closed")));
+      socket.on("data", (chunk: Buffer) => {
+        buffered = Buffer.concat([buffered, chunk]);
+        if (buffered.length < 2) return;
+        const size = buffered.readUInt16BE(0);
+        if (size < 12 || size > 65535) {
+          fail(new Error("Invalid Docker DNS TCP response"));
+          return;
+        }
+        if (buffered.length < size + 2) return;
+        const response = buffered.subarray(2, size + 2);
+        if (response.readUInt16BE(0) !== query.readUInt16BE(0) || !(response[2]! & 0x80)) {
+          fail(new Error("Invalid Docker DNS TCP response"));
+          return;
+        }
+        close();
+        resolve(Buffer.from(response));
+      });
+      signal.addEventListener("abort", abort, { once: true });
+      timer = setTimeout(() => fail(new Error("Docker DNS timeout")), Math.max(1, budgetMs));
+      const frame = Buffer.allocUnsafe(query.length + 2);
+      frame.writeUInt16BE(query.length, 0);
+      query.copy(frame, 2);
+      socket.write(frame);
+    });
+
+  const exchangeWithEndpoint = async (
+    endpoint: DnsServerEndpoint,
+    query: Buffer,
+    signal: AbortSignal,
+    budgetMs: number
+  ): Promise<Buffer> => {
+    const started = performance.now();
+    const reply = await udpDnsQuery(endpoint, query, signal, budgetMs);
+    if ((reply[2]! & 0x02) !== 0) {
+      const remaining = budgetMs - (performance.now() - started);
+      if (remaining > 50 && !signal.aborted) {
+        try {
+          return await tcpDnsQuery(endpoint, query, signal, remaining);
+        } catch {
+          return reply;
+        }
+      }
+    }
+    return reply;
+  };
+
+  const dockerDns = async (query: Buffer, signal: AbortSignal): Promise<Buffer> => {
+    const deadline = performance.now() + timeoutMs;
+    const dockerLocal: DnsServerEndpoint = { host: dockerResolver, port: dockerResolverPort };
+    if (explicitDockerResolver && !options.upstreamResolvers && !options.resolvConfPath) {
+      return exchangeWithEndpoint(dockerLocal, query, signal, timeoutMs);
+    }
+    const upstreams = getUpstreams();
+    const direct = orderDnsServers(upstreams.direct);
+    if (direct.length === 0) {
+      return exchangeWithEndpoint(dockerLocal, query, signal, timeoutMs);
+    }
+    const name = questionName(query);
+    if (upstreams.hasDockerEmbedded && name && !name.includes(".")) {
+      const localBudget = Math.min(300, Math.max(1, deadline - performance.now()));
+      try {
+        const localReply = await exchangeWithEndpoint(dockerLocal, query, signal, localBudget);
+        const rcode = localReply[3]! & 0x0f;
+        if (rcode !== 2 && rcode !== 3) return localReply;
+      } catch {
+        // Not a Docker-local service name; fall through to direct upstream DNS.
+      }
+    }
+    let lastError: Error | undefined;
+    let lastServfail: Buffer | undefined;
+    for (let i = 0; i < direct.length; i++) {
+      if (signal.aborted) throw new Error("DNS cancelled");
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) break;
+      const serversLeft = direct.length - i;
+      const budget =
+        serversLeft === 1
+          ? remaining
+          : Math.min(remaining, Math.max(1000, Math.floor(remaining / serversLeft)));
+      try {
+        const reply = await exchangeWithEndpoint(direct[i]!, query, signal, budget);
+        if ((reply[3]! & 0x0f) !== 2) return reply;
+        lastServfail = reply;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error("Docker DNS unavailable");
+      }
+    }
+    if (lastServfail) return lastServfail;
+    throw lastError ?? new Error("Docker DNS timeout");
+  };
 
   const agentFor = (owner: Pool, slot: Slot) => {
     const agent = new Agent({ keepAlive: true, maxSockets: 1, maxFreeSockets: 1, timeout: 10_000 });
@@ -470,4 +772,111 @@ export async function startComputerDns(
       for (const socket of sockets) socket.destroy();
     },
   };
+}
+
+/** Lookup for the marked relay worker in server mode. Uses direct upstream
+ * resolvers from `/etc/resolv.conf` (`# ExtServers`) when present so c-ares
+ * sockets carry `SO_MARK` instead of going through `127.0.0.11` forwarding. */
+export function createSystemLookup(
+  options: {
+    resolvConfPath?: string;
+    hostsPath?: string;
+    upstreamResolvers?: () => ResolvConfUpstreams;
+    ipv6?: () => boolean;
+    dockerResolver?: string;
+    dockerResolverPort?: number;
+    timeoutMs?: number;
+  } = {}
+): typeof systemLookup {
+  const getUpstreams =
+    options.upstreamResolvers ??
+    (() => readResolvConfUpstreams(options.resolvConfPath ?? "/etc/resolv.conf"));
+  const hostsPath = options.hostsPath ?? "/etc/hosts";
+  const dockerLocal: DnsServerEndpoint = {
+    host: options.dockerResolver ?? "127.0.0.11",
+    port: options.dockerResolverPort ?? 53,
+  };
+  const timeoutMs = options.timeoutMs ?? 2500;
+  const allowIpv6 = options.ipv6 ?? (() => Boolean(globalIpv6Address()));
+
+  const resolveVia = async (
+    servers: readonly DnsServerEndpoint[],
+    hostname: string,
+    family: number | undefined,
+    budgetMs: number
+  ): Promise<LookupAddress[]> => {
+    const resolver = new Resolver({ timeout: budgetMs, tries: 1 });
+    resolver.setServers(servers.map(formatDnsServerSpec));
+    const want4 = family !== 6;
+    const want6 = family === 6 || (family !== 4 && allowIpv6());
+    const queries: Promise<LookupAddress[]>[] = [];
+    if (want4) {
+      queries.push(
+        resolver.resolve4(hostname).then(
+          (ips) => ips.map((address) => ({ address, family: 4 })),
+          () => []
+        )
+      );
+    }
+    if (want6) {
+      queries.push(
+        resolver.resolve6(hostname).then(
+          (ips) => ips.map((address) => ({ address, family: 6 })),
+          () => []
+        )
+      );
+    }
+    const results = await Promise.all(queries);
+    const seen = new Set<string>();
+    const addresses: LookupAddress[] = [];
+    for (const group of results) {
+      for (const entry of group) {
+        if (isIP(entry.address) && !seen.has(entry.address)) {
+          seen.add(entry.address);
+          addresses.push(entry);
+        }
+      }
+    }
+    return addresses;
+  };
+
+  const fn = async (
+    hostname: string,
+    lookupOptions?: number | LookupOneOptions | LookupAllOptions
+  ): Promise<LookupAddress | LookupAddress[]> => {
+    const all = typeof lookupOptions === "object" && lookupOptions !== null && Boolean(lookupOptions.all);
+    const rawFamily =
+      typeof lookupOptions === "number"
+        ? lookupOptions
+        : typeof lookupOptions === "object" && lookupOptions !== null
+          ? lookupOptions.family
+          : undefined;
+    const family = rawFamily === 4 || rawFamily === "IPv4" ? 4 : rawFamily === 6 || rawFamily === "IPv6" ? 6 : undefined;
+    const literalFamily = isIP(hostname);
+    if (literalFamily === 4 || literalFamily === 6) {
+      const entry: LookupAddress = { address: hostname, family: literalFamily };
+      return all ? [entry] : entry;
+    }
+    const upstreams = getUpstreams();
+    const direct = orderDnsServers(upstreams.direct);
+    if (direct.length === 0) {
+      return systemLookup(hostname, lookupOptions as never);
+    }
+    const fromHosts = lookupHostsFile(hostname, hostsPath).filter(
+      (entry) => !family || entry.family === family
+    );
+    if (fromHosts.length > 0) return all ? fromHosts : fromHosts[0]!;
+    if (upstreams.hasDockerEmbedded && !hostname.includes(".")) {
+      const local = await resolveVia([dockerLocal], hostname, family, 300);
+      if (local.length > 0) return all ? local : local[0]!;
+    }
+    const resolved = await resolveVia(direct, hostname, family, timeoutMs);
+    if (resolved.length > 0) return all ? resolved : resolved[0]!;
+    throw Object.assign(new Error(`getaddrinfo ENOTFOUND ${hostname}`), {
+      code: "ENOTFOUND",
+      syscall: "getaddrinfo",
+      hostname,
+    });
+  };
+  return fn as unknown as typeof systemLookup;
 }

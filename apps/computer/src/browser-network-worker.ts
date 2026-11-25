@@ -7,6 +7,7 @@ import { isIP } from "node:net";
 import {
   startComputerDns,
   createDnsExchange,
+  createSystemLookup,
   globalIpv6Address,
   probeIpv6Route,
 } from "./computer-network-dns";
@@ -102,6 +103,13 @@ const client: BrowserNetworkClient = new BrowserNetworkClient({
   role: "computer",
   url: url.href,
   headers: { authorization: `Bearer ${config.token}` },
+  lookup: config.computerNetwork
+    ? createSystemLookup({
+        ipv6: () =>
+          connectivity?.status()?.ipv6.state === "working" ||
+          (connectivity?.status() === undefined && Boolean(globalIpv6Address())),
+      })
+    : undefined,
   resolver: (route) => (route.mode === "server" ? "docker" : "device-exit"),
   diagnostic: (diagnostic: NetworkDnsDiagnostic) =>
     console.log(JSON.stringify({ dns: diagnostic })),

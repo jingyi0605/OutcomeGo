@@ -1,6 +1,11 @@
 import { Resolver } from "node:dns/promises";
 import { isIP } from "node:net";
 import { execFile } from "node:child_process";
+import {
+  formatDnsServerSpec,
+  orderDnsServers,
+  readResolvConfUpstreams,
+} from "./computer-network-dns";
 
 /** Runs only inside the marked relay worker. Docker service discovery must
  * remain available before the API server exists and before any exit lease.
@@ -26,6 +31,20 @@ export function startManagementDiscovery(
     options.resolve ??
     (async (host: string) => {
       if (isIP(host)) return [host];
+      const upstreams = readResolvConfUpstreams();
+      const direct = orderDnsServers(upstreams.direct);
+      if (direct.length > 0 && (host.includes(".") || !upstreams.hasDockerEmbedded)) {
+        const directResolver = new Resolver({ timeout: 1000, tries: 1 });
+        directResolver.setServers(direct.map(formatDnsServerSpec));
+        const directResults = await Promise.allSettled([
+          directResolver.resolve4(host),
+          directResolver.resolve6(host),
+        ]);
+        const directAddresses = directResults.flatMap((result) =>
+          result.status === "fulfilled" ? result.value : []
+        );
+        if (directAddresses.length > 0) return directAddresses;
+      }
       const results = await Promise.allSettled([resolver.resolve4(host), resolver.resolve6(host)]);
       return results.flatMap((result) => (result.status === "fulfilled" ? result.value : []));
     });
