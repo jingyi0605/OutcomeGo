@@ -1,10 +1,11 @@
-import type { TodoAction, TodoActionInput, TodoBulkInput, TodoCreate, TodoItemView, TodoListQuery, TodoListResponse } from "@outcomego/contracts/todo";
+import type { TodoAction, TodoActionInput, TodoBulkInput, TodoCreate, TodoItemView, TodoListQuery, TodoListResponse, TodoUpdate } from "@outcomego/contracts/todo";
 
 export interface TodoClient {
   list(query: Pick<TodoListQuery, "view" | "cursor">): Promise<TodoListResponse>;
   create(input: TodoCreate): Promise<TodoItemView>;
   act(id: string, action: TodoAction, input: TodoActionInput): Promise<TodoItemView>;
   bulk(input: TodoBulkInput): Promise<{ items: TodoItemView[] }>;
+  update(id: string, input: TodoUpdate): Promise<TodoItemView>;
 }
 
 export function createTodoApi(request: <Result>(path: string, init?: RequestInit) => Promise<Result>): TodoClient {
@@ -21,5 +22,6 @@ export function createTodoApi(request: <Result>(path: string, init?: RequestInit
     create: (input) => post(path, input),
     act: (id, action, input) => post(`${path}/${encodeURIComponent(id)}/${action}`, input),
     bulk: (input) => post(`${path}/bulk`, input),
+    update: (id, input) => request(`${path}/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) }),
   };
 }

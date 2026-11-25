@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { OutcomeGoClientError } from "@outcomego/client-core";
-import { TodoActionInput, TodoBulkInput, TodoCreate, type TodoAction, type TodoItemView, type TodoListResponse } from "@outcomego/contracts/todo";
+import { TodoActionInput, TodoBulkInput, TodoCreate, TodoUpdate, type TodoAction, type TodoAttention, type TodoItemView, type TodoListResponse } from "@outcomego/contracts/todo";
 import type { TodoClient } from "../../../../client/todo-api";
 import { useI18n } from "../../../../lib/i18n";
 import { OutcomeButton } from "../outcome-button";
+import { toLocalInput } from "../timeline/schedule-edit";
 
 const groups = {
   overdue: "Overdue",
@@ -13,6 +14,9 @@ const groups = {
   upcoming: "Upcoming",
   unscheduled: "No date",
 } as const;
+export const todoAttentionLabels: Record<TodoAttention, string> = {
+  overdue: "Overdue", today: "Today", follow_up: "Needs follow-up", suggested: "To-do suggestions",
+};
 const emptyPage: TodoListResponse = { items: [], nextCursor: null };
 const inputClass = "min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground";
 type PanelView = "all" | "history" | "suggestions";
@@ -82,10 +86,12 @@ function TodoComposer({ create, disabled }: { create: TodoClient["create"]; disa
   );
 }
 
-function TodoRow({ item, disabled, act, selection, dismissBot }: {
+export function TodoRow({ item, disabled, act, update, attention, selection, dismissBot }: {
   item: TodoItemView;
   disabled: boolean;
   act: (item: TodoItemView, action: TodoAction, options?: { snoozeUntil?: string; note?: string }) => Promise<boolean>;
+  update?: (item: TodoItemView, input: TodoUpdate) => Promise<boolean>;
+  attention?: TodoAttention;
   selection?: { checked: boolean; toggle: (checked: boolean) => void };
   dismissBot?: () => void;
 }) {
@@ -93,6 +99,8 @@ function TodoRow({ item, disabled, act, selection, dismissBot }: {
   const [snooze, setSnooze] = useState("");
   const [note, setNote] = useState("");
   const [snoozeError, setSnoozeError] = useState(false);
+  const [followUp, setFollowUp] = useState(() => toLocalInput(item.followUpAt));
+  const [followUpError, setFollowUpError] = useState(false);
   const history = item.status === "done" || item.status === "dismissed";
   const suggested = item.status === "suggested";
   const date = item.displayState === "snoozed" ? item.snoozeUntil
@@ -109,6 +117,12 @@ function TodoRow({ item, disabled, act, selection, dismissBot }: {
     if (await act(item, "snooze", { snoozeUntil: instant })) setSnooze("");
   }
 
+  function markWaiting() {
+    const followUpAt = localInstant(followUp);
+    setFollowUpError(!followUpAt);
+    if (followUpAt) void update?.(item, { revision: item.revision, status: "waiting", followUpAt });
+  }
+
   return (
     <li className="outcome-row flex-wrap">
       {selection && <input
@@ -118,6 +132,8 @@ function TodoRow({ item, disabled, act, selection, dismissBot }: {
       />}
       <div className="min-w-0 flex-1 space-y-1">
         <span className="outcome-row-title">{item.title}</span>
+        {attention && <span className="outcome-row-meta">{t(todoAttentionLabels[attention])}</span>}
+        {item.urgency !== "normal" && <span className="outcome-row-meta">{item.urgency === "high" ? t("High urgency") : t("Low urgency")}</span>}
         {item.createdVia !== "owner_ui" && <span className="outcome-row-meta">{t("Written by the bot")}</span>}
         {(item.note || item.summary) && <p className="whitespace-pre-wrap break-words text-xs text-foreground-secondary">{[item.note, item.summary].filter(Boolean).join("\n")}</p>}
         {item.sourceRef && <span className="outcome-row-meta break-words">{item.sourceRef.label}</span>}
@@ -152,6 +168,15 @@ function TodoRow({ item, disabled, act, selection, dismissBot }: {
               {dismissBot && <OutcomeButton type="button" disabled={disabled} onClick={dismissBot}>{t("Dismiss all suggestions from this bot")}</OutcomeButton>}
             </div>
             {snoozeError && <p role="alert" className="mt-2 text-destructive">{t("Choose a future snooze time.")}</p>}
+            {!suggested && update && <div className="mt-2 flex flex-wrap items-end gap-2">
+              <label className="flex flex-col gap-1">
+                {t("Follow-up time")}
+                <input aria-label={t("Follow-up time")} className={inputClass} type="datetime-local" value={followUp} onChange={(event) => setFollowUp(event.target.value)} disabled={disabled} />
+              </label>
+              <OutcomeButton type="button" disabled={disabled || !followUp} onClick={markWaiting}>{item.status === "waiting" ? t("Update follow-up time") : t("Mark as waiting")}</OutcomeButton>
+              {item.status === "waiting" && <OutcomeButton type="button" disabled={disabled} onClick={() => void update(item, { revision: item.revision, status: "open" })}>{t("Stop waiting")}</OutcomeButton>}
+            </div>}
+            {followUpError && <p role="alert" className="mt-2 text-destructive">{t("Choose a follow-up time.")}</p>}
           </details>
         </>
       )}
@@ -159,7 +184,12 @@ function TodoRow({ item, disabled, act, selection, dismissBot }: {
   );
 }
 
-export function TodoPanel({ client }: { client: TodoClient }) {
+export function TodoPanel({ client, hiddenIds, onChanged, refreshVersion = 0 }: {
+  client: TodoClient;
+  hiddenIds?: ReadonlySet<string>;
+  onChanged?: () => void;
+  refreshVersion?: number;
+}) {
   const { t } = useI18n();
   const [view, setView] = useState<PanelView>("all");
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -205,6 +235,9 @@ export function TodoPanel({ client }: { client: TodoClient }) {
       window.removeEventListener("focus", refresh);
     };
   }, [load]);
+  useEffect(() => {
+    if (refreshVersion > 0) void load();
+  }, [refreshVersion]);
 
   async function mutate(write: () => Promise<TodoItemView[]>) {
     if (acting) return false;
@@ -219,6 +252,7 @@ export function TodoPanel({ client }: { client: TodoClient }) {
         items: previous.items.map((item) => updated.get(item.id) ?? item),
       }));
       setSelected((previous) => new Set([...previous].filter((id) => !updated.has(id))));
+      onChanged?.();
       return true;
     } catch (failure) {
       if (failure instanceof OutcomeGoClientError && failure.code === "todo_conflict") {
@@ -230,6 +264,10 @@ export function TodoPanel({ client }: { client: TodoClient }) {
     } finally {
       setActing(false);
     }
+  }
+
+  function update(item: TodoItemView, input: TodoUpdate) {
+    return mutate(async () => [await client.update(item.id, input)]);
   }
 
   async function change(item: TodoItemView, action: TodoAction, options = {}) {
@@ -263,7 +301,7 @@ export function TodoPanel({ client }: { client: TodoClient }) {
     setView(next);
   };
   const rows = (entries: TodoItemView[]) => <ul className="outcome-rows">{entries.map((item) => (
-    <TodoRow key={item.id} item={item} disabled={busy} act={change}
+    <TodoRow key={item.id} item={item} disabled={busy} act={change} update={update}
       selection={view === "suggestions" ? {
         checked: selected.has(item.id),
         toggle: (checked) => setSelected((previous) => checked ? new Set([...previous, item.id]) : new Set([...previous].filter((id) => id !== item.id))),
@@ -274,7 +312,8 @@ export function TodoPanel({ client }: { client: TodoClient }) {
   const bucket = (item: TodoItemView) => item.displayState === "snoozed" || item.displayState === "waiting"
     ? item.displayState
     : item.overdue && item.dueAt ? "overdue" : item.displayState;
-  const deferred = items.filter((item) => bucket(item) === "snoozed" || bucket(item) === "waiting");
+  const timeline = items.filter((item) => !hiddenIds?.has(item.id));
+  const deferred = timeline.filter((item) => bucket(item) === "snoozed" || bucket(item) === "waiting");
   if (unavailable) return null;
 
   return (
@@ -293,6 +332,7 @@ export function TodoPanel({ client }: { client: TodoClient }) {
           const added = await client.create(input);
           setPage((previous) => ({ ...previous, items: [added, ...previous.items.filter((item) => item.id !== added.id)] }));
           void load();
+          onChanged?.();
           return added;
         } finally {
           setCreating(false);
@@ -311,7 +351,7 @@ export function TodoPanel({ client }: { client: TodoClient }) {
       {view !== "all" ? rows(items) : (
         <div className="space-y-3" role="group" aria-label={t("To-do timeline")}>
           {Object.entries(groups).map(([group, label]) => {
-            const entries = items.filter((item) => bucket(item) === group);
+            const entries = timeline.filter((item) => bucket(item) === group);
             return entries.length > 0 && <section key={group} aria-label={t(label)}>
               <h3 className="mb-1 text-xs font-semibold text-foreground-secondary">{t(label)}</h3>
               {rows(entries)}

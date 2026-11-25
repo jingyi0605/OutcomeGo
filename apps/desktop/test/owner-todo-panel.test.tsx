@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
-import type { TodoActionInput, TodoBulkInput, TodoCreate, TodoItemView } from "@outcomego/contracts/todo";
+import type { TodoActionInput, TodoAttentionItem, TodoBulkInput, TodoCreate, TodoItemView, TodoUpdate } from "@outcomego/contracts/todo";
 import { OutcomeGoClientError } from "@outcomego/client-core";
 import { parseHTML } from "linkedom";
 import { act, createElement } from "react";
@@ -50,12 +50,13 @@ const todo = (id: string, changes: Partial<TodoItemView> = {}): TodoItemView => 
   createdAt: timestamp, updatedAt: timestamp, displayState: "unscheduled", overdue: false, ...changes,
 });
 
-async function mount(initial: TodoItemView[] = [], options: { failCreateOnce?: boolean; serverMissing?: boolean } = {}) {
+async function mount(initial: TodoItemView[] = [], options: { failCreateOnce?: boolean; serverMissing?: boolean; attention?: TodoAttentionItem[] } = {}) {
   const { TodoPanel } = await import("../src/renderer/components/outcomego/outcomes/dashboard/todo-panel");
   const { I18nProvider } = await import("../src/renderer/lib/i18n");
   const creates: TodoCreate[] = [];
   const changes: Array<{ id: string; action: string; input: TodoActionInput }> = [];
   const batches: TodoBulkInput[] = [];
+  const updates: Array<{ id: string; input: TodoUpdate }> = [];
   let items = initial;
   const client = {
     list: async ({ view }: { view?: string }) => {
@@ -97,12 +98,31 @@ async function mount(initial: TodoItemView[] = [], options: { failCreateOnce?: b
       items = [...items.filter((item) => !changed.includes(item)), ...updated];
       return { items: updated };
     },
+    update: async (id: string, input: TodoUpdate) => {
+      updates.push({ id, input });
+      items = items.map((item) => item.id === id ? {
+        ...item, status: input.status ?? item.status, followUpAt: input.followUpAt ?? null,
+        displayState: input.status === "waiting" ? "waiting" : "unscheduled", revision: item.revision + 1,
+      } : item);
+      return items.find((item) => item.id === id)!;
+    },
   };
   host = dom.document.createElement("div");
   dom.document.body.append(host);
   root = createRoot(host);
-  await act(async () => root.render(createElement(I18nProvider, { children: createElement(TodoPanel, { client }) })));
-  return { creates, changes, batches };
+  const { OutcomeDashboard } = await import("../src/renderer/components/outcomego/outcomes/dashboard/outcome-dashboard");
+  const nothing = () => undefined;
+  const element = options.attention ? createElement(OutcomeDashboard as never, {
+    outcomes: { todos: client, list: async () => ({ items: [] }), needsMe: async () => ({
+      items: [{ key: "request", title: "Blocked request", botId: "bot", zone: "blocked", state: "needs_owner", since: timestamp, link: { type: "conversation", id: "conversation" } }],
+      todos: options.attention?.filter(({ todo }) => items.some((item) => item.id === todo.id && item.status === todo.status)),
+      todoDigest: { date: "2026-11-25", counts: { overdue: 1, today: 2, follow_up: 1, suggested: 1 }, titles: ["Digest item"] },
+    }) },
+    inbox: { list: async () => ({ items: [], nextCursor: null }) }, bots: [],
+    onSelectOutcome: nothing, onSelectStep: nothing, onShowSteps: nothing, onShowGoals: nothing, onCreateGoal: nothing, onCreateIdea: nothing,
+  }) : createElement(TodoPanel, { client });
+  await act(async () => root.render(createElement(I18nProvider, { children: element })));
+  return { creates, changes, batches, updates };
 }
 
 const field = (label: string) => host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
@@ -242,4 +262,41 @@ test("the authorized message preview is separate plain text from the bot summary
   expect(preview?.children).toHaveLength(0);
   expect(host.textContent).toContain("Your original message");
   expect(host.textContent).toContain("<em>Bot summary</em>");
+});
+
+test("waiting requires a follow-up time and can return to open", async () => {
+  const { updates } = await mount([todo("Item theta", { revision: 4 })]);
+  const local = "2099-05-15T11:30";
+  await typeInto(field("Follow-up time"), local);
+  await click(button("Mark as waiting"));
+  expect(updates).toEqual([{ id: "Item theta", input: { revision: 4, status: "waiting", followUpAt: new Date(local).toISOString() } }]);
+  expect(host.querySelector('[aria-label="To-do timeline"]')?.textContent).not.toContain("Item theta");
+  await click(button("Stop waiting"));
+  expect(updates[1]).toEqual({ id: "Item theta", input: { revision: 5, status: "open" } });
+  expect(host.querySelector('[aria-label="To-do timeline"]')?.textContent).toContain("Item theta");
+});
+
+test("the unified queue deduplicates to-dos, sorts by section then urgency, and refreshes inline actions", async () => {
+  const late = todo("Late item", { displayState: "today", dueAt: timestamp, overdue: true });
+  const today = todo("Today item", { displayState: "today", dueAt: timestamp });
+  const follow = todo("Follow item", { status: "waiting", displayState: "follow_up", urgency: "high", followUpAt: timestamp });
+  const next = suggestion("Suggested item", "Suggested item", { urgency: "high" });
+  const attention = (item: TodoItemView, band: TodoAttentionItem["attention"]): TodoAttentionItem => ({
+    key: `todo:${item.id}`, todo: item, since: timestamp, urgency: item.urgency, attention: band,
+  });
+  const { changes } = await mount([late, today, follow, next], { attention: [
+    attention(today, "today"), attention(next, "suggested"), attention(late, "overdue"), attention(late, "overdue"), attention(follow, "follow_up"),
+  ] });
+  const section = host.querySelector('section[aria-label="Needs your action"]')!;
+  await click([...section.querySelectorAll("button")].find((item) => item.textContent === "View all")!);
+  expect([...section.querySelectorAll(".outcome-row-title")].map((title) => title.textContent)).toEqual([
+    "Late item", "Blocked request", "Follow item", "Today item", "Suggested item",
+  ]);
+  expect(section.querySelector("h2")?.textContent).toContain("5");
+  expect(section.textContent).toContain("Digest item");
+  expect(host.textContent?.match(/Late item/g)).toHaveLength(1);
+  await click([...section.querySelectorAll("button")].find((item) => item.textContent === "Complete")!);
+  expect(changes[0]).toEqual({ id: late.id, action: "complete", input: { revision: 1 } });
+  expect(section.textContent).not.toContain("Late item");
+  expect(section.querySelector("h2")?.textContent).toContain("4");
 });

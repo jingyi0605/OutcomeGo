@@ -2,6 +2,7 @@ import type { OutcomeStatus } from "@outcomego/contracts/outcome-view";
 import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
 import type { NeedsMeItem } from "@outcomego/contracts/task-overview";
 import { compareNeedsMe } from "@outcomego/contracts/task-overview";
+import { compareTodoAttention, type TodoAttentionItem } from "@outcomego/contracts/todo";
 import type { DecisionView, OutcomeInboxCategory, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { CREDENTIAL_ACCESS_REASON_CODE } from "@outcomego/contracts/outcome-inbox-categories";
 import { canResolveDecision, isApprovalDecision } from "../inbox/decision-state";
@@ -122,7 +123,7 @@ export function attentionRows(
 }
 
 /** One line of the owner's queue: an Inbox step or goal waiting on the owner, or a request nobody can move. */
-export type QueueEntry = { kind: "step"; key: string; row: AttentionRow } | { kind: "request"; key: string; item: NeedsMeItem };
+export type QueueEntry = { kind: "step"; key: string; row: AttentionRow } | { kind: "request"; key: string; item: NeedsMeItem } | { kind: "todo"; key: string; item: TodoAttentionItem };
 
 /**
  * The queue in the order of specs/004.10 design §2.4. Exceptions come first (nobody follows the work up). Then the
@@ -130,7 +131,7 @@ export type QueueEntry = { kind: "step"; key: string; row: AttentionRow } | { ki
  * wait first), and the two are interleaved by who has waited longer. An entry is there once, whatever its sources.
  * Nothing is stored: when a request moves on, the next read leaves it out.
  */
-export function needsMeQueue(rows: readonly AttentionRow[], requests: readonly NeedsMeItem[]): QueueEntry[] {
+export function needsMeQueue(rows: readonly AttentionRow[], requests: readonly NeedsMeItem[], todos: readonly TodoAttentionItem[] = []): QueueEntry[] {
   const seen = new Set<string>();
   const unique = <T extends { key: string }>(entries: readonly T[]) => entries.filter((entry) => !seen.has(entry.key) && !!seen.add(entry.key));
   const steps = unique(rows).map((row): QueueEntry => ({ kind: "step", key: row.key, row }));
@@ -145,7 +146,12 @@ export function needsMeQueue(rows: readonly AttentionRow[], requests: readonly N
     if (b >= blocked.length || (a < steps.length && since(steps[a]!) <= since(blocked[b]!))) merged.push(steps[a++]!);
     else merged.push(blocked[b++]!);
   }
-  return [...exceptions, ...merged];
+  const todoIds = new Set<string>();
+  const todoEntries = [...todos].sort(compareTodoAttention)
+    .filter(({ todo }) => !todoIds.has(todo.id) && Boolean(todoIds.add(todo.id)))
+    .map((item) => ({ kind: "todo" as const, key: `todo:${item.todo.id}`, item }));
+  return [...todoEntries.filter(({ item }) => item.attention === "overdue"), ...exceptions, ...merged,
+    ...todoEntries.filter(({ item }) => item.attention !== "overdue")];
 }
 
 /** A goal appears once on the page: goals already on the owner's list never repeat in the Bot lanes. */

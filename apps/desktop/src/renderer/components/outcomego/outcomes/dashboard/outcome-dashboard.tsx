@@ -15,6 +15,7 @@ import type { OutcomeInboxCategory, OutcomeInboxItemView } from "@outcomego/cont
 import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import type { ActivityItem, NeedsMeItem } from "@outcomego/contracts/task-overview";
+import type { TodoAction, TodoActionInput, TodoAttentionItem, TodoDigest, TodoItemView } from "@outcomego/contracts/todo";
 import type { OutcomeClient } from "../../../../client/outcome-api";
 import { subscribeOutcomeListRefresh } from "../../../../lib/outcome-events";
 import { useI18n } from "../../../../lib/i18n";
@@ -43,7 +44,7 @@ import { ActivitySection } from "./activity-section";
 import { dashboardSections, styleForActivity } from "./activity-state";
 import { GoalFocusDetail, type GoalFocusClient } from "./goal-focus";
 import { QuickDecision } from "./quick-decision";
-import { TodoPanel } from "./todo-panel";
+import { TodoPanel, TodoRow, todoAttentionLabels } from "./todo-panel";
 
 interface Loaded {
   outcomes: OutcomeSummary[];
@@ -53,6 +54,8 @@ interface Loaded {
   activity: ActivityItem[] | null;
   /** Requests waiting on the owner. Empty when this server has no such call or it failed: the steps still show. */
   requests: NeedsMeItem[];
+  todos: TodoAttentionItem[];
+  todoDigest: TodoDigest | null;
 }
 
 // The initial values come from the policy metadata, never from a number written here.
@@ -64,6 +67,29 @@ const categoryIcons: Record<OutcomeInboxCategory, LucideIcon> = {
   human_action_pending: Hand,
   completed: CheckCheck,
 };
+
+function TodoDigestCard({ digest }: { digest: TodoDigest }) {
+  const { t } = useI18n();
+  return (
+    <aside aria-label={t("To-do morning summary")} className="outcome-dash-focus">
+      <h3 className="outcome-dash-focus-title">{t("To-do morning summary")}</h3>
+      <dl className="flex flex-wrap gap-3 text-xs">
+        {Object.entries(todoAttentionLabels).map(([key, label]) => (
+          <div key={key}>
+            <dt>{t(label)}</dt>
+            <dd>{digest.counts[key as keyof TodoDigest["counts"]]}</dd>
+          </div>
+        ))}
+      </dl>
+      {digest.titles.length > 0 && <div className="text-xs">
+        <p className="text-foreground-secondary">{t("Some titles may be written by bots.")}</p>
+        <ul className="list-disc ps-4">
+          {digest.titles.map((title, index) => <li key={index}>{title}</li>)}
+        </ul>
+      </div>}
+    </aside>
+  );
+}
 
 /** One quiet number with a label; the "needs you" card is the only one that takes a color. */
 function Metric({ label, value, tone }: { label: string; value: string; tone?: "attention" }) {
@@ -279,13 +305,17 @@ export function OutcomeDashboard({
   const [data, setData] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
+  const [allQueue, setAllQueue] = useState(false);
+  const [todoActing, setTodoActing] = useState(false);
+  const [todoError, setTodoError] = useState(false);
+  const [todoRefreshVersion, setTodoRefreshVersion] = useState(0);
   const generation = useRef(0);
   async function load() {
     const request = ++generation.current;
     setBusy(true);
     setError(false);
     try {
-      const [goals, steps, activity, requests] = await Promise.all([
+      const [goals, steps, activity, needsMe] = await Promise.all([
         outcomes.list(new URLSearchParams({ limit: String(OUTCOME_LIMITS.listPageSizeMax) }).toString()),
         // An older server without the Inbox still gets a working dashboard, just without steps.
         inbox.list({ status: "pending" }).catch(() => ({ items: [], nextCursor: null })),
@@ -295,10 +325,11 @@ export function OutcomeDashboard({
           ? outcomes.activity({ includeAll: showAll }).then((response) => response.items ?? null).catch(() => null)
           : Promise.resolve(null),
         // Requests nobody can move join the owner's list. An older server just has none.
-        outcomes.needsMe ? outcomes.needsMe().then((response) => response.items ?? []).catch(() => []) : Promise.resolve([]),
+        outcomes.needsMe?.().catch(() => null) ?? Promise.resolve(null),
       ]);
       if (generation.current !== request) return;
-      setData({ outcomes: goals.items, steps: steps.items, moreSteps: steps.nextCursor !== null, activity, requests });
+      setData({ outcomes: goals.items, steps: steps.items, moreSteps: steps.nextCursor !== null, activity,
+        requests: needsMe?.items ?? [], todos: needsMe?.todos ?? [], todoDigest: needsMe?.todoDigest ?? null });
     } catch {
       if (generation.current === request) setError(true);
     } finally {
@@ -327,15 +358,40 @@ export function OutcomeDashboard({
   const goals = data?.outcomes ?? [];
   const stats = summarizeOutcomes(goals);
   const attention = attentionRows(data?.steps ?? [], goals);
-  const entries = needsMeQueue(attention, data?.requests ?? []);
+  const entries = needsMeQueue(attention, data?.requests ?? [], data?.todos);
   const first = entries[0];
   const focus = first?.kind === "step" ? first.row : undefined;
   const queue = focus ? entries.slice(1) : entries;
+  const rowLimit = DASHBOARD_ROW_LIMIT - 1;
+  const visibleQueue = allQueue ? queue : queue.slice(0, rowLimit);
+  const visibleTodos = new Set(visibleQueue.flatMap((entry) => entry.kind === "todo" ? [entry.item.todo.id] : []));
   const working = laneOutcomes(goals, BOT_OUTCOME_STATUSES, attention);
   const stuck = laneOutcomes(goals, STUCK_OUTCOME_STATUSES, attention);
   const attentionCount = data ? `${formatCount(entries.length)}${data.moreSteps ? "+" : ""}` : "–";
   const value = (count: number) => (data ? formatCount(count) : "–");
   const open = (row: AttentionRow) => (row.step ? onSelectStep(row.step) : onSelectOutcome(row.outcomeId));
+  async function mutateTodo(write: () => Promise<TodoItemView>) {
+    if (todoActing) return false;
+    setTodoActing(true);
+    setTodoError(false);
+    try {
+      const updated = await write();
+      if (updated.status === "done" || updated.status === "dismissed" || updated.displayState === "snoozed") {
+        setData((current) => current && { ...current, todos: current.todos.filter((entry) => entry.todo.id !== updated.id) });
+      }
+      setTodoRefreshVersion((version) => version + 1);
+      void load();
+      return true;
+    } catch {
+      setTodoError(true);
+      void load();
+      return false;
+    } finally {
+      setTodoActing(false);
+    }
+  }
+  const actOnTodo = (item: TodoItemView, action: TodoAction, input?: Omit<TodoActionInput, "revision">) =>
+    outcomes.todos ? mutateTodo(() => outcomes.todos!.act(item.id, action, { revision: item.revision, ...input })) : Promise.resolve(false);
   const botName = (outcome: OutcomeSummary) =>
     bots.find((bot) => bot.id === outcome.botId)?.name ?? t("Bot");
   const canOpenActivity = (item: ActivityItem) =>
@@ -375,10 +431,13 @@ export function OutcomeDashboard({
             <Lightbulb aria-hidden="true" className="size-3.5" />
             {t("Capture an idea")}
           </OutcomeButton>
-          <OutcomeRefresh busy={busy} onRefresh={() => void load()} />
+          <OutcomeRefresh busy={busy} onRefresh={() => {
+            setTodoRefreshVersion((version) => version + 1);
+            void load();
+          }} />
         </div>
       </div>
-      {outcomes.todos && <TodoPanel client={outcomes.todos} />}
+      {outcomes.todos && <TodoPanel client={outcomes.todos} hiddenIds={visibleTodos} onChanged={() => void load()} refreshVersion={todoRefreshVersion} />}
       {error && (
         <p role="alert" className="text-xs text-destructive">
           {t("Could not load goals. Try again.")}{" "}
@@ -404,11 +463,15 @@ export function OutcomeDashboard({
           title={t("Needs your action")}
           count={entries.length > 0 ? attentionCount : undefined}
           action={
-            queue.length + 1 > DASHBOARD_ROW_LIMIT || data?.moreSteps
+            !allQueue && queue.length > rowLimit && entries.some((entry) => entry.kind === "todo")
+              ? { label: t("View all"), onClick: () => setAllQueue(true) }
+              : (!allQueue && queue.length > rowLimit) || data?.moreSteps
               ? { label: t("View all"), onClick: onShowSteps }
               : undefined
           }
         />
+        {data?.todoDigest && <TodoDigestCard digest={data.todoDigest} />}
+        {todoError && <p role="alert" className="text-xs text-destructive">{t("Could not update the to-do. Try again.")}</p>}
         {data && entries.length === 0 && (
           <p className="outcome-dash-empty" role="status">
             <CheckCheck aria-hidden="true" className="size-4" strokeWidth={1.6} />
@@ -428,7 +491,7 @@ export function OutcomeDashboard({
         )}
         {queue.length > 0 && (
           <ul className="outcome-rows outcome-dash-queue">
-            {queue.slice(0, DASHBOARD_ROW_LIMIT - 1).map((entry) =>
+            {visibleQueue.map((entry) =>
               entry.kind === "request" ? (
                 <RequestRow
                   key={entry.key}
@@ -437,6 +500,10 @@ export function OutcomeDashboard({
                   canOpen={entry.item.link.type === "channel" && onOpenChannel !== undefined}
                   onOpen={() => onOpenChannel?.(entry.item.link.id)}
                 />
+              ) : entry.kind === "todo" ? (
+                <TodoRow key={entry.key} item={entry.item.todo} attention={entry.item.attention}
+                  disabled={todoActing || !outcomes.todos} act={actOnTodo}
+                  update={outcomes.todos && ((item, input) => mutateTodo(() => outcomes.todos!.update(item.id, input)))} />
               ) : (
                 <li key={entry.key}>
                   <button
