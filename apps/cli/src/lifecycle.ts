@@ -468,6 +468,10 @@ export const stopCommand = (paths: InstallationPaths, runner: CommandRunner): vo
   requireComposeProject(paths, runner, manifestProjectName(manifest)).runOrThrow(["stop"], {
     inherit: true,
   });
+  if (manifest.engine && manifest.engine.kind !== "external") {
+    const engine = requireRecordedEngine(paths, runner, manifest.engine.kind);
+    if (engine instanceof ManagedEngine) engine.removeAutostart();
+  }
   console.log(
     renderSummary(
       "stop",
@@ -498,7 +502,10 @@ export const startCommand = async (
       2
     );
   }
-  if (manifest.engine && manifest.engine.kind !== "external") await requireRecordedEngine(paths, runner, manifest.engine.kind).ensureReady();
+  const engine = manifest.engine && manifest.engine.kind !== "external"
+    ? requireRecordedEngine(paths, runner, manifest.engine.kind)
+    : null;
+  if (engine) await engine.ensureReady();
   await startProject(
     requireComposeProject(paths, runner, manifestProjectName(manifest)),
     paths,
@@ -506,6 +513,7 @@ export const startCommand = async (
     manifest.version,
     { skipIfReady: true }
   );
+  if (engine instanceof ManagedEngine) engine.ensureAutostart();
   const tailscale = await tailscaleStatus(paths, runner, true);
   if (tailscale.enabled && tailscale.issue) throw new CliError(tailscale.issue, 2);
   if (manifest.uninstalledAt) {
@@ -891,6 +899,7 @@ export const uninstallCommand = async (
       options.purge ? ["down", "--volumes", "--remove-orphans"] : ["down", "--remove-orphans"],
       { inherit: true }
     );
+    if (engine instanceof ManagedEngine) engine.removeAutostart();
   }
   const removeCli = () => dependencies.preserveCli ? null : (dependencies.removeCli ?? removeCurrentCli)();
   if (options.purge) {

@@ -82,6 +82,7 @@ const simplifiedChinese: Record<string, string> = {
   "Pulling {service} from {registry}.": "正在从 {registry} 拉取 {service}。",
   "Image pull failed from {registry}.": "从 {registry} 拉取镜像失败。",
   "Automatic server updates could not be enabled.": "未能启用服务器自动更新。",
+  "Automatic engine startup at sign-in could not be enabled.": "未能启用登录时自动启动引擎。",
   "Both memory limits must be integer sizes of at least 16 MiB (for example 4g or 3584m).": "两个内存上限都必须是不小于 16 MiB 的整数大小，例如 4g 或 3584m。",
   "Changing memory limits restarts the computer services and interrupts running tasks.": "更改内存上限会重启电脑服务，并中断进行中的任务。",
   "Only {available} is available near {directory}; deployment needs {required}.": "{directory} 所在磁盘仅有 {available} 可用空间；部署需要 {required}。",

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { installationPaths } from "../src/config";
 import { readDeployState, writeDeployState } from "../src/deploy-state";
 import { limaConfiguration, ManagedLimaEngine } from "../src/engine/managed-lima";
-import { ManagedWslEngine } from "../src/engine/managed-wsl";
+import { MANAGED_WSL_AUTOSTART_TASK, ManagedWslEngine } from "../src/engine/managed-wsl";
 import { supportsManagedHost, wslPath, wslRegistrationPath } from "../src/engine/managed-host";
 import { validateEngineArtifact } from "../src/engine/managed-assets";
 import { createHash } from "node:crypto";
@@ -201,6 +201,62 @@ test("WSL authorization requires pending consent; denial preserves state and reb
     expect((await engine.detect()).code).toBe("REBOOT_REQUIRED");
     expect(runner.calls.filter(({ args }) => args.at(-1)?.includes("Start-Process"))).toHaveLength(2);
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("WSL keepalive runs headlessly through conhost and autostart registers/removes a non-elevated logon task", async () => {
+  const runner = new WslRunner();
+  const engine = new ManagedWslEngine({
+    paths: windowsPaths,
+    runner,
+    architecture: "x64",
+    release: "10.0.22631",
+    stream: async () => ({ status: 0 }),
+  });
+
+  await engine.ensureReady();
+  const keepAliveCall = runner.calls.at(-1);
+  expect(keepAliveCall?.command.toLowerCase()).toEndWith("powershell.exe");
+  expect(keepAliveCall?.args).toContain("-WindowStyle");
+  expect(keepAliveCall?.args).toContain("Hidden");
+  const keepAliveScript = keepAliveCall?.args.at(-1) ?? "";
+  expect(keepAliveScript).toContain("Start-Process -FilePath");
+  expect(keepAliveScript.toLowerCase()).toContain("\\system32\\conhost.exe");
+  expect(keepAliveScript).toContain("--headless");
+  expect(keepAliveScript.toLowerCase()).toContain("\\system32\\wsl.exe");
+  expect(keepAliveScript).toContain("--distribution outcomego-engine --user root --cd / --exec /usr/bin/flock -n /run/outcomego-keepalive.lock /bin/sleep infinity");
+  expect(keepAliveScript).toContain("-WindowStyle Hidden");
+
+  expect(engine.ensureAutostart()).toBe(true);
+  const registerCall = runner.calls.at(-1);
+  expect(registerCall?.command.toLowerCase()).toEndWith("powershell.exe");
+  const registerScript = registerCall?.args.at(-1) ?? "";
+  expect(registerScript).toContain("Schedule.Service");
+  expect(registerScript).toContain(`RegisterTaskDefinition('${MANAGED_WSL_AUTOSTART_TASK}'`);
+  expect(registerScript).toContain("$def.Principal.LogonType=3");
+  expect(registerScript).toContain("$def.Principal.RunLevel=0");
+  expect(registerScript).toContain("$def.Settings.Hidden=$true");
+  expect(registerScript).toContain("$def.Settings.ExecutionTimeLimit='PT0S'");
+  expect(registerScript).toContain("$trigger=$def.Triggers.Create(9)");
+  expect(registerScript).toContain("--headless");
+  expect(registerScript).toContain("--cd /");
+  expect(registerScript).toContain("systemctl start docker.service");
+
+  expect(engine.removeAutostart()).toBe(true);
+  const removeCall = runner.calls.at(-1);
+  const removeScript = removeCall?.args.at(-1) ?? "";
+  expect(removeScript).toContain(`DeleteTask('${MANAGED_WSL_AUTOSTART_TASK}', 0)`);
+
+  runner.calls.length = 0;
+  await engine.remove({ purgeData: true });
+  expect(runner.calls.some(({ args }) => args.at(-1)?.includes(`DeleteTask('${MANAGED_WSL_AUTOSTART_TASK}', 0)`))).toBe(true);
+  expect(runner.calls.at(-1)?.args).toEqual(["--unregister", "outcomego-engine"]);
+
+  runner.calls.length = 0;
+  runner.registration = "foreign";
+  expect(engine.ensureAutostart()).toBe(false);
+  expect(runner.calls.some(({ args }) => args.at(-1)?.includes("RegisterTaskDefinition"))).toBe(false);
+  await expect(engine.remove({ purgeData: true })).rejects.toThrow("ENGINE_UNAVAILABLE");
+  expect(runner.calls.some(({ args }) => args.at(-1)?.includes("DeleteTask"))).toBe(false);
 });
 
 test("WSL detects disabled optional features when wsl --status exits successfully", async () => {

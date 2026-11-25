@@ -77,6 +77,7 @@ export const upgradeEngineCommand = async (
       },
       verify: async () => {
         await startAndCheck();
+        engine.ensureAutostart();
         writeManifest(paths, { ...manifest, engine: { ...manifest.engine, assetVersion: target } });
       },
       restore: async (directory, phase) => {
@@ -90,6 +91,7 @@ export const upgradeEngineCommand = async (
         if (!engine.isLocal()) throw new EngineError("ENGINE_UNAVAILABLE");
         await engine.ensureReady(undefined, { apiPort: port });
         await startAndCheck();
+        engine.ensureAutostart();
         if (phase === "replacing") writeManifest(paths, { ...manifest, engine: { ...manifest.engine, assetVersion: typeof previous === "string" ? previous : undefined } });
       },
     }, options.rollback);

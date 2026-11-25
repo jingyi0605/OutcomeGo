@@ -33,6 +33,7 @@ export class SystemCommandRunner implements CommandRunner {
         env: options.env ?? process.env,
         encoding: "utf8",
         shell: false,
+        windowsHide: !options.inherit,
         timeout: options.timeoutMs,
         killSignal: options.killSignal,
         input: options.input,

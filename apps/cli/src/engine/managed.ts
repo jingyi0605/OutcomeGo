@@ -32,6 +32,8 @@ export abstract class ManagedEngine extends ExternalEngine {
   abstract guestPath(path: string): string;
   abstract stop(): Promise<void>;
   abstract remove(options: { purgeData: boolean }): Promise<void>;
+  ensureAutostart(): boolean { return true; }
+  removeAutostart(): boolean { return true; }
   protected assetNames: readonly string[] = [];
 
   async prepareUpgrade(version: string) {

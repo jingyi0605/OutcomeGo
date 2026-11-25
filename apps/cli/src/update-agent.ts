@@ -21,6 +21,7 @@ import { healthUrl } from "./health";
 import { activeUpdateProcess, readUpdateState } from "./update-safety";
 import { DESKTOP_CLI_VERSION_ENV, desktopCliCarrierPath, isBunStandaloneExecutable, readCliPromotion } from "./cli-update";
 import { CLI_VERSION } from "./constants";
+import { headlessWindowsLauncherScript } from "./engine/managed-wsl";
 import {
   installUpdateAgentService,
   removeUpdateAgentService,
@@ -220,11 +221,37 @@ export const ensureUpdateAgent = (
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
   }
+  const env = { ...workerEnvironment(), ...command.environment };
+  if (process.platform === "win32") {
+    const powershell = join(
+      process.env.SystemRoot || "C:\\Windows",
+      "System32",
+      "WindowsPowerShell\\v1.0\\powershell.exe"
+    );
+    const result = spawnSync(
+      powershell,
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-WindowStyle",
+        "Hidden",
+        "-Command",
+        headlessWindowsLauncherScript(executable, command.args),
+      ],
+      { env, encoding: "utf8", shell: false, windowsHide: true, timeout: 15_000 }
+    );
+    if (result.error || result.status !== 0) {
+      console.warn(
+        `Server updates could not be enabled: ${result.error?.message || result.stderr.trim() || `exit ${result.status}`}`
+      );
+    }
+    return;
+  }
   const child = spawn(executable, command.args, {
     detached: true,
     stdio: "ignore",
     windowsHide: true,
-    env: { ...workerEnvironment(), ...command.environment },
+    env,
   });
   events(child).on("error", (error) =>
     console.warn(`Server updates could not be enabled: ${error.message}`)

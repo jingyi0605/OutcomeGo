@@ -374,6 +374,9 @@ export const bootstrapCommand = async (
       writeManifest(paths, { ...manifest!, ownerUsername: username, uninstalledAt: undefined });
     }
     clearDeployState(paths);
+    if (engine instanceof ManagedEngine && !engine.ensureAutostart()) {
+      emit({ type: "log", message: cliTranslate("Automatic engine startup at sign-in could not be enabled.") });
+    }
     try { (dependencies.enableUpdates ?? ensureUpdateAgent)(paths); }
     catch { emit({ type: "log", message: cliTranslate("Automatic server updates could not be enabled.") }); }
     const port = parseEnvironment(environment).get("OUTCOMEGO_API_PORT") ?? API_PORT;

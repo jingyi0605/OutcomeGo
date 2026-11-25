@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { closeSync, lstatSync, mkdirSync, openSync, readSync } from "node:fs";
 import { join, win32 } from "node:path";
 import { clearDeployState, readDeployState, writeDeployState } from "../deploy-state";
@@ -10,11 +9,72 @@ import { EngineError, type EngineDetection } from "./types";
 const system = (program: string) => win32.join(process.env.SystemRoot || "C:\\Windows", "System32", program);
 const output = (value: string) => value.replace(/^\uFEFF/, "").replaceAll("\0", "");
 const wsl = system("wsl.exe");
+const conhost = system("conhost.exe");
 const powershell = system("WindowsPowerShell\\v1.0\\powershell.exe");
 const registrationQuery = "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Stop'; $key='HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss'; if (Test-Path -LiteralPath $key) { Get-ChildItem -LiteralPath $key | Get-ItemProperty | Where-Object { $_.DistributionName -eq 'outcomego-engine' } | Select-Object BasePath,Version | ConvertTo-Json -Compress }";
 const optionalFeaturesQuery = "$features=@(Get-CimInstance Win32_OptionalFeature -Filter \"Name='Microsoft-Windows-Subsystem-Linux' OR Name='VirtualMachinePlatform'\"); if ($features.Count -lt 2 -or @($features | Where-Object InstallState -ne 1).Count -gt 0) { 'disabled' } else { 'enabled' }";
 const missingFeature = /0x8007019e|WSL_E_WSL_OPTIONAL_COMPONENT_REQUIRED|WSL_E_WSL_NOT_INSTALLED/i;
 const networkingProbe = "/usr/bin/wslinfo";
+const keepAliveLock = "/run/outcomego-keepalive.lock";
+export const MANAGED_WSL_AUTOSTART_TASK = "OutcomeGo-ManagedEngine";
+
+const windowsQuote = (value: string) =>
+  value.length && !/[\s"]/u.test(value)
+    ? value
+    : `"${value.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, "$1$1")}"`;
+const powershellQuote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+
+export const headlessWindowsCommand = (command: string, args: readonly string[]) => ({
+  command: conhost,
+  args: ["--headless", command, ...args],
+});
+
+export const headlessWindowsLauncherScript = (command: string, args: readonly string[]) => {
+  const headless = headlessWindowsCommand(command, args);
+  return `Start-Process -FilePath ${powershellQuote(headless.command)} -ArgumentList ${powershellQuote(headless.args.map(windowsQuote).join(" "))} -WindowStyle Hidden`;
+};
+
+const autostartArguments =
+  `--distribution ${MANAGED_ENGINE_NAME} --user root --cd / --exec /usr/bin/flock -n ${keepAliveLock} /bin/sh -c "case $(${networkingProbe} --networking-mode) in nat) /usr/bin/systemctl start docker.service && exec /bin/sleep infinity;; esac"`;
+
+const autostartRegisterScript = [
+  "$ErrorActionPreference='Stop'",
+  "$user=if ($env:USERDOMAIN) { \"$env:USERDOMAIN\\$env:USERNAME\" } else { $env:USERNAME }",
+  "$conhost=Join-Path $env:SystemRoot 'System32\\conhost.exe'",
+  "$wsl=Join-Path $env:SystemRoot 'System32\\wsl.exe'",
+  "$svc=New-Object -ComObject Schedule.Service",
+  "$svc.Connect()",
+  "$folder=$svc.GetFolder('\\')",
+  "$def=$svc.NewTask(0)",
+  "$def.RegistrationInfo.Description='Keep the OutcomeGo managed container engine running in the background.'",
+  "$def.Principal.UserId=$user",
+  "$def.Principal.LogonType=3",
+  "$def.Principal.RunLevel=0",
+  "$def.Settings.Enabled=$true",
+  "$def.Settings.Hidden=$true",
+  "$def.Settings.DisallowStartIfOnBatteries=$false",
+  "$def.Settings.StopIfGoingOnBatteries=$false",
+  "$def.Settings.ExecutionTimeLimit='PT0S'",
+  "$def.Settings.MultipleInstances=2",
+  "$def.Settings.StartWhenAvailable=$true",
+  "$trigger=$def.Triggers.Create(9)",
+  "$trigger.Enabled=$true",
+  "$trigger.UserId=$user",
+  "$action=$def.Actions.Create(0)",
+  "$action.Path=$conhost",
+  `$action.Arguments='--headless "' + $wsl + '" ${autostartArguments}'`,
+  `$folder.RegisterTaskDefinition('${MANAGED_WSL_AUTOSTART_TASK}', $def, 6, $null, $null, 3) | Out-Null`,
+].join("; ");
+
+const autostartRemoveScript = [
+  "$ErrorActionPreference='Stop'",
+  "$svc=New-Object -ComObject Schedule.Service",
+  "$svc.Connect()",
+  "$folder=$svc.GetFolder('\\')",
+  `try { $task=$folder.GetTask('${MANAGED_WSL_AUTOSTART_TASK}') } catch { exit 0 }`,
+  "try { $task.Stop(0) } catch {}",
+  `$folder.DeleteTask('${MANAGED_WSL_AUTOSTART_TASK}', 0)`,
+].join("; ");
 
 export class ManagedWslEngine extends ManagedEngine {
   override readonly kind = "managed-wsl";
@@ -24,9 +84,11 @@ export class ManagedWslEngine extends ManagedEngine {
     super(options);
     this.data = win32.join(options.paths.directory, "engine", "wsl");
     this.keepAlive = options.keepAlive ?? ((command, args) => {
-      const child = spawn(command, [...args], { detached: true, windowsHide: true, stdio: "ignore" });
-      (child as unknown as NodeJS.EventEmitter).once("error", () => undefined);
-      child.unref();
+      this.runner.run(
+        powershell,
+        ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", headlessWindowsLauncherScript(command, args)],
+        { timeoutMs: 15_000 }
+      );
     });
   }
 
@@ -110,8 +172,17 @@ export class ManagedWslEngine extends ManagedEngine {
       await this.invoke(this.guest(["/usr/bin/systemctl", "start", "docker.service"]), signal);
       await this.waitForDocker(signal);
     }
-    const keep = this.guest(["/usr/bin/flock", "-n", "/run/outcomego-keepalive.lock", "/bin/sleep", "infinity"]);
+    const keep = this.guest(["/usr/bin/flock", "-n", keepAliveLock, "/bin/sleep", "infinity"], "/");
     this.keepAlive(keep.command, keep.args);
+  }
+
+  override ensureAutostart(): boolean {
+    if (!this.owned()) return false;
+    return this.runner.run(powershell, ["-NoProfile", "-NonInteractive", "-Command", autostartRegisterScript], { timeoutMs: 15_000 }).status === 0;
+  }
+
+  override removeAutostart(): boolean {
+    return this.runner.run(powershell, ["-NoProfile", "-NonInteractive", "-Command", autostartRemoveScript], { timeoutMs: 15_000 }).status === 0;
   }
 
   override async stop() {
@@ -122,8 +193,12 @@ export class ManagedWslEngine extends ManagedEngine {
   override async remove({ purgeData }: { purgeData: boolean }) {
     if (!purgeData) throw new EngineError("INVALID_INPUT");
     const registration = this.registration();
-    if (registration === "missing") return;
+    if (registration === "missing") {
+      this.removeAutostart();
+      return;
+    }
     if (registration !== "owned" || !this.owned()) throw new EngineError("ENGINE_UNAVAILABLE");
+    this.removeAutostart();
     this.checkOperation(this.runWsl(["--unregister", MANAGED_ENGINE_NAME]));
   }
 

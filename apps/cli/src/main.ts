@@ -182,9 +182,13 @@ const main = async (): Promise<void> => {
       if (!(engine instanceof ManagedEngine)) throw new EngineError("ENGINE_UNAVAILABLE");
       const unlock = acquireUpdateLock(paths);
       try {
-        if (options.command === "engine-start") await engine.ensureReady();
-        else if (options.command === "engine-stop") await engine.stop();
-        else {
+        if (options.command === "engine-start") {
+          await engine.ensureReady();
+          if (!manifest.uninstalledAt) engine.ensureAutostart();
+        } else if (options.command === "engine-stop") {
+          engine.removeAutostart();
+          await engine.stop();
+        } else {
           if (!options.purge || !manifest.uninstalledAt) throw new EngineError("INVALID_INPUT");
           await engine.remove({ purgeData: true });
         }
