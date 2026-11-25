@@ -9,6 +9,7 @@ import { expireTodoSuggestions } from "@outcomego/messaging";
 import { readTranscript } from "@outcomego/messaging";
 import { Effect } from "effect";
 import { InternalToolService } from "../src/services/internal-tool-service";
+import { ChannelService } from "../src/services/channel-service";
 
 const enabled = Boolean(process.env.OUTCOMEGO_TEST_DATABASE_URL);
 const cleanups: Array<() => Promise<void>> = [];
@@ -32,6 +33,7 @@ async function setup() {
     await db.todoAutoAcceptRule.deleteMany({ where: { ownerId: { in: [owner, "local"] } } });
     await db.idempotencyRecord.deleteMany({ where: { scope: { in: [`todo-create:${owner}`, "todo-create:local", "todo-agent:local"] } } });
     await db.idempotencyRecord.deleteMany({ where: { scope: { startsWith: "todo-update:local:" } } });
+    await db.idempotencyRecord.deleteMany({ where: { scope: `conversation:${fixture.bot.conversation!.id}:message` } });
     await db.featureSettings.deleteMany({ where: { id: "global" } });
     await fixture.cleanup();
   });
@@ -39,6 +41,28 @@ async function setup() {
 }
 
 describe.skipIf(!enabled)("owner todo basics", () => {
+  test("handoff sends an owner message once, projects progress and links only existing goals", async () => {
+    const fixture = await setup();
+    const { bot, db, channel, messaging, root, outcome, owner, todos } = fixture;
+    const channels = new ChannelService(db, messaging, root, async () => new Response(null));
+    const original = await todos.create(owner, { title: "Item A", note: "Note A", clientRequestId: "handoff" });
+    const input = { botId: bot.id, revision: original.revision, instruction: "Resolve the item" };
+    await expect(todos.handoff("other", original.id, input, channels.sendDirectMessage, null)).rejects.toMatchObject({ status: 404 });
+    const sent = await todos.handoff(owner, original.id, input, channels.sendDirectMessage, null);
+    expect(sent).toMatchObject({ status: "open", executor: "bot", handoffBotId: bot.id, revision: 2, handoffProgress: { channelId: channel.id, state: null } });
+    expect(await todos.handoff(owner, original.id, input, channels.sendDirectMessage, null)).toEqual(sent);
+    const messages = await db.channelMessage.findMany({ where: { channelId: channel.id, sender: "user" } });
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.content).toContain('"note":"Note A"');
+    const request = await db.run.findUniqueOrThrow({ where: { userMessageId: sent.handoffMessageId! } });
+    expect(request.origin).toBe("user");
+    await db.run.update({ where: { id: request.id }, data: { requestProgress: { runId: request.id, revision: 1, state: "complete", summary: "Result A", remaining: [], evidence: [] } } });
+    expect(await todos.detail(owner, sent.id)).toMatchObject({ status: "open", handoffProgress: { runId: request.id, state: "completed", summary: "Result A" } });
+    await expect(todos.linkOutcome(owner, sent.id, { revision: sent.revision, outcomeId: crypto.randomUUID() })).rejects.toMatchObject({ status: 404 });
+    const linked = await todos.linkOutcome(owner, sent.id, { revision: sent.revision, outcomeId: outcome.id });
+    expect(linked).toMatchObject({ status: "done", linkedOutcomeId: outcome.id, revision: 3 });
+    expect(await todos.linkOutcome(owner, sent.id, { revision: sent.revision, outcomeId: outcome.id })).toEqual(linked);
+  });
   for (const [title, tag] of [["Alpha", "one"], ["Beta", "two"]]) {
     test(`${title}: creation is idempotent, owner scoped, and independent of outcomes`, async () => {
       const { db, owner, todos } = await setup();

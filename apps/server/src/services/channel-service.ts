@@ -149,7 +149,8 @@ export class ChannelService {
       };
     });
 
-  sendDirectMessage = (conversationId: string, input: SendMessageInput, locationSessionId: string | null = null) =>
+  sendDirectMessage = (conversationId: string, input: SendMessageInput, locationSessionId: string | null = null,
+    onAccepted?: (tx: Prisma.TransactionClient, userMessageId: string) => Promise<void>) =>
     serviceEffect(async () => {
       input = await this.normalizeMessageAttachments(input);
       const scope = `conversation:${conversationId}:message`;
@@ -373,6 +374,7 @@ export class ChannelService {
           occurredAt: visibleMessage.createdAt,
           ...(input.isFork ? { replyToMessageId: visibleMessage.id, isFork: true } : {}),
         }, preparedAttachmentPaths);
+        await onAccepted?.(tx, delivery.run.userMessageId);
         await this.messaging.scheduleTranscriptProjection(tx, [conversation.botId]);
         await tx.channel.update({
           where: { id: channel.id },

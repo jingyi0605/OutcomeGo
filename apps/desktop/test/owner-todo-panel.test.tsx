@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
-import type { TodoActionInput, TodoAttentionItem, TodoAutoAcceptRuleCreate, TodoAutoAcceptRuleUpdate, TodoAutoAcceptRuleView, TodoBulkInput, TodoCreate, TodoItemView, TodoUpdate } from "@outcomego/contracts/todo";
+import type { TodoActionInput, TodoAttentionItem, TodoAutoAcceptRuleCreate, TodoAutoAcceptRuleUpdate, TodoAutoAcceptRuleView, TodoBulkInput, TodoCreate, TodoHandoff, TodoItemView, TodoLinkOutcome, TodoUpdate } from "@outcomego/contracts/todo";
 import { OutcomeGoClientError } from "@outcomego/client-core";
 import { parseHTML } from "linkedom";
 import { act, createElement } from "react";
@@ -167,6 +167,38 @@ const typeInto = (input: HTMLInputElement, value: string) => act(async () => {
 });
 const submit = () => act(async () => void host.querySelector("form")!.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true })));
 const click = (element: Element) => act(async () => void element.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+
+test("hands an item to a bot, shows owner confirmation, and upgrades via the goal form", async () => {
+  const { TodoHandoffControls, TodoHandoffProgress } = await import("../src/renderer/components/outcomego/outcomes/dashboard/todo-handoff");
+  const { I18nProvider } = await import("../src/renderer/lib/i18n");
+  const item = todo("Item alpha", { note: "Note alpha", handoffProgress: { runId: "run", channelId: "channel", state: "completed", summary: "Result alpha" } });
+  const handoffs: TodoHandoff[] = [];
+  const links: TodoLinkOutcome[] = [];
+  const goals: unknown[] = [];
+  host = dom.document.createElement("div");
+  dom.document.body.append(host);
+  root = createRoot(host);
+  const actions = {
+    bots: [{ id: "bot", name: "Bot" }],
+    client: {
+      handoff: async (_id: string, input: TodoHandoff) => { handoffs.push(input); return item; },
+      linkOutcome: async (_id: string, input: TodoLinkOutcome) => { links.push(input); return item; },
+    } as never,
+    goals: { createThread: async (input: unknown) => { goals.push(input); return { outcome: { id: "goal" } }; } } as never,
+    change: async (write: () => Promise<TodoItemView>) => { await write(); return true; },
+  };
+  await act(async () => root.render(createElement(I18nProvider, { children: createElement("div", {},
+    createElement(TodoHandoffProgress, { item, actions }), createElement(TodoHandoffControls, { item, actions, disabled: false })) })));
+  expect(host.textContent).toContain("Awaiting your confirmation");
+  expect(host.textContent).toContain("Result alpha");
+  await click(button("Hand to the bot"));
+  await submit();
+  expect(handoffs).toEqual([{ botId: "bot", revision: 1, instruction: "Please handle this to-do." }]);
+  await click(button("Upgrade to goal"));
+  await click([...host.querySelectorAll("form button")].find((element) => element.textContent === "Hand to the bot")!);
+  expect(goals).toEqual([expect.objectContaining({ text: "Item alpha\n\nNote alpha", botId: "bot" })]);
+  expect(links).toEqual([{ outcomeId: "goal", revision: 1 }]);
+});
 
 test.each([
   { title: "Item alpha", due: "", tags: "", expected: {} },

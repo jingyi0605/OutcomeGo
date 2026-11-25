@@ -19,7 +19,7 @@ export function NewOutcomeForm({
   postToChat = false,
   onCreated,
 }: {
-  client: OutcomeClient;
+  client: Pick<OutcomeClient, "createThread">;
   bots: Array<{ id: string; name: string }>;
   /** A fixed bot (for example the one in the open chat); otherwise the owner picks. */
   botId?: string;

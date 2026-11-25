@@ -283,7 +283,7 @@ export function OutcomeDashboard({
   activityPolicy,
   refreshVersion = 0,
 }: {
-  outcomes: Pick<OutcomeClient, "list" | "activity" | "needsMe" | "todos"> & GoalFocusClient;
+  outcomes: Pick<OutcomeClient, "list" | "activity" | "needsMe" | "todos" | "createThread"> & GoalFocusClient;
   inbox: Pick<InboxClient, "list" | "decision" | "resolve">;
   bots: readonly OutcomeExecutionBot[];
   onSelectOutcome: (id: string) => void;
@@ -394,6 +394,7 @@ export function OutcomeDashboard({
     outcomes.todos ? mutateTodo(() => outcomes.todos!.act(item.id, action, { revision: item.revision, ...input })) : Promise.resolve(false);
   const botName = (outcome: OutcomeSummary) =>
     bots.find((bot) => bot.id === outcome.botId)?.name ?? t("Bot");
+  const todoHandoff = outcomes.todos && { bots, client: outcomes.todos, goals: outcomes, onOpenChannel, onSelectOutcome };
   const canOpenActivity = (item: ActivityItem) =>
     item.link.type === "outcome" || (item.link.type === "channel" && onOpenChannel !== undefined);
   const openActivity = (item: ActivityItem) => {
@@ -437,7 +438,7 @@ export function OutcomeDashboard({
           }} />
         </div>
       </div>
-      {outcomes.todos && <TodoPanel client={outcomes.todos} hiddenIds={visibleTodos} onChanged={() => void load()} refreshVersion={todoRefreshVersion} />}
+      {outcomes.todos && <TodoPanel client={outcomes.todos} hiddenIds={visibleTodos} onChanged={() => void load()} refreshVersion={todoRefreshVersion} handoff={todoHandoff} />}
       {error && (
         <p role="alert" className="text-xs text-destructive">
           {t("Could not load goals. Try again.")}{" "}
@@ -503,6 +504,7 @@ export function OutcomeDashboard({
               ) : entry.kind === "todo" ? (
                 <TodoRow key={entry.key} item={entry.item.todo} attention={entry.item.attention}
                   disabled={todoActing || !outcomes.todos} act={actOnTodo}
+                  handoff={todoHandoff && { ...todoHandoff, change: mutateTodo }}
                   update={outcomes.todos && ((item, input) => mutateTodo(() => outcomes.todos!.update(item.id, input)))} />
               ) : (
                 <li key={entry.key}>

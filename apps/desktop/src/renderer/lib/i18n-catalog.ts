@@ -3703,6 +3703,16 @@ export const sourceTranslations: Record<string, string> = {
   "Confirm auto-accept rule": "确认自动接受规则",
   "Auto-accept rule created.": "已创建自动接受规则。",
   "Auto-accepted": "已自动接受",
+
+  // 004.10 todo-bot
+  "Awaiting your confirmation": "待你确认完成",
+  "Handed to bot": "已交给机器人",
+  "Open bot conversation": "打开机器人对话",
+  "Open linked goal": "打开关联目标",
+  "Please handle this to-do.": "请处理这件待办。",
+  "Upgrade to goal": "升级成目标",
+  "Instructions for the bot": "给机器人的指令",
+  "Link created goal": "关联已创建的目标",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

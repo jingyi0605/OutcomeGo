@@ -5,6 +5,7 @@ import type { TodoAutoAcceptRulesClient, TodoClient } from "../../../../client/t
 import { useI18n } from "../../../../lib/i18n";
 import { OutcomeButton } from "../outcome-button";
 import { toLocalInput } from "../timeline/schedule-edit";
+import { TodoHandoffControls, TodoHandoffProgress, type TodoHandoffActions } from "./todo-handoff";
 
 const groups = {
   overdue: "Overdue",
@@ -117,7 +118,7 @@ function AutoAcceptShortcut({ routineId, client, disabled }: { routineId: string
   </div>;
 }
 
-export function TodoRow({ item, disabled, act, update, attention, selection, dismissBot, autoAcceptRules }: {
+export function TodoRow({ item, disabled, act, update, attention, selection, dismissBot, autoAcceptRules, handoff }: {
   item: TodoItemView;
   disabled: boolean;
   act: (item: TodoItemView, action: TodoAction, options?: { snoozeUntil?: string; note?: string }) => Promise<boolean>;
@@ -126,6 +127,7 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
   selection?: { checked: boolean; toggle: (checked: boolean) => void };
   dismissBot?: () => void;
   autoAcceptRules?: TodoAutoAcceptRulesClient;
+  handoff?: TodoHandoffActions;
 }) {
   const { t, locale } = useI18n();
   const [snooze, setSnooze] = useState("");
@@ -177,6 +179,7 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
           <blockquote className="whitespace-pre-wrap break-words border-s border-border ps-2">{item.ownerMessagePreview}</blockquote>
         </div>}
         {history && <span className="outcome-row-meta">{item.status === "done" ? t("Completed to-do") : t("Dismissed to-do")}{item.completionNote ? ` · ${item.completionNote}` : ""}</span>}
+        <TodoHandoffProgress item={item} actions={handoff} />
       </div>
       {history ? (
         <OutcomeButton type="button" disabled={disabled} onClick={() => void act(item, "restore")}>{t("Restore")}</OutcomeButton>
@@ -211,6 +214,7 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
               {item.status === "waiting" && <OutcomeButton type="button" disabled={disabled} onClick={() => void update(item, { revision: item.revision, status: "open" })}>{t("Stop waiting")}</OutcomeButton>}
             </div>}
             {followUpError && <p role="alert" className="mt-2 text-destructive">{t("Choose a follow-up time.")}</p>}
+            {!suggested && handoff && <TodoHandoffControls item={item} actions={handoff} disabled={disabled} />}
           </details>
           {suggested && item.createdByRoutineId && autoAcceptRules && <AutoAcceptShortcut
             routineId={item.createdByRoutineId} client={autoAcceptRules} disabled={disabled}
@@ -221,11 +225,12 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
   );
 }
 
-export function TodoPanel({ client, hiddenIds, onChanged, refreshVersion = 0 }: {
+export function TodoPanel({ client, hiddenIds, onChanged, refreshVersion = 0, handoff }: {
   client: TodoClient;
   hiddenIds?: ReadonlySet<string>;
   onChanged?: () => void;
   refreshVersion?: number;
+  handoff?: Omit<TodoHandoffActions, "change">;
 }) {
   const { t } = useI18n();
   const [view, setView] = useState<PanelView>("all");
@@ -339,6 +344,7 @@ export function TodoPanel({ client, hiddenIds, onChanged, refreshVersion = 0 }: 
   };
   const rows = (entries: TodoItemView[]) => <ul className="outcome-rows">{entries.map((item) => (
     <TodoRow key={item.id} item={item} disabled={busy} act={change} update={update}
+      handoff={handoff && { ...handoff, change: (write) => mutate(async () => [await write()]) }}
       selection={view === "suggestions" ? {
         checked: selected.has(item.id),
         toggle: (checked) => setSelected((previous) => checked ? new Set([...previous, item.id]) : new Set([...previous].filter((id) => id !== item.id))),

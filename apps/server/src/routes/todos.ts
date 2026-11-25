@@ -1,5 +1,5 @@
 import { ApiError } from "@outcomego/contracts";
-import { TodoAction, TodoActionInput, TodoAutoAcceptRuleCreate, TodoAutoAcceptRuleUpdate, TodoBulkInput, TodoCreate, TodoId, TodoListQuery, TodoUpdate } from "@outcomego/contracts/todo";
+import { TodoAction, TodoActionInput, TodoAutoAcceptRuleCreate, TodoAutoAcceptRuleUpdate, TodoBulkInput, TodoCreate, TodoHandoff, TodoId, TodoLinkOutcome, TodoListQuery, TodoUpdate } from "@outcomego/contracts/todo";
 import { json } from "../http";
 import type { OwnerTodoService } from "../services/owner-todo-service";
 import type { RouteContext } from "./context";
@@ -35,6 +35,8 @@ export const createTodoRoutes = (todos: OwnerTodoService) => async (context: Rou
   if (!match[2] && request.method === "GET") return json(await todos.detail(ownerId, id));
   if (!match[2] && request.method === "PATCH") return json(await todos.update(ownerId, id, parse(TodoUpdate, await body())));
   if (match[2] && request.method === "POST") {
+    if (match[2] === "handoff") return json(await todos.handoff(ownerId, id, parse(TodoHandoff, await body()), context.app.channels.sendDirectMessage, authenticatedSessionId));
+    if (match[2] === "link-outcome") return json(await todos.linkOutcome(ownerId, id, parse(TodoLinkOutcome, await body())));
     const action = parse(TodoAction, match[2]);
     return json(await todos.act(ownerId, id, action, parse(TodoActionInput[action], await body())));
   }

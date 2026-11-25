@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isOverdue, localDateOf } from "./task-overview";
+import { isOverdue, localDateOf, type RequestDisplayState } from "./task-overview";
 
 export const TodoId = z.string().uuid();
 export const TodoInstant = z.string().datetime({ offset: true }).refine((value) => Number.isFinite(Date.parse(value)));
@@ -97,6 +97,11 @@ export const TodoActionInput = {
 } as const;
 export type TodoAction = z.infer<typeof TodoAction>;
 export type TodoActionInput = { revision: number; snoozeUntil?: string; note?: string };
+
+export const TodoHandoff = revisionOnly.extend({ botId: TodoId, instruction: z.string().trim().min(1).max(4000).optional() });
+export const TodoLinkOutcome = revisionOnly.extend({ outcomeId: TodoId });
+export type TodoHandoff = z.infer<typeof TodoHandoff>;
+export type TodoLinkOutcome = z.infer<typeof TodoLinkOutcome>;
 
 export const TodoBulkInput = z.union([
   z.object({ action: z.enum(["accept", "dismiss"]), items: z.object({ id: TodoId, revision }).strict().array().min(1).max(200) }).strict()
@@ -203,6 +208,7 @@ export interface TodoItemView {
   linkedOutcomeId: string | null;
   handoffBotId: string | null;
   handoffMessageId: string | null;
+  handoffProgress?: { runId: string; channelId: string | null; state: RequestDisplayState | null; summary: string | null } | null;
   expiresAt: string | null;
   completedAt: string | null;
   completionNote: string | null;

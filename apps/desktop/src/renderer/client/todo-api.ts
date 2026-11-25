@@ -1,6 +1,6 @@
 import type {
   TodoAction, TodoActionInput, TodoAutoAcceptRuleCreate, TodoAutoAcceptRuleUpdate, TodoAutoAcceptRuleView,
-  TodoBulkInput, TodoCreate, TodoItemView, TodoListQuery, TodoListResponse, TodoUpdate,
+  TodoBulkInput, TodoCreate, TodoHandoff, TodoItemView, TodoLinkOutcome, TodoListQuery, TodoListResponse, TodoUpdate,
 } from "@outcomego/contracts/todo";
 
 export interface TodoAutoAcceptRulesClient {
@@ -17,12 +17,14 @@ export interface TodoClient {
   bulk(input: TodoBulkInput): Promise<{ items: TodoItemView[] }>;
   update(id: string, input: TodoUpdate): Promise<TodoItemView>;
   autoAcceptRules?: TodoAutoAcceptRulesClient;
+  handoff?(id: string, input: TodoHandoff): Promise<TodoItemView>;
+  linkOutcome?(id: string, input: TodoLinkOutcome): Promise<TodoItemView>;
 }
 
 export function createTodoApi(request: <Result>(path: string, init?: RequestInit) => Promise<Result>): TodoClient {
   const path = "/api/todos";
   const rulesPath = `${path}/auto-accept-rules`;
-  const post = <Result>(url: string, body: TodoCreate | TodoActionInput | TodoBulkInput | TodoAutoAcceptRuleCreate) =>
+  const post = <Result>(url: string, body: TodoCreate | TodoActionInput | TodoBulkInput | TodoAutoAcceptRuleCreate | TodoHandoff | TodoLinkOutcome) =>
     request<Result>(url, { method: "POST", body: JSON.stringify(body) });
   return {
     list: ({ view, cursor }) => {
@@ -41,5 +43,7 @@ export function createTodoApi(request: <Result>(path: string, init?: RequestInit
       update: (id, input) => request(`${rulesPath}/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) }),
       remove: (id) => request(`${rulesPath}/${encodeURIComponent(id)}`, { method: "DELETE" }),
     },
+    handoff: (id, input) => post(`${path}/${encodeURIComponent(id)}/handoff`, input),
+    linkOutcome: (id, input) => post(`${path}/${encodeURIComponent(id)}/link-outcome`, input),
   };
 }
