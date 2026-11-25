@@ -156,7 +156,7 @@ export const stepState = (progress: Pick<Progress, "stage" | "done" | "issue">, 
   return progress.issue ? "failed" : "active";
 };
 
-export type EngineTone = "checking" | "ready" | "setup" | "attention" | "blocked" | "unknown";
+export type EngineTone = "checking" | "ready" | "setup" | "attention" | "unavailable" | "blocked" | "unknown";
 export interface EngineOption {
   kind: EngineKind;
   tone: EngineTone;
@@ -180,7 +180,7 @@ const externalOption = (probe: EngineProbe | null, resuming: boolean): Omit<Engi
   switch (probe.state) {
     case "ready": return { ...base, tone: "ready", status: "Ready to use", detail: "A compatible engine is running.", meta: meta(probe) };
     case "stopped": return { ...base, tone: "attention", status: "Installed, not running", detail: "Start your container engine, then check again.", meta: meta(probe) };
-    case "needs-setup": return { ...base, tone: "setup", status: "Not installed", detail: "No Docker-compatible engine found." };
+    case "needs-setup": return { ...base, tone: "unavailable", status: "Not installed", detail: "No Docker-compatible engine found.", selectable: false };
     case "unsupported": return { ...base, tone: "blocked", status: "Not compatible", detail: probe.reasons[0] ?? deployIssue("ENGINE_INCOMPATIBLE"), meta: meta(probe), selectable: false };
     default: return { ...base, tone: "unknown", status: "Couldn't check", detail: "OutcomeGo checks again when you deploy." };
   }
@@ -263,15 +263,155 @@ export const engineAdvice = (options: readonly EngineOption[], resuming = false)
       : managed?.tone === "attention" ? "Windows asks for approval once to turn on WSL, and may restart."
         : external?.tone === "attention" ? "Your engine isn't running. OutcomeGo can set up its own, or start yours and check again."
           : external?.tone === "blocked" ? "Your engine can't run OutcomeGo, so OutcomeGo sets up its own."
-            : external?.tone === "setup" ? "No container engine was found. OutcomeGo sets up its own on the first deploy."
+            : external?.tone === "unavailable" ? "No container engine was found. OutcomeGo sets up its own on the first deploy."
               : "Nothing else to install: the OutcomeGo engine works on this computer.";
     return { tone: "good", headline, detail };
+  }
+  if (managed?.tone === "blocked" && external?.tone === "unavailable") {
+    return { tone: "blocked", headline: "Install a container engine first", detail: "This computer can't run the OutcomeGo engine. Install a Docker-compatible engine, then check again." };
   }
   if (options.every(option => !option.selectable)) {
     return { tone: "blocked", headline: "Neither option can run here", detail: "Install a Docker-compatible engine, or connect to an existing server." };
   }
-  if (managed?.tone === "blocked" && external?.tone === "setup") {
-    return { tone: "blocked", headline: "Install a container engine first", detail: "This computer can't run the OutcomeGo engine. Install a Docker-compatible engine, then check again." };
-  }
   return { tone: "info", headline: "OutcomeGo will choose for you", detail: "It checks again when you deploy and uses whatever works." };
+};
+
+export const REQUIRED_MEMORY_BYTES = 8 * 1024 ** 3;
+export const REQUIRED_GUEST_MEMORY_BYTES = 4 * 1024 ** 3;
+export const REQUIRED_DISK_BYTES = 8 * 1024 ** 3;
+export const RECOMMENDED_CPU_CORES = 2;
+export const DEFAULT_API_PORT = 8787;
+
+export type ResourceTone = "checking" | "pass" | "warn" | "fail" | "unknown";
+
+export interface ResourceCheckItem {
+  id: "memory" | "disk" | "cpu" | "port";
+  /** English copy; callers translate it. */
+  label: string;
+  requirement: string;
+  requirementValues?: Record<string, string | number>;
+  actual: string;
+  actualValues?: Record<string, string | number>;
+  status: string;
+  tone: ResourceTone;
+  /** Visual capacity meter fill (0..1) when applicable. */
+  ratio?: number;
+  /** Ratio (0..1) where the required threshold sits on the meter. */
+  threshold?: number;
+}
+
+export interface HostResourceReport {
+  tone: ResourceTone;
+  /** English copy; callers translate it. */
+  summary: string;
+  items: ResourceCheckItem[];
+  note?: { tone: "warn" | "fail"; text: string; values?: Record<string, string | number> };
+}
+
+const formatGb = (bytes: number): string => {
+  const gb = bytes / 1024 ** 3;
+  return gb >= 100 ? `${Math.round(gb)} GB` : `${gb.toFixed(1).replace(/\.0$/, "")} GB`;
+};
+
+const clampRatio = (value: number, scale: number): number => Math.max(0.08, Math.min(1, value / scale));
+
+/**
+ * Evaluates local machine resources against OutcomeGo server requirements (matching CLI preflight:
+ * 8 GB memory recommended / 4 GB engine minimum, 8 GB free disk required, 2+ CPU cores, port 8787).
+ */
+export const evaluateHostResources = (probes: EngineProbes | null, selected: EngineKind | null): HostResourceReport => {
+  const checking = probes === null;
+  const resources = probes?.resources;
+  const apiPort = resources?.apiPort ?? DEFAULT_API_PORT;
+  const activeProbe = selected === "external" ? probes?.external : selected === "managed" ? probes?.managed : null;
+  const guestMemoryBytes = activeProbe?.state === "ready" && typeof activeProbe.memoryBytes === "number" ? activeProbe.memoryBytes : null;
+
+  // 1. Memory
+  let memory: ResourceCheckItem;
+  if (checking) {
+    memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "Checking…", status: "Checking…", tone: "checking", threshold: 0.5 };
+  } else if (resources?.memoryBytes != null) {
+    const amount = formatGb(resources.memoryBytes);
+    const ratio = clampRatio(resources.memoryBytes, 16 * 1024 ** 3);
+    if (resources.memoryBytes < REQUIRED_MEMORY_BYTES) {
+      memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "{amount}", actualValues: { amount }, status: "Below 8 GB", tone: "warn", ratio, threshold: 0.5 };
+    } else if (guestMemoryBytes !== null && guestMemoryBytes < REQUIRED_GUEST_MEMORY_BYTES) {
+      memory = {
+        id: "memory", label: "Memory", requirement: "≥ 8 GB recommended",
+        actual: "{amount} (engine {guest})", actualValues: { amount, guest: formatGb(guestMemoryBytes) },
+        status: "Engine memory low", tone: "warn", ratio: clampRatio(guestMemoryBytes, 8 * 1024 ** 3), threshold: 0.5,
+      };
+    } else {
+      memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "{amount}", actualValues: { amount }, status: "Meets requirement", tone: "pass", ratio, threshold: 0.5 };
+    }
+  } else {
+    memory = { id: "memory", label: "Memory", requirement: "≥ 8 GB recommended", actual: "Checked on deploy", status: "Unchecked", tone: "unknown", threshold: 0.5 };
+  }
+
+  // 2. Disk space
+  let disk: ResourceCheckItem;
+  if (checking) {
+    disk = { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "Checking…", status: "Checking…", tone: "checking", threshold: 0.25 };
+  } else if (resources?.diskAvailableBytes != null) {
+    const amount = formatGb(resources.diskAvailableBytes);
+    const ratio = clampRatio(resources.diskAvailableBytes, 32 * 1024 ** 3);
+    disk = resources.diskAvailableBytes >= REQUIRED_DISK_BYTES
+      ? { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "{amount} free", actualValues: { amount }, status: "Sufficient", tone: "pass", ratio, threshold: 0.25 }
+      : { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "{amount} free", actualValues: { amount }, status: "Not enough space", tone: "fail", ratio, threshold: 0.25 };
+  } else {
+    disk = { id: "disk", label: "Free disk", requirement: "≥ 8 GB free", actual: "Checked on deploy", status: "Unchecked", tone: "unknown", threshold: 0.25 };
+  }
+
+  // 3. CPU
+  let cpu: ResourceCheckItem;
+  if (checking) {
+    cpu = { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "Checking…", status: "Checking…", tone: "checking", threshold: 0.25 };
+  } else if (resources?.cpuCores != null) {
+    const ratio = clampRatio(resources.cpuCores, 8);
+    const archLabel = resources.arch || "64-bit";
+    cpu = resources.cpuCores >= RECOMMENDED_CPU_CORES
+      ? { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "{cores} cores · {arch}", actualValues: { cores: resources.cpuCores, arch: archLabel }, status: "Meets requirement", tone: "pass", ratio, threshold: 0.25 }
+      : { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "{cores} cores · {arch}", actualValues: { cores: resources.cpuCores, arch: archLabel }, status: "Limited CPU", tone: "warn", ratio, threshold: 0.25 };
+  } else {
+    cpu = { id: "cpu", label: "Processor", requirement: "≥ 2 cores (64-bit)", actual: "Checked on deploy", status: "Unchecked", tone: "unknown", threshold: 0.25 };
+  }
+
+  // 4. Default API port
+  let port: ResourceCheckItem;
+  if (checking) {
+    port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Checking…", status: "Checking…", tone: "checking" };
+  } else if (resources?.apiPortAvailable === true) {
+    port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Port {port} free", actualValues: { port: apiPort }, status: "Available", tone: "pass" };
+  } else if (resources?.apiPortAvailable === false) {
+    port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Port {port} in use", actualValues: { port: apiPort }, status: "In use", tone: "warn" };
+  } else {
+    port = { id: "port", label: "Service port", requirement: "Needs port {port} free", requirementValues: { port: apiPort }, actual: "Checked on deploy", status: "Unchecked", tone: "unknown" };
+  }
+
+  const items = [memory, disk, cpu, port];
+  if (checking) {
+    return { tone: "checking", summary: "Checking resources…", items };
+  }
+  if (disk.tone === "fail") {
+    return {
+      tone: "fail",
+      summary: "Not enough disk space",
+      items,
+      note: { tone: "fail", text: "At least 8 GB of free disk space is required. Free up space, then click Check again." },
+    };
+  }
+  if (items.some(item => item.tone === "warn")) {
+    const note = memory.tone === "warn"
+      ? (guestMemoryBytes !== null && guestMemoryBytes < REQUIRED_GUEST_MEMORY_BYTES
+        ? { tone: "warn" as const, text: "The container engine has less than 4 GB of memory assigned. Increase its memory limit or confirm during deploy." }
+        : { tone: "warn" as const, text: "This computer has less than the recommended 8 GB of memory. You can still deploy, though bots may run slower." })
+      : port.tone === "warn"
+        ? { tone: "warn" as const, text: "Port {port} is currently in use. Free it or choose another API port when deploying.", values: { port: apiPort } }
+        : { tone: "warn" as const, text: "Fewer than 2 CPU cores were detected. Local bots may run slower than usual." };
+    return { tone: "warn", summary: "Needs attention", items, note };
+  }
+  if (items.every(item => item.tone === "pass")) {
+    return { tone: "pass", summary: "Ready to deploy", items };
+  }
+  return { tone: "unknown", summary: "Checked on deploy", items };
 };

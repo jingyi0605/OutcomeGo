@@ -97,6 +97,9 @@ export function EnginePicker({
               <span className="deploy-engine-sub">
                 <small>{t(option.about)}</small>
                 {option.recommended ? <span className="deploy-engine-badge">{t("Recommended")}</span> : null}
+                {!option.selectable && option.tone === "unavailable" ? (
+                  <span className="deploy-engine-badge" data-tone="unavailable">{t("Not available")}</span>
+                ) : null}
               </span>
               <span className="deploy-engine-status" data-tone={option.tone} key={`${option.tone}:${option.status}`}>
                 <i aria-hidden="true" />

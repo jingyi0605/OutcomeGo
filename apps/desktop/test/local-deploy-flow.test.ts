@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { codes, type DeployProgress, type EngineProbe, stages } from "../src/renderer/lib/local-deploy-contract";
 import {
-  activeStage, deployFraction, deployIssue, deployProgress, emptyProgress, engineAdvice, engineOptions, sourceOfLog,
-  stageCopy, stageWeights, stepState, suggestedEngine,
+  activeStage, deployFraction, deployIssue, deployProgress, emptyProgress, engineAdvice, engineOptions,
+  evaluateHostResources, sourceOfLog, stageCopy, stageWeights, stepState, suggestedEngine,
 } from "../src/renderer/lib/local-deploy-flow";
 
 const envelope = { schemaVersion: 1, deployId: "test", ts: "2026-11-24T00:00:00Z" } as const;
@@ -200,4 +200,60 @@ test("the advice says what is missing when neither engine can run, and otherwise
   expect(adviceFor(probe("unsupported"), unsupported)).toMatchObject({ tone: "blocked", headline: "Neither option can run here" });
   expect(adviceFor(probe("needs-setup"), unsupported)).toMatchObject({ tone: "blocked", headline: "Install a container engine first" });
   expect(adviceFor(probe("unknown"), probe("unknown"))).toMatchObject({ tone: "info", headline: "OutcomeGo will choose for you" });
+});
+
+test("when Docker is not installed on this computer, the existing-engine option is disabled", () => {
+  const found = choose(probe("needs-setup"), probe("needs-setup"));
+  expect(found.external).toMatchObject({
+    tone: "unavailable",
+    status: "Not installed",
+    selectable: false,
+    recommended: false,
+  });
+  expect(found.managed).toMatchObject({ selectable: true, recommended: true });
+  expect(found.suggested).toBe("managed");
+});
+
+const GiB = 1024 ** 3;
+const baseResources = {
+  memoryBytes: 16 * GiB,
+  diskAvailableBytes: 64 * GiB,
+  cpuCores: 8,
+  arch: "arm64",
+  apiPort: 8787,
+  apiPortAvailable: true,
+};
+
+test("evaluateHostResources reports checking, pass, warnings, and disk failure accurately", () => {
+  const checking = evaluateHostResources(null, null);
+  expect(checking.tone).toBe("checking");
+  expect(checking.items.every(item => item.tone === "checking")).toBe(true);
+
+  const ok = evaluateHostResources({ external: probe("ready"), managed: probe("needs-setup"), resources: baseResources }, "external");
+  expect(ok.tone).toBe("pass");
+  expect(ok.summary).toBe("Ready to deploy");
+  expect(ok.items.map(item => [item.id, item.tone])).toEqual([
+    ["memory", "pass"], ["disk", "pass"], ["cpu", "pass"], ["port", "pass"],
+  ]);
+  expect(ok.note).toBeUndefined();
+
+  const lowDisk = evaluateHostResources({ external: probe("needs-setup"), managed: probe("needs-setup"), resources: { ...baseResources, diskAvailableBytes: 3.5 * GiB } }, "managed");
+  expect(lowDisk.tone).toBe("fail");
+  expect(lowDisk.summary).toBe("Not enough disk space");
+  expect(lowDisk.items.find(item => item.id === "disk")?.tone).toBe("fail");
+  expect(lowDisk.note?.tone).toBe("fail");
+
+  const lowMem = evaluateHostResources({ external: probe("needs-setup"), managed: probe("needs-setup"), resources: { ...baseResources, memoryBytes: 6 * GiB } }, "managed");
+  expect(lowMem.tone).toBe("warn");
+  expect(lowMem.items.find(item => item.id === "memory")?.tone).toBe("warn");
+  expect(lowMem.note?.text).toContain("8 GB");
+
+  const lowGuestMem = evaluateHostResources({ external: probe("ready", { memoryBytes: 2 * GiB }), managed: probe("needs-setup"), resources: baseResources }, "external");
+  expect(lowGuestMem.tone).toBe("warn");
+  expect(lowGuestMem.items.find(item => item.id === "memory")?.status).toBe("Engine memory low");
+
+  const busyPort = evaluateHostResources({ external: probe("needs-setup"), managed: probe("needs-setup"), resources: { ...baseResources, apiPortAvailable: false } }, "managed");
+  expect(busyPort.tone).toBe("warn");
+  expect(busyPort.items.find(item => item.id === "port")?.tone).toBe("warn");
+  expect(busyPort.note?.text).toContain("Port {port}");
 });

@@ -336,3 +336,48 @@ test("no picture is drawn on a platform that never chooses an engine", async () 
   await fixture();
   expect(document.querySelector(".deploy-guide")).toBeNull();
 });
+
+test("when Docker is not installed, option 1 is disabled and cannot be selected", async () => {
+  await fixture({
+    platform: "win32",
+    probes: { external: probe("needs-setup"), managed: probe("needs-setup") },
+  });
+  expect(radio("external").disabled).toBe(true);
+  expect(card("external").hasAttribute("data-disabled")).toBe(true);
+  expect(card("external").textContent).toContain("Not installed");
+  expect(card("external").textContent).toContain("Not available");
+  expect(lane("external").hasAttribute("data-disabled")).toBe(true);
+  expect(radio("managed").checked).toBe(true);
+  expect(lane("managed").hasAttribute("data-selected")).toBe(true);
+});
+
+test("the right panel displays local resource requirements and live check results", async () => {
+  const GiB = 1024 ** 3;
+  await fixture({
+    platform: "darwin",
+    probes: {
+      external: probe("needs-setup"),
+      managed: probe("needs-setup"),
+      resources: {
+        memoryBytes: 16 * GiB,
+        diskAvailableBytes: 4.2 * GiB,
+        cpuCores: 10,
+        arch: "arm64",
+        apiPort: 8787,
+        apiPortAvailable: true,
+      },
+    },
+  });
+  const panel = document.querySelector(".deploy-resources")!;
+  expect(panel).not.toBeNull();
+  expect(panel.textContent).toContain("System requirements & check");
+  expect(panel.textContent).toContain("≥ 8 GB recommended");
+  expect(panel.textContent).toContain("≥ 8 GB free");
+  expect(panel.textContent).toContain("16 GB");
+  expect(panel.textContent).toContain("4.2 GB free");
+  expect(panel.textContent).toContain("10 cores · arm64");
+  expect(panel.textContent).toContain("Port 8787 free");
+  expect(panel.textContent).toContain("Not enough disk space");
+  expect(panel.querySelector('[data-id="disk"]')?.getAttribute("data-tone")).toBe("fail");
+  expect(panel.querySelector('[data-id="memory"]')?.getAttribute("data-tone")).toBe("pass");
+});

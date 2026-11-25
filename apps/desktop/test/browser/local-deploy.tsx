@@ -7,6 +7,7 @@ import type {
   DeployProgress,
   EngineProbe,
   EngineProbes,
+  HostResources,
   Stage,
 } from "../../src/renderer/lib/local-deploy-contract";
 
@@ -34,7 +35,15 @@ const answers: Record<string, EngineProbes> = {
   },
   failed: { external: probe("unknown"), managed: probe("unknown") },
 };
+const GiB = 1024 ** 3;
+const resourcePresets: Record<string, HostResources> = {
+  ok: { memoryBytes: 16 * GiB, diskAvailableBytes: 128.4 * GiB, cpuCores: 10, arch: platform === "win32" ? "x64" : "arm64", apiPort: 8787, apiPortAvailable: true },
+  "low-mem": { memoryBytes: 6 * GiB, diskAvailableBytes: 64 * GiB, cpuCores: 4, arch: platform === "win32" ? "x64" : "arm64", apiPort: 8787, apiPortAvailable: true },
+  "low-disk": { memoryBytes: 16 * GiB, diskAvailableBytes: 3.8 * GiB, cpuCores: 8, arch: platform === "win32" ? "x64" : "arm64", apiPort: 8787, apiPortAvailable: true },
+  "port-busy": { memoryBytes: 16 * GiB, diskAvailableBytes: 86 * GiB, cpuCores: 8, arch: platform === "win32" ? "x64" : "arm64", apiPort: 8787, apiPortAvailable: false },
+};
 const mode = params.get("engines") ?? "ready";
+const resourceMode = params.get("resources") ?? "ok";
 
 let listener: ((event: DeployProgress) => void) | undefined;
 const deployId = "00000000-0000-4000-8000-000000000000";
@@ -95,7 +104,8 @@ Object.defineProperty(window, "outcomego", {
     localDeploy: {
       engines: async () => {
         await wait(mode === "slow" ? 60_000 : 900);
-        return answers[mode] ?? answers.ready!;
+        const base = answers[mode] ?? answers.ready!;
+        return { ...base, resources: resourcePresets[resourceMode] ?? resourcePresets.ok! };
       },
       start: async () => {
         void play();
