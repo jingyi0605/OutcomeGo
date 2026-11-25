@@ -230,6 +230,8 @@ test("an incompatible engine cannot be picked, and with nothing usable the perso
   expect(card("external").textContent).toContain("Compose is too old.");
   expect(card("managed").textContent).toContain("macOS 13.5 or later");
   expect(document.querySelector("[role=alert]")?.textContent).toContain("Neither engine can run here");
+  // Said once, beside the choice; the picture doesn't repeat it.
+  expect(document.querySelector(".deploy-guide-advice")).toBeNull();
   expect(document.querySelector('input[name="deploy-engine"]:checked')).toBeNull();
   await credentials();
   await submit();
@@ -303,7 +305,9 @@ test("beside the choice, a picture sets the two engines apart and follows what w
   expect(lane("managed").textContent).toContain("OutcomeGo virtual machine");
   expect(lane("managed").textContent).toContain("Separate from your own Docker");
   expect(lane("managed").textContent).not.toContain("Recommended");
-  expect(document.querySelector(".deploy-guide-advice")!.textContent).toContain("Use your existing engine");
+  // A plain good suggestion is drawn, not announced: its reason waits behind the badge.
+  expect(lane("external").querySelector(".deploy-lane-badge [role=tooltip]")!.textContent).toContain("Use your existing engine");
+  expect(document.querySelector(".deploy-guide-advice")).toBeNull();
   expect([lane("external").hasAttribute("data-selected"), lane("managed").hasAttribute("data-selected")]).toEqual([true, false]);
   await pick("managed");
   expect([lane("external").hasAttribute("data-selected"), lane("managed").hasAttribute("data-selected")]).toEqual([false, true]);
@@ -382,4 +386,22 @@ test("the right panel displays local resource requirements and live check result
   // Under each dial only the measured value; the rest is in its tip.
   expect(["memory", "disk", "cpu", "port"].map((id) => panel.querySelector(`[data-id="${id}"] button strong`)!.textContent))
     .toEqual(["16 GB", "4.2 GB", "10 cores", "8787"]);
+});
+
+test("the picture keeps each sentence behind an icon, and asking about it picks nothing", async () => {
+  await fixture({ platform: "darwin", probes: { external: probe("ready"), managed: probe("needs-setup") } });
+  const pips = lane("managed").querySelectorAll<HTMLButtonElement>(".deploy-pip");
+  expect(pips).toHaveLength(3);
+  const pip = pips[0]!;
+  expect(pip.textContent).toBe("");
+  expect(pip.getAttribute("aria-label")).toBe("Set up automatically on first deploy");
+  expect(pip.parentElement!.querySelector("[role=tooltip]")!.textContent).toBe("Set up automatically on first deploy");
+  await act(async () => { pip.dispatchEvent(new Event("click", { bubbles: true })); });
+  expect(lane("external").hasAttribute("data-selected")).toBe(true);
+  // The rest of the drawing still picks its engine.
+  await act(async () => { lane("managed").querySelector("header strong")!.dispatchEvent(new Event("click", { bubbles: true })); });
+  expect(lane("managed").hasAttribute("data-selected")).toBe(true);
+  const escape = Object.assign(new Event("keydown", { bubbles: true, cancelable: true }), { key: "Escape" });
+  await act(async () => { pip.dispatchEvent(escape); });
+  expect(escape.defaultPrevented).toBe(true);
 });
