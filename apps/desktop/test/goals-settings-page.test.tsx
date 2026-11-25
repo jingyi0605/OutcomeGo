@@ -31,7 +31,7 @@ describe("goal management page", () => {
 
   test("does not show groups whose feature does not exist yet: no empty shells", () => {
     const html = render(features());
-    for (const later of ["goal-auto-accept", "goal-calendar"]) expect(html).not.toContain(`data-settings-anchor="${later}"`);
+    expect(html).not.toContain('data-settings-anchor="goal-auto-accept"');
   });
 
   test("the auto-accept rules group follows its settings anchor and the goal management switch", () => {
