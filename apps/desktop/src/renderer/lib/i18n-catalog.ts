@@ -3662,6 +3662,15 @@ export const sourceTranslations: Record<string, string> = {
   "No suggestions to review.": "没有待分诊的建议。",
   "Select fewer suggestions and try again.": "请减少选中的建议数量后重试。",
   "Your original message": "你的原始消息",
+  "To-do morning summary": "待办晨报",
+  "Some titles may be written by bots.": "部分标题可能由 bot 填写。",
+  "High urgency": "高紧急度",
+  "Low urgency": "低紧急度",
+  "Follow-up time": "跟进时间",
+  "Mark as waiting": "标记为等待",
+  "Update follow-up time": "更新跟进时间",
+  "Stop waiting": "结束等待",
+  "Choose a follow-up time.": "请选择跟进时间。",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>
