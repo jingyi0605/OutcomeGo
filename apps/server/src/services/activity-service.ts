@@ -4,11 +4,16 @@ import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import {
   ACTIVITY_LIST_LIMIT,
   ACTIVITY_TITLE_LIMIT,
+  compareNeedsMe,
   deriveRequestDisplayState,
   deriveRoutineDisplayState,
   deriveWorkItemDisplayState,
+  needsMeZone,
   type ActivityItem,
   type ActivityResponse,
+  type NeedsMeItem,
+  type NeedsMeResponse,
+  type NeedsMeState,
   type RequestBlockSource,
   type RequestDisplayState,
   type RequestProgressDetailView,
@@ -88,6 +93,37 @@ export class ActivityService {
       (a, b) => (a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : a.id < b.id ? -1 : 1)
     );
     return { items: merged.slice(0, ACTIVITY_LIST_LIMIT), truncated: merged.length > ACTIVITY_LIST_LIMIT };
+  }
+
+  /**
+   * The requests that wait on the owner: blocked on the owner or policy, or with nobody following them up. They are the
+   * same rows the activity list marks `needsOwner`, so the two cannot disagree. Derived on every read and stored nowhere:
+   * once the request moves on, it is simply no longer here.
+   */
+  async needsMe(now = new Date()): Promise<NeedsMeResponse> {
+    const { checkOverdueMinutes } = await this.policy();
+    // Only a blocked or a waiting request can need the owner; the rest are left in the database.
+    const rows = await this.prisma.run.findMany({
+      where: {
+        requestProgress: { not: Prisma.DbNull },
+        requestStoppedAt: null,
+        origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
+        OR: [{ requestProgress: { path: ["state"], equals: "blocked" } }, { requestProgress: { path: ["state"], equals: "waiting" } }],
+      },
+      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+      take: ACTIVITY_LIST_LIMIT + 1,
+      select: requestRows,
+    });
+    const titles = await this.titles(rows.map((row) => row.userMessageId));
+    const items = rows.flatMap((row): NeedsMeItem[] => {
+      const progress = row.requestProgress as unknown as StoredProgress;
+      const state = this.displayState(row, progress, now, checkOverdueMinutes);
+      const zone = needsMeZone(state);
+      if (!zone) return [];
+      const item = this.item(row, titles.get(row.userMessageId) ?? "", now, checkOverdueMinutes);
+      return [{ key: item.id, source: "request", botId: row.botId, title: item.title, state: state as NeedsMeState, zone, reason: item.reason, since: item.lastActivityAt, link: item.link }];
+    });
+    return { items: items.sort(compareNeedsMe).slice(0, ACTIVITY_LIST_LIMIT) };
   }
 
   /** One request with what the list leaves out (evidence, the tool's error). Null when it is not a tracked request. */

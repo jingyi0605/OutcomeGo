@@ -7,6 +7,7 @@ import {
   brief,
   formatCount,
   laneOutcomes,
+  needsMeQueue,
   quickDecisionMode,
   STALE_AFTER_MINUTES,
   summarizeOutcomes,
@@ -152,4 +153,33 @@ test("descriptions shrink to one short line: first sentence if it fits, otherwis
   expect(out.endsWith("…")).toBe(true);
   expect(brief("x".repeat(30))).toBe("x".repeat(30));
   expect(brief("版本 1.2 已发布，请确认")).toBe("版本 1.2 已发布，请确认");
+});
+
+// Specs/004.10 task 4.4 (requirement A4): one queue, each entry once, in the order of design §2.4.
+const row = (key: string, since: string) => ({ key, outcomeId: key, title: key, category: "decision_pending" as const, since, completed: "", problem: "", next: "" });
+const asked = (key: string, zone: "exception" | "blocked", since: string) => ({
+  key, source: "request" as const, botId: "bot", title: key, state: zone === "blocked" ? ("needs_owner" as const) : ("no_follow_up" as const),
+  zone, reason: null, since, link: { type: "channel", id: "c" },
+});
+const keys = (entries: ReturnType<typeof needsMeQueue>) => entries.map((entry) => entry.key);
+
+test("with no request source the queue is the Inbox steps exactly as they were (an older server)", () => {
+  const rows = [row("s2", "2026-11-02T00:00:00Z"), row("s1", "2026-11-01T00:00:00Z")];
+  expect(keys(needsMeQueue(rows, []))).toEqual(["s2", "s1"]);
+});
+
+test("exceptions come before anything else, then blocked work, whichever waited longer first", () => {
+  const rows = [row("s-old", "2026-11-01T00:00:00Z"), row("s-new", "2026-11-05T00:00:00Z")];
+  const requests = [asked("r-mid", "blocked", "2026-11-03T00:00:00Z"), asked("r-late", "blocked", "2026-11-06T00:00:00Z"), asked("e-new", "exception", "2026-11-07T00:00:00Z")];
+  expect(keys(needsMeQueue(rows, requests))).toEqual(["e-new", "s-old", "r-mid", "s-new", "r-late"]);
+});
+
+test("the Inbox steps keep the order the server gave them, even when it is not by time", () => {
+  const rows = [row("urgent", "2026-11-09T00:00:00Z"), row("older", "2026-11-01T00:00:00Z")];
+  expect(keys(needsMeQueue(rows, [asked("r", "blocked", "2026-11-10T00:00:00Z")]))).toEqual(["urgent", "older", "r"]);
+});
+
+test("an entry that arrives from two sources is there once", () => {
+  const queue = needsMeQueue([row("same", "2026-11-01T00:00:00Z")], [asked("same", "blocked", "2026-11-01T00:00:00Z"), asked("same", "blocked", "2026-11-01T00:00:00Z")]);
+  expect(keys(queue)).toEqual(["same"]);
 });

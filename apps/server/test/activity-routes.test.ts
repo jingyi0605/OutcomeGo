@@ -16,10 +16,11 @@ const context = (path: string, init?: RequestInit, required = false) =>
   }) as RouteContext;
 const recentWindow = TASK_POLICY_FIELDS.find((field) => field.key === "activity.recentCompletedHours")!;
 
-const service = (overrides: Partial<Record<"list" | "requestDetail", (...args: any[]) => unknown>> = {}) =>
+const service = (overrides: Partial<Record<"list" | "requestDetail" | "needsMe", (...args: any[]) => unknown>> = {}) =>
   ({
     list: async () => ({ items: [], truncated: false }),
     requestDetail: async () => null,
+    needsMe: async () => ({ items: [] }),
     ...overrides,
   }) as unknown as ActivityService;
 
@@ -72,5 +73,18 @@ describe("activity routes", () => {
     expect(await found!.json()).toEqual(detail);
     await expect(route(context("/api/activity/requests/22222222-2222-4222-8222-222222222222"))).rejects.toMatchObject({ status: 404 });
     await expect(route(context("/api/activity/requests/not-an-id"))).rejects.toMatchObject({ status: 400 });
+  });
+
+  // Specs/004.10 task 4.4: the owner's queue is read the same way as the list: owner only, GET only, never cached.
+  test("the queue is for the signed-in owner only, GET only, and never cached", async () => {
+    let read = 0;
+    const route = createActivityRoutes(service({ needsMe: async () => (read++, { items: [] }) }));
+    await expect(route(context("/api/needs-me", undefined, true))).rejects.toMatchObject({ status: 401 });
+    expect(read).toBe(0);
+    expect(await route(context("/api/needs-me", { method: "POST", body: "{}" }))).toBeUndefined();
+    const response = (await route(context("/api/needs-me")))!;
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ items: [] });
   });
 });

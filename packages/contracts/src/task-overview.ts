@@ -277,3 +277,48 @@ export interface ActivityResponse {
   /** True when more than {@link ACTIVITY_LIST_LIMIT} items matched and the rest were left out. */
   truncated: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// The owner's "needs me" queue (specs/004.10 design §2.4, §3.8)
+// ---------------------------------------------------------------------------
+
+/** The states of a request that put it in the owner's queue. Every other state leaves it to the activity list. */
+export type NeedsMeState = Extract<RequestDisplayState, "needs_owner" | "no_follow_up" | "check_not_fired">;
+
+/** `exception`: nobody is following the work up. `blocked`: the owner's answer is what the work waits for. */
+export type NeedsMeZone = "exception" | "blocked";
+
+/** The zone a request state belongs to, or null when it does not need the owner. A zone never depends on urgency. */
+export function needsMeZone(state: DisplayState): NeedsMeZone | null {
+  if (state === "no_follow_up" || state === "check_not_fired") return "exception";
+  if (state === "needs_owner") return "blocked";
+  return null;
+}
+
+/** One request waiting on the owner. Its text was written by the bot: clients render it as plain text and say so. */
+export interface NeedsMeItem {
+  /** Stable: `<source>:<source id>`, the key the queue is deduplicated by. */
+  key: string;
+  source: "request";
+  botId: string;
+  title: string;
+  state: NeedsMeState;
+  zone: NeedsMeZone;
+  reason: string | null;
+  /** When the wait began; the longer ago, the earlier in its zone. */
+  since: string;
+  link: { type: string; id: string };
+}
+
+export interface NeedsMeResponse {
+  items: NeedsMeItem[];
+}
+
+const ZONE_RANK: Record<NeedsMeZone, number> = { exception: 0, blocked: 1 };
+
+/** Zone first, then the longest wait, then the key so the order never flips between reads. */
+export function compareNeedsMe(a: Pick<NeedsMeItem, "zone" | "since" | "key">, b: Pick<NeedsMeItem, "zone" | "since" | "key">): number {
+  if (a.zone !== b.zone) return ZONE_RANK[a.zone] - ZONE_RANK[b.zone];
+  if (a.since !== b.since) return a.since < b.since ? -1 : 1;
+  return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+}

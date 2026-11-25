@@ -41,8 +41,10 @@ export const createActivityRoutes = (activity: ActivityService) => async (contex
   const { request, path, authMode, authenticatedSessionId, url } = context;
   const list = path === "/api/activity";
   const detail = path.match(/^\/api\/activity\/requests\/([^/]+)$/);
-  if ((!list && !detail) || request.method !== "GET") return undefined;
+  const needsMe = path === "/api/needs-me";
+  if ((!list && !detail && !needsMe) || request.method !== "GET") return undefined;
   if (authMode === "required" && !authenticatedSessionId) throw new ApiError(401, "unauthorized", "Sign in to OutcomeGo to continue");
+  if (needsMe) return json(await activity.needsMe(), 200, { "cache-control": "no-store" });
   if (list) return json(await activity.list(parseActivityQuery(url.searchParams)), 200, { "cache-control": "no-store" });
   const requestRunId = detail![1]!;
   if (!UUID.test(requestRunId)) throw badRequest("Expected a UUID");

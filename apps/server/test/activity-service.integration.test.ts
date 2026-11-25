@@ -524,3 +524,55 @@ describe.skipIf(!url)("one list from every source", () => {
     expect(await t.service.list({ botId: t.h.bot.id })).toEqual({ items: [], truncated: false });
   });
 });
+
+describe.skipIf(!url)("the requests in the owner's queue (specs/004.10 task 4.4)", () => {
+  for (const [name, blockedFor, minutesOverdue] of [["first bot", "needs the owner's choice", 90], ["second bot", "waiting for a reply from the owner", 400]] as const) {
+    test(`(${name}) only requests nobody else can move are queued, each once, with the bot's reason`, async () => {
+      const t = await setup();
+      const ownerBlocked = await request(t.h, { state: "blocked", blockSource: "user", nextAction: blockedFor });
+      const runtimeBlocked = await request(t.h, { state: "blocked", blockSource: "runtime" });
+      const overdue = await request(t.h, { state: "waiting", nextCheckAt: minutes(-minutesOverdue) });
+      await request(t.h, { state: "blocked", blockSource: "tool" });
+      await request(t.h, { state: "waiting", nextCheckAt: minutes(60) });
+      await request(t.h, { state: "working" });
+      await request(t.h, { state: "complete" });
+      await request(t.h, { state: "blocked", blockSource: "user", stopped: true });
+      await request(t.h, { state: "blocked", blockSource: "user", origin: "routine" });
+      const { items } = await t.service.needsMe();
+      expect(items.map((item) => item.key).sort()).toEqual([`request:${ownerBlocked.id}`, `request:${runtimeBlocked.id}`, `request:${overdue.id}`].sort());
+      const blocked = items.find((item) => item.key === `request:${ownerBlocked.id}`)!;
+      expect(blocked).toMatchObject({ source: "request", zone: "blocked", state: "needs_owner", reason: blockedFor, botId: t.h.bot.id });
+      expect(items.find((item) => item.key === `request:${overdue.id}`)).toMatchObject({ zone: "exception", state: "check_not_fired" });
+      expect(items.find((item) => item.key === `request:${runtimeBlocked.id}`)).toMatchObject({ zone: "exception", state: "no_follow_up" });
+    });
+  }
+
+  test("the exceptions come first and inside a zone the longest wait is first", async () => {
+    const t = await setup();
+    const newer = await request(t.h, { state: "blocked", blockSource: "user", updatedAt: minutes(-10) });
+    const older = await request(t.h, { state: "blocked", blockSource: "policy", updatedAt: minutes(-500) });
+    const exception = await request(t.h, { state: "blocked", blockSource: "runtime", updatedAt: minutes(-1) });
+    const { items } = await t.service.needsMe();
+    expect(items.map((item) => item.key)).toEqual([`request:${exception.id}`, `request:${older.id}`, `request:${newer.id}`]);
+  });
+
+  test("it carries no evidence and no tool error, and the queue is empty once the request moves on", async () => {
+    const t = await setup();
+    const run = await request(t.h, { state: "blocked", blockSource: "user", evidence: ["EVIDENCE-SECRET-TEXT"], toolError: "TOOL-ERROR-TEXT" });
+    const first = await t.service.needsMe();
+    expect(JSON.stringify(first)).not.toContain("EVIDENCE-SECRET-TEXT");
+    expect(JSON.stringify(first)).not.toContain("TOOL-ERROR-TEXT");
+    await t.h.db.run.update({ where: { id: run.id }, data: { requestProgress: { state: "working", summary: "moving", runId: "x", key: "k", revision: 4 } } });
+    expect((await t.service.needsMe()).items).toEqual([]);
+  });
+
+  test("a request in the activity list is marked as already in the queue, and the two agree", async () => {
+    const t = await setup();
+    await request(t.h, { state: "blocked", blockSource: "user" });
+    await request(t.h, { state: "waiting", nextCheckAt: minutes(-1000) });
+    await request(t.h, { state: "working" });
+    const queued = (await t.service.needsMe()).items.map((item) => item.key).sort();
+    const marked = (await t.service.list({})).items.filter((item) => item.needsOwner).map((item) => item.id).sort();
+    expect(queued).toEqual(marked);
+  });
+});

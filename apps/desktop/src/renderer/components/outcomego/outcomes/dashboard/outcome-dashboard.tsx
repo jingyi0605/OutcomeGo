@@ -14,7 +14,7 @@ import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-view";
 import type { OutcomeInboxCategory, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
-import type { ActivityItem } from "@outcomego/contracts/task-overview";
+import type { ActivityItem, NeedsMeItem } from "@outcomego/contracts/task-overview";
 import type { OutcomeClient } from "../../../../client/outcome-api";
 import { subscribeOutcomeListRefresh } from "../../../../lib/outcome-events";
 import { useI18n } from "../../../../lib/i18n";
@@ -25,6 +25,7 @@ import { OutcomeButton, OutcomeRefresh } from "../outcome-ui";
 import {
   attentionCategoryLabels,
   attentionRows,
+  needsMeQueue,
   attentionVerbs,
   BOT_OUTCOME_STATUSES,
   brief,
@@ -39,7 +40,7 @@ import {
   type AttentionRow,
 } from "./dashboard-state";
 import { ActivitySection } from "./activity-section";
-import { dashboardSections } from "./activity-state";
+import { dashboardSections, styleForActivity } from "./activity-state";
 import { GoalFocusDetail, type GoalFocusClient } from "./goal-focus";
 import { QuickDecision } from "./quick-decision";
 
@@ -49,6 +50,8 @@ interface Loaded {
   moreSteps: boolean;
   /** Null when the area is not wanted or this server has no activity call: the area is then left out. */
   activity: ActivityItem[] | null;
+  /** Requests waiting on the owner. Empty when this server has no such call or it failed: the steps still show. */
+  requests: NeedsMeItem[];
 }
 
 // The initial values come from the policy metadata, never from a number written here.
@@ -105,6 +108,45 @@ function Waiting({ since }: { since: string }) {
     <span className="outcome-dash-wait" data-stale={minutes >= STALE_AFTER_MINUTES || undefined}>
       {"count" in label ? t("Waiting {time}", { time }) : time}
     </span>
+  );
+}
+
+/** A request that waits on the owner. Its reason is bot-written, shown as plain text and labelled as such. */
+function RequestRow({ item, botName, canOpen, onOpen }: { item: NeedsMeItem; botName: string; canOpen: boolean; onOpen: () => void }) {
+  const { t } = useI18n();
+  const style = styleForActivity(item.state);
+  const body = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className="outcome-row-title">{item.title || t("Request")}</span>
+        <span className="outcome-row-meta">
+          <span className="outcome-dash-tag" data-zone={item.zone}>
+            <span aria-hidden="true">{style.icon}</span> {t(style.label)}
+          </span>
+          {` · ${botName}`}
+          {item.reason ? ` · ${brief(item.reason)}` : ""}
+          {item.reason ? ` (${t("Written by the bot")})` : ""}
+        </span>
+      </span>
+      <Waiting since={item.since} />
+      {canOpen && (
+        <span className="outcome-dash-act">
+          {t("Open conversation")}
+          <ChevronRight aria-hidden="true" className="size-3" />
+        </span>
+      )}
+    </>
+  );
+  return (
+    <li data-needs-me-request={item.key} data-zone={item.zone}>
+      {canOpen ? (
+        <button className="outcome-row outcome-dash-step" onClick={onOpen}>
+          {body}
+        </button>
+      ) : (
+        <div className="outcome-row outcome-dash-step">{body}</div>
+      )}
+    </li>
   );
 }
 
@@ -214,7 +256,7 @@ export function OutcomeDashboard({
   activityPolicy,
   refreshVersion = 0,
 }: {
-  outcomes: Pick<OutcomeClient, "list" | "activity"> & GoalFocusClient;
+  outcomes: Pick<OutcomeClient, "list" | "activity" | "needsMe"> & GoalFocusClient;
   inbox: Pick<InboxClient, "list" | "decision" | "resolve">;
   bots: readonly OutcomeExecutionBot[];
   onSelectOutcome: (id: string) => void;
@@ -242,7 +284,7 @@ export function OutcomeDashboard({
     setBusy(true);
     setError(false);
     try {
-      const [goals, steps, activity] = await Promise.all([
+      const [goals, steps, activity, requests] = await Promise.all([
         outcomes.list(new URLSearchParams({ limit: String(OUTCOME_LIMITS.listPageSizeMax) }).toString()),
         // An older server without the Inbox still gets a working dashboard, just without steps.
         inbox.list({ status: "pending" }).catch(() => ({ items: [], nextCursor: null })),
@@ -251,9 +293,11 @@ export function OutcomeDashboard({
         layout.activity && outcomes.activity
           ? outcomes.activity({ includeAll: showAll }).then((response) => response.items ?? null).catch(() => null)
           : Promise.resolve(null),
+        // Requests nobody can move join the owner's list. An older server just has none.
+        outcomes.needsMe ? outcomes.needsMe().then((response) => response.items ?? []).catch(() => []) : Promise.resolve([]),
       ]);
       if (generation.current !== request) return;
-      setData({ outcomes: goals.items, steps: steps.items, moreSteps: steps.nextCursor !== null, activity });
+      setData({ outcomes: goals.items, steps: steps.items, moreSteps: steps.nextCursor !== null, activity, requests });
     } catch {
       if (generation.current === request) setError(true);
     } finally {
@@ -282,10 +326,13 @@ export function OutcomeDashboard({
   const goals = data?.outcomes ?? [];
   const stats = summarizeOutcomes(goals);
   const attention = attentionRows(data?.steps ?? [], goals);
-  const [focus, ...queue] = attention;
+  const entries = needsMeQueue(attention, data?.requests ?? []);
+  const first = entries[0];
+  const focus = first?.kind === "step" ? first.row : undefined;
+  const queue = focus ? entries.slice(1) : entries;
   const working = laneOutcomes(goals, BOT_OUTCOME_STATUSES, attention);
   const stuck = laneOutcomes(goals, STUCK_OUTCOME_STATUSES, attention);
-  const attentionCount = data ? `${formatCount(attention.length)}${data.moreSteps ? "+" : ""}` : "–";
+  const attentionCount = data ? `${formatCount(entries.length)}${data.moreSteps ? "+" : ""}` : "–";
   const value = (count: number) => (data ? formatCount(count) : "–");
   const open = (row: AttentionRow) => (row.step ? onSelectStep(row.step) : onSelectOutcome(row.outcomeId));
   const botName = (outcome: OutcomeSummary) =>
@@ -344,7 +391,7 @@ export function OutcomeDashboard({
         <Metric
           label={t("Needs your action")}
           value={attentionCount}
-          tone={attention.length > 0 ? "attention" : undefined}
+          tone={entries.length > 0 ? "attention" : undefined}
         />
         <Metric label={t("Accepted")} value={value(stats.accepted)} />
         <Metric label={t("All goals")} value={value(stats.total)} />
@@ -353,14 +400,14 @@ export function OutcomeDashboard({
       <section aria-label={t("Needs your action")} className="outcome-dash-section">
         <SectionHeading
           title={t("Needs your action")}
-          count={attention.length > 0 ? attentionCount : undefined}
+          count={entries.length > 0 ? attentionCount : undefined}
           action={
             queue.length + 1 > DASHBOARD_ROW_LIMIT || data?.moreSteps
               ? { label: t("View all"), onClick: onShowSteps }
               : undefined
           }
         />
-        {data && !focus && (
+        {data && entries.length === 0 && (
           <p className="outcome-dash-empty" role="status">
             <CheckCheck aria-hidden="true" className="size-4" strokeWidth={1.6} />
             {t("You're all caught up.")}
@@ -379,28 +426,38 @@ export function OutcomeDashboard({
         )}
         {queue.length > 0 && (
           <ul className="outcome-rows outcome-dash-queue">
-            {queue.slice(0, DASHBOARD_ROW_LIMIT - 1).map((row) => (
-              <li key={row.key}>
-                <button
-                  className="outcome-row outcome-dash-step"
-                  data-category={row.category}
-                  onClick={() => open(row)}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="outcome-row-title">{row.title}</span>
-                    <span className="outcome-row-meta">
-                      <CategoryTag category={row.category} />
-                      {row.next ? ` · ${brief(row.next)}` : ""}
+            {queue.slice(0, DASHBOARD_ROW_LIMIT - 1).map((entry) =>
+              entry.kind === "request" ? (
+                <RequestRow
+                  key={entry.key}
+                  item={entry.item}
+                  botName={bots.find((bot) => bot.id === entry.item.botId)?.name ?? t("Bot")}
+                  canOpen={entry.item.link.type === "channel" && onOpenChannel !== undefined}
+                  onOpen={() => onOpenChannel?.(entry.item.link.id)}
+                />
+              ) : (
+                <li key={entry.key}>
+                  <button
+                    className="outcome-row outcome-dash-step"
+                    data-category={entry.row.category}
+                    onClick={() => open(entry.row)}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="outcome-row-title">{entry.row.title}</span>
+                      <span className="outcome-row-meta">
+                        <CategoryTag category={entry.row.category} />
+                        {entry.row.next ? ` · ${brief(entry.row.next)}` : ""}
+                      </span>
                     </span>
-                  </span>
-                  <Waiting since={row.since} />
-                  <span className="outcome-dash-act">
-                    {t(attentionVerbs[row.category])}
-                    <ChevronRight aria-hidden="true" className="size-3" />
-                  </span>
-                </button>
-              </li>
-            ))}
+                    <Waiting since={entry.row.since} />
+                    <span className="outcome-dash-act">
+                      {t(attentionVerbs[entry.row.category])}
+                      <ChevronRight aria-hidden="true" className="size-3" />
+                    </span>
+                  </button>
+                </li>
+              )
+            )}
           </ul>
         )}
       </section>

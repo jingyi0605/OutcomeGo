@@ -3494,6 +3494,8 @@ export const sourceTranslations: Record<string, string> = {
   Verifying: "核对中",
   "Show all": "显示全部",
   "Written by the bot": "由 bot 填写",
+  "Open conversation": "打开对话",
+  Request: "请求",
   "What your bots are doing right now.": "你的 bot 现在在做什么。",
   "No bot is working right now.": "目前没有 bot 在工作。",
   "{working} working": "{working} 个进行中",

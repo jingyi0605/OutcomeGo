@@ -1,5 +1,7 @@
 import type { OutcomeStatus } from "@outcomego/contracts/outcome-view";
 import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
+import type { NeedsMeItem } from "@outcomego/contracts/task-overview";
+import { compareNeedsMe } from "@outcomego/contracts/task-overview";
 import type { DecisionView, OutcomeInboxCategory, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { CREDENTIAL_ACCESS_REASON_CODE } from "@outcomego/contracts/outcome-inbox-categories";
 import { canResolveDecision, isApprovalDecision } from "../inbox/decision-state";
@@ -117,6 +119,33 @@ export function attentionRows(
       next: "",
     });
   return rows;
+}
+
+/** One line of the owner's queue: an Inbox step or goal waiting on the owner, or a request nobody can move. */
+export type QueueEntry = { kind: "step"; key: string; row: AttentionRow } | { kind: "request"; key: string; item: NeedsMeItem };
+
+/**
+ * The queue in the order of specs/004.10 design §2.4. Exceptions come first (nobody follows the work up). Then the
+ * blocked work: the Inbox steps keep the order the server gave them, the requests keep their own order (the longest
+ * wait first), and the two are interleaved by who has waited longer. An entry is there once, whatever its sources.
+ * Nothing is stored: when a request moves on, the next read leaves it out.
+ */
+export function needsMeQueue(rows: readonly AttentionRow[], requests: readonly NeedsMeItem[]): QueueEntry[] {
+  const seen = new Set<string>();
+  const unique = <T extends { key: string }>(entries: readonly T[]) => entries.filter((entry) => !seen.has(entry.key) && !!seen.add(entry.key));
+  const steps = unique(rows).map((row): QueueEntry => ({ kind: "step", key: row.key, row }));
+  const asked = unique(requests).sort(compareNeedsMe);
+  const exceptions = asked.filter((item) => item.zone === "exception").map((item): QueueEntry => ({ kind: "request", key: item.key, item }));
+  const blocked = asked.filter((item) => item.zone === "blocked").map((item): QueueEntry => ({ kind: "request", key: item.key, item }));
+  const merged: QueueEntry[] = [];
+  let a = 0;
+  let b = 0;
+  const since = (entry: QueueEntry) => (entry.kind === "step" ? entry.row.since : entry.item.since);
+  while (a < steps.length || b < blocked.length) {
+    if (b >= blocked.length || (a < steps.length && since(steps[a]!) <= since(blocked[b]!))) merged.push(steps[a++]!);
+    else merged.push(blocked[b++]!);
+  }
+  return [...exceptions, ...merged];
 }
 
 /** A goal appears once on the page: goals already on the owner's list never repeat in the Bot lanes. */
