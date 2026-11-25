@@ -443,6 +443,7 @@ model OwnerTodoItem {
   authorizedByMessageId String? @db.Uuid
   acceptedBy OwnerTodoAcceptedBy?
   autoAcceptRuleId String? @db.Uuid
+  autoAcceptRuleName String?
   urgency OwnerTodoUrgency @default(normal)
   sourceRef Json?
   summary String?
@@ -471,7 +472,25 @@ model OwnerTodoItem {
   @@index([status, expiresAt], map: "outcomego_owner_todo_status_expires_idx")
   @@index([botId, status], map: "outcomego_owner_todo_bot_status_idx")
   @@index([ownerId, authorizedByMessageId], map: "outcomego_owner_todo_authorization_idx")
+  @@index([ownerId, autoAcceptRuleId, createdAt], map: "outcomego_owner_todo_rule_day_idx")
   @@map("outcomego_owner_todo_item")
+}
+
+model TodoAutoAcceptRule {
+  id String @id @default(uuid()) @db.Uuid
+  ownerId String
+  name String @db.VarChar(80)
+  routineId String? @db.Uuid
+  botId String? @db.Uuid
+  sourceKind String? @db.VarChar(40)
+  enabled Boolean @default(true)
+  matchCount Int @default(0)
+  lastMatchedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([ownerId, enabled, createdAt], map: "outcomego_todo_auto_accept_owner_enabled_idx")
+  @@map("outcomego_todo_auto_accept_rule")
 }
 
 model Subagent {

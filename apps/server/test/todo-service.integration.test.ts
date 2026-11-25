@@ -26,6 +26,7 @@ async function setup() {
     await db.outboxDelivery.deleteMany({ where: { OR: rows.map(({ id }) => ({ deliveryKey: { startsWith: `todo:urgent:${id}:` } })) } });
     await db.event.deleteMany({ where: { topic: "todo.changed", entityId: { in: rows.map((row) => row.id) } } });
     await db.ownerTodoItem.deleteMany({ where: { ownerId: { in: [owner, "local"] } } });
+    await db.todoAutoAcceptRule.deleteMany({ where: { ownerId: { in: [owner, "local"] } } });
     await db.idempotencyRecord.deleteMany({ where: { scope: { in: [`todo-create:${owner}`, "todo-create:local", "todo-agent:local"] } } });
     await db.featureSettings.deleteMany({ where: { id: "global" } });
     await fixture.cleanup();
@@ -138,6 +139,54 @@ describe.skipIf(!enabled)("owner todo source gate and triage", () => {
     const run = await db.run.create({ data: { botId: bot.id, conversationId, userMessageId: message.id, origin } });
     return { message, run, context: { runId: run.id, botId: bot.id, authMode: "disabled" as const } };
   }
+
+  test("owner rules apply only to new matching suggestions and respect the local-day limit", async () => {
+    const fixture = await setup();
+    const { bot, db, todos } = fixture;
+    const { context } = await turn(fixture, "event");
+    const laterTurn = await turn(fixture, "agent");
+    const begin = new Date("2026-11-25T15:59:00Z");
+    const nextDay = new Date("2026-11-25T16:00:00Z");
+    await db.userTimeZoneSettings.create({ data: { id: "global", override: "Asia/Singapore" } });
+    cleanups.push(async () => { await db.userTimeZoneSettings.delete({ where: { id: "global" } }); });
+    await db.featureSettings.update({ where: { id: "global" }, data: { taskPolicy: { "todo.autoAccept.maxPerRulePerDay": 1 } } });
+    const route = createTodoRoutes(todos);
+    const endpoint = "/api/todos/auto-accept-rules";
+    const requestRule = (method: string, payload?: object, suffix = "", authMode = "disabled") => {
+      const path = `${endpoint}${suffix}`;
+      const request = new Request(`http://localhost${path}`, { method, body: payload ? JSON.stringify(payload) : undefined });
+      return route({ request, path, url: new URL(request.url), authMode, authenticatedSessionId: null } as RouteContext);
+    };
+    await expect(requestRule("GET", undefined, "", "required")).rejects.toMatchObject({ status: 401 });
+    await expect(requestRule("POST", { name: "Unbound", sourceKind: "alpha" })).rejects.toMatchObject({ status: 400 });
+    const draft = { name: "First", botId: bot.id, sourceKind: "alpha" };
+    const created = (await requestRule("POST", draft))!;
+    expect(created.status).toBe(201);
+    const rule = await created.json() as { id: string };
+    await todos.createAutoAcceptRule("local", { ...draft, name: "Later" }, new Date(Date.now() + 1_000));
+    await todos.createAutoAcceptRule(fixture.owner, { ...draft, name: "Separate" }, new Date());
+    await expect(requestRule("PATCH", { botId: null }, `/${rule.id}`)).rejects.toMatchObject({ status: 400 });
+    await expect(todos.deleteAutoAcceptRule(fixture.owner, rule.id)).rejects.toMatchObject({ status: 404 });
+    const input = (id: string, kind = "alpha") => ({ title: `Item ${id}`, summary: "Placeholder", clientRequestId: id, sourceRef: { kind, id, label: "Label" } });
+    const submit = (id: string, time = begin, kind = "alpha") => todos.createFromTurn(context, "suggest", input(id, kind), time);
+    expect((await submit("different", begin, "beta")).todo.status).toBe("suggested");
+    await expect(todos.createFromTurn(context, "suggest", { ...input("forged"), botId: bot.id }, begin)).rejects.toMatchObject({ status: 400 });
+    expect(await todos.createFromTurn(laterTurn.context, "create", { title: "Placeholder", clientRequestId: "invalid-ref", ownerMessageRef: crypto.randomUUID(), sourceRef: input("invalid-ref").sourceRef }, begin))
+      .toMatchObject({ reason: "owner_ref_invalid", todo: { status: "suggested" } });
+    const results = await Promise.all([submit("one"), submit("two")]);
+    expect(results.map(({ todo }) => todo.status).sort()).toEqual(["open", "suggested"]);
+    const accepted = results.find(({ todo }) => todo.status === "open")!.todo;
+    expect(await todos.detail("local", accepted.id, begin)).toMatchObject({ acceptedBy: "rule", autoAcceptRuleId: rule.id, autoAcceptRuleName: "First", createdVia: "agent_turn", authorizedByMessageId: null });
+    expect(await submit("one")).toEqual(results[0]);
+    expect((await submit("tomorrow", nextDay)).todo.status).toBe("open");
+    const listing = await (await requestRule("GET"))!.json() as { rules: unknown[] };
+    expect(listing.rules).toHaveLength(2);
+    expect(listing.rules).toContainEqual(expect.objectContaining({ id: rule.id, matchCount: 2, lastMatchedAt: nextDay.toISOString() }));
+    expect((await requestRule("PATCH", { enabled: false }, `/${rule.id}`))?.status).toBe(200);
+    expect((await requestRule("DELETE", undefined, `/${rule.id}`))?.status).toBe(204);
+    expect(await todos.detail("local", accepted.id, nextDay)).toMatchObject({ status: "open", autoAcceptRuleName: "First" });
+    expect((await todos.act("local", accepted.id, "dismiss", { revision: accepted.revision }, nextDay)).status).toBe("dismissed");
+  });
 
   test("a later turn can reference a recent owner message, but synthetic, stale and foreign messages cannot authorize", async () => {
     const fixture = await setup();

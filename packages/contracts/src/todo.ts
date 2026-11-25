@@ -30,6 +30,30 @@ export const TodoCreate = z.object({
 }).strict();
 export type TodoCreate = z.infer<typeof TodoCreate>;
 
+const todoAutoAcceptRuleFields = z.object({
+  name: z.string().trim().min(1).max(80),
+  routineId: TodoId.nullable().optional(),
+  botId: TodoId.nullable().optional(),
+  sourceKind: z.string().trim().min(1).max(40).nullable().optional(),
+  enabled: z.boolean().optional(),
+}).strict();
+export const TodoAutoAcceptRuleCreate = todoAutoAcceptRuleFields.refine(({ routineId, botId }) => Boolean(routineId || botId));
+export const TodoAutoAcceptRuleUpdate = todoAutoAcceptRuleFields.partial().refine((fields) => Object.keys(fields).length > 0);
+export type TodoAutoAcceptRuleCreate = z.infer<typeof TodoAutoAcceptRuleCreate>;
+export type TodoAutoAcceptRuleUpdate = z.infer<typeof TodoAutoAcceptRuleUpdate>;
+export interface TodoAutoAcceptRuleView {
+  id: string;
+  name: string;
+  routineId: string | null;
+  botId: string | null;
+  sourceKind: string | null;
+  enabled: boolean;
+  matchCount: number;
+  lastMatchedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const TodoCreateFromTurn = TodoCreate.extend({
   ownerMessageRef: TodoId.optional(),
   sourceRef: TodoSourceRef.optional(),
@@ -108,6 +132,7 @@ export interface TodoItemView {
   ownerMessagePreview: string | null;
   acceptedBy: "owner" | "rule" | null;
   autoAcceptRuleId: string | null;
+  autoAcceptRuleName?: string | null;
   urgency: z.infer<typeof TodoUrgency>;
   sourceRef: TodoSourceRef | null;
   summary: string | null;

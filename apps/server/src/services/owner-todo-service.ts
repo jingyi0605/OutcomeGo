@@ -5,10 +5,12 @@ import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import {
   compareTodoAttention, decideTodoSource, deriveTodoAttention, deriveTodoDisplayState, TodoCreateFromTurn, TodoSourceRef, TodoSuggest,
   type TodoAction, type TodoActionInput, type TodoAttentionItem, type TodoBulkInput, type TodoCreate,
+  type TodoAutoAcceptRuleCreate, type TodoAutoAcceptRuleUpdate,
   type TodoItemView, type TodoListQuery, type TodoListResponse, type TodoTurnResponse, type TodoUpdate,
 } from "@outcomego/contracts/todo";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import { enqueueUrgentTodoPush, expireTodoRows, publishTodoChanges, readFeatureSettings, readTodoDigest, readUserTimeZone, todoAttentionWhere } from "@outcomego/messaging";
+import { autoAcceptRuleView, lockTodoRules, matchTodoRule, requireAutoAcceptBinding } from "./todo-auto-accept";
 
 type TodoRow = Prisma.OwnerTodoItemGetPayload<{}>;
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -132,7 +134,7 @@ export class OwnerTodoService {
       }
       const ownerId = await this.ownerForTurn(tx, context.authMode);
       const scope = `todo-agent:${ownerId}`;
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scope}))`;
+      await lockTodoRules(tx, ownerId);
       const log = { actor: `bot:${run.botId}`, runId: run.id, origin: run.origin };
       const receipt = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key: clientRequestId } } });
       if (receipt) {
@@ -148,28 +150,36 @@ export class OwnerTodoService {
       const expired = await expireTodoRows(tx, now, { ownerId, OR: [{ botId: run.botId }, ...(dedupeKey ? [{ dedupeKey }] : [])] });
       for (const row of expired) console.info("todo.expired", { ...log, todoId: row.id, reason: "expired" });
       const existing = dedupeKey ? await tx.ownerTodoItem.findUnique({ where: { ownerId_dedupeKey: { ownerId, dedupeKey } } }) : null;
-      if (!existing && decision.status === "suggested") {
+      const routineExecution = !existing && await tx.routineExecution.findUnique({ where: { runId: run.id }, select: { routineId: true } });
+      const routineId = routineExecution ? routineExecution.routineId : null;
+      const matched = !existing && operation === "suggest" && sourceRef
+        ? await matchTodoRule(tx, ownerId, { botId: run.botId, routineId, sourceKind: sourceRef.kind }, policy["todo.autoAccept.maxPerRulePerDay"], now)
+        : null;
+      const rule = matched && !matched.limited ? matched : null;
+      if (!existing && decision.status === "suggested" && !rule) {
         const cap = policy["todo.maxPendingSuggestionsPerBot"];
         if (typeof cap === "number" && await tx.ownerTodoItem.count({ where: { ownerId, botId: run.botId, status: "suggested", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } }) >= cap) {
           console.info("todo.rejected", { ...log, reason: "suggestion_limit_reached" });
           throw new ApiError(429, "suggestion_limit_reached", "This bot has reached its pending suggestion limit");
         }
       }
-      const routineExecution = !existing && await tx.routineExecution.findUnique({ where: { runId: run.id }, select: { routineId: true } });
       const ttl = Number(policy["todo.suggestionTtlDays"]);
       const row = existing ?? await tx.ownerTodoItem.create({ data: {
         ownerId, title: fields.title, note: "note" in fields ? fields.note : undefined,
         summary: "summary" in fields ? fields.summary : undefined, tags: fields.tags, urgency: fields.urgency,
         sourceRef, dedupeKey, botId: run.botId, createdBy: log.actor, createdByRunId: run.id,
-        createdByRoutineId: routineExecution ? routineExecution.routineId : null,
-        createdVia: decision.status === "open" ? "owner_chat" : "agent_turn", status: decision.status,
+        createdByRoutineId: routineId,
+        createdVia: decision.status === "open" ? "owner_chat" : "agent_turn", status: rule ? "open" : decision.status,
         authorizedByMessageId: decision.status === "open" ? decision.authorizedByMessageId : null,
-        acceptedBy: decision.status === "open" ? "owner" : null,
-        expiresAt: decision.status === "suggested" && ttl > 0 ? new Date(now.getTime() + ttl * dayMs) : null,
+        acceptedBy: rule ? "rule" : decision.status === "open" ? "owner" : null,
+        autoAcceptRuleId: rule?.id, autoAcceptRuleName: rule?.name,
+        expiresAt: !rule && decision.status === "suggested" && ttl > 0 ? new Date(now.getTime() + ttl * dayMs) : null,
         dueAt: dueAt ? new Date(dueAt) : null, scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         createdAt: now, updatedAt: now,
       } });
-      const reason = decision.reason;
+      if (rule) await tx.todoAutoAcceptRule.update({ where: { id: rule.id }, data: { matchCount: { increment: 1 }, lastMatchedAt: now } });
+      if (matched) console.info(matched.limited ? "todo.rule_limit" : "todo.rule_matched", { ...log, ruleId: matched.id, routineId, todoId: row.id });
+      const reason = rule ? null : decision.reason;
       await tx.idempotencyRecord.create({ data: {
         scope, key: clientRequestId, requestHash, status: "completed", response: { id: row.id, reason },
         expiresAt: new Date(now.getTime() + Number(policy["todo.restoreRetentionDays"]) * dayMs),
@@ -180,6 +190,45 @@ export class OwnerTodoService {
       }
       console.info(existing ? "todo.deduplicated" : "todo.created", { ...log, todoId: row.id, status: row.status, reason });
       return { todo: turnResult(row), reason };
+    });
+  }
+
+  async listAutoAcceptRules(ownerId: string) {
+    await this.settings(this.db);
+    const rows = await this.db.todoAutoAcceptRule.findMany({ where: { ownerId }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] });
+    return { rules: rows.map(autoAcceptRuleView) };
+  }
+
+  async createAutoAcceptRule(ownerId: string, input: TodoAutoAcceptRuleCreate, now = new Date()) {
+    requireAutoAcceptBinding(input);
+    return this.db.$transaction(async (tx) => {
+      await this.settings(tx);
+      await lockTodoRules(tx, ownerId);
+      const rule = await tx.todoAutoAcceptRule.create({ data: { ...input, ownerId, createdAt: now } });
+      console.info("todo.rule_created", { ownerId, ruleId: rule.id, botId: rule.botId, routineId: rule.routineId });
+      return autoAcceptRuleView(rule);
+    });
+  }
+
+  async updateAutoAcceptRule(ownerId: string, id: string, input: TodoAutoAcceptRuleUpdate) {
+    return this.db.$transaction(async (tx) => {
+      await this.settings(tx);
+      await lockTodoRules(tx, ownerId);
+      const rule = await tx.todoAutoAcceptRule.findFirst({ where: { id, ownerId } });
+      if (!rule) throw new ApiError(404, "todo_rule_not_found", "Auto-accept rule not found");
+      requireAutoAcceptBinding({ ...rule, ...input });
+      const updated = await tx.todoAutoAcceptRule.update({ where: { id }, data: input });
+      if (rule.enabled && !updated.enabled) console.info("todo.rule_disabled", { ownerId, ruleId: id, botId: updated.botId, routineId: updated.routineId });
+      return autoAcceptRuleView(updated);
+    });
+  }
+
+  async deleteAutoAcceptRule(ownerId: string, id: string) {
+    await this.db.$transaction(async (tx) => {
+      await this.settings(tx);
+      await lockTodoRules(tx, ownerId);
+      const deleted = await tx.todoAutoAcceptRule.deleteMany({ where: { id, ownerId } });
+      if (!deleted.count) throw new ApiError(404, "todo_rule_not_found", "Auto-accept rule not found");
     });
   }
 
