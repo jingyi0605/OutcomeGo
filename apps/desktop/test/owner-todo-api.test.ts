@@ -12,9 +12,12 @@ test("the dashboard client sends typed owner to-do requests to the standalone AP
   await client.list({ view: "history", cursor: "opaque+cursor" });
   await client.create(input);
   await client.act("opaque/item", "complete", { revision: 2 });
+  const bulk = { action: "dismissBot" as const, botId: "00000000-0000-4000-8000-000000000001" };
+  await client.bulk(bulk);
   expect(calls).toEqual([
     { path: "/api/todos?view=history&cursor=opaque%2Bcursor", method: "GET" },
     { path: "/api/todos", method: "POST", body: input },
     { path: "/api/todos/opaque%2Fitem/complete", method: "POST", body: { revision: 2 } },
+    { path: "/api/todos/bulk", method: "POST", body: bulk },
   ]);
 });

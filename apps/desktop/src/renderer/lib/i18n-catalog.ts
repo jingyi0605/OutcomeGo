@@ -3651,6 +3651,17 @@ export const sourceTranslations: Record<string, string> = {
   "Snooze to-do": "延后待办",
   "Dismiss to-do": "忽略待办",
   "Choose a future snooze time.": "请选择将来的延后时间。",
+  "To-do suggestions": "待办建议",
+  "Accept suggestion": "接受建议",
+  "Select suggestion {title}": "选择建议 {title}",
+  "Select visible suggestions": "选择当前显示的建议",
+  "Clear suggestion selection": "清除建议选择",
+  "Accept selected suggestions": "接受选中的建议",
+  "Dismiss selected suggestions": "忽略选中的建议",
+  "Dismiss all suggestions from this bot": "忽略此 bot 的所有建议",
+  "No suggestions to review.": "没有待分诊的建议。",
+  "Select fewer suggestions and try again.": "请减少选中的建议数量后重试。",
+  "Your original message": "你的原始消息",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

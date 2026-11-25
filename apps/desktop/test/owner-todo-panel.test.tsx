@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
-import type { TodoActionInput, TodoCreate, TodoItemView } from "@outcomego/contracts/todo";
+import type { TodoActionInput, TodoBulkInput, TodoCreate, TodoItemView } from "@outcomego/contracts/todo";
 import { OutcomeGoClientError } from "@outcomego/client-core";
 import { parseHTML } from "linkedom";
 import { act, createElement } from "react";
@@ -43,7 +43,7 @@ afterAll(() => {
 const timestamp = "2026-11-25T12:00:00.000Z";
 const todo = (id: string, changes: Partial<TodoItemView> = {}): TodoItemView => ({
   id, title: id, note: null, status: "open", executor: "owner", createdVia: "owner_ui", createdBy: "owner",
-  createdByRunId: null, createdByRoutineId: null, authorizedByMessageId: null, acceptedBy: "owner", autoAcceptRuleId: null,
+  createdByRunId: null, createdByRoutineId: null, authorizedByMessageId: null, ownerMessagePreview: null, acceptedBy: "owner", autoAcceptRuleId: null,
   urgency: "normal", sourceRef: null, summary: null, botId: null, tags: [], dueAt: null, scheduledAt: null,
   snoozeUntil: null, followUpAt: null, linkedOutcomeId: null, handoffBotId: null, handoffMessageId: null, expiresAt: null,
   completedAt: null, completionNote: null, dismissedAt: null, dismissReason: null, revision: 1,
@@ -55,12 +55,14 @@ async function mount(initial: TodoItemView[] = [], options: { failCreateOnce?: b
   const { I18nProvider } = await import("../src/renderer/lib/i18n");
   const creates: TodoCreate[] = [];
   const changes: Array<{ id: string; action: string; input: TodoActionInput }> = [];
+  const batches: TodoBulkInput[] = [];
   let items = initial;
   const client = {
     list: async ({ view }: { view?: string }) => {
       if (options.serverMissing) throw new OutcomeGoClientError("Not found", "not_found", 404);
       return {
-        items: items.filter((item) => (item.status === "done" || item.status === "dismissed") === (view === "history")),
+        items: items.filter((item) => view === "suggestions" ? item.status === "suggested" :
+          (item.status === "done" || item.status === "dismissed") === (view === "history")),
         nextCursor: null,
       };
     },
@@ -77,18 +79,30 @@ async function mount(initial: TodoItemView[] = [], options: { failCreateOnce?: b
       const updates = { ...current, revision: current.revision + 1 };
       const updated: TodoItemView = action === "complete"
         ? { ...updates, status: "done", displayState: "done" }
-        : action === "snooze"
+        : action === "dismiss"
+          ? { ...updates, status: "dismissed", displayState: "dismissed" }
+          : action === "snooze"
           ? { ...updates, displayState: "snoozed", snoozeUntil: input.snoozeUntil ?? null }
           : { ...updates, status: "open", displayState: "unscheduled" };
       items = items.map((item) => item.id === id ? updated : item);
       return updated;
+    },
+    bulk: async (input: TodoBulkInput) => {
+      batches.push(input);
+      const changed = items.filter((item) => input.action === "dismissBot" ? item.botId === input.botId : input.items.some(({ id }) => item.id === id));
+      const updated: TodoItemView[] = changed.map((item) => ({
+        ...item, revision: item.revision + 1, status: input.action === "accept" ? "open" : "dismissed",
+        displayState: input.action === "accept" ? "unscheduled" : "dismissed",
+      }));
+      items = [...items.filter((item) => !changed.includes(item)), ...updated];
+      return { items: updated };
     },
   };
   host = dom.document.createElement("div");
   dom.document.body.append(host);
   root = createRoot(host);
   await act(async () => root.render(createElement(I18nProvider, { children: createElement(TodoPanel, { client }) })));
-  return { creates, changes };
+  return { creates, changes, batches };
 }
 
 const field = (label: string) => host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
@@ -184,4 +198,48 @@ test("snoozing an item moves it out of the current timeline", async () => {
 test("a server without the to-do API does not show the panel", async () => {
   await mount([], { serverMissing: true });
   expect(host.querySelector("section")).toBeNull();
+});
+
+const suggestion = (id: string, title: string, changes: Partial<TodoItemView> = {}) => todo(id, {
+  title, status: "suggested", displayState: "suggested", acceptedBy: null, createdVia: "agent_turn", ...changes,
+});
+
+test("triage accepts or dismisses individual suggestions and carries their revisions", async () => {
+  const { changes } = await mount([
+    suggestion("suggestion-a", "Suggestion alpha", { revision: 5 }),
+    suggestion("suggestion-b", "Suggestion beta", { revision: 8 }),
+    suggestion("suggestion-c", "Snoozed suggestion", { displayState: "snoozed" }),
+  ]);
+  await click(button("To-do suggestions"));
+  expect(host.textContent).not.toContain("Snoozed suggestion");
+  await click(button("Accept suggestion"));
+  expect(host.textContent).not.toContain("Suggestion alpha");
+  await click(button("Dismiss to-do"));
+  expect(host.textContent).not.toContain("Suggestion beta");
+  expect(changes).toEqual([
+    { id: "suggestion-a", action: "accept", input: { revision: 5 } },
+    { id: "suggestion-b", action: "dismiss", input: { revision: 8 } },
+  ]);
+});
+
+test("triage sends the selected suggestions as a single revisioned batch", async () => {
+  const first = suggestion("00000000-0000-4000-8000-000000000001", "Suggestion gamma", { revision: 2 });
+  const second = suggestion("00000000-0000-4000-8000-000000000002", "Suggestion delta", { revision: 4 });
+  const { batches } = await mount([first, second]);
+  await click(button("To-do suggestions"));
+  await click(button("Select visible suggestions"));
+  await click(button("Accept selected suggestions"));
+  expect(batches).toEqual([{ action: "accept", items: [{ id: first.id, revision: 2 }, { id: second.id, revision: 4 }] }]);
+  expect(host.textContent).toContain("No suggestions to review.");
+});
+
+test("the authorized message preview is separate plain text from the bot summary", async () => {
+  await mount([todo("Item eta", {
+    createdVia: "owner_chat", authorizedByMessageId: "message-1", ownerMessagePreview: "<strong>Owner words</strong>", summary: "<em>Bot summary</em>",
+  })]);
+  const preview = host.querySelector("blockquote");
+  expect(preview?.textContent).toBe("<strong>Owner words</strong>");
+  expect(preview?.children).toHaveLength(0);
+  expect(host.textContent).toContain("Your original message");
+  expect(host.textContent).toContain("<em>Bot summary</em>");
 });

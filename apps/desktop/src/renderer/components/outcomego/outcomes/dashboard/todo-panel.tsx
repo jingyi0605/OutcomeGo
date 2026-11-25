@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { OutcomeGoClientError } from "@outcomego/client-core";
-import { TodoActionInput, TodoCreate, type TodoAction, type TodoItemView, type TodoListResponse } from "@outcomego/contracts/todo";
+import { TodoActionInput, TodoBulkInput, TodoCreate, type TodoAction, type TodoItemView, type TodoListResponse } from "@outcomego/contracts/todo";
 import type { TodoClient } from "../../../../client/todo-api";
 import { useI18n } from "../../../../lib/i18n";
 import { OutcomeButton } from "../outcome-button";
@@ -15,6 +15,7 @@ const groups = {
 } as const;
 const emptyPage: TodoListResponse = { items: [], nextCursor: null };
 const inputClass = "min-w-0 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground";
+type PanelView = "all" | "history" | "suggestions";
 
 function localInstant(value: string) {
   const date = new Date(value);
@@ -81,16 +82,19 @@ function TodoComposer({ create, disabled }: { create: TodoClient["create"]; disa
   );
 }
 
-function TodoRow({ item, disabled, act }: {
+function TodoRow({ item, disabled, act, selection, dismissBot }: {
   item: TodoItemView;
   disabled: boolean;
   act: (item: TodoItemView, action: TodoAction, options?: { snoozeUntil?: string; note?: string }) => Promise<boolean>;
+  selection?: { checked: boolean; toggle: (checked: boolean) => void };
+  dismissBot?: () => void;
 }) {
   const { t, locale } = useI18n();
   const [snooze, setSnooze] = useState("");
   const [note, setNote] = useState("");
   const [snoozeError, setSnoozeError] = useState(false);
   const history = item.status === "done" || item.status === "dismissed";
+  const suggested = item.status === "suggested";
   const date = item.displayState === "snoozed" ? item.snoozeUntil
     : item.displayState === "follow_up" || item.displayState === "waiting" ? item.followUpAt
       : item.dueAt ?? item.scheduledAt;
@@ -107,6 +111,11 @@ function TodoRow({ item, disabled, act }: {
 
   return (
     <li className="outcome-row flex-wrap">
+      {selection && <input
+        aria-label={t("Select suggestion {title}", { title: item.title })}
+        type="checkbox" checked={selection.checked} disabled={disabled}
+        onChange={(event) => selection.toggle(event.target.checked)}
+      />}
       <div className="min-w-0 flex-1 space-y-1">
         <span className="outcome-row-title">{item.title}</span>
         {item.createdVia !== "owner_ui" && <span className="outcome-row-meta">{t("Written by the bot")}</span>}
@@ -114,26 +123,33 @@ function TodoRow({ item, disabled, act }: {
         {item.sourceRef && <span className="outcome-row-meta break-words">{item.sourceRef.label}</span>}
         {date && <time className="outcome-row-meta" dateTime={date}>{new Date(date).toLocaleString(locale)}</time>}
         {item.tags.length > 0 && <span className="outcome-row-meta break-words">{item.tags.join(" · ")}</span>}
+        {item.ownerMessagePreview && <div className="text-xs text-foreground-secondary">
+          <span>{t("Your original message")}</span>
+          <blockquote className="whitespace-pre-wrap break-words border-s border-border ps-2">{item.ownerMessagePreview}</blockquote>
+        </div>}
         {history && <span className="outcome-row-meta">{item.status === "done" ? t("Completed to-do") : t("Dismissed to-do")}{item.completionNote ? ` · ${item.completionNote}` : ""}</span>}
       </div>
       {history ? (
         <OutcomeButton type="button" disabled={disabled} onClick={() => void act(item, "restore")}>{t("Restore")}</OutcomeButton>
       ) : (
         <>
-          <OutcomeButton type="button" disabled={disabled} onClick={complete}>{t("Complete")}</OutcomeButton>
+          {suggested
+            ? <OutcomeButton type="button" disabled={disabled} onClick={() => void act(item, "accept")}>{t("Accept suggestion")}</OutcomeButton>
+            : <OutcomeButton type="button" disabled={disabled} onClick={complete}>{t("Complete")}</OutcomeButton>}
           <details className="w-full text-xs text-foreground-secondary">
             <summary className="w-fit cursor-pointer">{t("More to-do actions")}</summary>
             <div className="mt-2 flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1">
+              {!suggested && <label className="flex flex-col gap-1">
                 {t("Completion note (optional)")}
                 <input className={inputClass} type="text" value={note} onChange={(event) => setNote(event.target.value)} disabled={disabled} />
-              </label>
+              </label>}
               <label className="flex flex-col gap-1">
                 {t("Snooze until")}
                 <input className={inputClass} type="datetime-local" value={snooze} onChange={(event) => setSnooze(event.target.value)} disabled={disabled} />
               </label>
               <OutcomeButton type="button" disabled={disabled || !snooze} onClick={() => void snoozeUntil()}>{t("Snooze to-do")}</OutcomeButton>
               <OutcomeButton type="button" disabled={disabled} onClick={() => void act(item, "dismiss")}>{t("Dismiss to-do")}</OutcomeButton>
+              {dismissBot && <OutcomeButton type="button" disabled={disabled} onClick={dismissBot}>{t("Dismiss all suggestions from this bot")}</OutcomeButton>}
             </div>
             {snoozeError && <p role="alert" className="mt-2 text-destructive">{t("Choose a future snooze time.")}</p>}
           </details>
@@ -145,7 +161,8 @@ function TodoRow({ item, disabled, act }: {
 
 export function TodoPanel({ client }: { client: TodoClient }) {
   const { t } = useI18n();
-  const [history, setHistory] = useState(false);
+  const [view, setView] = useState<PanelView>("all");
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [page, setPage] = useState(emptyPage);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
@@ -159,7 +176,7 @@ export function TodoPanel({ client }: { client: TodoClient }) {
     setLoading(true);
     setError(null);
     try {
-      const result = await client.list({ view: history ? "history" : "all", ...(cursor && { cursor }) });
+      const result = await client.list({ view, ...(cursor && { cursor }) });
       if (request.current !== current) return;
       if (!Array.isArray(result?.items)) {
         setError("Could not load to-dos. Try again.");
@@ -177,7 +194,7 @@ export function TodoPanel({ client }: { client: TodoClient }) {
     } finally {
       if (request.current === current) setLoading(false);
     }
-  }, [client, history]);
+  }, [client, view]);
 
   useEffect(() => {
     void load();
@@ -189,27 +206,24 @@ export function TodoPanel({ client }: { client: TodoClient }) {
     };
   }, [load]);
 
-  async function change(item: TodoItemView, action: TodoAction, options = {}) {
+  async function mutate(write: () => Promise<TodoItemView[]>) {
     if (acting) return false;
-    const input = TodoActionInput[action].safeParse({ revision: item.revision, ...options });
-    if (!input.success) {
-      setError("Check the to-do details and try again.");
-      return false;
-    }
     setActing(true);
     setError(null);
     try {
-      const updated = await client.act(item.id, action, input.data);
+      const updated = new Map((await write()).map((item) => [item.id, item]));
       request.current++;
       setLoading(false);
       setPage((previous) => ({
         ...previous,
-        items: previous.items.flatMap((row) => row.id !== item.id ? [row] : action === "snooze" ? [updated] : []),
+        items: previous.items.map((item) => updated.get(item.id) ?? item),
       }));
+      setSelected((previous) => new Set([...previous].filter((id) => !updated.has(id))));
       return true;
     } catch (failure) {
       if (failure instanceof OutcomeGoClientError && failure.code === "todo_conflict") {
         await load();
+        setSelected(new Set());
         setError("This to-do changed. Review it and try again.");
       } else setError("Could not update the to-do. Try again.");
       return false;
@@ -218,11 +232,44 @@ export function TodoPanel({ client }: { client: TodoClient }) {
     }
   }
 
-  const items = page.items.filter((item) => history
-    ? item.status === "done" || item.status === "dismissed"
-    : item.status === "open" || item.status === "waiting");
+  async function change(item: TodoItemView, action: TodoAction, options = {}) {
+    const input = TodoActionInput[action].safeParse({ revision: item.revision, ...options });
+    if (!input.success) {
+      setError("Check the to-do details and try again.");
+      return false;
+    }
+    return mutate(async () => [await client.act(item.id, action, input.data)]);
+  }
+
+  function bulkChange(input: TodoBulkInput) {
+    const batch = TodoBulkInput.safeParse(input);
+    if (!batch.success) {
+      setError("Select fewer suggestions and try again.");
+      return;
+    }
+    void mutate(async () => (await client.bulk(batch.data)).items);
+  }
+
+  const items = page.items.filter((item) => {
+    if (view === "history") return item.status === "done" || item.status === "dismissed";
+    if (view === "suggestions") return item.status === "suggested" && item.displayState === "suggested";
+    return item.status === "open" || item.status === "waiting";
+  });
+  const selection = items.filter((item) => selected.has(item.id)).map(({ id, revision }) => ({ id, revision }));
+  const busy = loading || acting || creating;
+  const changeView = (next: PanelView) => {
+    setPage(emptyPage);
+    setSelected(new Set());
+    setView(next);
+  };
   const rows = (entries: TodoItemView[]) => <ul className="outcome-rows">{entries.map((item) => (
-    <TodoRow key={item.id} item={item} disabled={loading || acting || creating} act={change} />
+    <TodoRow key={item.id} item={item} disabled={busy} act={change}
+      selection={view === "suggestions" ? {
+        checked: selected.has(item.id),
+        toggle: (checked) => setSelected((previous) => checked ? new Set([...previous, item.id]) : new Set([...previous].filter((id) => id !== item.id))),
+      } : undefined}
+      dismissBot={view === "suggestions" && item.botId ? () => bulkChange({ action: "dismissBot", botId: item.botId! }) : undefined}
+    />
   ))}</ul>;
   const bucket = (item: TodoItemView) => item.displayState === "snoozed" || item.displayState === "waiting"
     ? item.displayState
@@ -233,13 +280,14 @@ export function TodoPanel({ client }: { client: TodoClient }) {
   return (
     <section aria-label={t("To-dos")} aria-busy={loading} className="outcome-dash-section space-y-3">
       <div className="outcome-dash-heading">
-        <h2>{t("To-dos")}</h2>
-        <OutcomeButton type="button" variant="ghost" disabled={loading || acting || creating} onClick={() => {
-          setPage(emptyPage);
-          setHistory(!history);
-        }}>{history ? t("Show current to-dos") : t("Show to-do history")}</OutcomeButton>
+        <h2>{view === "suggestions" ? t("To-do suggestions") : t("To-dos")}</h2>
+        <div className="flex flex-wrap gap-1">
+          {view !== "all" && <OutcomeButton type="button" variant="ghost" disabled={busy} onClick={() => changeView("all")}>{t("Show current to-dos")}</OutcomeButton>}
+          {view !== "suggestions" && <OutcomeButton type="button" variant="ghost" disabled={busy} onClick={() => changeView("suggestions")}>{t("To-do suggestions")}</OutcomeButton>}
+          {view !== "history" && <OutcomeButton type="button" variant="ghost" disabled={busy} onClick={() => changeView("history")}>{t("Show to-do history")}</OutcomeButton>}
+        </div>
       </div>
-      {!history && <TodoComposer disabled={acting} create={async (input) => {
+      {view === "all" && <TodoComposer disabled={acting} create={async (input) => {
         setCreating(true);
         try {
           const added = await client.create(input);
@@ -253,7 +301,14 @@ export function TodoPanel({ client }: { client: TodoClient }) {
       {error && <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
         {t(error)} <OutcomeButton type="button" variant="ghost" onClick={() => void load()}>{t("Retry")}</OutcomeButton>
       </div>}
-      {history ? rows(items) : (
+      {view === "suggestions" && items.length > 0 && <div className="flex flex-wrap items-center gap-2">
+        <OutcomeButton type="button" variant="ghost" disabled={busy} onClick={() => setSelected(
+          selection.length === items.length ? new Set() : new Set(items.map((item) => item.id))
+        )}>{selection.length === items.length ? t("Clear suggestion selection") : t("Select visible suggestions")}</OutcomeButton>
+        <OutcomeButton type="button" disabled={busy || selection.length === 0} onClick={() => bulkChange({ action: "accept", items: selection })}>{t("Accept selected suggestions")}</OutcomeButton>
+        <OutcomeButton type="button" disabled={busy || selection.length === 0} onClick={() => bulkChange({ action: "dismiss", items: selection })}>{t("Dismiss selected suggestions")}</OutcomeButton>
+      </div>}
+      {view !== "all" ? rows(items) : (
         <div className="space-y-3" role="group" aria-label={t("To-do timeline")}>
           {Object.entries(groups).map(([group, label]) => {
             const entries = items.filter((item) => bucket(item) === group);
@@ -264,12 +319,14 @@ export function TodoPanel({ client }: { client: TodoClient }) {
           })}
         </div>
       )}
-      {!history && deferred.length > 0 && <details>
+      {view === "all" && deferred.length > 0 && <details>
         <summary className="cursor-pointer text-xs text-foreground-secondary">{t("Waiting or snoozed to-dos")}</summary>
         {rows(deferred)}
       </details>}
-      {!loading && !error && items.length === 0 && <p className="text-xs text-foreground-secondary">{history ? t("No to-do history.") : t("No current to-dos.")}</p>}
-      {page.nextCursor && <OutcomeButton type="button" disabled={loading || acting || creating} onClick={() => void load(page.nextCursor!)}>{t("Load more")}</OutcomeButton>}
+      {!loading && !error && items.length === 0 && <p className="text-xs text-foreground-secondary">
+        {view === "history" ? t("No to-do history.") : view === "suggestions" ? t("No suggestions to review.") : t("No current to-dos.")}
+      </p>}
+      {page.nextCursor && <OutcomeButton type="button" disabled={busy} onClick={() => void load(page.nextCursor!)}>{t("Load more")}</OutcomeButton>}
     </section>
   );
 }
