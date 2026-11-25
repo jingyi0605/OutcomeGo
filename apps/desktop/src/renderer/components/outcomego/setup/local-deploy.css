@@ -559,6 +559,10 @@
   padding: 28px 0;
   overflow-y: auto;
 }
+/* The drifting lights reach past the stage; on a stage that scrolls they mustn't add to it. */
+.setup-stage:has(.deploy-guide) > .setup-aurora {
+  overflow: hidden;
+}
 .setup-visual:has(> .deploy-guide) {
   width: min(820px, 92%);
 }
