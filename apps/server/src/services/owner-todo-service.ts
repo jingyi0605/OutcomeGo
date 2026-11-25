@@ -7,6 +7,7 @@ import {
   type TodoAction, type TodoActionInput, type TodoAttentionItem, type TodoBulkInput, type TodoCreate,
   type TodoAutoAcceptRuleCreate, type TodoAutoAcceptRuleUpdate,
   type TodoItemView, type TodoListQuery, type TodoListResponse, type TodoTurnResponse, type TodoUpdate,
+  todoToolAllowed, todoTurnMode, TODO_TOOL_INPUT, TodoToolListInput, TodoToolUpdateInput, type TodoToolName,
 } from "@outcomego/contracts/todo";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import { enqueueUrgentTodoPush, expireTodoRows, publishTodoChanges, readFeatureSettings, readTodoDigest, readUserTimeZone, todoAttentionWhere } from "@outcomego/messaging";
@@ -16,8 +17,6 @@ type TodoRow = Prisma.OwnerTodoItemGetPayload<{}>;
 type Db = PrismaClient | Prisma.TransactionClient;
 const dayMs = 86_400_000;
 const hourMs = 3_600_000;
-const createOrigins = new Set(["user", "agent", "background_revival", "handoff_resume"]);
-const suggestOrigins = new Set([...createOrigins, "routine", "event"]);
 
 const notFound = () => new ApiError(404, "todo_not_found", "Todo not found");
 const invalidTransition = () => new ApiError(409, "todo_transition_invalid", "This action is unavailable in the current todo state");
@@ -59,6 +58,20 @@ const dismissData = (now: Date) => ({ status: "dismissed", dismissedAt: now, dis
 const turnResult = ({ id, status, revision }: TodoRow): TodoTurnResponse["todo"] => ({ id, status, revision });
 const hashRequest = (fields: object) => createHash("sha256").update(JSON.stringify(Object.entries(fields).sort(([left], [right]) => left.localeCompare(right)))).digest("hex");
 
+function todoUpdateData(row: TodoRow, { dueAt, scheduledAt, followUpAt, ...fields }: Omit<TodoUpdate, "revision">) {
+  if (row.status === "done" || row.status === "dismissed" || (row.status === "suggested" && (fields.status || followUpAt !== undefined))) throw invalidTransition();
+  const status = fields.status ?? row.status;
+  const followUp = followUpAt === undefined ? row.followUpAt : dateOrNull(followUpAt);
+  if (status === "waiting" && !followUp) throw new ApiError(400, "invalid_request", "Waiting requires a follow-up time");
+  if (status !== "waiting" && followUpAt) throw invalidTransition();
+  return {
+    ...fields,
+    ...(dueAt !== undefined ? { dueAt: dateOrNull(dueAt) } : {}),
+    ...(scheduledAt !== undefined ? { scheduledAt: dateOrNull(scheduledAt) } : {}),
+    followUpAt: status === "waiting" ? followUp : null,
+  };
+}
+
 export interface TodoTurnContext {
   runId: string;
   botId: string;
@@ -86,6 +99,85 @@ export class OwnerTodoService {
     const users = await db.user.findMany({ take: 2, select: { id: true } });
     if (users.length !== 1) throw new ApiError(403, "todo_owner_unavailable", "A single OutcomeGo owner is required");
     return users[0]!.id;
+  }
+
+  private async requireTodoTurn(db: Db, context: TodoTurnContext, tool: TodoToolName) {
+    const run = await db.run.findFirst({
+      where: { id: context.runId, botId: context.botId },
+      select: { id: true, botId: true, conversationId: true, origin: true, channelId: true, deliveryId: true,
+        outcomeWorkItemId: true, outcomeThreadId: true,
+        inboxEvents: { take: 1, orderBy: { createdAt: "desc" }, select: { type: true } },
+        bot: { select: { conversation: { select: { id: true } }, subagentIdentity: { select: { id: true } } } },
+      },
+    });
+    if (!run || run.bot.conversation?.id !== run.conversationId || run.bot.subagentIdentity || run.outcomeWorkItemId || run.outcomeThreadId ||
+      run.deliveryId || !todoToolAllowed(tool, todoTurnMode(run.origin, run.inboxEvents[0]?.type))) {
+      throw new ApiError(403, "todo_turn_forbidden", "This todo tool is unavailable in this turn");
+    }
+    if (run.channelId) {
+      const dm = await db.channel.findFirst({ where: { id: run.channelId, kind: { in: ["bot_dm", "agent_dm"] } }, select: { id: true } });
+      if (!dm) throw new ApiError(403, "todo_turn_forbidden", "This todo tool is unavailable in this turn");
+    }
+    return run;
+  }
+
+  executeTool(context: TodoTurnContext, tool: TodoToolName, raw: unknown) {
+    const parsed = TODO_TOOL_INPUT[tool].safeParse(raw ?? (tool === "ListTodos" ? {} : undefined));
+    if (!parsed.success) throw new ApiError(400, "invalid_request", "Todo input failed validation");
+    if (tool === "CreateTodo" || tool === "SuggestTodo") return this.createFromTurn(context, tool === "CreateTodo" ? "create" : "suggest", parsed.data);
+    if (tool === "ListTodos") return this.listForTurn(context, TodoToolListInput.parse(parsed.data));
+    return this.updateFromTurn(context, TodoToolUpdateInput.parse(parsed.data));
+  }
+
+  private async listForTurn(context: TodoTurnContext, input: TodoToolListInput) {
+    await this.requireTodoTurn(this.db, context, "ListTodos");
+    await this.settings(this.db);
+    const ownerId = await this.ownerForTurn(this.db, context.authMode);
+    const scope = { ownerId, botId: context.botId };
+    const cursor = input.cursor ? await this.db.ownerTodoItem.findFirst({ where: { ...scope, id: input.cursor }, select: { id: true, createdAt: true } }) : null;
+    if (input.cursor && !cursor) throw new ApiError(400, "invalid_request", "Invalid todo cursor");
+    const limit = input.limit ?? 200;
+    const rows = await this.db.ownerTodoItem.findMany({ where: {
+      ...scope, status: input.status,
+      OR: cursor ? [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { lt: cursor.id } }] : undefined,
+    }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: limit + 1, select: {
+      id: true, title: true, note: true, status: true, revision: true, tags: true, dueAt: true, scheduledAt: true, followUpAt: true, completionNote: true,
+    } });
+    return { items: rows.slice(0, limit), nextCursor: rows.length > limit ? rows[limit - 1]!.id : null };
+  }
+
+  private async updateFromTurn(context: TodoTurnContext, input: TodoToolUpdateInput, now = new Date()) {
+    const { todoId, revision, clientRequestId, completionNote, ...fields } = input;
+    const requestHash = hashRequest({ ...input, botId: context.botId });
+    return this.db.$transaction(async (tx) => {
+      await this.requireTodoTurn(tx, context, "UpdateTodo");
+      const policy = await this.settings(tx);
+      const ownerId = await this.ownerForTurn(tx, context.authMode);
+      const scope = `todo-update:${ownerId}:${context.botId}`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${scope}), hashtext(${clientRequestId}))`;
+      const receipt = await tx.idempotencyRecord.findUnique({ where: { scope_key: { scope, key: clientRequestId } } });
+      if (receipt) {
+        if (receipt.requestHash !== requestHash) throw new ApiError(409, "idempotency_conflict", "Idempotency key content changed");
+        return receipt.response;
+      }
+      const where = { id: todoId, ownerId, botId: context.botId };
+      const current = await tx.ownerTodoItem.findFirst({ where });
+      if (!current) throw notFound();
+      if (current.revision !== revision) throw new ApiError(409, "todo_conflict", "Todo has changed", { revision: current.revision });
+      const status = fields.status;
+      const data = todoUpdateData(current, { ...fields, status: status === "done" ? undefined : status });
+      if (status === "done" && !isActive(current)) throw invalidTransition();
+      const [row] = await tx.ownerTodoItem.updateManyAndReturn({ where: { ...where, revision }, data: {
+        ...data, ...(status === "done" ? { status, completedAt: now, completionNote: completionNote ?? null, snoozeUntil: null, followUpAt: null } : {}),
+        revision: { increment: 1 }, updatedAt: now,
+      } });
+      if (!row) throw new ApiError(409, "todo_conflict", "Todo has changed");
+      const response = turnResult(row);
+      await tx.idempotencyRecord.create({ data: { scope, key: clientRequestId, requestHash, response, status: "completed",
+        expiresAt: new Date(now.getTime() + Number(policy["todo.restoreRetentionDays"]) * dayMs) } });
+      await publishTodoChanges(tx, [row]);
+      return response;
+    });
   }
 
   async create(ownerId: string, input: TodoCreate, now = new Date()): Promise<TodoItemView> {
@@ -125,13 +217,7 @@ export class OwnerTodoService {
     const requestHash = hashRequest({ operation, botId: context.botId, ...parsed.data });
     return this.db.$transaction(async (tx) => {
       const policy = await this.settings(tx);
-      const run = await tx.run.findFirst({
-        where: { id: context.runId, botId: context.botId },
-        select: { id: true, botId: true, conversationId: true, origin: true, bot: { select: { conversation: { select: { id: true } } } } },
-      });
-      if (!run || run.bot.conversation?.id !== run.conversationId || !(operation === "create" ? createOrigins : suggestOrigins).has(run.origin)) {
-        throw new ApiError(403, "todo_turn_forbidden", "Todo creation is unavailable in this turn");
-      }
+      const run = await this.requireTodoTurn(tx, context, operation === "create" ? "CreateTodo" : "SuggestTodo");
       const ownerId = await this.ownerForTurn(tx, context.authMode);
       const scope = `todo-agent:${ownerId}`;
       await lockTodoRules(tx, ownerId);
@@ -240,7 +326,8 @@ export class OwnerTodoService {
       select: { id: true },
     });
     if (!message) return false;
-    const sourceRun = await tx.run.findFirst({ where: { userMessageId: reference, botId: run.botId, conversationId: run.conversationId, origin: "user" }, select: { id: true } });
+    const sourceRun = await tx.run.findFirst({ where: { userMessageId: reference, botId: run.botId, conversationId: run.conversationId, origin: "user",
+      inboxEvents: { none: { type: "user.reaction" } } }, select: { id: true } });
     if (!sourceRun) return false;
     const cap = policy["todo.ownerRef.maxTodosPerMessage"];
     return typeof cap !== "number" || await tx.ownerTodoItem.count({ where: { ownerId, authorizedByMessageId: reference } }) < cap;
@@ -341,20 +428,8 @@ export class OwnerTodoService {
   }
 
   update(ownerId: string, id: string, input: TodoUpdate, now = new Date()): Promise<TodoItemView> {
-    const { revision, dueAt, scheduledAt, followUpAt, ...fields } = input;
-    return this.mutate(ownerId, id, revision, now, (row) => {
-      if (row.status === "done" || row.status === "dismissed" || (row.status === "suggested" && (fields.status || followUpAt !== undefined))) throw invalidTransition();
-      const status = fields.status ?? row.status;
-      const followUp = followUpAt === undefined ? row.followUpAt : dateOrNull(followUpAt);
-      if (status === "waiting" && !followUp) throw new ApiError(400, "invalid_request", "Waiting requires a follow-up time");
-      if (status !== "waiting" && followUpAt) throw invalidTransition();
-      return {
-        ...fields,
-        ...(dueAt !== undefined ? { dueAt: dateOrNull(dueAt) } : {}),
-        ...(scheduledAt !== undefined ? { scheduledAt: dateOrNull(scheduledAt) } : {}),
-        followUpAt: status === "waiting" ? followUp : null,
-      };
-    });
+    const { revision, ...fields } = input;
+    return this.mutate(ownerId, id, revision, now, (row) => todoUpdateData(row, fields));
   }
 
   act(ownerId: string, id: string, action: TodoAction, input: TodoActionInput, now = new Date()): Promise<TodoItemView> {

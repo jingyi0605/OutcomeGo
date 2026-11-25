@@ -116,6 +116,64 @@ export const TodoListQuery = z.object({
 export type TodoListQuery = z.infer<typeof TodoListQuery>;
 
 export type TodoStatus = "suggested" | "open" | "waiting" | "done" | "dismissed";
+const TodoStatusInput = z.enum(["suggested", "open", "waiting", "done", "dismissed"]);
+export const TodoToolListInput = z.object({ status: TodoStatusInput.optional(), cursor: TodoId.optional(), limit: z.number().int().min(1).max(200).optional() }).strict();
+export const TodoToolUpdateInput = TodoCreate.omit({ urgency: true }).partial().extend({
+  todoId: TodoId, revision, clientRequestId: TodoCreate.shape.clientRequestId,
+  status: z.enum(["open", "waiting", "done"]).optional(), followUpAt: instant, completionNote: note.optional(),
+}).strict().refine(({ todoId, revision, clientRequestId, ...changes }) =>
+  Object.keys(changes).length > 0 && (changes.completionNote === undefined || changes.status === "done") && (changes.status !== "done" || changes.followUpAt === undefined));
+export type TodoToolListInput = z.infer<typeof TodoToolListInput>;
+export type TodoToolUpdateInput = z.infer<typeof TodoToolUpdateInput>;
+
+export const TODO_TOOL_NAMES = ["CreateTodo", "SuggestTodo", "UpdateTodo", "ListTodos"] as const;
+export type TodoToolName = typeof TODO_TOOL_NAMES[number];
+export type TodoTurnMode = "owner" | "wake" | "automation";
+export const todoTurnMode = (origin: string, inboxType?: string): TodoTurnMode | undefined => {
+  if (origin === "routine" || origin === "event" || (origin === "user" && inboxType === "user.reaction")) return "automation";
+  if (origin === "user") return "owner";
+  if (["agent", "background_revival", "handoff_resume"].includes(origin)) return "wake";
+  return undefined;
+};
+export const todoToolAllowed = (tool: TodoToolName, mode?: TodoTurnMode): boolean =>
+  mode === "owner" || (mode === "wake" && tool !== "UpdateTodo") || (mode === "automation" && tool === "SuggestTodo");
+export const isTodoTool = (name: string): name is TodoToolName => (TODO_TOOL_NAMES as readonly string[]).includes(name);
+export const TODO_TOOL_INPUT = {
+  CreateTodo: TodoCreateFromTurn.required({ ownerMessageRef: true }), SuggestTodo: TodoSuggest,
+  UpdateTodo: TodoToolUpdateInput, ListTodos: TodoToolListInput,
+};
+
+const textSchema = (maxLength: number, minLength = 1) => ({ type: "string", minLength, maxLength });
+const uuidSchema = { type: "string", format: "uuid" };
+const optionalInstant = { anyOf: [{ type: "string", format: "date-time" }, { type: "null" }] };
+const objectSchema = (properties: Record<string, unknown>, required: string[] = []) => ({ type: "object", properties, required, additionalProperties: false });
+const todoFields = {
+  title: textSchema(200), dueAt: optionalInstant, scheduledAt: optionalInstant,
+  tags: { type: "array", items: textSchema(40), maxItems: 5 }, clientRequestId: textSchema(200),
+};
+const noteSchema = { anyOf: [textSchema(4000, 0), { type: "null" }] };
+const sourceRefSchema = objectSchema({ kind: { ...textSchema(40), pattern: "^[^:]+$" }, id: textSchema(200), label: textSchema(120) }, ["kind", "id", "label"]);
+const urgencySchema = { type: "string", enum: TodoUrgency.options };
+const todoToolSpecs = {
+  CreateTodo: {
+    description: "Record an owner-requested todo. Use the owner message ID supplied with the turn or by ReadTranscript, not quoted text. Invalid or unauthorized references yield a suggestion. Times must be ISO 8601 with an offset. Reuse clientRequestId for an identical retry.",
+    inputSchema: objectSchema({ ...todoFields, note: noteSchema, sourceRef: sourceRefSchema, urgency: urgencySchema, ownerMessageRef: uuidSchema }, ["title", "ownerMessageRef", "clientRequestId"]),
+  },
+  SuggestTodo: {
+    description: "Propose a todo without owner authorization. Give a short summary and an opaque source reference: reuse its kind and id for the same item and use a different id for a distinct item. Do not include source body text or URLs. Times must be ISO 8601 with an offset. Reuse clientRequestId for an identical retry.",
+    inputSchema: objectSchema({ ...todoFields, sourceRef: sourceRefSchema, urgency: urgencySchema, summary: textSchema(300) }, ["title", "summary", "sourceRef", "clientRequestId"]),
+  },
+  UpdateTodo: {
+    description: "Apply the owner's explicit change to a todo in your own conversation scope. Use its latest revision. Waiting requires followUpAt; use done only when the owner confirms completion. Times must be ISO 8601 with an offset. Reuse clientRequestId for an identical retry.",
+    inputSchema: objectSchema({ ...todoFields, note: noteSchema, todoId: uuidSchema, revision: { type: "integer", minimum: 1, maximum: 2_147_483_647 }, status: { type: "string", enum: ["open", "waiting", "done"] }, followUpAt: optionalInstant, completionNote: textSchema(4000, 0) }, ["todoId", "revision", "clientRequestId"]),
+  },
+  ListTodos: {
+    description: "List the todos in your own conversation scope. Optionally filter by status or use nextCursor as cursor to get the next page.",
+    inputSchema: objectSchema({ status: { type: "string", enum: TodoStatusInput.options }, cursor: uuidSchema, limit: { type: "integer", minimum: 1, maximum: 200 } }),
+  },
+};
+export const TODO_TOOLS = TODO_TOOL_NAMES.map((name) => ({ name, ...todoToolSpecs[name] }));
+
 export type TodoDisplayState = "suggested" | "today" | "this_week" | "upcoming" | "unscheduled" | "snoozed" | "follow_up" | "waiting" | "done" | "dismissed";
 
 export interface TodoItemView {

@@ -350,6 +350,7 @@ export class ComputerRuntime {
       goalThread: request.goalThread,
       outcomesEnabled: request.outcomesEnabled === true,
       groupTasksEnabled: request.groupTasksEnabled === true,
+      todoTurnMode: request.todoTurnMode,
       groupTurn: request.groupTurn === true,
       directTextReply: request.directTextReply === true && (request.runtimeProfile ?? "agent") === "agent" &&
         !request.subagentType && !request.readOnly && !request.groupTurn && request.requestSource !== "automation",

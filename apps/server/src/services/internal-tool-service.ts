@@ -48,6 +48,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
 import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
 import { isGroupTaskTool } from "@outcomego/contracts/group-tasks";
+import { isTodoTool } from "@outcomego/contracts/todo";
+import { OwnerTodoService } from "./owner-todo-service";
 import type { GroupTaskTools } from "./group-task-tools";
 import type { OutcomeChatTools } from "./outcome-chat-tools";
 import { isOutcomeThreadTool, type OutcomeThreadTools } from "./outcome-thread-tools";
@@ -130,7 +132,9 @@ export class InternalToolService {
     private readonly userLocations?: UserLocationService,
     private readonly goalThreadTools?: OutcomeThreadTools,
     private readonly groupTaskTools?: GroupTaskTools,
-    private readonly replyPreviews?: ReplyPreviews
+    private readonly replyPreviews?: ReplyPreviews,
+    private readonly ownerTodos = new OwnerTodoService(prisma),
+    private readonly authMode: "required" | "disabled" = "required",
   ) {}
 
   /**
@@ -208,6 +212,9 @@ export class InternalToolService {
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
       const backgroundRun = isBackgroundOrigin(run.origin);
+      if (isTodoTool(request.tool)) {
+        return this.ownerTodos.executeTool({ runId: run.id, botId: run.botId, authMode: this.authMode }, request.tool, request.arguments);
+      }
       if (request.tool === REPLY_PREVIEW_CONTROL) {
         const input = request.arguments as { attempt?: unknown; callId?: unknown; content?: unknown } | null;
         const inbox = run.inboxEvents[0];

@@ -1579,6 +1579,7 @@ export const ComputerTurnRequest = Schema.Struct({
   connectorInstructions: Schema.optional(Schema.String),
   agentProfileSnapshot: Schema.optional(Schema.Unknown),
   todoUpdate: Schema.optional(Schema.NullOr(Schema.String)),
+  todoTurnMode: Schema.optional(Schema.Literal("owner", "wake", "automation")),
   resetSelfSummaryCount: Schema.optional(Schema.Boolean),
   requestSource: Schema.optional(RuntimeRequestSource),
   /** Set by the worker only for an Outcome sub-thread; routine and ordinary turns omit it. */

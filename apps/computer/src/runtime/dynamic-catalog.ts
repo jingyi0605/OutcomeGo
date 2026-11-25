@@ -3,6 +3,7 @@ import { READ_TRANSCRIPT_TOOL, parseReadTranscriptInput } from "@outcomego/contr
 import { READ_AGENT_ACTIVITY_TOOL, parseReadAgentActivityInput } from "@outcomego/contracts/read-agent-activity";
 import { OUTCOME_CHAT_TOOLS, decodeOutcomeChatInput } from "@outcomego/contracts/outcome-chat";
 import { GROUP_TASK_TOOLS, decodeGroupTaskInput } from "@outcomego/contracts/group-tasks";
+import { TODO_TOOLS, TODO_TOOL_INPUT, todoToolAllowed } from "@outcomego/contracts/todo";
 import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { withCanonicalSubagentType } from "@outcomego/contracts/subagent-dispatch";
 import { withReferenceContract, taskToolContract, firstPartyNamespaceDescription } from "@outcomego/contracts/tool-contracts";
@@ -196,6 +197,11 @@ export function dynamicCatalog(
   }, execute: (turn, callId, args, signal) => callControlPlaneTool(turn, callId, "ReadAgentActivity", args, signal) };
   const cursorTools: RuntimeDynamicTool[] = [
     ...additionalTools,
+    ...(active.outcomesEnabled && active.runtimeProfile === "agent" && !active.readOnly && !active.outcomeThread && !active.goalThread
+      ? TODO_TOOLS.filter(({ name }) => todoToolAllowed(name, active.todoTurnMode)).map((tool): RuntimeDynamicTool => ({
+        ...tool, source: "first-party", decodeArguments: (args) => TODO_TOOL_INPUT[tool.name].parse(args),
+        execute: (turn, callId, args, signal) => callControlPlaneTool(turn, callId, tool.name, args, signal),
+      })) : []),
     ...(active.outcomesEnabled && active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && !active.readOnly
       ? OUTCOME_CHAT_TOOLS.map((tool): RuntimeDynamicTool => ({
           ...tool,

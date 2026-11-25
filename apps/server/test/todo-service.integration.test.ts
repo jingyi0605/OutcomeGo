@@ -6,6 +6,9 @@ import { createActivityRoutes } from "../src/routes/activity";
 import { ActivityService } from "../src/services/activity-service";
 import type { RouteContext } from "../src/routes/context";
 import { expireTodoSuggestions } from "@outcomego/messaging";
+import { readTranscript } from "@outcomego/messaging";
+import { Effect } from "effect";
+import { InternalToolService } from "../src/services/internal-tool-service";
 
 const enabled = Boolean(process.env.OUTCOMEGO_TEST_DATABASE_URL);
 const cleanups: Array<() => Promise<void>> = [];
@@ -28,6 +31,7 @@ async function setup() {
     await db.ownerTodoItem.deleteMany({ where: { ownerId: { in: [owner, "local"] } } });
     await db.todoAutoAcceptRule.deleteMany({ where: { ownerId: { in: [owner, "local"] } } });
     await db.idempotencyRecord.deleteMany({ where: { scope: { in: [`todo-create:${owner}`, "todo-create:local", "todo-agent:local"] } } });
+    await db.idempotencyRecord.deleteMany({ where: { scope: { startsWith: "todo-update:local:" } } });
     await db.featureSettings.deleteMany({ where: { id: "global" } });
     await fixture.cleanup();
   });
@@ -139,6 +143,43 @@ describe.skipIf(!enabled)("owner todo source gate and triage", () => {
     const run = await db.run.create({ data: { botId: bot.id, conversationId, userMessageId: message.id, origin } });
     return { message, run, context: { runId: run.id, botId: bot.id, authMode: "disabled" as const } };
   }
+
+  test("bot tools dispatch from trusted turns, resolve transcript references and enforce bot scope", async () => {
+    const fixture = await setup();
+    const { bot, db, channel, messaging, todos } = fixture;
+    const clientId = crypto.randomUUID();
+    const visible = await db.channelMessage.create({ data: { clientId, channelId: channel.id, sender: "user", content: "Record fixture" } });
+    const message = await db.message.create({ data: { clientId, botId: bot.id, conversationId: bot.conversation!.id, role: "user", content: visible.content } });
+    const run = await db.run.create({ data: { botId: bot.id, conversationId: bot.conversation!.id, channelId: channel.id, origin: "user", status: "running", userMessageId: message.id } });
+    await db.message.update({ where: { id: message.id }, data: { runId: run.id } });
+    const transcript = await readTranscript(db, { botId: bot.id, channelId: channel.id }, {});
+    expect(transcript.rows).toContainEqual(expect.objectContaining({ id: visible.id, ownerMessageRef: message.id }));
+    const tools = new InternalToolService(db, messaging, {} as never, async () => {}, {} as never, {} as never, {} as never, {} as never,
+      undefined, undefined, undefined, undefined, undefined, {}, undefined, undefined, undefined, undefined, undefined, todos, "disabled");
+    const call = async (tool: string, args: unknown, current = run) => {
+      const result = await Effect.runPromise(Effect.either(tools.execute({ tool, arguments: args, callId: crypto.randomUUID(),
+        runId: current.id, botId: current.botId, conversationId: current.conversationId, channelId: current.channelId!, deliveryId: null })));
+      if (result._tag === "Left") throw result.left;
+      return result.right;
+    };
+    const open = await call("CreateTodo", { title: "Visible", clientRequestId: "create-tool", ownerMessageRef: message.id }) as { todo: { id: string; revision: number; status: string } };
+    expect(open.todo.status).toBe("open");
+    const ownerItem = await todos.create("local", { title: "Private", clientRequestId: "owner-exclusive" });
+    const listing = await call("ListTodos", {});
+    expect(listing).toMatchObject({ items: [{ id: open.todo.id, title: "Visible" }] });
+    await expect(call("UpdateTodo", { todoId: ownerItem.id, revision: 1, title: "Changed", clientRequestId: "forbidden" })).rejects.toMatchObject({ code: "todo_not_found" });
+    const update = { todoId: open.todo.id, revision: 1, status: "done", completionNote: "Confirmed", clientRequestId: "update-tool" };
+    expect(await call("UpdateTodo", update)).toMatchObject({ status: "done", revision: 2 });
+    expect(await call("UpdateTodo", update)).toMatchObject({ status: "done", revision: 2 });
+    expect((await todos.detail("local", open.todo.id)).completionNote).toBe("Confirmed");
+    const event = await turn(fixture, "event");
+    const eventRun = await db.run.update({ where: { id: event.run.id }, data: { channelId: channel.id, status: "running" } });
+    await expect(call("ListTodos", {}, eventRun)).rejects.toMatchObject({ code: "todo_turn_forbidden" });
+    await expect(call("CreateTodo", { title: "Forbidden", clientRequestId: "forbidden", ownerMessageRef: message.id }, eventRun)).rejects.toMatchObject({ code: "todo_turn_forbidden" });
+    await expect(call("UpdateTodo", update, eventRun)).rejects.toMatchObject({ code: "todo_turn_forbidden" });
+    expect(await call("SuggestTodo", { title: "Proposed", summary: "Placeholder", clientRequestId: "event-tool", sourceRef: { kind: "alpha", id: "one", label: "Label A" } }, eventRun))
+      .toMatchObject({ todo: { status: "suggested" } });
+  });
 
   test("owner rules apply only to new matching suggestions and respect the local-day limit", async () => {
     const fixture = await setup();

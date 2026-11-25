@@ -79,13 +79,22 @@ export async function readTranscript(db: PrismaClient, context: {botId: string; 
     // only, never that peer's tool payloads or private agent-to-agent channels.
     const includeTools = worker || botId === context.botId;
     const messageQuery = worker ? Prisma.sql`
-      SELECT id::text, "createdAt" AS at, role::text AS kind, to_jsonb(content) AS body, status::text
+      SELECT id::text, "createdAt" AS at, role::text AS kind, to_jsonb(content) AS body, status::text, NULL::text AS "ownerMessageRef"
       FROM "outcomego_message" WHERE "botId" = ${botId}::uuid AND role::text IN ('user', 'assistant')`
       : Prisma.sql`
-      SELECT id::text, "createdAt" AS at, sender::text AS kind, to_jsonb(content) AS body, 'completed'::text AS status
-      FROM "outcomego_channel_message" WHERE "channelId" IN (${Prisma.join(channelIds.map(id => Prisma.sql`${id}::uuid`))}) AND sender::text IN ('user', 'agent')`;
+      SELECT message.id::text, message."createdAt" AS at, message.sender::text AS kind, to_jsonb(message.content) AS body,
+        'completed'::text AS status, auth."ownerMessageRef"
+      FROM "outcomego_channel_message" message
+      LEFT JOIN LATERAL (
+        SELECT run."userMessageId"::text AS "ownerMessageRef"
+        FROM "outcomego_message" input JOIN "outcomego_run" run ON run.id = input."runId" AND run."userMessageId" = input.id
+        WHERE ${includeTools} AND message.sender::text = 'user' AND input."botId" = ${botId}::uuid AND input."clientId" = message."clientId"
+          AND run."channelId" = message."channelId" AND run.origin::text = 'user'
+        LIMIT 1
+      ) auth ON true
+      WHERE message."channelId" IN (${Prisma.join(channelIds.map(id => Prisma.sql`${id}::uuid`))}) AND message.sender::text IN ('user', 'agent')`;
     const toolQuery = includeTools ? Prisma.sql` UNION ALL
-      SELECT i.id::text, i."createdAt" AS at, i.kind::text, i.content AS body, i.status::text
+      SELECT i.id::text, i."createdAt" AS at, i.kind::text, i.content AS body, i.status::text, NULL::text AS "ownerMessageRef"
       FROM "outcomego_run_item" i JOIN "outcomego_run" r ON r.id = i."runId"
       WHERE r."botId" = ${botId}::uuid AND i.kind::text IN ('command', 'tool', 'file_change')
       AND (i.title IS NULL OR i.title <> 'promptFingerprint')
@@ -95,12 +104,13 @@ export async function readTranscript(db: PrismaClient, context: {botId: string; 
     const total = Number(counts[0]?.count ?? 0);
     const end = Math.min(input.before ?? total, total);
     const start = Math.max(0, end - input.limit);
-    const rows = await tx.$queryRaw<Array<{id: string; at: Date; kind: string; body: unknown; status: string}>>(Prisma.sql`
+    const rows = await tx.$queryRaw<Array<{id: string; at: Date; kind: string; body: unknown; status: string; ownerMessageRef: string | null}>>(Prisma.sql`
       SELECT * FROM (${query}) rows ORDER BY at ASC, id ASC OFFSET ${start} LIMIT ${end - start}`);
     return {
       total, next_before: start > 0 ? start : null,
       note: "Observable history only. Tool arguments, non-observation results, reasoning and private instructions are excluded. Text is redacted and bounded, preserving the beginning and end. Smaller pages allow more text per row (up to 20,000 characters; 60,000 total). Positions apply while history is retained; new rows normally append.",
       rows: rows.map((row, index) => ({position: start + index, id: row.id, at: row.at.toISOString(), role: row.kind, status: row.status,
+        ...(row.ownerMessageRef ? { ownerMessageRef: row.ownerMessageRef } : {}),
         content: boundTranscriptValue(["command", "tool", "file_change"].includes(row.kind) ? transcriptToolProjection(row.body) : row.body, Math.min(20_000, Math.floor(60_000 / Math.max(1, rows.length))))})),
     };
   }, {isolationLevel: "RepeatableRead"});

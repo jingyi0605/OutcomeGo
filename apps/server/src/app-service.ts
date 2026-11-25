@@ -447,7 +447,9 @@ export class AppService {
         this.outcomeReviews
       ),
       new GroupTaskTools(this.groupTasks),
-      this.replyPreviews
+      this.replyPreviews,
+      this.ownerTodos,
+      authMode
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 

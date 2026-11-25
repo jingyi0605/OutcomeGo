@@ -7,6 +7,7 @@ import {
   AUTOMATION_DELEGATING_SECTION,
   DELEGATING_SECTION,
   OUTCOME_SECTION_ID,
+  OWNER_TODO_SECTION_ID,
   PARALLEL_TOOL_CALLS,
   PLATFORM_BASE_SYSTEM_PROMPT,
   ROUTINES_SECTION,
@@ -15,6 +16,7 @@ import {
   renderSkillsSection,
 } from "../src/platform-system-prompt";
 import { OUTCOME_CHAT_TOOLS } from "@outcomego/contracts/outcome-chat";
+import { TODO_TOOLS } from "@outcomego/contracts/todo";
 import { renderMainBoxSection, renderWorkerBoxSection, renderWorkerTimeSection } from "../src/worker-prompts";
 import { combinedGraphicalWorkerPrompt } from "../src/graphical-worker-prompts";
 import { REQUEST_BOX_HELP_TOOL, SEND_TO_USER_TOOL } from "@outcomego/contracts";
@@ -150,6 +152,18 @@ describe("platform prompt integration", () => {
       expect(guidance).toContain("explicitly asks to create or track a goal");
       expect(guidance).toContain("plan approval, final acceptance or a human action");
       expect(guidance).toContain("an inbox decision card");
+    }
+  });
+
+  test("owner todo guidance is short, generic and gated with goal management", () => {
+    const section = platformPrompt.sections.find(({ id }) => id === OWNER_TODO_SECTION_ID)?.text ?? "";
+    expect(section.length).toBeGreaterThan(0);
+    expect(section.length).toBeLessThanOrEqual(900);
+    expect(renderPlatformBaseSystemPrompt({ outcomes: false })).not.toContain(section);
+    expect(renderPlatformBaseSystemPrompt({ outcomes: true })).toContain(section);
+    expect(renderPlatformBaseSystemPrompt({ outcomes: true, automationRun: "Fixture" })).toContain("SuggestTodo");
+    for (const text of [section, ...TODO_TOOLS.map(({ description }) => description)]) {
+      expect(text).not.toMatch(/\b(?:e-?mails?|visits?|inspections?|customers?|senders?)\b/i);
     }
   });
 

@@ -1,5 +1,6 @@
 import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, notifyRequestsNeedingOwner, dispatchDueScheduledWorkItems, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
 import { dispatchTodoDigest, expireTodoSuggestions } from "@outcomego/messaging";
+import { todoTurnMode } from "@outcomego/contracts/todo";
 import {
   isManagedDraftWake,
   isTreatmentDraftWake,
@@ -187,6 +188,7 @@ interface TranscriptData {
 
 interface Claimed extends WakeAttempt {
   inboxType: string;
+  triggerMessageId: string;
   contextSessionId: string;
   /** The run's own channel; null for a home run. */
   runChannelId: string | null;
@@ -1826,6 +1828,7 @@ export class WakeWorker {
           runChannelId: inbox.run.channelId,
           inboxId: inbox.id,
           inboxType: inbox.type,
+          triggerMessageId: inbox.run.userMessageId,
           runId: inbox.runId,
           botId,
           contextSessionId: contextSession.id,
@@ -2022,6 +2025,7 @@ export class WakeWorker {
           }
         }
       });
+      const todoMode = platformPrompt.outcomesEnabled ? todoTurnMode(claimed.origin, claimed.inboxType) : undefined;
       const turnRequest = {
         runId: claimed.runId,
         credentialScopeId: claimed.inferenceParentRunId ?? claimed.runId,
@@ -2036,7 +2040,8 @@ export class WakeWorker {
           appendReplyReminder: true,
           directTextReply: platformPrompt.directTextReply,
           runtimeProfile: claimed.runtimeProfile,
-          notes: [platformPrompt.automationStatus, platformPrompt.agentProfileUpdate, platformPrompt.instructionsUpdate],
+          notes: [platformPrompt.automationStatus, platformPrompt.agentProfileUpdate, platformPrompt.instructionsUpdate,
+            todoMode === "owner" && claimed.runtimeProfile === "agent" ? `<owner_message_ref>${claimed.triggerMessageId}</owner_message_ref>` : null],
           unfinishedTasks: await this.supersededUnfinishedRun(claimed),
         }, claimed.content),
         prependMessages: [...missedMessages, ...voicePrompt, ...(platformPrompt.ambientContext ? [{
@@ -2052,6 +2057,7 @@ export class WakeWorker {
         connectorInstructions: pluginContext.skillInstructions,
         agentProfileSnapshot: platformPrompt.agentProfileSnapshot ?? undefined,
         todoUpdate: platformPrompt.todoUpdate,
+        todoTurnMode: todoMode,
         resetSelfSummaryCount: wakeResetsSelfSummaryCount(claimed.inboxType),
         requestSource: runtimeRequestSourceForOrigin(claimed.origin, claimed.inboxType),
         ...(claimed.outcomeWorkItemId ? { outcomeThread: { workItemId: claimed.outcomeWorkItemId } } : {}),
