@@ -110,7 +110,7 @@ describe("which groups the page shows", () => {
     expect(shown).toContain("goal-activity");
     expect(shown).toContain("goal-todo");
     expect(shown).toContain("goal-auto-accept");
-    expect(shown).not.toContain("goal-calendar");
+    expect(shown).toContain("goal-calendar");
   });
 
   test("the groups are in the order the design gives, and each has a deep-link anchor", () => {
