@@ -4,6 +4,13 @@ import { verify, type Bundle } from "sigstore";
 import { withBunCryptoVerifyCompatibility } from "./bun-crypto";
 import { normalizeRepository, normalizeVersion } from "./config";
 import { CliError } from "./errors";
+import {
+  fetchWithHeaderTimeout,
+  looksLikeChecksums,
+  looksLikeCompose,
+  looksLikeJsonObject,
+  releaseAssetCandidates,
+} from "./release-sources";
 import { LOCAL_RELEASE_KEY_ID, LOCAL_RELEASE_PUBLIC_KEY, localReleaseSigningPayload } from "./release-signing-key";
 
 export interface ReleaseArtifact {
@@ -19,28 +26,67 @@ export class ReleaseVerificationError extends CliError {}
 export const releaseComposeUrl = (repository: string, version: string): string =>
   `https://github.com/${normalizeRepository(repository)}/releases/download/v${normalizeVersion(version)}/outcomego-compose.yaml`;
 
-const fetchText = async (url: string, accept = "text/plain", signal?: AbortSignal): Promise<string> => {
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      headers: { accept, "user-agent": "outcomego-cli" },
-      redirect: "follow",
-      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
-    });
-  } catch (error) {
-    throw new CliError(
-      `Could not download ${url}: ${error instanceof Error ? error.message : error}`
-    );
+const fetchText = async (
+  url: string,
+  accept = "text/plain",
+  signal?: AbortSignal,
+  options: {
+    preferredMirror?: { current: string | null };
+    validateMirror?: (text: string) => boolean;
+  } = {}
+): Promise<string> => {
+  const candidates = releaseAssetCandidates(url, options.preferredMirror?.current);
+  let lastError: CliError | null = null;
+  for (const candidate of candidates) {
+    if (signal?.aborted) {
+      throw new CliError(`Could not download ${url}: download cancelled`);
+    }
+    let response: Response;
+    try {
+      response = await fetchWithHeaderTimeout(
+        fetch,
+        candidate.url,
+        {
+          headers: { accept, "user-agent": "outcomego-cli" },
+          redirect: "follow",
+        },
+        signal,
+        15_000
+      );
+    } catch (error) {
+      lastError = new CliError(
+        `Could not download ${url}: ${error instanceof Error ? error.message : error}`
+      );
+      continue;
+    }
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      lastError = new CliError(`Could not download ${url} (HTTP ${response.status})`);
+      if (candidate.direct && (response.status === 404 || response.status === 410)) {
+        throw lastError;
+      }
+      continue;
+    }
+    let body: string;
+    try {
+      body = await response.text();
+    } catch (error) {
+      // A body that stalls or drops after the headers fails here.
+      lastError = new CliError(
+        `Could not download ${url}: ${error instanceof Error ? error.message : error}`
+      );
+      continue;
+    }
+    if (!candidate.direct && options.validateMirror && !options.validateMirror(body)) {
+      lastError = new CliError(`Could not download ${url}: mirror returned unexpected content`);
+      continue;
+    }
+    if (options.preferredMirror && candidate.mirror) {
+      options.preferredMirror.current = candidate.mirror;
+    }
+    return body;
   }
-  if (!response.ok) throw new CliError(`Could not download ${url} (HTTP ${response.status})`);
-  try {
-    return await response.text();
-  } catch (error) {
-    // A body that stalls or drops after the headers fails here.
-    throw new CliError(
-      `Could not download ${url}: ${error instanceof Error ? error.message : error}`
-    );
-  }
+  throw lastError ?? new CliError(`Could not download ${url}`);
 };
 
 const escapedPattern = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -141,10 +187,22 @@ export const downloadRelease = async (options: {
   const signatureUrl = options.allowUnsigned
     ? null
     : (options.signatureUrl ?? `${composeUrl}.sigstore.json`);
+  const preferredMirror = { current: null as string | null };
   const [compose, checksums, signature] = await Promise.all([
-    fetchText(composeUrl, "text/plain", options.signal),
-    fetchText(checksumUrl, "text/plain", options.signal),
-    signatureUrl ? fetchText(signatureUrl, "application/json", options.signal) : Promise.resolve(null),
+    fetchText(composeUrl, "text/plain", options.signal, {
+      preferredMirror,
+      validateMirror: looksLikeCompose,
+    }),
+    fetchText(checksumUrl, "text/plain", options.signal, {
+      preferredMirror,
+      validateMirror: looksLikeChecksums,
+    }),
+    signatureUrl
+      ? fetchText(signatureUrl, "application/json", options.signal, {
+          preferredMirror,
+          validateMirror: looksLikeJsonObject,
+        })
+      : Promise.resolve(null),
   ]);
   try {
     validateCompose(compose);

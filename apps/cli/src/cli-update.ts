@@ -21,6 +21,12 @@ import { deployErrorExitCodes } from "./deploy-events";
 import { CliError } from "./errors";
 import { cliTranslate } from "./localization";
 import { verifyArtifactSignature } from "./release";
+import {
+  fetchWithHeaderTimeout,
+  looksLikeChecksums,
+  looksLikeJsonObject,
+  releaseAssetCandidates,
+} from "./release-sources";
 
 export const CLI_UPDATE_SOURCE_ENV = "OUTCOMEGO_CLI_UPDATE_SOURCE";
 export const CLI_UPDATE_TARGET_ENV = "OUTCOMEGO_CLI_UPDATE_TARGET";
@@ -111,18 +117,69 @@ export const cliAssetName = (
 export const cliReleaseAssetUrl = (repository: string, version: string, filename: string): string =>
   `https://github.com/${normalizeRepository(repository)}/releases/download/v${normalizeVersion(version)}/${filename}`;
 
-const fetchResponse = async (fetcher: Fetcher, url: string, accept: string): Promise<Response> => {
-  try {
-    return await fetcher(url, {
-      headers: { accept, "user-agent": "outcomego-cli" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(60_000),
-    });
-  } catch (error) {
-    throw new CliError(
-      `Could not download ${url}: ${error instanceof Error ? error.message : error}`
-    );
+const fetchBodyWithFallback = async (
+  fetcher: Fetcher,
+  url: string,
+  accept: string,
+  maximumBytes: number,
+  options: {
+    preferredMirror: { current: string | null };
+    allowMissing?: boolean;
+    validateMirror?: (bytes: Uint8Array) => boolean;
   }
+): Promise<Uint8Array | null> => {
+  const candidates = releaseAssetCandidates(url, options.preferredMirror.current);
+  let lastError: CliError | null = null;
+  let mirrorMissing = 0;
+  for (const candidate of candidates) {
+    let response: Response;
+    try {
+      response = await fetchWithHeaderTimeout(
+        fetcher as typeof fetch,
+        candidate.url,
+        { headers: { accept, "user-agent": "outcomego-cli" }, redirect: "follow" },
+        AbortSignal.timeout(120_000),
+        15_000
+      );
+    } catch (error) {
+      lastError = new CliError(
+        `Could not download ${url}: ${error instanceof Error ? error.message : error}`
+      );
+      continue;
+    }
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      if (candidate.direct && response.status === 404 && options.allowMissing) {
+        return null;
+      }
+      if (!candidate.direct && response.status === 404 && options.allowMissing) {
+        mirrorMissing++;
+      }
+      lastError = new CliError(`Could not download ${url} (HTTP ${response.status})`);
+      if (candidate.direct && (response.status === 404 || response.status === 410)) {
+        throw lastError;
+      }
+      continue;
+    }
+    let body: Uint8Array;
+    try {
+      body = await readBody(response, url, maximumBytes);
+    } catch (error) {
+      lastError =
+        error instanceof CliError
+          ? error
+          : new CliError(`Could not download ${url}: ${error instanceof Error ? error.message : error}`);
+      continue;
+    }
+    if (!candidate.direct && options.validateMirror && !options.validateMirror(body)) {
+      lastError = new CliError(`Could not download ${url}: mirror returned unexpected content`);
+      continue;
+    }
+    if (candidate.mirror) options.preferredMirror.current = candidate.mirror;
+    return body;
+  }
+  if (options.allowMissing && mirrorMissing >= 2) return null;
+  throw lastError ?? new CliError(`Could not download ${url}`);
 };
 
 const readBody = async (
@@ -140,9 +197,6 @@ const readBody = async (
   }
   return body;
 };
-
-const readTextBody = async (response: Response, url: string): Promise<string> =>
-  new TextDecoder().decode(await readBody(response, url, MAX_RELEASE_METADATA_BYTES));
 
 const checksumFor = (contents: string, filename: string): string | null => {
   const matches = contents.split(/\r?\n/).flatMap((line) => {
@@ -228,37 +282,50 @@ export const downloadCliArtifact = async (options: {
     : (options.signatureUrl ?? `${assetUrl}.sigstore.json`);
   const fetcher = options.fetcher ?? fetch;
   const compressedUrl = `${assetUrl}.gz`;
-  const [compressedResponse, checksumResponse, signatureResponse] = await Promise.all([
-    fetchResponse(fetcher, compressedUrl, "application/gzip"),
-    fetchResponse(fetcher, checksumUrl, "text/plain"),
-    signatureUrl ? fetchResponse(fetcher, signatureUrl, "application/json") : Promise.resolve(null),
+  const preferredMirror = { current: null as string | null };
+  const decoder = new TextDecoder();
+  const [compressedBytes, checksumBytes, signatureBytes] = await Promise.all([
+    fetchBodyWithFallback(fetcher, compressedUrl, "application/gzip", MAX_COMPRESSED_CLI_BYTES, {
+      preferredMirror,
+      allowMissing: true,
+      validateMirror: (data) => data.byteLength >= 2 && data[0] === 0x1f && data[1] === 0x8b,
+    }),
+    fetchBodyWithFallback(fetcher, checksumUrl, "text/plain", MAX_RELEASE_METADATA_BYTES, {
+      preferredMirror,
+      validateMirror: (data) => looksLikeChecksums(decoder.decode(data)),
+    }),
+    signatureUrl
+      ? fetchBodyWithFallback(
+          fetcher,
+          signatureUrl,
+          "application/json",
+          MAX_RELEASE_METADATA_BYTES,
+          {
+            preferredMirror,
+            validateMirror: (data) => looksLikeJsonObject(decoder.decode(data)),
+          }
+        )
+      : Promise.resolve(null),
   ]);
-  if (!checksumResponse.ok) {
-    throw new CliError(`Could not download ${checksumUrl} (HTTP ${checksumResponse.status})`);
-  }
-  if (signatureResponse && !signatureResponse.ok) {
-    throw new CliError(`Could not download ${signatureUrl} (HTTP ${signatureResponse.status})`);
-  }
-  const checksums = await readTextBody(checksumResponse, checksumUrl);
-  const signature =
-    signatureResponse && signatureUrl ? await readTextBody(signatureResponse, signatureUrl) : null;
+  const checksums = decoder.decode(checksumBytes!);
+  const signature = signatureBytes ? decoder.decode(signatureBytes) : null;
   let bytes: Uint8Array;
-  if (compressedResponse.ok) {
-    const compressed = await readBody(compressedResponse, compressedUrl, MAX_COMPRESSED_CLI_BYTES);
-    assertChecksum(compressed, checksums, `${filename}.gz`);
+  if (compressedBytes) {
+    assertChecksum(compressedBytes, checksums, `${filename}.gz`);
     try {
-      bytes = gunzipSync(compressed, { maxOutputLength: MAX_CLI_BYTES });
+      bytes = gunzipSync(compressedBytes, { maxOutputLength: MAX_CLI_BYTES });
     } catch {
       throw new CliError(`Could not decompress ${filename}.gz`);
     }
-  } else if (compressedResponse.status === 404) {
-    const rawResponse = await fetchResponse(fetcher, assetUrl, "application/octet-stream");
-    if (!rawResponse.ok) {
-      throw new CliError(`Could not download ${assetUrl} (HTTP ${rawResponse.status})`);
-    }
-    bytes = await readBody(rawResponse, assetUrl, MAX_CLI_BYTES);
   } else {
-    throw new CliError(`Could not download ${compressedUrl} (HTTP ${compressedResponse.status})`);
+    const rawBytes = await fetchBodyWithFallback(
+      fetcher,
+      assetUrl,
+      "application/octet-stream",
+      MAX_CLI_BYTES,
+      { preferredMirror }
+    );
+    bytes = rawBytes!;
   }
   if (bytes.byteLength > MAX_CLI_BYTES) {
     throw new CliError(`The decompressed CLI asset ${filename} is unexpectedly large`);
