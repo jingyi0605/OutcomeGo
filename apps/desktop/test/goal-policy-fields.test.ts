@@ -107,9 +107,10 @@ describe("which groups the page shows", () => {
     expect(shown).toContain("goal-management");
     expect(shown).toContain("goal-roles");
     expect(shown).toContain("goal-schedule");
-    // The activity view arrived with specs/004.10 task 4.3; the rest are added by their own tasks.
     expect(shown).toContain("goal-activity");
-    for (const later of ["goal-todo", "goal-auto-accept", "goal-calendar"]) expect(shown).not.toContain(later);
+    expect(shown).toContain("goal-todo");
+    expect(shown).toContain("goal-auto-accept");
+    expect(shown).not.toContain("goal-calendar");
   });
 
   test("the groups are in the order the design gives, and each has a deep-link anchor", () => {

@@ -1,10 +1,12 @@
 import { TASK_POLICY_FIELDS, type TaskPolicyField } from "@outcomego/contracts/task-policy";
 import { useState, type ReactNode } from "react";
+import type { TodoAutoAcceptRulesClient } from "../../../client/todo-api";
 import type { useFeatureSettings } from "../../../hooks/use-feature-settings";
 import { useI18n } from "../../../lib/i18n";
 import { policyCopy, policyOptionLabel } from "./goal-policy-copy";
 import { describePolicyField, parsePolicyInput, visibleGoalSettingsGroups, type GoalSettingsGroup } from "./goal-policy-fields";
 import OutcomeRoleSettings from "./outcome-role-settings";
+import { TodoAutoAcceptRules } from "./todo-auto-accept-rules";
 import { InteractiveSwitch, SectionLabel, SettingsGroup, SettingsRow, settingsInput, settingsSecondaryButton } from "./ui";
 
 type Features = ReturnType<typeof useFeatureSettings>;
@@ -17,9 +19,9 @@ type PolicyEntry = (typeof TASK_POLICY_FIELDS)[number];
  * and a new policy key shows up here by being added to the metadata and the catalog. Groups whose feature does not
  * exist yet are not drawn, so there are no empty shells.
  */
-export function GoalsSettingsView({ features }: { features: Features }) {
+export function GoalsSettingsView({ features, autoAcceptRules }: { features: Features; autoAcceptRules?: TodoAutoAcceptRulesClient }) {
   const { t } = useI18n();
-  const groups = visibleGoalSettingsGroups();
+  const groups = visibleGoalSettingsGroups().filter((group) => group.id !== "goal-auto-accept" || autoAcceptRules);
   const off = features.loaded && !features.outcomesEnabled;
   return (
     <div className="space-y-6">
@@ -27,6 +29,7 @@ export function GoalsSettingsView({ features }: { features: Features }) {
         <GroupShell key={group.id} group={group} disabled={group.id !== "goal-management" && off}>
           {group.id === "goal-management" ? <MasterSwitch features={features} /> : null}
           {group.id === "goal-roles" ? <OutcomeRoleSettings features={features} /> : null}
+          {group.id === "goal-auto-accept" && autoAcceptRules && <TodoAutoAcceptRules client={autoAcceptRules} disabled={off || !features.loaded} />}
           {group.policyGroup ? <PolicyFields features={features} group={group} /> : null}
         </GroupShell>
       ))}

@@ -1,5 +1,5 @@
 import { afterAll, afterEach, beforeAll, expect, test } from "bun:test";
-import type { TodoActionInput, TodoAttentionItem, TodoBulkInput, TodoCreate, TodoItemView, TodoUpdate } from "@outcomego/contracts/todo";
+import type { TodoActionInput, TodoAttentionItem, TodoAutoAcceptRuleCreate, TodoAutoAcceptRuleUpdate, TodoAutoAcceptRuleView, TodoBulkInput, TodoCreate, TodoItemView, TodoUpdate } from "@outcomego/contracts/todo";
 import { OutcomeGoClientError } from "@outcomego/client-core";
 import { parseHTML } from "linkedom";
 import { act, createElement } from "react";
@@ -50,15 +50,40 @@ const todo = (id: string, changes: Partial<TodoItemView> = {}): TodoItemView => 
   createdAt: timestamp, updatedAt: timestamp, displayState: "unscheduled", overdue: false, ...changes,
 });
 
-async function mount(initial: TodoItemView[] = [], options: { failCreateOnce?: boolean; serverMissing?: boolean; attention?: TodoAttentionItem[] } = {}) {
+async function mount(initial: TodoItemView[] = [], options: {
+  failCreateOnce?: boolean; serverMissing?: boolean; attention?: TodoAttentionItem[]; rules?: TodoAutoAcceptRuleView[];
+} = {}) {
   const { TodoPanel } = await import("../src/renderer/components/outcomego/outcomes/dashboard/todo-panel");
   const { I18nProvider } = await import("../src/renderer/lib/i18n");
   const creates: TodoCreate[] = [];
   const changes: Array<{ id: string; action: string; input: TodoActionInput }> = [];
   const batches: TodoBulkInput[] = [];
   const updates: Array<{ id: string; input: TodoUpdate }> = [];
+  const ruleCreates: TodoAutoAcceptRuleCreate[] = [];
+  const ruleUpdates: Array<{ id: string; input: TodoAutoAcceptRuleUpdate }> = [];
+  const ruleRemovals: string[] = [];
+  let rules = options.rules ?? [];
+  const autoAcceptRules = {
+    list: async () => ({ rules }),
+    create: async (input: TodoAutoAcceptRuleCreate) => {
+      ruleCreates.push(input);
+      const rule = ruleFixture({ ...input, id: `rule-${ruleCreates.length}` });
+      rules = [...rules, rule];
+      return rule;
+    },
+    update: async (id: string, input: TodoAutoAcceptRuleUpdate) => {
+      ruleUpdates.push({ id, input });
+      rules = rules.map((rule) => rule.id === id ? { ...rule, ...input } : rule);
+      return rules.find((rule) => rule.id === id)!;
+    },
+    remove: async (id: string) => {
+      ruleRemovals.push(id);
+      rules = rules.filter((rule) => rule.id !== id);
+    },
+  };
   let items = initial;
   const client = {
+    autoAcceptRules,
     list: async ({ view }: { view?: string }) => {
       if (options.serverMissing) throw new OutcomeGoClientError("Not found", "not_found", 404);
       return {
@@ -112,7 +137,9 @@ async function mount(initial: TodoItemView[] = [], options: { failCreateOnce?: b
   root = createRoot(host);
   const { OutcomeDashboard } = await import("../src/renderer/components/outcomego/outcomes/dashboard/outcome-dashboard");
   const nothing = () => undefined;
-  const element = options.attention ? createElement(OutcomeDashboard as never, {
+  const element = options.rules ? createElement((await import("../src/renderer/components/outcomego/settings/todo-auto-accept-rules")).TodoAutoAcceptRules, {
+    client: autoAcceptRules,
+  }) : options.attention ? createElement(OutcomeDashboard as never, {
     outcomes: { todos: client, list: async () => ({ items: [] }), needsMe: async () => ({
       items: [{ key: "request", title: "Blocked request", botId: "bot", zone: "blocked", state: "needs_owner", since: timestamp, link: { type: "conversation", id: "conversation" } }],
       todos: options.attention?.filter(({ todo }) => items.some((item) => item.id === todo.id && item.status === todo.status)),
@@ -122,8 +149,14 @@ async function mount(initial: TodoItemView[] = [], options: { failCreateOnce?: b
     onSelectOutcome: nothing, onSelectStep: nothing, onShowSteps: nothing, onShowGoals: nothing, onCreateGoal: nothing, onCreateIdea: nothing,
   }) : createElement(TodoPanel, { client });
   await act(async () => root.render(createElement(I18nProvider, { children: element })));
-  return { creates, changes, batches, updates };
+  return { creates, changes, batches, updates, ruleCreates, ruleUpdates, ruleRemovals };
 }
+
+const routineId = "00000000-0000-4000-8000-000000000001";
+const ruleFixture = (changes: Partial<TodoAutoAcceptRuleView> = {}): TodoAutoAcceptRuleView => ({
+  id: "rule-a", name: "Rule alpha", routineId, botId: null, sourceKind: null, enabled: true, matchCount: 2,
+  lastMatchedAt: timestamp, createdAt: timestamp, updatedAt: timestamp, ...changes,
+});
 
 const field = (label: string) => host.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
 const button = (label: string) => [...host.querySelectorAll("button")].find((item) => item.textContent === label)!;
@@ -299,4 +332,50 @@ test("the unified queue deduplicates to-dos, sorts by section then urgency, and 
   expect(changes[0]).toEqual({ id: late.id, action: "complete", input: { revision: 1 } });
   expect(section.textContent).not.toContain("Late item");
   expect(section.querySelector("h2")?.textContent).toContain("4");
+});
+
+test("rule management requires a routine or bot and supports updating, disabling, and deleting a rule", async () => {
+  const { ruleCreates, ruleUpdates, ruleRemovals } = await mount([], { rules: [ruleFixture()] });
+  expect(host.textContent).toContain("2 matches");
+  expect(host.textContent).toContain("Last match:");
+  await click(button("Disable rule"));
+  expect(ruleUpdates).toEqual([{ id: "rule-a", input: { enabled: false } }]);
+  await click(button("Edit rule"));
+  await typeInto(field("Rule name"), "Rule beta");
+  await submit();
+  expect(ruleUpdates[1]?.input).toMatchObject({ name: "Rule beta", routineId });
+  await click(button("New auto-accept rule"));
+  await typeInto(field("Rule name"), "Rule gamma");
+  await typeInto(field("Source type (optional)"), "kind-opaque");
+  await submit();
+  expect(ruleCreates).toHaveLength(0);
+  await typeInto(field("Routine ID"), routineId);
+  await submit();
+  expect(ruleCreates[0]).toMatchObject({ name: "Rule gamma", routineId, sourceKind: "kind-opaque" });
+  await click(button("Delete rule"));
+  await click(button("Confirm rule deletion"));
+  expect(ruleRemovals).toEqual(["rule-a"]);
+});
+
+test("triage requires confirmation and uses the persisted routine when creating a rule", async () => {
+  const { ruleCreates } = await mount([
+    suggestion("suggestion-routine", "Routine item", { createdByRoutineId: routineId, sourceRef: { kind: "opaque", id: "identifier", label: "Label" } }),
+    suggestion("suggestion-unbound", "Unbound item"),
+  ]);
+  await click(button("To-do suggestions"));
+  expect([...host.querySelectorAll("button")].filter((item) => item.textContent === "Auto-accept from this routine")).toHaveLength(1);
+  await click(button("Auto-accept from this routine"));
+  expect(ruleCreates).toHaveLength(0);
+  await click(button("Confirm auto-accept rule"));
+  expect(ruleCreates).toEqual([{ name: expect.any(String), routineId }]);
+});
+
+test("an auto-accepted item is labeled and can be dismissed directly", async () => {
+  const { changes } = await mount([todo("Item iota", { acceptedBy: "rule", autoAcceptRuleId: "rule-alpha", revision: 3 })]);
+  expect(host.textContent).toContain("Auto-accepted");
+  const dismiss = button("Dismiss to-do");
+  expect(dismiss.closest("details")).toBeNull();
+  await click(dismiss);
+  expect(changes[0]).toEqual({ id: "Item iota", action: "dismiss", input: { revision: 3 } });
+  expect(host.textContent).not.toContain("Item iota");
 });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { OutcomeGoClientError } from "@outcomego/client-core";
-import { TodoActionInput, TodoBulkInput, TodoCreate, TodoUpdate, type TodoAction, type TodoAttention, type TodoItemView, type TodoListResponse } from "@outcomego/contracts/todo";
-import type { TodoClient } from "../../../../client/todo-api";
+import { TodoActionInput, TodoAutoAcceptRuleCreate, TodoBulkInput, TodoCreate, TodoUpdate, type TodoAction, type TodoAttention, type TodoItemView, type TodoListResponse } from "@outcomego/contracts/todo";
+import type { TodoAutoAcceptRulesClient, TodoClient } from "../../../../client/todo-api";
 import { useI18n } from "../../../../lib/i18n";
 import { OutcomeButton } from "../outcome-button";
 import { toLocalInput } from "../timeline/schedule-edit";
@@ -86,7 +86,38 @@ function TodoComposer({ create, disabled }: { create: TodoClient["create"]; disa
   );
 }
 
-export function TodoRow({ item, disabled, act, update, attention, selection, dismissBot }: {
+function AutoAcceptShortcut({ routineId, client, disabled }: { routineId: string; client: TodoAutoAcceptRulesClient; disabled: boolean }) {
+  const { t } = useI18n();
+  const [state, setState] = useState<"idle" | "confirm" | "saving" | "saved" | "error">("idle");
+  async function create() {
+    if (disabled || state === "saving") return;
+    const input = TodoAutoAcceptRuleCreate.safeParse({ name: t("Auto-accept from this routine"), routineId });
+    if (!input.success) {
+      setState("error");
+      return;
+    }
+    setState("saving");
+    try {
+      await client.create(input.data);
+      setState("saved");
+    } catch {
+      setState("error");
+    }
+  }
+
+  if (state === "saved") return <p role="status" className="text-xs">{t("Auto-accept rule created.")}</p>;
+  if (state === "idle") return <OutcomeButton type="button" disabled={disabled} onClick={() => setState("confirm")}>{t("Auto-accept from this routine")}</OutcomeButton>;
+  return <div className="space-y-2 text-xs">
+    <p>{t("Future suggestions from this routine will become to-dos without review.")}</p>
+    {state === "error" && <p role="alert" className="text-destructive">{t("Could not save the auto-accept rule. Try again.")}</p>}
+    <div className="flex flex-wrap gap-2">
+      <OutcomeButton type="button" disabled={disabled || state === "saving"} onClick={() => void create()}>{t("Confirm auto-accept rule")}</OutcomeButton>
+      <OutcomeButton type="button" disabled={state === "saving"} onClick={() => setState("idle")}>{t("Cancel")}</OutcomeButton>
+    </div>
+  </div>;
+}
+
+export function TodoRow({ item, disabled, act, update, attention, selection, dismissBot, autoAcceptRules }: {
   item: TodoItemView;
   disabled: boolean;
   act: (item: TodoItemView, action: TodoAction, options?: { snoozeUntil?: string; note?: string }) => Promise<boolean>;
@@ -94,6 +125,7 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
   attention?: TodoAttention;
   selection?: { checked: boolean; toggle: (checked: boolean) => void };
   dismissBot?: () => void;
+  autoAcceptRules?: TodoAutoAcceptRulesClient;
 }) {
   const { t, locale } = useI18n();
   const [snooze, setSnooze] = useState("");
@@ -133,6 +165,7 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
       <div className="min-w-0 flex-1 space-y-1">
         <span className="outcome-row-title">{item.title}</span>
         {attention && <span className="outcome-row-meta">{t(todoAttentionLabels[attention])}</span>}
+        {item.acceptedBy === "rule" && <span className="outcome-row-meta">{t("Auto-accepted")}</span>}
         {item.urgency !== "normal" && <span className="outcome-row-meta">{item.urgency === "high" ? t("High urgency") : t("Low urgency")}</span>}
         {item.createdVia !== "owner_ui" && <span className="outcome-row-meta">{t("Written by the bot")}</span>}
         {(item.note || item.summary) && <p className="whitespace-pre-wrap break-words text-xs text-foreground-secondary">{[item.note, item.summary].filter(Boolean).join("\n")}</p>}
@@ -152,6 +185,7 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
           {suggested
             ? <OutcomeButton type="button" disabled={disabled} onClick={() => void act(item, "accept")}>{t("Accept suggestion")}</OutcomeButton>
             : <OutcomeButton type="button" disabled={disabled} onClick={complete}>{t("Complete")}</OutcomeButton>}
+          {item.acceptedBy === "rule" && <OutcomeButton type="button" disabled={disabled} onClick={() => void act(item, "dismiss")}>{t("Dismiss to-do")}</OutcomeButton>}
           <details className="w-full text-xs text-foreground-secondary">
             <summary className="w-fit cursor-pointer">{t("More to-do actions")}</summary>
             <div className="mt-2 flex flex-wrap items-end gap-2">
@@ -164,7 +198,7 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
                 <input className={inputClass} type="datetime-local" value={snooze} onChange={(event) => setSnooze(event.target.value)} disabled={disabled} />
               </label>
               <OutcomeButton type="button" disabled={disabled || !snooze} onClick={() => void snoozeUntil()}>{t("Snooze to-do")}</OutcomeButton>
-              <OutcomeButton type="button" disabled={disabled} onClick={() => void act(item, "dismiss")}>{t("Dismiss to-do")}</OutcomeButton>
+              {item.acceptedBy !== "rule" && <OutcomeButton type="button" disabled={disabled} onClick={() => void act(item, "dismiss")}>{t("Dismiss to-do")}</OutcomeButton>}
               {dismissBot && <OutcomeButton type="button" disabled={disabled} onClick={dismissBot}>{t("Dismiss all suggestions from this bot")}</OutcomeButton>}
             </div>
             {snoozeError && <p role="alert" className="mt-2 text-destructive">{t("Choose a future snooze time.")}</p>}
@@ -178,6 +212,9 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
             </div>}
             {followUpError && <p role="alert" className="mt-2 text-destructive">{t("Choose a follow-up time.")}</p>}
           </details>
+          {suggested && item.createdByRoutineId && autoAcceptRules && <AutoAcceptShortcut
+            routineId={item.createdByRoutineId} client={autoAcceptRules} disabled={disabled}
+          />}
         </>
       )}
     </li>
@@ -307,6 +344,7 @@ export function TodoPanel({ client, hiddenIds, onChanged, refreshVersion = 0 }: 
         toggle: (checked) => setSelected((previous) => checked ? new Set([...previous, item.id]) : new Set([...previous].filter((id) => id !== item.id))),
       } : undefined}
       dismissBot={view === "suggestions" && item.botId ? () => bulkChange({ action: "dismissBot", botId: item.botId! }) : undefined}
+      autoAcceptRules={view === "suggestions" ? client.autoAcceptRules : undefined}
     />
   ))}</ul>;
   const bucket = (item: TodoItemView) => item.displayState === "snoozed" || item.displayState === "waiting"
