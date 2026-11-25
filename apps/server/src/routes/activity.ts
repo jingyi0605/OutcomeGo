@@ -38,7 +38,7 @@ function parseActivityQuery(params: URLSearchParams): ActivityQuery {
  * established the deployment's single owner; no body and no bot credential is accepted here, and nothing in this file is
  * reachable from a bot tool.
  */
-export const createActivityRoutes = (activity: ActivityService, todos?: Pick<OwnerTodoService, "ownerForSession" | "attention">) => async (context: RouteContext): Promise<Response | undefined> => {
+export const createActivityRoutes = (activity: ActivityService, todos?: Pick<OwnerTodoService, "ownerForSession" | "attention" | "digest">) => async (context: RouteContext): Promise<Response | undefined> => {
   const { request, path, authMode, authenticatedSessionId, url } = context;
   const list = path === "/api/activity";
   const detail = path.match(/^\/api\/activity\/requests\/([^/]+)$/);
@@ -48,7 +48,13 @@ export const createActivityRoutes = (activity: ActivityService, todos?: Pick<Own
   if (needsMe) {
     const ownerId = await todos?.ownerForSession(authMode, authenticatedSessionId);
     const response = await activity.needsMe();
-    if (ownerId && todos) response.todos = await todos.attention(ownerId);
+    if (ownerId && todos) {
+      const [attention, digest] = await Promise.allSettled([todos.attention(ownerId), todos.digest(ownerId)]);
+      if (attention.status === "fulfilled") response.todos = attention.value;
+      else console.error("todo-attention", attention.reason);
+      if (digest.status === "fulfilled") response.todoDigest = digest.value;
+      else console.error("todo-digest", digest.reason);
+    }
     return json(response, 200, { "cache-control": "no-store" });
   }
   if (list) return json(await activity.list(parseActivityQuery(url.searchParams)), 200, { "cache-control": "no-store" });

@@ -102,9 +102,9 @@ describe.skipIf(!enabled)("owner todo basics", () => {
     const request = new Request("http://localhost/api/needs-me");
     const context = { request, path: "/api/needs-me", url: new URL(request.url), authMode: "disabled", authenticatedSessionId: null } as RouteContext;
     const response = await createActivityRoutes(new ActivityService(db), {
-      ownerForSession: todos.ownerForSession.bind(todos), attention: (ownerId) => todos.attention(ownerId, at),
+      ownerForSession: todos.ownerForSession.bind(todos), attention: (ownerId) => todos.attention(ownerId, at), digest: (ownerId) => todos.digest(ownerId, at),
     })(context);
-    expect(await response?.json()).toMatchObject({ items: [], todos: [{ todo: { id: item.id } }] });
+    expect(await response?.json()).toMatchObject({ items: [], todoDigest: null, todos: [{ todo: { id: item.id } }] });
     await todos.act(owner, item.id, "snooze", { revision: 2, snoozeUntil: "2026-11-25T13:00:00Z" }, now);
     expect(await todos.attention(owner, at)).toEqual([]);
     expect((await todos.list(owner, { view: "needs_me" }, at)).items).toEqual([]);

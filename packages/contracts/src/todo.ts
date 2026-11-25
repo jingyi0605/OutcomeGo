@@ -139,6 +139,12 @@ export interface TodoListResponse {
 
 export type TodoAttention = "overdue" | "today" | "follow_up" | "suggested";
 
+export interface TodoDigest {
+  date: string;
+  counts: Record<TodoAttention, number>;
+  titles: string[];
+}
+
 export interface TodoAttentionItem {
   key: string;
   attention: TodoAttention;

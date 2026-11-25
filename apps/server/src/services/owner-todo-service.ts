@@ -8,7 +8,7 @@ import {
   type TodoItemView, type TodoListQuery, type TodoListResponse, type TodoTurnResponse, type TodoUpdate,
 } from "@outcomego/contracts/todo";
 import type { Prisma, PrismaClient } from "@outcomego/db";
-import { enqueueUrgentTodoPush, expireTodoRows, publishTodoChanges, readFeatureSettings, readUserTimeZone, todoAttentionWhere } from "@outcomego/messaging";
+import { enqueueUrgentTodoPush, expireTodoRows, publishTodoChanges, readFeatureSettings, readTodoDigest, readUserTimeZone, todoAttentionWhere } from "@outcomego/messaging";
 
 type TodoRow = Prisma.OwnerTodoItemGetPayload<{}>;
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -216,6 +216,10 @@ export class OwnerTodoService {
     }).sort(compareTodoAttention).slice(0, 200);
     const todos = await views(this.db, entries.map(({ row }) => row), now);
     return entries.map(({ row, ...entry }, index) => ({ ...entry, todo: todos[index]! }));
+  }
+
+  digest(ownerId: string, now = new Date()) {
+    return readTodoDigest(this.db, ownerId, now);
   }
 
   async list(ownerId: string, query: TodoListQuery = {}, now = new Date()): Promise<TodoListResponse> {
