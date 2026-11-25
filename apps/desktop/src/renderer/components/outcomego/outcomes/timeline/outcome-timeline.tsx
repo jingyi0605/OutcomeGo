@@ -133,7 +133,10 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
                 title={`${row.title} · ${rowOwner(row)} · ${t(TIMELINE_STATUS[row.displayState].label)}`}
               >
                 <span aria-hidden="true" className="outcome-timeline-label-icon">{TIMELINE_STATUS[row.displayState].icon}</span>
-                <span className="outcome-timeline-label-text">{row.title}</span>
+                <span className="outcome-timeline-label-text">
+                  {row.title}
+                  {row.deferredUntil && <span className="outcome-timeline-defer">{t("Deferred until {time}", { time: when(row.deferredUntil) })}</span>}
+                </span>
                 {row.overdue && <OverdueBadge />}
               </span>
               <div className="outcome-timeline-track">
@@ -181,7 +184,6 @@ export function OutcomeTimeline({ workItems, currentRevision, botName, goal, onC
                     style={{ left: `${percent(row.dueAt, axis)}%` }}
                   />
                 )}
-                {row.deferredUntil && <span className="outcome-timeline-defer">{t("Deferred until {time}", { time: when(row.deferredUntil) })}</span>}
               </div>
             </div>
           ))}
