@@ -11,6 +11,7 @@ const dom = parseHTML("<!doctype html><html><body></body></html>");
 const globals = new Map<string, PropertyDescriptor | undefined>();
 let reducedMotion = false;
 let focused = true;
+let hidden = false;
 let locale = "en-US";
 let createRoot: typeof import("react-dom/client").createRoot;
 let DeployShowcase: typeof import("../src/renderer/components/outcomego/local-deploy-showcase").default;
@@ -47,6 +48,7 @@ beforeAll(async () => {
     clearInterval: { configurable: true, value: (id: number) => timers.delete(id) },
   });
   Object.assign(dom.document, { oninput: null, hasFocus: () => focused });
+  Object.defineProperty(dom.document, "hidden", { configurable: true, get: () => hidden });
   for (const [key, value] of Object.entries({
     window: dom.window, document: dom.document, HTMLElement: dom.window.HTMLElement, Event: dom.window.Event,
     MutationObserver: dom.window.MutationObserver, matchMedia, IS_REACT_ACT_ENVIRONMENT: true,
@@ -63,6 +65,7 @@ beforeAll(async () => {
 beforeEach(() => {
   reducedMotion = false;
   focused = true;
+  hidden = false;
   locale = "en-US";
 });
 
@@ -90,16 +93,15 @@ const mount = async () => {
 const fire = (target: Element, type: string, extra: Record<string, unknown> = {}) =>
   act(async () => { target.dispatchEvent(Object.assign(new Event(type, { bubbles: true, cancelable: true }), extra)); });
 const press = (target: Element) => fire(target, "click", { detail: 1 });
-const pages = () => Array.from(document.querySelectorAll(".showcase-pages button"));
-const control = (label: string) => document.querySelector(`.showcase-controls button[aria-label="${label}"]`)!;
+const pages = () => Array.from(document.querySelectorAll(".showcase-page"));
+const control = (label: string) => document.querySelector(`.showcase-nav button[aria-label="${label}"]`)!;
 const showcase = () => document.querySelector(".deploy-showcase")!;
 const shown = () => showcase().getAttribute("data-poster");
 const titles = () => Array.from(document.querySelectorAll(".showcase-poster h2")).map((title) => title.textContent);
 
-test("there are at least six posters, each with its own words", () => {
+test("there are at least six posters, each with its own two lines", () => {
   expect(POSTERS.length).toBeGreaterThanOrEqual(6);
-  expect(new Set(POSTERS.map((poster) => poster.id)).size).toBe(POSTERS.length);
-  for (const field of ["eyebrow", "title", "body"] as const) {
+  for (const field of ["id", "title", "body"] as const) {
     expect(new Set(POSTERS.map((poster) => poster[field])).size).toBe(POSTERS.length);
   }
 });
@@ -112,21 +114,27 @@ test("posters wrap around both ways and scroll the short way round", () => {
 });
 
 test("every word is translated, and no existing translation is overridden", () => {
-  const words = POSTERS.flatMap(({ eyebrow, title, body, points }) => [eyebrow, title, body, ...points]);
+  const words = POSTERS.flatMap(({ title, body }) => [title, body]);
   expect(missingKeys([...words, ...Object.keys(localDeployShowcaseTranslations)])).toEqual([]);
   expect(Object.keys(localDeployShowcaseTranslations).filter((key) => key in sourceTranslations)).toEqual([]);
 });
 
 test("the pictures' words are translated too", () => {
   const source = readFileSync(new URL("../src/renderer/components/outcomego/local-deploy-scenes.tsx", import.meta.url), "utf8");
-  const called = [...source.matchAll(/\bt\(([^;{}]*?)\)/g)].flatMap(([, call]) => [...call!.matchAll(/"([^"]+)"/g)].map(([, key]) => key!));
-  const listed = [...source.matchAll(/\b(?:label|role|line|event|result|holds|name): "([^"]+)"/g)].map(([, key]) => key!);
-  const constants = [...source.matchAll(/const (?:CRITERIA|QUIET|MODELS) = \[([^\]]+)\]/g)].flatMap(([, list]) => [...list!.matchAll(/"([^"]+)"/g)].map(([, key]) => key!));
-  // Names of products, files and example companies read the same in every language.
-  const names = ["report.md", "Northstar", "Acme", "Orbit", "Gmail", "GitHub", "Notion", "DingTalk", "Slack", "Google Calendar", "WeChat", "Linear", "Google Drive", "MCP"];
-  const words = [...called, ...listed, ...constants].filter((key) => !names.includes(key));
-  expect(words.length).toBeGreaterThan(50);
-  expect(missingKeys(words)).toEqual([]);
+  const called = [...source.matchAll(/\bt\("([^"]+)"\)/g)].map(([, key]) => key!);
+  const listed = [...source.matchAll(/\b(?:label|role): "([^"]+)"/g)].map(([, key]) => key!);
+  expect(called.length + listed.length).toBeGreaterThanOrEqual(10);
+  expect(missingKeys([...called, ...listed])).toEqual([]);
+});
+
+test("every poster shares one set of colours: none brings its own", () => {
+  const css = readFileSync(new URL("../src/renderer/components/outcomego/setup/local-deploy-showcase.css", import.meta.url), "utf8");
+  // The stage, the glass and the three colours are defined once per theme, never per poster.
+  expect(css).not.toContain("data-poster");
+  expect(css.match(/^  --setup-tint:/gm)).toHaveLength(2);
+  for (const name of ["--ice", "--accent", "--lilac"]) {
+    expect(css.match(new RegExp(`^  ${name}:`, "gm"))).toHaveLength(1);
+  }
 });
 
 test("each poster draws its picture and words, in the interface language", async () => {
@@ -138,7 +146,7 @@ test("each poster draws its picture and words, in the interface language", async
     expect(shown()).toBe(poster.id);
     expect(titles()).toEqual([localDeployShowcaseTranslations[poster.title] ?? null]);
     expect(document.querySelector(`.showcase-canvas[data-scene="${poster.id}"]`)!.children.length).toBeGreaterThan(0);
-    expect(document.querySelectorAll(".showcase-points li")).toHaveLength(3);
+    expect(document.querySelector(".showcase-copy p")!.textContent).toBe(localDeployShowcaseTranslations[poster.body] ?? null);
     expect(document.querySelector(".showcase-poster")!.getAttribute("aria-label")).toBe(
       `第 ${index + 1} 页，共 ${POSTERS.length} 页：${localDeployShowcaseTranslations[poster.title]}`
     );
@@ -161,13 +169,13 @@ test("the old poster stays to scroll away, then leaves", async () => {
   expect(titles()).toEqual([POSTERS[0]!.title, POSTERS[1]!.title]);
   expect(Array.from(document.querySelectorAll(".showcase-poster")).map((item) => [item.getAttribute("data-state"), item.getAttribute("aria-hidden")]))
     .toEqual([["leaving", "true"], ["entering", null]]);
-  await advance(800);
+  await advance(1_000);
   expect(titles()).toEqual([POSTERS[1]!.title]);
 });
 
 test("a story unfolds beat by beat while its poster is up", async () => {
   await mount();
-  const told = () => document.querySelector(".sc-call")!.hasAttribute("data-on");
+  const told = () => document.querySelector(".vs-call")!.hasAttribute("data-on");
   expect(told()).toBe(false);
   await advance(POSTER_MS - 1_000);
   expect(told()).toBe(true);
@@ -180,7 +188,7 @@ test("pause holds the posters, and stepping while paused shows a finished pictur
   await advance(POSTER_MS * 2);
   expect(shown()).toBe(POSTERS[0]!.id);
   await press(control("Next poster"));
-  expect(document.querySelector(".sc-stamp")!.hasAttribute("data-on")).toBe(true);
+  expect(document.querySelector(".vs-seal")!.hasAttribute("data-on")).toBe(true);
   await press(control("Play posters"));
   await advance(POSTER_MS);
   expect(shown()).toBe(POSTERS[2]!.id);
@@ -200,26 +208,41 @@ test("posters can be stepped, jumped to and moved with the arrow keys", async ()
   expect(shown()).toBe(POSTERS[3]!.id);
 });
 
-test("posters wait while the window is in the background", async () => {
+test("posters keep playing while the person looks at another window", async () => {
   focused = false;
+  await mount();
+  await advance(POSTER_MS);
+  expect(shown()).toBe(POSTERS[1]!.id);
+  await advance(POSTER_MS);
+  expect(shown()).toBe(POSTERS[2]!.id);
+});
+
+test("posters wait only while the window can't be seen at all", async () => {
+  hidden = true;
   await mount();
   await advance(POSTER_MS * 2);
   expect(shown()).toBe(POSTERS[0]!.id);
-  focused = true;
-  await act(async () => { window.dispatchEvent(new Event("outcomego:window-activity-change")); });
+  hidden = false;
+  await act(async () => { window.dispatchEvent(new Event("outcomego:visibility-change")); });
   await advance(POSTER_MS);
   expect(shown()).toBe(POSTERS[1]!.id);
 });
 
-test("with reduced motion nothing moves until play is pressed, and pictures are complete", async () => {
+test("a system asking for less motion doesn't stop the posters", async () => {
   reducedMotion = true;
   await mount();
-  expect(document.querySelector(".sc-call")!.hasAttribute("data-on")).toBe(true);
-  await advance(POSTER_MS * 2);
-  expect(shown()).toBe(POSTERS[0]!.id);
-  await press(control("Play posters"));
+  expect(control("Pause posters")).not.toBeNull();
   await advance(POSTER_MS);
   expect(shown()).toBe(POSTERS[1]!.id);
+});
+
+test("using the controls doesn't stop the posters", async () => {
+  await mount();
+  await fire(document.querySelector(".showcase-nav")!, "pointerover");
+  await fire(pages()[1]!, "focusin");
+  await press(pages()[1]!);
+  await advance(POSTER_MS);
+  expect(shown()).toBe(POSTERS[2]!.id);
 });
 
 test("starting again carries on from the poster shown last", async () => {

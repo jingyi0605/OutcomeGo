@@ -1,6 +1,6 @@
-import { Check, ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
-import { type FocusEvent, type KeyboardEvent, memo, useCallback, useEffect, useRef, useState } from "react";
-import { useWindowActive } from "../../hooks/use-window-active";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { type CSSProperties, type KeyboardEvent, memo, useCallback, useEffect, useRef, useState } from "react";
+import { useWindowVisible } from "../../hooks/use-window-active";
 import { useI18n } from "../../lib/i18n";
 import { registerTranslations } from "../../lib/i18n-catalog";
 import { POSTER_MS, POSTERS, posterDirection, stepPoster } from "../../lib/local-deploy-showcase";
@@ -9,51 +9,31 @@ import { SCENES, ScenePlayback } from "./local-deploy-scenes";
 import "./setup/local-deploy-showcase.css";
 
 // The posters beside a running deployment: what OutcomeGo is for, told while it installs. They
-// scroll on their own, wait while the controls are in use or the window is in the background,
-// and can be paused, stepped and jumped to.
+// always play on their own. Only the pause button stops them, and a window nobody can see: people
+// look at other windows while a deployment runs, so losing focus doesn't, and neither does a
+// system that asks for less motion (pages then fade instead of moving; see the stylesheet).
 
 registerTranslations("zh-CN", localDeployShowcaseTranslations);
 
 const TICK_MS = 100;
-/** How long a poster that scrolled away stays mounted to finish leaving (see the CSS). */
-const LEAVE_MS = 720;
+/** How long a poster that left stays mounted to finish leaving (see the CSS). */
+const LEAVE_MS = 960;
 
 // The poster shown last, so trying a failed deployment again carries on instead of starting over.
 let lastShown = 0;
-
-const prefersStill = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-
-/** Whether the person asked for less motion, followed live. */
-function useStill() {
-  const [still, setStill] = useState(prefersStill);
-  useEffect(() => {
-    const query = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (!query) return;
-    const onChange = () => setStill(query.matches);
-    query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
-  }, []);
-  return still;
-}
 
 type Layer = { turn: number; index: number };
 
 export default memo(function DeployShowcase() {
   const { t } = useI18n();
-  const still = useStill();
-  const windowActive = useWindowActive();
-  // With reduced motion nothing moves on its own until the person presses play.
-  const [paused, setPaused] = useState(prefersStill);
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  // The poster on screen is the last layer; the one before it is still scrolling away.
+  const visible = useWindowVisible();
+  const [paused, setPaused] = useState(false);
+  // The poster on screen is the last layer; the one before it is still leaving.
   const [layers, setLayers] = useState<Layer[]>(() => [{ turn: 0, index: lastShown }]);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const fill = useRef<HTMLElement>(null);
   const elapsed = useRef(0);
-  const current = layers.at(-1)!;
-  const { index } = current;
-  const poster = POSTERS[index]!;
+  const { index, turn } = layers.at(-1)!;
 
   const show = useCallback((next: number) => {
     if (next === lastShown) return;
@@ -72,18 +52,18 @@ export default memo(function DeployShowcase() {
     return () => window.clearTimeout(timer);
   }, [layers]);
 
-  // One clock moves the bar and the posters, so they always agree. It only counts while playing.
-  const advancing = !paused && !hovered && !focused && windowActive;
+  // One clock moves the bar and the posters, so they always agree.
+  const playing = !paused && visible;
   useEffect(() => {
     if (fill.current) fill.current.style.transform = `scaleX(${elapsed.current / POSTER_MS})`;
-    if (!advancing) return;
+    if (!playing) return;
     const timer = window.setInterval(() => {
       elapsed.current += TICK_MS;
       if (elapsed.current >= POSTER_MS) show(stepPoster(index, 1));
       else if (fill.current) fill.current.style.transform = `scaleX(${elapsed.current / POSTER_MS})`;
     }, TICK_MS);
     return () => window.clearInterval(timer);
-  }, [advancing, index, show]);
+  }, [playing, index, show]);
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
@@ -91,9 +71,12 @@ export default memo(function DeployShowcase() {
     event.preventDefault();
     show(stepPoster(index, event.key === "ArrowRight" ? 1 : -1));
   };
-  // Only keyboard focus holds the poster: a mouse click leaves focus on its button, and must
-  // not stop the rotation for good.
-  const onFocus = (event: FocusEvent<HTMLElement>) => setFocused(event.target.matches(":focus-visible"));
+  const name = (position: number) =>
+    t("Poster {current} of {total}: {title}", {
+      current: position + 1,
+      total: POSTERS.length,
+      title: t(POSTERS[position]!.title),
+    });
 
   return (
     <section
@@ -101,14 +84,19 @@ export default memo(function DeployShowcase() {
       aria-roledescription="carousel"
       className="deploy-showcase electron-no-drag"
       data-direction={direction}
-      data-night={poster.night}
       data-paused={paused || undefined}
-      data-poster={poster.id}
-      onBlur={() => setFocused(false)}
-      onFocus={onFocus}
+      data-poster={POSTERS[index]!.id}
       onKeyDown={onKeyDown}
+      style={{ "--turn": turn } as CSSProperties}
     >
-      <div aria-live={advancing ? "off" : "polite"} className="showcase-track">
+      {/* One light for every poster. It shifts a little with each page, so pages feel like places
+          in the same room. */}
+      <span aria-hidden="true" className="showcase-air">
+        <i />
+        <i />
+        <i />
+      </span>
+      <div aria-live={playing ? "off" : "polite"} className="showcase-track">
         {layers.map((layer, position) => {
           const shown = POSTERS[layer.index]!;
           const Scene = SCENES[shown.id];
@@ -117,61 +105,43 @@ export default memo(function DeployShowcase() {
             // biome-ignore lint/a11y/useSemanticElements: A carousel slide is a group by the ARIA pattern.
             <article
               aria-hidden={leaving || undefined}
-              aria-label={t("Poster {current} of {total}: {title}", {
-                current: layer.index + 1,
-                total: POSTERS.length,
-                title: t(shown.title),
-              })}
+              aria-label={name(layer.index)}
               aria-roledescription="slide"
               className="showcase-poster"
-              data-night={shown.night}
               data-state={leaving ? "leaving" : layer.turn === 0 ? "first" : "entering"}
               key={layer.turn}
               role="group"
             >
               <div aria-hidden="true" className="showcase-scene">
                 <div className="showcase-canvas" data-scene={shown.id}>
-                  <ScenePlayback.Provider value={{ playing: !leaving && !paused && windowActive, still }}>
+                  <ScenePlayback.Provider value={{ playing: !leaving && playing }}>
                     <Scene />
                   </ScenePlayback.Provider>
                 </div>
               </div>
               <div className="showcase-copy">
-                <p className="showcase-eyebrow">
-                  <b>{String(layer.index + 1).padStart(2, "0")}</b>
-                  {t(shown.eyebrow)}
-                </p>
                 <h2>{t(shown.title)}</h2>
-                <p className="showcase-body">{t(shown.body)}</p>
-                <ul className="showcase-points">
-                  {shown.points.map((point) => (
-                    <li key={point}>
-                      <Check aria-hidden="true" className="size-3" strokeWidth={3.2} />
-                      {t(point)}
-                    </li>
-                  ))}
-                </ul>
+                <p>{t(shown.body)}</p>
               </div>
             </article>
           );
         })}
       </div>
-      {/* Only the controls hold the poster under the pointer: the stage fills the window, so a
-          pointer left resting on it must not stop the posters. */}
-      <nav
-        className="showcase-nav"
-        onPointerEnter={() => setHovered(true)}
-        onPointerLeave={() => setHovered(false)}
-      >
-        <div className="showcase-pages">
+      <nav className="showcase-nav">
+        <button
+          aria-label={t("Previous poster")}
+          className="showcase-arrow"
+          onClick={() => show(stepPoster(index, -1))}
+          type="button"
+        >
+          <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.2} />
+        </button>
+        <div className="vg showcase-ornament">
           {POSTERS.map((item, position) => (
             <button
               aria-current={position === index || undefined}
-              aria-label={t("Poster {current} of {total}: {title}", {
-                current: position + 1,
-                total: POSTERS.length,
-                title: t(item.title),
-              })}
+              aria-label={name(position)}
+              className="showcase-page"
               key={item.id}
               onClick={() => show(position)}
               type="button"
@@ -179,26 +149,27 @@ export default memo(function DeployShowcase() {
               <span>{position === index ? <i ref={fill} /> : null}</span>
             </button>
           ))}
-        </div>
-        <div className="showcase-controls">
           <button
             aria-label={t(paused ? "Play posters" : "Pause posters")}
+            className="showcase-toggle"
             onClick={() => setPaused(!paused)}
             type="button"
           >
             {paused ? (
-              <Play aria-hidden="true" className="size-3.5" fill="currentColor" strokeWidth={0} />
+              <Play aria-hidden="true" className="size-3" fill="currentColor" strokeWidth={0} />
             ) : (
-              <Pause aria-hidden="true" className="size-3.5" fill="currentColor" strokeWidth={0} />
+              <Pause aria-hidden="true" className="size-3" fill="currentColor" strokeWidth={0} />
             )}
           </button>
-          <button aria-label={t("Previous poster")} onClick={() => show(stepPoster(index, -1))} type="button">
-            <ChevronLeft aria-hidden="true" className="size-4" />
-          </button>
-          <button aria-label={t("Next poster")} onClick={() => show(stepPoster(index, 1))} type="button">
-            <ChevronRight aria-hidden="true" className="size-4" />
-          </button>
         </div>
+        <button
+          aria-label={t("Next poster")}
+          className="showcase-arrow"
+          onClick={() => show(stepPoster(index, 1))}
+          type="button"
+        >
+          <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.2} />
+        </button>
       </nav>
     </section>
   );
