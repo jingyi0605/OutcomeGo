@@ -1,0 +1,189 @@
+/* The poster debug page's own panel (deploy-showcase.tsx). The posters' look is the app's. */
+
+.qa {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  background: #d9dbe1;
+  color: #1b1c20;
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", sans-serif;
+}
+.qa[data-panel] {
+  grid-template-columns: 296px minmax(0, 1fr);
+}
+:root[data-theme="dark"] .qa {
+  background: #26272c;
+  color: #ececf1;
+}
+.qa-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  border-right: 1px solid rgb(128 128 140 / 30%);
+  background: #f7f7f9;
+  padding: 16px;
+}
+:root[data-theme="dark"] .qa-panel {
+  background: #18191d;
+}
+.qa-panel h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+.qa-panel fieldset {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  gap: 6px;
+}
+.qa-panel fieldset:disabled {
+  opacity: 0.4;
+}
+.qa-panel legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.66;
+}
+.qa-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.qa-panel button,
+.qa-panel select {
+  min-height: 28px;
+  border: 1px solid rgb(128 128 140 / 34%);
+  border-radius: 7px;
+  background: transparent;
+  padding: 0 10px;
+  color: inherit;
+  font: inherit;
+}
+.qa-panel .qa-choices[data-tight] button {
+  flex: 1;
+  padding: 0;
+}
+.qa-panel select {
+  width: 100%;
+}
+.qa-panel option {
+  color: #1b1c20;
+}
+.qa-panel button:hover:not(:disabled) {
+  background: rgb(128 128 140 / 16%);
+}
+.qa-panel button:disabled {
+  opacity: 0.4;
+}
+.qa-panel button[aria-pressed="true"] {
+  border-color: #5b69f0;
+  background: rgb(91 105 240 / 18%);
+}
+.qa-panel button[data-held] {
+  border-color: #5b69f0;
+  background: #5b69f0;
+  color: #fff;
+}
+.qa-posters {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 3px;
+  list-style: none;
+}
+.qa-posters button {
+  display: grid;
+  width: 100%;
+  align-items: center;
+  padding: 4px 9px;
+  column-gap: 8px;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  text-align: left;
+}
+.qa-posters b {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.5;
+}
+.qa-posters span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.qa-posters small {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  opacity: 0.5;
+}
+.qa-keys {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.9;
+  opacity: 0.75;
+}
+.qa-keys kbd {
+  border: 1px solid rgb(128 128 140 / 40%);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 11px;
+}
+.qa-keys a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.qa-area {
+  display: grid;
+  min-width: 0;
+  overflow: hidden;
+  place-content: center;
+}
+.qa-area[data-view="grid"] {
+  margin: 16px;
+  overflow-y: auto;
+  gap: 12px 16px;
+  grid-template-columns: repeat(3, auto);
+  place-content: center;
+}
+.qa-area figure {
+  position: relative;
+  margin: 0;
+}
+.qa-area figure > button {
+  position: absolute;
+  inset: 0;
+  cursor: zoom-in;
+}
+.qa-area figcaption {
+  height: 26px;
+  padding: 4px 2px 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.qa-box {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgb(20 22 40 / 18%);
+}
+/* The stage fills the window in the app; here it fills its box. */
+.setup-shell.qa-shell {
+  position: absolute;
+  inset: 0 auto auto 0;
+  transform-origin: 0 0;
+}
+/* Narrow browser windows hide the stage in the app; a debug page never does. */
+.setup-shell.qa-shell .setup-stage {
+  display: grid;
+}
+/* Several stages share the page, and none of them takes part in a view transition. */
+.qa-shell :is(.setup-stage, .setup-visual),
+.setup-shell.qa-shell .setup-stage {
+  view-transition-name: none;
+}

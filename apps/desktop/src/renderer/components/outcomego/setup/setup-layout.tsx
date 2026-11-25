@@ -63,7 +63,7 @@ function useStageTone(tone: string) {
  * The stage's living background: a dot grid and soft lights that drift on one clock, so a
  * new screen's stage carries on where the last one was. They fade up the first time.
  */
-function StageBackdrop() {
+export function StageBackdrop() {
   const [clock] = useState(() => -Math.round(performance.now()));
   const seen = useAppearedBefore("stage-backdrop");
   return (

@@ -1,8 +1,7 @@
-// The posters shown beside a running deployment: one thought each, in as few words as it takes.
-// Every claim here is something the product does today (docs/overview, docs/usage), so keep them
-// in step with the docs.
+// The posters shown beside a running deployment: what OutcomeGo can do, one thing each, in as few
+// words as it takes. The order and the titles are the product owner's.
 
-export type PosterId = "focus" | "outcome" | "computer" | "team" | "routines" | "decide" | "connect" | "yours";
+export type PosterId = "assistant" | "team" | "computer" | "decide" | "outcome" | "dock" | "routines" | "connect" | "yours";
 
 export interface Poster {
   id: PosterId;
@@ -13,44 +12,49 @@ export interface Poster {
 
 export const POSTERS: readonly Poster[] = [
   {
-    id: "focus",
-    title: "Attention, kept for judgment",
-    body: "Bots work in parallel. You step in where it matters.",
+    id: "assistant",
+    title: "An assistant that knows you, and is yours",
+    body: "It remembers your preferences, projects and ways of working.",
   },
   {
-    id: "outcome",
-    title: "Not to-dos. Outcomes.",
-    body: "Criteria first. Every result checked, with evidence.",
+    id: "team",
+    title: "You get a team that hands off",
+    body: "Clear roles in a group chat, passing one shared file along.",
   },
   {
     id: "computer",
     title: "A computer for every bot",
-    body: "Its own screen, browser and terminal. Watch or take over anytime.",
-  },
-  {
-    id: "team",
-    title: "A team that hands off",
-    body: "Group chats, shared files, and memory of what you prefer.",
-  },
-  {
-    id: "routines",
-    title: "You rest. Work goes on.",
-    body: "On a schedule or on an event, as long as the server is on.",
+    body: "Its own screen, with a browser, files and spreadsheets. Watch or take over anytime.",
   },
   {
     id: "decide",
-    title: "Quiet, until it needs you",
-    body: "One card: what to decide, what is recommended, and why.",
+    title: "Bots take the grind. You make the calls.",
+    body: "Bots finish what they can. One card asks you for the rest.",
+  },
+  {
+    id: "outcome",
+    title: "No excuses. Just outcomes.",
+    body: "Criteria first. Every result checked, with evidence.",
+  },
+  {
+    id: "dock",
+    title: "Drag it over, start talking",
+    body: "From any app, drop files or pictures on the bot floating window to start a chat.",
+  },
+  {
+    id: "routines",
+    title: "While you rest, they carry on",
+    body: "On a schedule or on an event, as long as this computer is on.",
   },
   {
     id: "connect",
-    title: "Your tools, connected",
-    body: "Plugins, MCP servers, or simply the browser.",
+    title: "Bring in your work and your life",
+    body: "WeChat, Feishu, DingTalk, Amap, Notion, email, NAS and more.",
   },
   {
     id: "yours",
     title: "Your data. Your model.",
-    body: "Conversations, files and memory are stored on this computer.",
+    body: "Chats, files and memory are stored on this computer. Switch models anytime.",
   },
 ];
 

@@ -1,11 +1,11 @@
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
-import { type CSSProperties, type KeyboardEvent, memo, useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, memo, type Ref, useCallback, useEffect, useRef, useState } from "react";
 import { useWindowVisible } from "../../hooks/use-window-active";
 import { useI18n } from "../../lib/i18n";
 import { registerTranslations } from "../../lib/i18n-catalog";
 import { POSTER_MS, POSTERS, posterDirection, stepPoster } from "../../lib/local-deploy-showcase";
 import { localDeployShowcaseTranslations } from "../../lib/local-deploy-showcase-catalog";
-import { SCENES, ScenePlayback } from "./local-deploy-scenes";
+import { type Playback, SCENES, ScenePlayback } from "./local-deploy-scenes";
 import "./setup/local-deploy-showcase.css";
 
 // The posters beside a running deployment: what OutcomeGo is for, told while it installs. They
@@ -23,6 +23,127 @@ const LEAVE_MS = 960;
 let lastShown = 0;
 
 type Layer = { turn: number; index: number };
+
+const posterName = (t: ReturnType<typeof useI18n>["t"], index: number) =>
+  t("Poster {current} of {total}: {title}", {
+    current: index + 1,
+    total: POSTERS.length,
+    title: t(POSTERS[index]!.title),
+  });
+
+/** One light for every poster. It shifts a little with each page (--turn), so pages feel like
+ *  places in the same room. */
+export function ShowcaseAir() {
+  return (
+    <span aria-hidden="true" className="showcase-air">
+      <i />
+      <i />
+      <i />
+    </span>
+  );
+}
+
+/** One poster: its picture above its two lines. */
+export function ShowcasePoster({
+  index,
+  playback,
+  state,
+}: {
+  index: number;
+  playback: Playback;
+  state: "first" | "entering" | "leaving";
+}) {
+  const { t } = useI18n();
+  const poster = POSTERS[index]!;
+  const Scene = SCENES[poster.id];
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: A carousel slide is a group by the ARIA pattern.
+    <article
+      aria-hidden={state === "leaving" || undefined}
+      aria-label={posterName(t, index)}
+      aria-roledescription="slide"
+      className="showcase-poster"
+      data-state={state}
+      role="group"
+    >
+      <div aria-hidden="true" className="showcase-scene">
+        <div className="showcase-canvas" data-scene={poster.id}>
+          <ScenePlayback.Provider value={playback}>
+            <Scene />
+          </ScenePlayback.Provider>
+        </div>
+      </div>
+      <div className="showcase-copy">
+        <h2>{t(poster.title)}</h2>
+        <p>{t(poster.body)}</p>
+      </div>
+    </article>
+  );
+}
+
+/** Pages and pause on one small piece of glass, with an arrow on either side. */
+export function ShowcaseNav({
+  fill,
+  index,
+  onPause,
+  onShow,
+  paused,
+}: {
+  /** The bar that fills while the poster is up. */
+  fill?: Ref<HTMLElement>;
+  index: number;
+  onPause: () => void;
+  onShow: (index: number) => void;
+  paused: boolean;
+}) {
+  const { t } = useI18n();
+  return (
+    <nav className="showcase-nav">
+      <button
+        aria-label={t("Previous poster")}
+        className="showcase-arrow"
+        onClick={() => onShow(stepPoster(index, -1))}
+        type="button"
+      >
+        <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.2} />
+      </button>
+      <div className="vg showcase-ornament">
+        {POSTERS.map((item, position) => (
+          <button
+            aria-current={position === index || undefined}
+            aria-label={posterName(t, position)}
+            className="showcase-page"
+            key={item.id}
+            onClick={() => onShow(position)}
+            type="button"
+          >
+            <span>{position === index ? <i ref={fill} /> : null}</span>
+          </button>
+        ))}
+        <button
+          aria-label={t(paused ? "Play posters" : "Pause posters")}
+          className="showcase-toggle"
+          onClick={onPause}
+          type="button"
+        >
+          {paused ? (
+            <Play aria-hidden="true" className="size-3" fill="currentColor" strokeWidth={0} />
+          ) : (
+            <Pause aria-hidden="true" className="size-3" fill="currentColor" strokeWidth={0} />
+          )}
+        </button>
+      </div>
+      <button
+        aria-label={t("Next poster")}
+        className="showcase-arrow"
+        onClick={() => onShow(stepPoster(index, 1))}
+        type="button"
+      >
+        <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.2} />
+      </button>
+    </nav>
+  );
+}
 
 export default memo(function DeployShowcase() {
   const { t } = useI18n();
@@ -71,12 +192,6 @@ export default memo(function DeployShowcase() {
     event.preventDefault();
     show(stepPoster(index, event.key === "ArrowRight" ? 1 : -1));
   };
-  const name = (position: number) =>
-    t("Poster {current} of {total}: {title}", {
-      current: position + 1,
-      total: POSTERS.length,
-      title: t(POSTERS[position]!.title),
-    });
 
   return (
     <section
@@ -89,88 +204,21 @@ export default memo(function DeployShowcase() {
       onKeyDown={onKeyDown}
       style={{ "--turn": turn } as CSSProperties}
     >
-      {/* One light for every poster. It shifts a little with each page, so pages feel like places
-          in the same room. */}
-      <span aria-hidden="true" className="showcase-air">
-        <i />
-        <i />
-        <i />
-      </span>
+      <ShowcaseAir />
       <div aria-live={playing ? "off" : "polite"} className="showcase-track">
         {layers.map((layer, position) => {
-          const shown = POSTERS[layer.index]!;
-          const Scene = SCENES[shown.id];
           const leaving = position < layers.length - 1;
           return (
-            // biome-ignore lint/a11y/useSemanticElements: A carousel slide is a group by the ARIA pattern.
-            <article
-              aria-hidden={leaving || undefined}
-              aria-label={name(layer.index)}
-              aria-roledescription="slide"
-              className="showcase-poster"
-              data-state={leaving ? "leaving" : layer.turn === 0 ? "first" : "entering"}
+            <ShowcasePoster
+              index={layer.index}
               key={layer.turn}
-              role="group"
-            >
-              <div aria-hidden="true" className="showcase-scene">
-                <div className="showcase-canvas" data-scene={shown.id}>
-                  <ScenePlayback.Provider value={{ playing: !leaving && playing }}>
-                    <Scene />
-                  </ScenePlayback.Provider>
-                </div>
-              </div>
-              <div className="showcase-copy">
-                <h2>{t(shown.title)}</h2>
-                <p>{t(shown.body)}</p>
-              </div>
-            </article>
+              playback={{ playing: !leaving && playing }}
+              state={leaving ? "leaving" : layer.turn === 0 ? "first" : "entering"}
+            />
           );
         })}
       </div>
-      <nav className="showcase-nav">
-        <button
-          aria-label={t("Previous poster")}
-          className="showcase-arrow"
-          onClick={() => show(stepPoster(index, -1))}
-          type="button"
-        >
-          <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={2.2} />
-        </button>
-        <div className="vg showcase-ornament">
-          {POSTERS.map((item, position) => (
-            <button
-              aria-current={position === index || undefined}
-              aria-label={name(position)}
-              className="showcase-page"
-              key={item.id}
-              onClick={() => show(position)}
-              type="button"
-            >
-              <span>{position === index ? <i ref={fill} /> : null}</span>
-            </button>
-          ))}
-          <button
-            aria-label={t(paused ? "Play posters" : "Pause posters")}
-            className="showcase-toggle"
-            onClick={() => setPaused(!paused)}
-            type="button"
-          >
-            {paused ? (
-              <Play aria-hidden="true" className="size-3" fill="currentColor" strokeWidth={0} />
-            ) : (
-              <Pause aria-hidden="true" className="size-3" fill="currentColor" strokeWidth={0} />
-            )}
-          </button>
-        </div>
-        <button
-          aria-label={t("Next poster")}
-          className="showcase-arrow"
-          onClick={() => show(stepPoster(index, 1))}
-          type="button"
-        >
-          <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.2} />
-        </button>
-      </nav>
+      <ShowcaseNav fill={fill} index={index} onPause={() => setPaused(!paused)} onShow={show} paused={paused} />
     </section>
   );
 });
