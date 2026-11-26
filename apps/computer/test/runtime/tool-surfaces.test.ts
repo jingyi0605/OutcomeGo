@@ -252,16 +252,16 @@ describe("specialized subagent tool surfaces", () => {
     const header = "First-party tools built into you, listed first: they are trusted and core to your job, so prefer one over an external namespace that covers the same need. Read a tool's schema with GetDynamicTools, then call it with CallDynamicTool in the cursor namespace.\n\nHere are some crucial instructions:\n";
     const main = cursor(workerTurn(null)).description;
     expect(main).toStartWith(header);
-    for (const line of ["- ReadAgentActivity: Summarize", "- ReadTranscript: Read the transcripts of your conversations, your subagents, and the user's other bots.", "- request_box_help: Hand your box's desktop", "- Task: Spawn subagents natively.", "- UploadFile: Send a box file to Google Drive or Gmail."])
+    for (const line of ["- ReadAgentActivity: Summarize", "- ReadTranscript: Read the transcripts of your conversations, your subagents, and the user's other bots.", "- request_box_help: Hand your box's desktop", "- Task: Spawn subagents natively.", "- UploadFile: Send a box file to Google Drive."])
       expect(main).toContain(line);
     expect(main.indexOf("- request_box_help:")).toBeLessThan(main.indexOf("- RequestUserForm:"));
     // The main agent looks ListMachines up without a cue; an executor gets the worker cues.
     expect(cursor(workerTurn(null)).tools.map((tool: any) => tool.name)).toContain("ListMachines");
     expect(main).not.toContain("- ListMachines:");
     expect(cursor(workerTurn("executor")).description).toBe(header + [
-      "- DownloadFile: Fetch a Drive or Gmail file onto the box. Not for URLs or box files.",
+      "- DownloadFile: Fetch a Google Drive file onto the box. Not for URLs or box files.",
       "- ListMachines: List the user's computers and the machineId that points Read, Shell, or AwaitShell at one.",
-      "- UploadFile: Send a box file to the user's Google Drive or Gmail.",
+      "- UploadFile: Send a box file to the user's Google Drive.",
     ].join("\n"));
     // With nothing to send files to or fetch them from, neither tool is offered.
     const bare = cursor(workerTurn(null, { pluginNamespaces: [{ ...driveNamespace, name: "linear", fileTransfers: undefined }] }));
@@ -950,10 +950,10 @@ test('the parent-only dispatch reminder names only tools the parent has and that
 test('a readonly worker lists and greps with Shell on the box, reads only through read tools, and moves no files', async () => {
   const runtime = runtimeTools() as any;
   const readonly = workerTurn('executor', { readOnly: true, runId: 'run-ro',
-    pluginNamespaces: [{ name: 'gmail_work', description: 'Gmail', namespaceStatus: 'ready', tools: [
-      { connectionId: 'c1', name: 'search_threads', description: '', inputSchema: { type: 'object' }, source: 'gmail/gmail' },
+    pluginNamespaces: [{ name: 'calendar_work', description: 'Google Calendar', namespaceStatus: 'ready', tools: [
+      { connectionId: 'c1', name: 'list_events', description: '', inputSchema: { type: 'object' }, source: 'google-calendar/calendar' },
       { connectionId: 'c1', name: 'whoami', description: '', inputSchema: { type: 'object' }, source: 'custom/custom', readOnly: true },
-      { connectionId: 'c1', name: 'send_message', description: '', inputSchema: { type: 'object' }, source: 'gmail/gmail' },
+      { connectionId: 'c1', name: 'create_event', description: '', inputSchema: { type: 'object' }, source: 'google-calendar/calendar' },
     ] }] });
   expect(runtime.customTools(readonly).map((tool: any) => tool.name)).toEqual(['WebSearch', 'WebFetch', 'Shell', 'Read', 'AwaitShell', 'GetDynamicTools', 'CallDynamicTool', 'ReportTaskProgress']);
   expect(runtime.dynamicCatalog(readonly).find((namespace: any) => namespace.name === 'cursor').tools.map((tool: any) => tool.name)).toEqual([]);
@@ -963,11 +963,11 @@ test('a readonly worker lists and greps with Shell on the box, reads only throug
     calls.push(args.toolName);
     return { content: [{ type: 'text', text: 'ok' }], details: {} };
   };
-  for (const toolName of ['search_threads', 'whoami']) {
-    await runtime.callDynamicTool(readonly, `call-${toolName}`, { namespace: 'gmail_work', toolName, arguments: {} });
+  for (const toolName of ['list_events', 'whoami']) {
+    await runtime.callDynamicTool(readonly, `call-${toolName}`, { namespace: 'calendar_work', toolName, arguments: {} });
   }
-  expect(calls).toEqual(['search_threads', 'whoami']);
-  await expect(runtime.callDynamicTool(readonly, 'call-send', { namespace: 'gmail_work', toolName: 'send_message', arguments: {} }))
+  expect(calls).toEqual(['list_events', 'whoami']);
+  await expect(runtime.callDynamicTool(readonly, 'call-create', { namespace: 'calendar_work', toolName: 'create_event', arguments: {} }))
     .rejects.toThrow('This tool is unavailable to a read-only plugin agent');
 });
 

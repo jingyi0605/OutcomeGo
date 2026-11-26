@@ -135,7 +135,7 @@ const downloadFileParameters = external_exports.object({
   }).default({}).describe("Where the file lands on your computer.")
 });
 // A call shaped for another tool gets the reference's redirect beside the field issues.
-// OutcomeGo transfers with Google Drive and Gmail only, and downloads by fileId.
+// OutcomeGo transfers with Google Drive only, and downloads by fileId.
 const isRecordValue = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
 const DOWNLOAD_FILE_URL_KEYS = ["url", "href"];
 const DOWNLOAD_FILE_BOX_PATH_KEYS = ["file_path", "filePath", "path", "targetPath"];
@@ -148,7 +148,7 @@ function explainWrongDownloadFileCall(value, ctx) {
   ctx.addIssue({
     code: "custom",
     path: wrongKey === void 0 ? [] : [wrongKey],
-    message: `DownloadFile fetches a file from a connected Google Drive / Gmail account. ${redirect} Shape: {"connection": "google-drive", "source": {"fileId": "<id>"}, "destination"?: {"path": "<box path>"}}.`
+    message: `DownloadFile fetches a file from a connected Google Drive account. ${redirect} Shape: {"connection": "google-drive", "source": {"fileId": "<id>"}, "destination"?: {"path": "<box path>"}}.`
   });
   return value;
 }
@@ -157,7 +157,7 @@ function explainMissingUploadSourcePath(value, ctx) {
     ctx.addIssue({
       code: "custom",
       path: [],
-      message: 'UploadFile sends a file that is already on your box into a connected Google Drive / Gmail account; sourcePath is the box path. Shape: {"connection": "google-drive", "sourcePath": "/workspace/report.pdf", "destination"?: {"path": "<folder>"} | {"folderId": "<id>"} | {"draftId": "<id>"}}.'
+      message: 'UploadFile sends a file that is already on your box into a connected Google Drive account; sourcePath is the box path. Shape: {"connection": "google-drive", "sourcePath": "/workspace/report.pdf", "destination"?: {"path": "<folder>"} | {"folderId": "<id>"}}.'
     });
   return value;
 }

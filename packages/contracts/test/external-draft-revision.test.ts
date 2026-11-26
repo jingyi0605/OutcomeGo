@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import type { ExternalDraft } from '../src/external-draft';
 import { draftRevision } from '../src/external-draft-revision';
 
-const draft: ExternalDraft = { platform: 'email', providerIdentifier: 'gmail', from: 'me@example.com', to: ['ann@example.com'], subject: 'Schedule', body: 'Hi Ann,\n\nThe meeting is on Monday at ten. Please bring the project notes.\n\nThanks!' };
+const draft: ExternalDraft = { platform: 'email', providerIdentifier: 'email', from: 'me@example.com', to: ['ann@example.com'], subject: 'Schedule', body: 'Hi Ann,\n\nThe meeting is on Monday at ten. Please bring the project notes.\n\nThanks!' };
 const previous = { id: 'old', turn: 1, draft };
 test('small revisions preserve exact text and highlight added words and changed fields', () => {
  const body = draft.body.replace('Monday at ten', 'Tuesday at eleven');

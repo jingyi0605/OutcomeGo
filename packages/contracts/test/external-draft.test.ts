@@ -42,7 +42,7 @@ test('the main-tool parser keeps waitForReview and the captured draft rules', as
 
 test("draft argument problems are named per field, and a lone recipient is a list", async () => {
  const { normalizeMainToolArguments } = await import('../src/reference-main-parsers');
- const email = { platform: 'email', providerIdentifier: 'gmail', from: 'me@example.com', to: ['ann@example.com'], subject: 'Hi', body: 'Hello' };
+ const email = { platform: 'email', providerIdentifier: 'email', from: 'me@example.com', to: ['ann@example.com'], subject: 'Hi', body: 'Hello' };
  const refusal = (args: unknown) => { try { normalizeMainToolArguments('DraftExternalMessage', args); } catch (error) { return (error as Error).message; } throw new Error('accepted'); };
  expect(refusal({ ...email, to: undefined })).toBe('Invalid arguments:\nto: to is required when platform is email');
  expect(refusal({ ...email, from: undefined })).toBe('Invalid arguments:\nfrom: from is required when platform is email');

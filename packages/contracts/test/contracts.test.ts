@@ -953,7 +953,7 @@ describe("renamed first-party tools", () => {
     expect(description("RemoveMcpAccount")).toContain("This is destructive. Confirm with the user via a question widget before calling it.");
     expect(description("RenameMcpAccount")).toEndWith("Confirm with a question widget first.");
     expect(description("RestartMcpServers")).toEndWith("Confirm with the user first if a server is mid-task.");
-    expect(description("InstallPlugin")).toContain("without asking. Ask in one widget first only when the user named no service and several plugins fit (Gmail or the Email plugin), or the plugin has no connector.");
+    expect(description("InstallPlugin")).toContain("without asking. Ask in one widget first only when the user named no service and several plugins fit, or the plugin has no connector.");
     const auth = JSON.stringify(referenceTool("AuthenticateMcpServer"));
     expect(auth).not.toMatch(/question widget|ask whether to sign the server out|confirm with the user/);
   });

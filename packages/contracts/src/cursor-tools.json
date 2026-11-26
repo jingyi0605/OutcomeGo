@@ -897,7 +897,7 @@
     },
     {
       "tool": "DraftExternalMessage",
-      "description": "Create a verified email or Slack review card. Resolve providerIdentifier to the exact connection ID from GetMcpServerStatus. Requires Gmail search_threads/send_message/create_draft or Slack slack_read_channel/slack_read_user_profile/slack_send_message connector tools. The user can edit content and email recipients, then explicitly send or cancel. The account and thread route stay fixed. Creating this card never sends a message. Delivery is durable; unknown results are never automatically retried.",
+      "description": "Create a verified email or Slack review card. Resolve providerIdentifier to the exact connection ID from GetMcpServerStatus. Requires an Email plugin account or Slack slack_read_channel/slack_read_user_profile/slack_send_message connector tools. The user can edit content and email recipients, then explicitly send or cancel. The account and thread route stay fixed. Creating this card never sends a message. Delivery is durable; unknown results are never automatically retried.",
       "inputSchema": {
         "type": "object",
         "properties": {

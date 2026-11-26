@@ -158,7 +158,7 @@ test('commerce skills pay in the purchases order and confirm with the reference 
   expect(skill('rideshare')).not.toContain('Any payment confirmation the site asks for');
   expect(managed.skills.filter(s => /any 2FA, 3DS|only they can do/.test(s.content)).map(s => s.id)).toEqual([]);
   expect(skill('restaurant-booking')).toContain('Offer once to add the reservation to their calendar.');
-  expect(skill('flight-booking')).toContain("through the user's mail connector (Gmail or an Email plugin inbox)");
+  expect(skill('flight-booking')).toContain("through the user's Email plugin inbox");
 });
 
 test('shopping compares delivered offers and routes around a store that blocks agents', () => {
@@ -217,8 +217,8 @@ test('forms, sending, skill and template skills follow the tools as they work he
   expect(managed.skills.filter(s => /same-origin|sits inside a cross-origin|in a cross-origin frame|out of the form's reach|which the host cannot reach/.test(s.content)).map(s => s.id)).toEqual([]);
   const send = skill('send-on-behalf');
   expect(send).toContain('## Choosing and reporting the sending account');
-  expect(send).toContain('each connected Gmail account and each connected Email plugin inbox');
-  expect(send).toContain("call the Gmail connector's create_draft, with replyToMessageId for a reply");
+  expect(send).toContain('each connected Email plugin inbox');
+  expect(send).toContain("An Email plugin inbox's address comes from ListEmailInboxes.");
   expect(skill('skill-authoring')).toContain('SKILL.md is YAML frontmatter followed by the markdown recipe body.');
   expect(skill('export-bot-template')).toContain('set `gettingStarted` to `{ "skill": "<its exact name from that list>" }`');
 });
@@ -226,9 +226,9 @@ test('forms, sending, skill and template skills follow the tools as they work he
 test('every tool a managed skill names exists under that name', async () => {
   const plugins = join(import.meta.dir, '../../plugins');
   const connectorTools = new Set<string>();
-  for (const file of ['calendar', 'docs', 'drive', 'drive-files', 'gmail', 'sheets', 'slides'])
+  for (const file of ['calendar', 'docs', 'drive', 'drive-files', 'sheets', 'slides'])
     for (const tool of JSON.parse(await readFile(join(plugins, '_shared/reference', `${file}.json`), 'utf8')) as { name: string }[]) connectorTools.add(tool.name);
-  for (const file of ['gmail/connector/server.ts', 'email/connector/server.ts'])
+  for (const file of ['email/connector/server.ts'])
     for (const [, name] of (await readFile(join(plugins, file), 'utf8')).matchAll(/(?:tool\('|name: ")(\w+)['"]/g)) connectorTools.add(name!);
   const tool = (name: string) => { try { return referenceTool(name); } catch { return undefined; } };
   const argumentNames = new Set(managed.skills.flatMap(s => [...s.content.matchAll(/\b[A-Z][A-Za-z]+\b/g)].flatMap(([name]) => Object.keys(tool(name)?.inputSchema.properties ?? {}))));

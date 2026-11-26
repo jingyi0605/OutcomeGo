@@ -20,7 +20,7 @@ const record = (value: unknown): Record<string, unknown> =>
 export const namespaceStatus = (status: string): PluginDynamicNamespace["namespaceStatus"] =>
   status === "ready" ? "ready" : status === "needs_auth" ? "needsAuth" : status === "error" ? "error" : "loading";
 
-/** The service and account a namespace belongs to, e.g. `Gmail (work)`. */
+/** The service and account a namespace belongs to, e.g. `Email (work)`. */
 export const connectionDisplayName = (connection: Pick<NamespaceConnection, "name" | "alias">): string =>
   `${connection.name} (${connection.alias})`;
 

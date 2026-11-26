@@ -1214,7 +1214,7 @@ var draftExternalMessageObjectSchema = external_exports.object({
   ),
   body: external_exports.string().trim().min(1).describe("The message body, written in the user's voice. Required for both platforms."),
   from: external_exports.string().trim().optional().describe(
-    `Required when platform is email. The exact email address the chosen account sends from, shown on the card's From row \u2014 a plain address like ariel@acme.com, never a display name and never guessed. If you don't already know it, read it from the mailbox first: call the Gmail connector's search_threads with query "in:sent" and use a returned message's sender field.`
+    `Required when platform is email. The exact email address the chosen account sends from, shown on the card's From row \u2014 a plain address like ariel@acme.com, never a display name and never guessed. If you don't already know it, read it from the mailbox first: call the Email plugin's ListEmailInboxes.`
   ),
   to: lenientAddressList(external_exports.array(external_exports.string().trim().min(1))).optional().describe(
     'Required when platform is email. The recipient(s), each a plain email address ("user@example.com" \u2014 the "Name <user@example.com>" form is not accepted).'

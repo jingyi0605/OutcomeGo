@@ -126,39 +126,31 @@ const taskSubagentType = contracts.Task!.inputSchema.properties.subagent_type;
 taskSubagentType.enum = [...taskSubagentType.enum, "knowledgeWork"];
 taskSubagentType.description = taskSubagentType.description.replace("computerUse.", "computerUse, knowledgeWork.");
 
-// OutcomeGo transfers files with Google Drive and Gmail only. Keep the captured
+// OutcomeGo transfers files with Google Drive only. Keep the captured
 // source intact while removing the other providers from the advertised contract.
 const transferConnection: [RegExp, string] = [
   /connection is the connection's identifier:[^\n]*Supported today:/,
-  "connection is the connection's identifier: the server_id GetMcpServerStatus lists, which is also the namespace GetDynamicTools lists that connection's tools under; the end of this description lists the ones available this turn. The service short name (google-drive or gmail) is accepted when exactly one account of that service is connected; with several accounts, name the identifier so the right account is used. Supported today:",
+  "connection is the connection's identifier: the server_id GetMcpServerStatus lists, which is also the namespace GetDynamicTools lists that connection's tools under; the end of this description lists the ones available this turn. The service short name (google-drive) is accepted when exactly one account of that service is connected; with several accounts, name the identifier so the right account is used. Supported today:",
 ];
-const otherProviders = ["OneDrive", "Outlook", "SharePoint"].map(
+const otherProviders = ["OneDrive", "Gmail", "Outlook", "SharePoint"].map(
   (provider): [RegExp, string] => [new RegExp(`\\n- ${provider}:[^\\n]*`), ""]
 );
-// The Gmail connection cannot send, so a draft carrying a file waits for the user to send it.
 contracts.UploadFile!.description = editReference("UploadFile", contracts.UploadFile!.description, [
   transferConnection,
   ...otherProviders,
-  [
-    /- Gmail: destination\.draftId[^\n]*/,
-    "- Gmail: destination.draftId is the id create_draft returned (or one from list_drafts); the file is attached and the id stays the same. Attach last: Gmail's update_draft removes every attachment it is not handed again, so finish recipients, subject and body before calling UploadFile, and never call update_draft on a draft that already has an attachment (make a new draft and attach again instead). Use this only when the user asks to keep the draft in Gmail. This connection cannot send a draft, so it waits unsent in the user's Gmail Drafts. For an email reviewed and sent in chat, use DraftExternalMessage with attachments instead. The Gmail draft with its attachments must stay under 25 MB.",
-  ],
 ]);
 contracts.DownloadFile!.description = editReference("DownloadFile", contracts.DownloadFile!.description, [
   transferConnection,
   ...otherProviders,
-  ["both from get_thread or read_email", "both from get_thread or get_message"],
 ]);
 const uploadDestination = contracts.UploadFile!.inputSchema.properties.destination.properties;
 delete uploadDestination.overwrite;
+delete uploadDestination.draftId;
 uploadDestination.path.description = editReference("UploadFile", uploadDestination.path.description, [
   [" For SharePoint this is the folder under the drive named by folderId.", ""],
 ]);
 uploadDestination.folderId.description = editReference("UploadFile", uploadDestination.folderId.description, [
   [/ Google Drive and OneDrive take[^]*$/, " Provide at most one of path or folderId."],
-]);
-uploadDestination.draftId.description = editReference("UploadFile", uploadDestination.draftId.description, [
-  ["Gmail and Outlook only:", "Gmail only:"],
 ]);
 const fileSource = contracts.DownloadFile!.inputSchema.properties.source;
 delete fileSource.properties.path;
@@ -470,7 +462,7 @@ adaptDescription("GetMcpServerStatus", [
 ]);
 adaptDescription("InstallPlugin", [
   ["without asking; its connect card is the ask.", "without asking."],
-  ["(Gmail or Outlook, Google or Outlook Calendar), or the plugin has no connector.", "(Gmail or the Email plugin), or the plugin has no connector."],
+  [" (Gmail or Outlook, Google or Outlook Calendar), or the plugin has no connector.", ", or the plugin has no connector."],
   [
     "If an installed connector needs authentication, its connect card is shown to the user automatically. Finish unrelated work, then end your turn; you're resumed when they authorize.",
     "If an installed connector needs authentication, start it with AuthenticateMcpServer.",
@@ -514,7 +506,7 @@ draft.properties.from.description = edited("DraftExternalMessage from", draft.pr
   ["Email only. The plain address", "Required for email. The plain address"],
   [
     /On Gmail, omit it to send from the account's default address; only \S+ REST Gmail connector can also send from a verified send-as alias\. Required for Outlook: get_me's mail field\./,
-    "If you don't already know it, read it from the mailbox first: the Gmail connector's get_profile returns it as emailAddress (a Gmail Send mail as address also works), and an Email plugin inbox's address comes from ListEmailInboxes.",
+    "If you don't already know it, read it from the mailbox first: an Email plugin inbox's address comes from ListEmailInboxes.",
   ],
 ]);
 draft.properties.waitForReview = {
@@ -620,8 +612,8 @@ const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
   CopyFromBox: "Copy a file from your box onto the user's computer.",
   CopyToBox: "Copy a file from the user's computer onto your box.",
   DisconnectChannel: "Disconnect one of your connected channels.",
-  // OutcomeGo transfers files with Google Drive and Gmail only.
-  DownloadFile: "Fetch a Drive or Gmail file onto your box. Not URLs (WebFetch, curl) or box files (Read).",
+  // OutcomeGo transfers files with Google Drive only.
+  DownloadFile: "Fetch a Google Drive file onto your box. Not URLs (WebFetch, curl) or box files (Read).",
   FetchIMessageAttachment: "Fetch one attachment out of a Messages conversation.",
   FindContacts: "Look up a person by name in the user's Contacts on their Mac.",
   FindIMessageChats: "Find a chat in the user's Messages app on their Mac.",
@@ -642,14 +634,14 @@ const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
   UpdateAvatar: "Set or clear your profile picture.",
   UpdateProfile: "Change your name, description, title, default mark, or sidebar, notification, and drafting settings.",
   UpdateSkill: "Save, rewrite, or delete your reusable skills.",
-  UploadFile: "Send a box file to Google Drive or Gmail.",
+  UploadFile: "Send a box file to Google Drive.",
 };
 
 /** A Task worker's own cues: it works on the box, and only it is told what ListMachines points at. */
 const WORKER_FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
-  // OutcomeGo transfers files with Google Drive and Gmail only.
-  UploadFile: "Send a box file to the user's Google Drive or Gmail.",
-  DownloadFile: "Fetch a Drive or Gmail file onto the box. Not for URLs or box files.",
+  // OutcomeGo transfers files with Google Drive only.
+  UploadFile: "Send a box file to the user's Google Drive.",
+  DownloadFile: "Fetch a Google Drive file onto the box. Not for URLs or box files.",
   CopyToBox: "Copy a file from one of the user's computers onto the box.",
   CopyFromBox: "Copy a file from the box onto one of the user's computers.",
   ListMachines: "List the user's computers and the machineId that points Read, Shell, or AwaitShell at one.",

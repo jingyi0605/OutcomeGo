@@ -150,7 +150,7 @@ describe("main-agent graphical delegation instructions", () => {
       expect(prompt.instructions).toContain("When WebSearch or WebFetch fails or comes back blocked");
       expect(prompt.instructions.indexOf("## Staying safe while you work")).toBeLessThan(prompt.instructions.indexOf("You cannot call DraftExternalMessage."));
       expect(prompt.instructions.indexOf("You cannot call DraftExternalMessage.")).toBeLessThan(prompt.instructions.indexOf("## Untrusted content"));
-      expect(prompt.instructions).toContain("Gmail create_draft, Gmail update_draft, or another connector draft tool. Tell the parent to call DraftExternalMessage. Put that ask in WakeParent when you have it");
+      expect(prompt.instructions).toContain("Slack slack_send_message_draft or another connector draft tool. Tell the parent to call DraftExternalMessage. Put that ask in WakeParent when you have it");
       // Only the executor carries the send rules.
       expect(prompt.instructions.includes("## Irreversible and externally visible actions\nThese need the user's explicit approval")).toBe(subagentType === "executor");
       expect(prompt.instructions.includes("so do not ask follow-up questions. Do the work the rules below allow")).toBe(subagentType === "executor");

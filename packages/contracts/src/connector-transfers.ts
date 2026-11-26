@@ -6,6 +6,8 @@ export function parseConnectorTransfer(tool: string, raw: unknown): Record<strin
   const input = parseReferenceArguments(tool, raw);
   if (tool === "UploadFile" && input.destination.overwrite !== undefined)
     throw new Error("File uploads do not support destination.overwrite");
+  if (tool === "UploadFile" && input.destination.draftId !== undefined)
+    throw new Error("File uploads do not support destination.draftId");
   if (tool === "DownloadFile" && !input.source.fileId)
     throw new Error("File downloads require source.fileId");
   return input;
