@@ -1,7 +1,7 @@
 import type { PluginCatalogItemView, PluginConnectionView } from "@outcomego/contracts";
 
 /** First-party Google plugins share one Google Cloud OAuth client and its setup guidance. */
-export const GOOGLE_PLUGIN_KEYS: readonly string[] = ["gmail", "google-calendar", "google-drive", "google-docs", "google-sheets", "google-slides"];
+export const GOOGLE_PLUGIN_KEYS: readonly string[] = ["google-calendar", "google-drive", "google-docs", "google-sheets", "google-slides"];
 
 export function pluginProviderSetupDescription(pluginKey: string, description: string): string {
   return GOOGLE_PLUGIN_KEYS.includes(pluginKey)

@@ -3,7 +3,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GoogleApi, type Tool } from "../_shared/google";
-import { gmailTools } from "../gmail/connector/server";
 import { calendarTools } from "../google-calendar/connector/server";
 import { driveTools } from "../google-drive/connector/server";
 
@@ -24,35 +23,6 @@ function harness(factory: (api: GoogleApi) => Tool[], responses: any[] = [{}]) {
     call: async (name: string, args = {}) => tools.find((t) => t.name === name)!.run(args),
   };
 }
-
-test("Gmail search pagination, Unicode drafts and label mutations map to public API requests", async () => {
-  const h = harness(gmailTools);
-  await h.call("search_threads", { query: "from:me", pageToken: "page two", maxResults: 7 });
-  expect(h.requests[0]!.url.searchParams.get("pageToken")).toBe("page two");
-  expect(h.requests[0]!.url.searchParams.get("q")).toBe("from:me -in:drafts");
-  await h.call("create_draft", {
-    to: ["recipient@example.com"],
-    subject: "Résumé",
-    body: "Hello 🌍",
-  });
-  const draft = JSON.parse(String(h.requests[1]!.init.body));
-  const mime = Buffer.from(draft.message.raw, "base64url").toString();
-  expect(mime).toContain(Buffer.from("Résumé").toString("base64"));
-  expect(mime).toContain(Buffer.from("Hello 🌍").toString("base64"));
-  expect(h.requests[1]!.url.pathname).toBe("/drafts");
-  await expect(
-    h.call("create_draft", { to: ["x\r\nBcc: hidden@example.com"], subject: "Test", body: "Test" })
-  ).rejects.toThrow("newlines");
-  await h.call("mark_thread_spam", { threadId: "thread/id" });
-  expect(h.requests.at(-1)!.url.pathname).toBe("/threads/thread%2Fid/modify");
-  expect(JSON.parse(String(h.requests.at(-1)!.init.body))).toEqual({
-    addLabelIds: ["SPAM"],
-    removeLabelIds: ["INBOX"],
-  });
-  // 27 Bot tools plus the host-only send_reviewed_email.
-  expect(h.tools).toHaveLength(28);
-  expect(h.tools.find((t) => t.name === "trash_message")!.annotations.destructiveHint).toBe(true);
-});
 
 test("Calendar free/busy merges overlapping intervals and never treats inaccessible calendars as free", async () => {
   const timeMin = "2026-09-12T09:00:00Z",
@@ -136,6 +106,6 @@ test("Google connectors are standalone MCP executables with argument validation 
     const child = Bun.spawn([process.execPath, join(import.meta.dir, "fixtures/google-mcp-smoke.ts"), report], { stdout: "pipe", stderr: "pipe" });
     const [exitCode, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
     expect({ exitCode, stderr }).toEqual({ exitCode: 0, stderr: "" });
-    expect(await Bun.file(report).json()).toEqual({ plugins: 3, schemas: 62, offlineSemanticSearch: true, pagedResult: true });
+    expect(await Bun.file(report).json()).toEqual({ plugins: 2, schemas: 33, offlineSemanticSearch: true, pagedResult: true });
   } finally { await rm(directory, { recursive: true, force: true }); }
 }, 30_000);

@@ -4,7 +4,6 @@ import amap from "../amap/locales/zh-CN.json";
 import email from "../email/locales/zh-CN.json";
 import dingtalkWorkspace from "../dingtalk-workspace/locales/zh-CN.json";
 import github from "../github/locales/zh-CN.json";
-import gmail from "../gmail/locales/zh-CN.json";
 import googleCalendar from "../google-calendar/locales/zh-CN.json";
 import googleDocs from "../google-docs/locales/zh-CN.json";
 import googleDrive from "../google-drive/locales/zh-CN.json";
@@ -31,7 +30,6 @@ export const pluginTranslations: Record<string, Record<string, string>> = {
   "dingtalk-workspace": dingtalkWorkspace,
   email,
   github,
-  gmail,
   "google-calendar": googleCalendar,
   "google-docs": googleDocs,
   "google-drive": googleDrive,

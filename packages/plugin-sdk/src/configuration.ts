@@ -141,7 +141,7 @@ const namespaceSlug = (value: string): string =>
 
 /**
  * Readable public identifiers, so a lookup by service name finds the namespace:
- * `gmail`, `gmail--work`, `google-calendar`. They change on rename; the private
+ * `email`, `email--work`, `google-calendar`. They change on rename; the private
  * connection UUID stays stable. On a collision the older connection keeps the
  * plain name and a newer one adds a short id suffix.
  */

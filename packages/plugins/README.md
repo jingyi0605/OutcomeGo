@@ -47,7 +47,7 @@ The host sets each event's `source`, `plugin` and `account` and namespaces its `
 
 ## Multiple provider accounts
 
-Gmail, Google Calendar, Google Drive, and the other account-based connectors support multiple accounts. In **Manage plugins → Installed**, select a plugin, enter a **New account name** (for example, `work` or `personal`), and choose **Add account**. Select the new account, configure it, authorize it in the browser. Each account keeps its own credentials, tools and activity. Gmail, Calendar, Drive, Docs, Sheets, and Slides are separate connectors; authorizing one does not authorize the others.
+Google Calendar, Google Drive, and the other account-based connectors support multiple accounts. In **Manage plugins → Installed**, select a plugin, enter a **New account name** (for example, `work` or `personal`), and choose **Add account**. Select the new account, configure it, authorize it in the browser. Each account keeps its own credentials, tools and activity. Calendar, Drive, Docs, Sheets, and Slides are separate connectors; authorizing one does not authorize the others.
 
 The Google packages use public REST APIs through packaged MCP servers. Enable the corresponding Google API, create an OAuth web client, and configure accounts in the UI. No Developer Preview enrollment is needed. Each account has independent tokens and a callback URL registered with the application. See the full guide for Google's Testing-mode refresh-token lifetime and Workspace administrator restrictions.
 
@@ -55,7 +55,7 @@ A package may declare `connector/server.ts`. Catalog generation bundles it as `c
 
 Provider behavior tests live in that package's `connector/test/`; shared contract and installation tests live in `test/`. The Google reference snapshots in `_shared/reference/` pin public interfaces for deliberate compatibility review. Check behavior beyond tool names: field defaults, reply MIME, binary integrity, pagination, error handling, account routing and notifications. Calendar's local model includes its license, pinned revision and checksums in `models/`. Installed package exports contain their runtime assets and need no first-run dependency download. Registry exports of source-fetched plugins resolve their pinned source at installation.
 
-Gmail, Calendar and Drive 1.2.0 add the richer Google tool inputs and lossless result paging. Notion includes 14 original upstream workflows fetched at installation. See the [capability and limit details](../../docs/integrations/google.md#what-bots-can-do). Linear, Notion and Slack use their provider's official MCP services with user-owned authorization.
+Calendar and Drive 1.2.0 add the richer Google tool inputs and lossless result paging. Notion includes 14 original upstream workflows fetched at installation. See the [capability and limit details](../../docs/integrations/google.md#what-bots-can-do). Linear, Notion and Slack use their provider's official MCP services with user-owned authorization.
 
 For packaged browser OAuth, declare `oauth.authorizationServer` (`issuer`, `authorizationUrl`, `tokenUrl`), `oauth.registration: "manual"`, and `oauth.accessTokenEnv`. The server performs PKCE authorization and refresh, stores credentials in the user's database, and sends only the access token to the named environment variable. The computer needs no OAuth callback listener, client secret, or refresh token.
 

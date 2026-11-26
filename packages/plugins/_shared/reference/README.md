@@ -1,16 +1,13 @@
 # Google connector reference
 
-`gmail.json`, `calendar.json` and `drive.json` pin the public `tools/list` responses from:
+`calendar.json` and `drive.json` pin the public `tools/list` responses from:
 
-- https://gmailmcp.googleapis.com/mcp/v1, refreshed October 23, 2026
 - https://calendarmcp.googleapis.com/mcp/v1, refreshed October 14, 2026
 - https://drivemcp.googleapis.com/mcp/v1, retrieved September 12, 2026
 
 They contain public interface metadata, no credentials or account data. Google provides the definitions; OutcomeGo implements the operations against the generally available REST APIs. Reference input names, enums and descriptions are retained, with documented compatibility aliases and local extensions. This does not make the adapters Google's official MCP servers.
 
-The October 23, 2026 Gmail refresh takes every definition, annotation and output schema from the public `tools/list`. `update_draft` and `delete_draft` are listed only to connected clients; their texts were checked against the definitions a connected client received that day and still match the October 21 pin, which has no annotations or output schemas for them. Google's texts arrive with HTML tags stripped from two fields: `htmlBody` keeps only its sentences before the stripped markup, and the attachment `inline` text stays as pinned. Threads, messages and drafts carry Google's Gmail web `viewUrl`; the draft link format was taken from a live draft Google's server created.
-
-Reference documentation: https://developers.google.com/workspace/gmail/api/reference/mcp , https://developers.google.com/workspace/calendar/api/v3/reference/mcp , https://developers.google.com/workspace/drive/api/reference/mcp . Google licenses documentation under CC BY 4.0 and code samples under Apache 2.0; see https://developers.google.com/terms/site-policies . Attribution and provenance must accompany exports that embed these definitions. The generate script includes this notice in Google packages.
+Reference documentation: https://developers.google.com/workspace/calendar/api/v3/reference/mcp , https://developers.google.com/workspace/drive/api/reference/mcp . Google licenses documentation under CC BY 4.0 and code samples under Apache 2.0; see https://developers.google.com/terms/site-policies . Attribution and provenance must accompany exports that embed these definitions. The generate script includes this notice in Google packages.
 
 `drive-files.json` pins the `tools/list` definitions served for the `google-drive` package in [cursor/plugins](https://github.com/cursor/plugins/tree/1e5c90a4b6f249917bd21fe361b3a2a7deb741b8/third_party/google-drive), retrieved October 14, 2026. That package's MIT-licensed skill is bundled unchanged in the Google Drive plugin and is written against these definitions. OutcomeGo implements them against the public Drive v3 API and never calls the hosted server. The Google Drive plugin also keeps the `drive.json` tools; where a tool name appears in both files, the `drive-files.json` definition is served and the earlier inputs remain accepted as documented aliases.
 
