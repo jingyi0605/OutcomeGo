@@ -12,6 +12,7 @@ export const APP_SETTINGS_ANCHORS = [
   "update-channel",
   "server-update",
   "tailscale-https",
+  "local-services",
   "automatic-updates",
   "web-search-provider",
   "web-fetch-provider",

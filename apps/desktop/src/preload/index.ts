@@ -242,6 +242,18 @@ contextBridge.exposeInMainWorld("outcomego", {
     status: request("local-server:status"),
     start: request("local-server:start"),
     stop: request("local-server:stop"),
+    restart: request<[service?: string]>("local-server:restart"),
+    containers: request<[options?: { includeStats?: boolean }]>("local-server:containers"),
+    logs: request<[{ service: string; tail?: number }]>("local-server:logs"),
+    openLogsFolder: request("local-server:open-logs-folder"),
+    autostartStatus: request("local-server:autostart-status"),
+    setAutostart: request<[enabled: boolean]>("local-server:autostart-set"),
+    resourcesStatus: request("local-server:resources-status"),
+    updateResources: request<[unknown]>("local-server:resources-update"),
+    proxyStatus: request("local-server:proxy-status"),
+    detectSystemProxy: request("local-server:system-proxy"),
+    saveProxy: request<[unknown]>("local-server:proxy-save"),
+    testProxy: request<[unknown]>("local-server:proxy-test"),
     remove: request<[{ purgeData: boolean }]>("local-server:remove"),
     diagnostics: request("local-server:diagnostics"),
     resources: request<[{ computerMemory: string; desktopMemory: string }]>("local-server:resources"),
@@ -255,8 +267,12 @@ contextBridge.exposeInMainWorld("outcomego", {
   },
   backgroundPreferences: {
     get: request("background:get"),
-    set: request<[boolean]>("background:set"),
+    set: request<[boolean | { stopServiceOnQuit?: boolean; launchAtLogin?: boolean; launchHidden?: boolean }]>("background:set"),
   },
+  onDeepLink: (callback: (url: string) => void) =>
+    subscribe("deep-link", (value) => {
+      if (typeof value === "string") callback(value);
+    }),
   providerSignIn: {
     capture: request<[authorizationUrl: string, redirectUri: string]>("provider-sign-in:capture"),
     cancel: request("provider-sign-in:cancel"),

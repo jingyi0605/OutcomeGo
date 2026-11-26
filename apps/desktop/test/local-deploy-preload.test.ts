@@ -19,11 +19,35 @@ test("preload exposes fixed local service routes and retains detect", async () =
   await server.remove({ purgeData: false });
   await server.diagnostics();
   await server.resources({ computerMemory: "4g", desktopMemory: "3g" });
+  await server.restart?.("computer");
+  await server.containers?.({ includeStats: true });
+  await server.logs?.({ service: "server", tail: 100 });
+  await server.openLogsFolder?.();
+  await server.autostartStatus?.();
+  await server.setAutostart?.(true);
+  await server.resourcesStatus?.();
+  await server.updateResources?.({ workerConcurrency: 4 });
+  await server.proxyStatus?.();
+  await server.detectSystemProxy?.();
+  await server.saveProxy?.({ mode: "off" });
+  await server.testProxy?.({ mode: "off" });
   expect(invoke.mock.calls).toEqual([
     ["outcomego:local-server:detect"], ["outcomego:local-server:status"],
     ["outcomego:local-server:start"], ["outcomego:local-server:stop"],
     ["outcomego:local-server:remove", { purgeData: false }], ["outcomego:local-server:diagnostics"],
     ["outcomego:local-server:resources", { computerMemory: "4g", desktopMemory: "3g" }],
+    ["outcomego:local-server:restart", "computer"],
+    ["outcomego:local-server:containers", { includeStats: true }],
+    ["outcomego:local-server:logs", { service: "server", tail: 100 }],
+    ["outcomego:local-server:open-logs-folder"],
+    ["outcomego:local-server:autostart-status"],
+    ["outcomego:local-server:autostart-set", true],
+    ["outcomego:local-server:resources-status"],
+    ["outcomego:local-server:resources-update", { workerConcurrency: 4 }],
+    ["outcomego:local-server:proxy-status"],
+    ["outcomego:local-server:system-proxy"],
+    ["outcomego:local-server:proxy-save", { mode: "off" }],
+    ["outcomego:local-server:proxy-test", { mode: "off" }],
   ]);
 });
 

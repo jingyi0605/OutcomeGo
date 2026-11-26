@@ -11,6 +11,10 @@ export const localServiceTranslations: Record<string, string> = {
   "Local services: {state}": "本地服务：{state}",
   "Start local services": "启动本地服务",
   "Stop local services": "停止本地服务",
+  "Restart local services": "重启本地服务",
+  "Manage local services…": "服务管理…",
+  "Start local services at login": "开机自动启动本地服务",
+  "Open logs folder": "打开日志目录",
   "Quit OutcomeGo (keep local services running)": "退出 OutcomeGo（本地服务继续运行）",
   "OutcomeGo is still running. Open or quit it from the tray icon.": "OutcomeGo 仍在后台运行，可通过菜单栏或通知区域的图标打开或退出。",
 };

@@ -11,8 +11,186 @@ import { canManageLocalInstallation, readManagedInstallation, readPendingDeploym
 import {
   actions, codes, engineProbeStates, engines, fields, stackStates, stages, statuses,
   type Action, type Code, type DeployPayload, type DeployProgress, type EngineProbe, type EngineProbes,
-  type HostResources, type LocalDeployRequest, type LocalServerStatus, type Stage,
+  type HostResources, type LocalAutostartStatus, type LocalContainerLogs, type LocalContainersSnapshot,
+  type LocalDeployRequest, type LocalProxyConfig, type LocalProxyTestResult, type LocalProxyUpdate,
+  type LocalResourceSnapshot, type LocalResourceUpdate, type LocalServerStatus, type Stage,
 } from "../renderer/lib/local-deploy-contract";
+
+const CORE_SERVICES = new Set(["server", "worker", "computer", "postgres", "computer-memory-init", "caddy"]);
+const LOG_SERVICES = new Set([
+  "server",
+  "worker",
+  "computer",
+  "postgres",
+  "computer-memory-init",
+  "caddy",
+  "migrate",
+  "agent-data-init",
+  "asset-store-init",
+  "computer-home-init",
+  "box-store-init",
+  "workspace-init",
+]);
+const PROXY_MODES = new Set(["off", "system", "manual"]);
+const PROXY_PROTOCOLS = new Set(["http", "https", "socks5"]);
+const UNSAFE_CHARS = /[\r\n\0\t"'`$&;|<>]/;
+
+const parseJsonOutput = <T>(raw: string, requireSchemaVersion = true): T => {
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("UNKNOWN");
+  if (requireSchemaVersion && parsed.schemaVersion !== 1) throw new Error("CLI_VERSION_MISMATCH");
+  return parsed as T;
+};
+
+export const validateRestartService = (value: unknown): string | undefined => {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string" || !CORE_SERVICES.has(value)) throw new Error("INVALID_INPUT");
+  return value;
+};
+
+export const validateLogsRequest = (value: unknown): { service: string; tail: number } => {
+  const input = record(value);
+  if (!input || Object.keys(input).some((k) => k !== "service" && k !== "tail")) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (typeof input.service !== "string" || !LOG_SERVICES.has(input.service)) {
+    throw new Error("INVALID_INPUT");
+  }
+  const tail = input.tail === undefined ? 200 : input.tail;
+  if (typeof tail !== "number" || !Number.isInteger(tail) || tail < 10 || tail > 1000) {
+    throw new Error("INVALID_INPUT");
+  }
+  return { service: input.service, tail };
+};
+
+export const validateContainersRequest = (value: unknown): { includeStats: boolean } => {
+  if (value === undefined) return { includeStats: false };
+  const input = record(value);
+  if (!input || Object.keys(input).some((k) => k !== "includeStats")) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.includeStats !== undefined && typeof input.includeStats !== "boolean") {
+    throw new Error("INVALID_INPUT");
+  }
+  return { includeStats: input.includeStats === true };
+};
+
+export const validateResourceUpdate = (value: unknown): LocalResourceUpdate => {
+  const input = record(value);
+  const allowed = new Set([
+    "computerMemory",
+    "desktopMemory",
+    "computerCpu",
+    "workerConcurrency",
+    "engineMemory",
+    "engineCpu",
+    "applyWslconfig",
+    "restartWsl",
+  ]);
+  if (!input || Object.keys(input).length === 0 || Object.keys(input).some((k) => !allowed.has(k))) {
+    throw new Error("INVALID_INPUT");
+  }
+  const memPattern = /^\d{1,16}[kmgt]?i?b?$/i;
+  if (input.computerMemory !== undefined && (typeof input.computerMemory !== "string" || !memPattern.test(input.computerMemory))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.desktopMemory !== undefined && (typeof input.desktopMemory !== "string" || !memPattern.test(input.desktopMemory))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.computerCpu !== undefined && input.computerCpu !== null) {
+    if (typeof input.computerCpu !== "number" || !Number.isFinite(input.computerCpu) || input.computerCpu < 1 || input.computerCpu > 256) {
+      throw new Error("INVALID_INPUT");
+    }
+  }
+  if (input.workerConcurrency !== undefined) {
+    if (typeof input.workerConcurrency !== "number" || !Number.isInteger(input.workerConcurrency) || input.workerConcurrency < 1 || input.workerConcurrency > 64) {
+      throw new Error("INVALID_INPUT");
+    }
+  }
+  if (input.engineMemory !== undefined && (typeof input.engineMemory !== "string" || !memPattern.test(input.engineMemory))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.engineCpu !== undefined) {
+    if (typeof input.engineCpu !== "number" || !Number.isInteger(input.engineCpu) || input.engineCpu < 1 || input.engineCpu > 256) {
+      throw new Error("INVALID_INPUT");
+    }
+  }
+  if (input.applyWslconfig !== undefined && typeof input.applyWslconfig !== "boolean") {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.restartWsl !== undefined && typeof input.restartWsl !== "boolean") {
+    throw new Error("INVALID_INPUT");
+  }
+  return input as unknown as LocalResourceUpdate;
+};
+
+export const validateProxyUpdate = (value: unknown): LocalProxyUpdate => {
+  const input = record(value);
+  const allowed = new Set([
+    "mode",
+    "protocol",
+    "host",
+    "port",
+    "username",
+    "password",
+    "clearPassword",
+    "noProxy",
+    "applyToContainers",
+    "applyToDockerDaemon",
+    "systemResolved",
+  ]);
+  if (!input || Object.keys(input).some((k) => !allowed.has(k))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (typeof input.mode !== "string" || !PROXY_MODES.has(input.mode)) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.protocol !== undefined && (typeof input.protocol !== "string" || !PROXY_PROTOCOLS.has(input.protocol))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.host !== undefined && (typeof input.host !== "string" || input.host.length > 253 || UNSAFE_CHARS.test(input.host) || /[\s/\\@#?]/.test(input.host))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.port !== undefined && (typeof input.port !== "number" || !Number.isInteger(input.port) || input.port < 1 || input.port > 65535)) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.username !== undefined && input.username !== null && (typeof input.username !== "string" || input.username.length > 128 || UNSAFE_CHARS.test(input.username))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.password !== undefined && input.password !== null && (typeof input.password !== "string" || input.password.length > 256 || /[\r\n\0]/.test(input.password))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.clearPassword !== undefined && typeof input.clearPassword !== "boolean") {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.noProxy !== undefined && (typeof input.noProxy !== "string" || input.noProxy.length > 2048 || /[\r\n\0]/.test(input.noProxy))) {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.applyToContainers !== undefined && typeof input.applyToContainers !== "boolean") {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.applyToDockerDaemon !== undefined && typeof input.applyToDockerDaemon !== "boolean") {
+    throw new Error("INVALID_INPUT");
+  }
+  if (input.systemResolved !== undefined && input.systemResolved !== null) {
+    const sys = record(input.systemResolved);
+    if (!sys || Object.keys(sys).some((k) => !["httpProxy", "httpsProxy", "noProxy"].includes(k))) {
+      throw new Error("INVALID_INPUT");
+    }
+    for (const k of ["httpProxy", "httpsProxy", "noProxy"] as const) {
+      const v = sys[k];
+      if (v !== null && v !== undefined && (typeof v !== "string" || v.length > 2048 || /[\r\n\0]/.test(v))) {
+        throw new Error("INVALID_INPUT");
+      }
+    }
+  }
+  if (input.mode === "manual") {
+    if (!input.protocol || typeof input.host !== "string" || !input.host.trim() || typeof input.port !== "number") {
+      throw new Error("INVALID_INPUT");
+    }
+  }
+  return input as unknown as LocalProxyUpdate;
+};
 
 const record = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
@@ -296,7 +474,10 @@ export class LocalDeployManager {
     return new Promise(resolve => { child.once("error", () => resolve(1)); child.once("close", resolve); });
   }
 
-  private async command(args: string[], options: { bundled?: boolean; timeout?: number } = {}) {
+  private async command(
+    args: string[],
+    options: { bundled?: boolean; timeout?: number; stdin?: string; secretValues?: readonly string[] } = {}
+  ) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options.timeout ?? 240_000);
     const { bundledCli, executablePath, directory, version } = this.options;
@@ -311,10 +492,40 @@ export class LocalDeployManager {
       let code: Code | undefined;
       receiveLines(child.stdout!, line => { size += line.length; if (size <= 512 * 1024) stdout.push(line); else controller.abort(); });
       receiveLines(child.stderr!, line => { code ??= codes.find(candidate => new RegExp(`\\b${candidate}\\b`).test(line)); });
+      if (options.stdin !== undefined) {
+        child.stdin?.write(options.stdin);
+      }
       child.stdin?.end();
       const status = await this.wait(child);
-      return { status, code, output: stdout.join("\n") };
+      let output = stdout.join("\n");
+      if (options.secretValues?.length) {
+        for (const secret of options.secretValues) {
+          if (secret) output = output.replaceAll(secret, "[REDACTED]");
+        }
+      }
+      return { status, code, output };
     } finally { clearTimeout(timer); }
+  }
+
+  installDirectory(): string {
+    return this.options.directory;
+  }
+
+  logsDirectory(): string {
+    const logs = join(this.options.directory, "logs");
+    return existsSync(logs) ? logs : this.options.directory;
+  }
+
+  private assertCanManage(serverUrl?: string) {
+    const installation = (this.options.installation ?? readManagedInstallation)(this.environment);
+    if (
+      !installation ||
+      installation.directory !== this.options.directory ||
+      !canManageLocalInstallation(serverUrl ?? `http://127.0.0.1:${installation.apiPort}`, installation)
+    ) {
+      throw new Error("INVALID_INPUT");
+    }
+    return installation;
   }
 
   async status(): Promise<LocalServerStatus> {
@@ -322,7 +533,8 @@ export class LocalDeployManager {
     const pending = readPendingDeployment(this.options.directory);
     const empty: LocalServerStatus = { stack: { state: this.operation ?? "not-installed", services: [] }, engine: null,
       version: installation?.version ?? null, apiPort: installation ? Number(installation.apiPort) : null,
-      ownerUsername: pending?.ownerUsername ?? installation?.ownerUsername ?? null, awaiting: pending?.awaiting ?? null };
+      ownerUsername: pending?.ownerUsername ?? installation?.ownerUsername ?? null, awaiting: pending?.awaiting ?? null,
+      directory: installation?.directory ?? this.options.directory };
     try {
       const { status, output } = await this.command(["status", "--json"], { bundled: true, timeout: 20_000 });
       const snapshot = JSON.parse(output);
@@ -389,9 +601,7 @@ export class LocalDeployManager {
 
   async service(action: "start" | "stop" | "uninstall" | "resources", args: string[], serverUrl?: string): Promise<LocalServerStatus> {
     await this.mutate(async () => {
-      const installation = (this.options.installation ?? readManagedInstallation)(this.environment);
-      if (!installation || installation.directory !== this.options.directory ||
-        !canManageLocalInstallation(serverUrl ?? `http://127.0.0.1:${installation.apiPort}`, installation)) throw new Error("INVALID_INPUT");
+      this.assertCanManage(serverUrl);
       this.operation = action === "start" ? "starting" : action === "uninstall" ? "removing" : undefined;
       try {
         const { status } = await this.command([action, ...args]);
@@ -399,6 +609,140 @@ export class LocalDeployManager {
       } finally { this.operation = undefined; }
     });
     return this.status();
+  }
+
+  async restart(service?: string, serverUrl?: string): Promise<LocalServerStatus> {
+    const validated = validateRestartService(service);
+    await this.mutate(async () => {
+      this.assertCanManage(serverUrl);
+      this.operation = "starting";
+      try {
+        const args = ["restart", ...(validated ? [validated] : []), "--json", "--yes"];
+        const { status, code } = await this.command(args);
+        if (status !== 0) throw new Error(code ?? "STACK_START_FAILED");
+      } finally {
+        this.operation = undefined;
+      }
+    });
+    return this.status();
+  }
+
+  async containers(options?: { includeStats?: boolean }, serverUrl?: string): Promise<LocalContainersSnapshot> {
+    const validated = validateContainersRequest(options);
+    this.assertCanManage(serverUrl);
+    const { status, code, output } = await this.command(
+      ["containers", "--json", ...(validated.includeStats ? ["--stats"] : [])],
+      { bundled: true, timeout: 15_000 }
+    );
+    if (status !== 0) throw new Error(code ?? "ENGINE_UNAVAILABLE");
+    return parseJsonOutput<LocalContainersSnapshot>(output);
+  }
+
+  async logs(options: { service: string; tail?: number }, serverUrl?: string): Promise<LocalContainerLogs> {
+    const validated = validateLogsRequest(options);
+    this.assertCanManage(serverUrl);
+    const { status, code, output } = await this.command(
+      ["logs", validated.service, "--tail", String(validated.tail), "--json"],
+      { bundled: true, timeout: 15_000 }
+    );
+    if (status !== 0) throw new Error(code ?? "ENGINE_UNAVAILABLE");
+    return parseJsonOutput<LocalContainerLogs>(output);
+  }
+
+  async autostartStatus(serverUrl?: string): Promise<LocalAutostartStatus> {
+    this.assertCanManage(serverUrl);
+    const { status, code, output } = await this.command(["autostart", "status", "--json"], {
+      bundled: true,
+      timeout: 15_000,
+    });
+    if (status !== 0) throw new Error(code ?? "ENGINE_UNAVAILABLE");
+    return parseJsonOutput<LocalAutostartStatus>(output);
+  }
+
+  async setAutostart(enabled: boolean, serverUrl?: string): Promise<LocalAutostartStatus> {
+    if (typeof enabled !== "boolean") throw new Error("INVALID_INPUT");
+    return this.mutate(async () => {
+      this.assertCanManage(serverUrl);
+      const { status, code, output } = await this.command([
+        "autostart",
+        "set",
+        "--enabled",
+        enabled ? "true" : "false",
+        "--json",
+      ]);
+      if (status !== 0) throw new Error(code ?? "UNKNOWN");
+      return parseJsonOutput<LocalAutostartStatus>(output);
+    });
+  }
+
+  async resourcesStatus(serverUrl?: string): Promise<LocalResourceSnapshot> {
+    this.assertCanManage(serverUrl);
+    const { status, code, output } = await this.command(["resources", "status", "--json"], {
+      bundled: true,
+      timeout: 20_000,
+    });
+    if (status !== 0) throw new Error(code ?? "ENGINE_UNAVAILABLE");
+    return parseJsonOutput<LocalResourceSnapshot>(output);
+  }
+
+  async updateResources(input: LocalResourceUpdate, serverUrl?: string): Promise<LocalResourceSnapshot> {
+    const validated = validateResourceUpdate(input);
+    return this.mutate(async () => {
+      this.assertCanManage(serverUrl);
+      const args = ["resources", "set"];
+      if (validated.computerMemory !== undefined) args.push("--computer-memory", validated.computerMemory);
+      if (validated.desktopMemory !== undefined) args.push("--desktop-memory", validated.desktopMemory);
+      if (validated.computerCpu !== undefined) {
+        args.push("--computer-cpu", validated.computerCpu === null ? "none" : String(validated.computerCpu));
+      }
+      if (validated.workerConcurrency !== undefined) {
+        args.push("--worker-concurrency", String(validated.workerConcurrency));
+      }
+      if (validated.engineMemory !== undefined) args.push("--engine-memory", validated.engineMemory);
+      if (validated.engineCpu !== undefined) args.push("--engine-cpu", String(validated.engineCpu));
+      if (validated.applyWslconfig) args.push("--apply-wslconfig");
+      if (validated.restartWsl) args.push("--restart-wsl");
+      args.push("--json", "--yes");
+      const { status, code, output } = await this.command(args);
+      if (status !== 0) throw new Error(code ?? "STACK_START_FAILED");
+      return parseJsonOutput<LocalResourceSnapshot>(output);
+    });
+  }
+
+  async proxyStatus(serverUrl?: string): Promise<LocalProxyConfig> {
+    this.assertCanManage(serverUrl);
+    const { status, code, output } = await this.command(["proxy", "status", "--json"], {
+      bundled: true,
+      timeout: 15_000,
+    });
+    if (status !== 0) throw new Error(code ?? "ENGINE_UNAVAILABLE");
+    return parseJsonOutput<LocalProxyConfig>(output);
+  }
+
+  async saveProxy(input: LocalProxyUpdate, serverUrl?: string): Promise<LocalProxyConfig> {
+    const validated = validateProxyUpdate(input);
+    const secretValues = validated.password ? [validated.password] : [];
+    return this.mutate(async () => {
+      this.assertCanManage(serverUrl);
+      const { status, code, output } = await this.command(
+        ["proxy", "set", "--config-stdin", "--yes", "--json"],
+        { stdin: JSON.stringify(validated), secretValues }
+      );
+      if (status !== 0) throw new Error(code ?? "STACK_START_FAILED");
+      return parseJsonOutput<LocalProxyConfig>(output);
+    });
+  }
+
+  async testProxy(input: LocalProxyUpdate, serverUrl?: string): Promise<LocalProxyTestResult> {
+    const validated = validateProxyUpdate(input);
+    const secretValues = validated.password ? [validated.password] : [];
+    this.assertCanManage(serverUrl);
+    const { status, code, output } = await this.command(
+      ["proxy", "test", "--config-stdin", "--json"],
+      { bundled: true, timeout: 30_000, stdin: JSON.stringify(validated), secretValues }
+    );
+    if (status !== 0) throw new Error(code ?? "UNKNOWN");
+    return parseJsonOutput<LocalProxyTestResult>(output);
   }
 
   async restore(currentServer: () => string | undefined, quitting: () => boolean): Promise<LocalServerStatus | null> {

@@ -269,3 +269,69 @@ test.each(["stopped", "removed", "pending", "remote", "quitting"] as const)("bac
   await recovery;
   expect(calls).toEqual(scenario === "stopped" ? ["start"] : []);
 });
+
+test("saveProxy passes credentials exclusively via stdin and enforces BUSY mutex", async () => {
+  const capturedArgs: string[][] = [];
+  const capturedStdin: string[] = [];
+  let releaseSecond: (() => void) | null = null;
+  const manager = new LocalDeployManager({
+    directory: "/isolated",
+    version: "1.2.3",
+    installation: () => ({ directory: "/isolated", version: "1.2.3", apiPort: "8787", ownerUsername: "owner" }),
+    prepare: async () => "/fake-cli",
+    spawn: (_command, args) => {
+      capturedArgs.push([...args]);
+      const child = new EventEmitter() as unknown as ReturnType<NonNullable<ConstructorParameters<typeof LocalDeployManager>[0]["spawn"]>>;
+      const stdout = new PassThrough();
+      const stderr = new PassThrough();
+      const stdin = new PassThrough();
+      let buf = "";
+      stdin.on("data", (c) => { buf += String(c); });
+      stdin.on("end", () => { capturedStdin.push(buf); });
+      Object.assign(child, { stdout, stderr, stdin, kill: () => true });
+      const finish = () => {
+        stdout.end(JSON.stringify({
+          schemaVersion: 1,
+          mode: "manual",
+          protocol: "http",
+          host: "127.0.0.1",
+          port: 7890,
+          username: "alice",
+          hasPassword: true,
+          noProxy: "",
+          applyToContainers: true,
+          applyToDockerDaemon: true,
+          loopbackMappedHost: "host.docker.internal",
+          systemResolved: null,
+        }) + "\n");
+        queueMicrotask(() => child.emit("close", 0));
+      };
+      if (capturedArgs.length === 1) {
+        releaseSecond = finish;
+      } else {
+        setTimeout(finish, 0);
+      }
+      return child;
+    },
+  });
+
+  const first = manager.saveProxy(
+    {
+      mode: "manual",
+      protocol: "http",
+      host: "127.0.0.1",
+      port: 7890,
+      username: "alice",
+      password: "SuperSecretProxyPwd!",
+    },
+    "http://127.0.0.1:8787"
+  );
+  await new Promise((r) => setTimeout(r, 5));
+  await expect(manager.setAutostart(true, "http://127.0.0.1:8787")).rejects.toThrow("BUSY");
+  releaseSecond?.();
+  const saved = await first;
+  expect(saved.hasPassword).toBe(true);
+  expect(capturedArgs[0]?.join(" ")).not.toContain("SuperSecretProxyPwd!");
+  expect(capturedArgs[0]).toContain("--config-stdin");
+  expect(capturedStdin[0]).toContain("SuperSecretProxyPwd!");
+});

@@ -194,8 +194,8 @@
 
 ## 阶段 2：桌面端托盘增强、状态同步修复与容器管理面板
 
-- [ ] 2.1 修复托盘状态不同步并增强任务栏右键菜单
-  - 状态：TODO
+- [x] 2.1 修复托盘状态不同步并增强任务栏右键菜单
+  - 状态：DONE
   - 这一步到底做什么：修复右键弹出旧菜单和部署/启停后未刷新托盘的问题（增加右键 1200ms 限时刷新与部署/操作/切服后的主动 `syncLocalTrayState`）；重构 `tray-menu.ts` 与 `tray.ts`，在本地模式下增加“服务管理…”、“重启本地服务”、“开机自动启动本地服务（复选框）”和“打开日志目录”，远程模式保持极简。
   - 做完你能看到什么：本地部署完成或启停后，任务栏托盘状态立刻变成“正在运行 / 已停止”；右键菜单可直接跳转服务管理、一键重启、切换开机自启或打开日志文件夹。
   - 先依赖什么：1.6
@@ -220,8 +220,8 @@
   - 对应需求：`requirements.md` 需求 1 / 验收 1.1–1.5，需求 7 / 验收 7.1、7.2
   - 对应设计：`design.md` §2.3.1、§4.2、§6.4
 
-- [ ] 2.2 扩展桌面端 `LocalDeployManager`、LoginItem 偏好、系统代理探测与 IPC 契约
-  - 状态：TODO
+- [x] 2.2 扩展桌面端 `LocalDeployManager`、LoginItem 偏好、系统代理探测与 IPC 契约
+  - 状态：DONE
   - 这一步到底做什么：在 `local-deploy.ts`、`local-deploy-contract.ts`、`background-preferences.ts`、`preload/index.ts` 与 `main/index.ts` 接入阶段 1 新增的全部 CLI 子命令；扩展 `BackgroundPreferences` 支持 `launchAtLogin` / `launchHidden` 并联动 Electron `app.setLoginItemSettings` 及 `--autostart-hidden` 静默启动；新增 `system-proxy.ts` 封装 Windows/macOS 系统代理探测；每次变更后自动回调刷新托盘状态。
   - 做完你能看到什么：渲染进程通过 `window.outcomego.localServer` 和 `window.outcomego.backgroundPreferences` 可直接调用容器列表、单容器重启、日志、自启、资源、代理、系统代理探测和打开日志目录，且全部带参数校验、脱敏与互斥锁保护。
   - 先依赖什么：1.6、2.1
@@ -251,8 +251,8 @@
   - 对应需求：`requirements.md` 需求 3 / 验收 3.6、需求 5 / 验收 5.1、需求 7 / 验收 7.1、7.3
   - 对应设计：`design.md` §2.2、§3.2、§3.3.2、§6.3
 
-- [ ] 2.3 新增 `local-services` 深链接锚点并实现「本地服务管理」概览与容器运维 UI
-  - 状态：TODO
+- [x] 2.3 新增 `local-services` 深链接锚点并实现「本地服务管理」概览与容器运维 UI
+  - 状态：DONE
   - 这一步到底做什么：在 `packages/contracts/src/app-deep-links.ts` 和桌面端 `app-deep-links.ts` 注册 `"local-services"` 锚点（映射到 `server` 设置页）；升级 `server-location.tsx` 并拆分 `settings/local-service/` 子模块，实现本地安装概览（引擎类型、版本、目录、端口、整体启停/重启/移除/打开日志目录）、容器列表（核心容器主列表 + 折叠初始化任务 + 实时 CPU/内存分步加载 + 前台可见轮询）、单容器重启按钮和脱敏日志弹窗（行数切换、筛选、复制）。
   - 做完你能看到什么：从托盘点“服务管理…”或进入「设置 → 服务器」，立即看到清晰的本地服务与 5 个核心容器状态，能直接重启单个容器并在线查看复制日志。
   - 先依赖什么：2.1、2.2
@@ -281,8 +281,8 @@
 
 ### 阶段检查
 
-- [ ] 2.4 阶段 2 检查点（托盘 + 容器运维主链路验证）
-  - 状态：TODO
+- [x] 2.4 阶段 2 检查点（托盘 + 容器运维主链路验证）
+  - 状态：DONE
   - 这一步到底做什么：核查托盘状态同步、右键菜单跳转、桌面端 IPC 与容器运维面板已完整串联且无状态漂移。
   - 做完你能看到什么：最核心的“托盘管理 + Docker 容器查看/重启/日志”已经是一条完整可用的产品链路。
   - 先依赖什么：2.1、2.2、2.3

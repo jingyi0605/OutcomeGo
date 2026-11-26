@@ -32,6 +32,7 @@ const viewByAnchor: Record<SettingsAnchor, SettingsView> = {
   "update-channel": "updates",
   "server-update": "updates",
   "tailscale-https": "server",
+  "local-services": "server",
   "automatic-updates": "updates",
   "web-search-provider": "providers",
   "web-fetch-provider": "providers",

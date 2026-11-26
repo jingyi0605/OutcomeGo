@@ -611,7 +611,13 @@ export default function App() {
       }
     };
     window.addEventListener(OUTCOMEGO_DEEP_LINK_EVENT, handleDeepLink);
-    return () => window.removeEventListener(OUTCOMEGO_DEEP_LINK_EVENT, handleDeepLink);
+    const unsubscribeMainDeepLink = window.outcomego?.onDeepLink?.((url) => {
+      window.dispatchEvent(new CustomEvent(OUTCOMEGO_DEEP_LINK_EVENT, { detail: { url } }));
+    });
+    return () => {
+      window.removeEventListener(OUTCOMEGO_DEEP_LINK_EVENT, handleDeepLink);
+      unsubscribeMainDeepLink?.();
+    };
   }, []);
   const openDesktopNotification = useCallback(
     (target: DesktopNotificationTarget) => {

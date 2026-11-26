@@ -136,6 +136,18 @@ interface Window {
       status(): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
       start(): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
       stop(): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
+      restart?(service?: string): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
+      containers?(options?: { includeStats?: boolean }): Promise<import("./lib/local-deploy-contract").LocalContainersSnapshot>;
+      logs?(options: { service: string; tail?: number }): Promise<import("./lib/local-deploy-contract").LocalContainerLogs>;
+      openLogsFolder?(): Promise<void>;
+      autostartStatus?(): Promise<import("./lib/local-deploy-contract").LocalAutostartStatus>;
+      setAutostart?(enabled: boolean): Promise<import("./lib/local-deploy-contract").LocalAutostartStatus>;
+      resourcesStatus?(): Promise<import("./lib/local-deploy-contract").LocalResourceSnapshot>;
+      updateResources?(input: import("./lib/local-deploy-contract").LocalResourceUpdate): Promise<import("./lib/local-deploy-contract").LocalResourceSnapshot>;
+      proxyStatus?(): Promise<import("./lib/local-deploy-contract").LocalProxyConfig>;
+      detectSystemProxy?(): Promise<import("./lib/local-deploy-contract").SystemProxySnapshot>;
+      saveProxy?(input: import("./lib/local-deploy-contract").LocalProxyUpdate): Promise<import("./lib/local-deploy-contract").LocalProxyConfig>;
+      testProxy?(input: import("./lib/local-deploy-contract").LocalProxyUpdate): Promise<import("./lib/local-deploy-contract").LocalProxyTestResult>;
       remove(input: { purgeData: boolean }): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
       diagnostics(): Promise<string>;
       resources(input: { computerMemory: string; desktopMemory: string }): Promise<import("./lib/local-deploy-contract").LocalServerStatus>;
@@ -148,9 +160,12 @@ interface Window {
       onProgress(callback: (event: import("./lib/local-deploy-contract").DeployProgress) => void): () => void;
     };
     backgroundPreferences?: {
-      get(): Promise<{ stopServiceOnQuit: boolean }>;
-      set(value: boolean): Promise<{ stopServiceOnQuit: boolean }>;
+      get(): Promise<import("./lib/local-deploy-contract").BackgroundPreferenceState>;
+      set(
+        value: boolean | import("./lib/local-deploy-contract").BackgroundPreferencePatch
+      ): Promise<import("./lib/local-deploy-contract").BackgroundPreferenceState>;
     };
+    onDeepLink?: (callback: (url: string) => void) => () => void;
     /** Catches a model provider's localhost sign-in redirect on this computer. */
     providerSignIn?: {
       capture(

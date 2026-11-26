@@ -75,7 +75,15 @@ import {
 } from "./computer-settings";
 import { canManageLocalInstallation, defaultInstallDirectory, readManagedInstallation } from "./local-installation";
 import { registerLocalDeployIpc } from "./local-deploy-ipc";
-import { BackgroundPreferences, shouldHideWindow, shouldStopOnQuit, supportsTray } from "./background-preferences";
+import {
+  applyLoginItemSettings,
+  BackgroundPreferences,
+  isAutostartHiddenLaunch,
+  shouldHideWindow,
+  shouldStopOnQuit,
+  supportsTray,
+} from "./background-preferences";
+import { detectSystemProxy } from "./system-proxy";
 import { bindWindowActivity, windowIsActive, windowIsVisible } from "./window-activity";
 import {
   classifyDesktopUpdateError,
@@ -718,6 +726,7 @@ ipcMain.handle("outcomego:auth-token:clear", async (event) => {
   pluginOAuth.closeAll();
   providerSignIn.cancel();
   enrollmentServerUrl = null;
+  backgroundTray?.refresh();
   await machineEnrollment?.stop();
   return store.clear();
 });
@@ -804,9 +813,29 @@ registerLocalDeployIpc({
     if (!sender.isDestroyed() && mainWindow?.webContents === sender && sender.mainFrame === event.senderFrame) {
       sender.send("outcomego:local-deploy:progress", progress);
     }
-    if (progress.type === "result") void refreshLocalTray();
+    if (progress.type === "stage" && progress.status === "started") {
+      syncLocalTrayState({ state: "starting" });
+    } else if (progress.type === "result" || progress.type === "error") {
+      void refreshLocalTray();
+    }
   },
-  onServiceChanged: state => { void refreshLocalTray(state); },
+  onServiceChanged: (state) => {
+    void refreshLocalTray(state);
+  },
+  onAutostartChanged: (status) => {
+    syncLocalTrayState({
+      engineKind: status.engineKind,
+      autostartEnabled: status.serviceEnabled,
+      autostartSupported: status.serviceSupported,
+    });
+  },
+  openLogsFolder: async (directory) => {
+    await shell.openPath(directory);
+  },
+  detectSystemProxy: () =>
+    detectSystemProxy({
+      resolveProxy: (url) => session.defaultSession.resolveProxy(url),
+    }),
 });
 ipcMain.handle("outcomego:background:get", (event, ...args: unknown[]) => {
   requireAuthSender(event);
@@ -816,8 +845,29 @@ ipcMain.handle("outcomego:background:get", (event, ...args: unknown[]) => {
 ipcMain.handle("outcomego:background:set", async (event, ...args: unknown[]) => {
   requireAuthSender(event);
   const [value] = args;
-  if (args.length !== 1 || typeof value !== "boolean") throw new Error("INVALID_INPUT");
-  const preferences = await getBackgroundPreferences().set({ stopServiceOnQuit: value });
+  if (args.length !== 1) throw new Error("INVALID_INPUT");
+  let patch: { stopServiceOnQuit?: boolean; launchAtLogin?: boolean; launchHidden?: boolean };
+  if (typeof value === "boolean") {
+    patch = { stopServiceOnQuit: value };
+  } else if (value && typeof value === "object" && !Array.isArray(value)) {
+    const obj = value as Record<string, unknown>;
+    const allowed = new Set(["stopServiceOnQuit", "launchAtLogin", "launchHidden"]);
+    if (
+      Object.keys(obj).length === 0 ||
+      Object.keys(obj).some((k) => !allowed.has(k) || typeof obj[k] !== "boolean")
+    ) {
+      throw new Error("INVALID_INPUT");
+    }
+    patch = obj as { stopServiceOnQuit?: boolean; launchAtLogin?: boolean; launchHidden?: boolean };
+  } else {
+    throw new Error("INVALID_INPUT");
+  }
+  const preferences = await getBackgroundPreferences().set(patch);
+  if (patch.launchAtLogin !== undefined || patch.launchHidden !== undefined) {
+    try {
+      applyLoginItemSettings(app, preferences);
+    } catch {}
+  }
   backgroundTray?.refresh();
   return preferences;
 });
@@ -1273,7 +1323,16 @@ const createWindow = async () => {
     },
   });
 
-  mainWindow.once("ready-to-show", () => mainWindow?.show());
+  let launchedHidden = false;
+  try {
+    const loginItem = supportsTray(process.platform) ? app.getLoginItemSettings() : null;
+    launchedHidden = isAutostartHiddenLaunch(process.argv, Boolean(loginItem?.wasOpenedAsHidden));
+  } catch {
+    launchedHidden = isAutostartHiddenLaunch(process.argv, false);
+  }
+  mainWindow.once("ready-to-show", () => {
+    if (!launchedHidden) mainWindow?.show();
+  });
   const disposeWindowActivity = bindWindowActivity(mainWindow);
   mainWindow.on("close", (event) => {
     if (shouldHideWindow(process.platform, isQuitting)) {
@@ -1658,14 +1717,67 @@ ipcMain.handle("outcomego:application-menu-locale", (event, locale: unknown) => 
 });
 
 let trayState: import("../renderer/lib/local-deploy-contract").LocalServerStatus["stack"]["state"] = "not-installed";
+let trayEngineKind: import("../renderer/lib/local-deploy-contract").EngineKind | null = null;
+let trayAutostartEnabled = false;
+let trayAutostartSupported = false;
 let trayBusy = false;
+
+const syncLocalTrayState = (patch: {
+  state?: typeof trayState;
+  engineKind?: typeof trayEngineKind;
+  autostartEnabled?: boolean;
+  autostartSupported?: boolean;
+  markSynced?: boolean;
+}) => {
+  if (patch.state !== undefined) trayState = patch.state;
+  if (patch.engineKind !== undefined) trayEngineKind = patch.engineKind;
+  if (patch.autostartEnabled !== undefined) trayAutostartEnabled = patch.autostartEnabled;
+  if (patch.autostartSupported !== undefined) trayAutostartSupported = patch.autostartSupported;
+  if (patch.markSynced) backgroundTray?.markSynced();
+  else backgroundTray?.refresh();
+};
+
 const refreshLocalTray = async (state?: typeof trayState) => {
   if (!backgroundTray || isQuitting) return;
   try {
     const { manager } = await getLocalServices();
-    trayState = state ?? (await manager.status()).stack.state;
-    backgroundTray.refresh();
+    if (state !== undefined) {
+      trayState = state;
+    } else {
+      const snapshot = await manager.status();
+      trayState = snapshot.stack.state;
+      const kind = snapshot.engine?.engine?.kind;
+      if (kind === "managed-wsl" || kind === "managed-lima" || kind === "external") {
+        trayEngineKind = kind;
+        trayAutostartSupported = kind !== "external";
+      }
+    }
+    if (enrollmentServerUrl && canManageLocalInstallation(enrollmentServerUrl, readManagedInstallation())) {
+      const autostart = await manager.autostartStatus(enrollmentServerUrl).catch(() => null);
+      if (autostart) {
+        trayEngineKind = autostart.engineKind;
+        trayAutostartSupported = autostart.serviceSupported;
+        trayAutostartEnabled = autostart.serviceEnabled;
+      }
+    }
+    backgroundTray.markSynced();
   } catch {}
+};
+
+const openLocalServiceSettings = () => {
+  focusMainWindow();
+  const url = "outcomego://app/v1/settings?id=local-services";
+  if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+    if (mainWindow.webContents.isLoading()) {
+      mainWindow.webContents.once("did-finish-load", () => {
+        if (mainWindow && !mainWindow.webContents.isDestroyed()) {
+          mainWindow.webContents.send("outcomego:deep-link", url);
+        }
+      });
+    } else {
+      mainWindow.webContents.send("outcomego:deep-link", url);
+    }
+  }
 };
 
 const startBackgroundServices = async () => {
@@ -1674,22 +1786,76 @@ const startBackgroundServices = async () => {
   const { createTray, warnOnClose } = await import("./tray");
   const preferences = getBackgroundPreferences();
   const refresh = () => refreshLocalTray();
-  const operate = (action: "start" | "stop") => {
+  const operate = (action: "start" | "stop" | "restart") => {
     if (!enrollmentServerUrl || trayBusy) return;
     trayBusy = true;
+    if (action === "start" || action === "restart") trayState = "starting";
     backgroundTray?.refresh();
-    void getLocalServices().then(({ manager }) => manager.service(action, [], enrollmentServerUrl ?? undefined))
-      .then(result => { trayState = result.stack.state; }).catch(() => { trayState = "unhealthy"; })
-      .finally(() => { trayBusy = false; backgroundTray?.refresh(); });
+    const runAction = () =>
+      getLocalServices().then(({ manager }) =>
+        action === "restart"
+          ? manager.restart(undefined, enrollmentServerUrl ?? undefined)
+          : manager.service(action, [], enrollmentServerUrl ?? undefined)
+      );
+    void runAction()
+      .then((result) => {
+        trayState = result.stack.state;
+      })
+      .catch(() => {
+        trayState = "unhealthy";
+      })
+      .finally(() => {
+        trayBusy = false;
+        backgroundTray?.markSynced();
+      });
+  };
+  const toggleAutostart = () => {
+    if (!enrollmentServerUrl || trayBusy || !trayAutostartSupported) return;
+    trayBusy = true;
+    const nextEnabled = !trayAutostartEnabled;
+    backgroundTray?.refresh();
+    void getLocalServices()
+      .then(({ manager }) => manager.setAutostart(nextEnabled, enrollmentServerUrl ?? undefined))
+      .then((status) => {
+        trayAutostartEnabled = status.serviceEnabled;
+        trayAutostartSupported = status.serviceSupported;
+        trayEngineKind = status.engineKind;
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        trayBusy = false;
+        backgroundTray?.markSynced();
+      });
+  };
+  const openLogsFolder = () => {
+    void getLocalServices()
+      .then(({ manager }) => shell.openPath(manager.logsDirectory()))
+      .catch(() => undefined);
   };
   backgroundTray = createTray({
     platform,
     assets: app.isPackaged ? join(process.resourcesPath, "tray") : join(app.getAppPath(), "../../packages/design-tokens/assets"),
     locale: () => applicationMenuLocale,
-    state: () => ({ local: Boolean(enrollmentServerUrl && canManageLocalInstallation(enrollmentServerUrl, readManagedInstallation())),
-      state: trayState, busy: trayBusy, stopServiceOnQuit: preferences.view().stopServiceOnQuit }),
+    state: () => ({
+      local: Boolean(enrollmentServerUrl && canManageLocalInstallation(enrollmentServerUrl, readManagedInstallation())),
+      state: trayState,
+      busy: trayBusy,
+      stopServiceOnQuit: preferences.view().stopServiceOnQuit,
+      engineKind: trayEngineKind,
+      autostartEnabled: trayAutostartEnabled,
+      autostartSupported: trayAutostartSupported,
+    }),
     refresh,
-    actions: { open: focusMainWindow, start: () => operate("start"), stop: () => operate("stop"), quit: quitFromMenu },
+    actions: {
+      open: focusMainWindow,
+      manage: openLocalServiceSettings,
+      start: () => operate("start"),
+      stop: () => operate("stop"),
+      restart: () => operate("restart"),
+      autostart: toggleAutostart,
+      "logs-folder": openLogsFolder,
+      quit: quitFromMenu,
+    },
   });
   let warningPending = false;
   showBackgroundNotice = () => {
@@ -1702,7 +1868,16 @@ const startBackgroundServices = async () => {
   powerMonitor.on("shutdown", () => { isQuitting = true; });
   const { manager } = await getLocalServices();
   const current = await manager.restore(() => enrollmentServerUrl ?? undefined, () => isQuitting);
-  if (current) await refreshLocalTray(current.stack.state);
+  if (current) {
+    const kind = current.engine?.engine?.kind;
+    if (kind === "managed-wsl" || kind === "managed-lima" || kind === "external") {
+      trayEngineKind = kind;
+      trayAutostartSupported = kind !== "external";
+    }
+    await refreshLocalTray(current.stack.state);
+  } else {
+    await refreshLocalTray();
+  }
 };
 
 // Development builds can run beside an installed app by design, but packaged launches should
