@@ -4,7 +4,6 @@ import {
   Copy,
   FolderOpen,
   HardDrive,
-  MemoryStick,
   Play,
   RotateCw,
   Square,
@@ -23,12 +22,14 @@ import type { LocalServerStatus } from "../../../lib/local-deploy-contract";
 import {
   canDeleteLocalData,
   isLocalServer,
-  localMemoryChange,
   serverStateLabel,
 } from "../../../lib/server-location";
 import { serverAddressProblem } from "../../../lib/server-address";
 import { reloadInto } from "../first-run-shell";
+import { AutostartSection } from "./local-service/autostart-section";
 import { ContainersPanel } from "./local-service/containers-panel";
+import { ProxySection } from "./local-service/proxy-section";
+import { ResourcesSection } from "./local-service/resources-section";
 import { SectionLabel, SettingsGroup, SettingsRow, settingsInput, settingsSecondaryButton } from "./ui";
 
 const engineKindLabel = (kind: string | undefined): string => {
@@ -41,19 +42,14 @@ const engineKindLabel = (kind: string | undefined): string => {
 export default function ServerLocationSettings() {
   const { t } = useI18n();
   const bridge = window.outcomego?.localServer;
-  const preferences = window.outcomego?.backgroundPreferences;
   const [snapshot, setSnapshot] = useState<LocalServerStatus>();
-  const [stopOnQuit, setStopOnQuit] = useState(false);
   const [busy, setBusy] = useState(false);
   const [issue, setIssue] = useState(false);
   const [copiedDiag, setCopiedDiag] = useState(false);
   const [address, setAddress] = useState("");
-  const [mode, setMode] = useState<"remove" | "memory" | "switch" | null>(null);
+  const [mode, setMode] = useState<"remove" | "switch" | null>(null);
   const [permanent, setPermanent] = useState(false);
   const [word, setWord] = useState("");
-  const [computer, setComputer] = useState("");
-  const [desktop, setDesktop] = useState("");
-  const [memoryConfirmed, setMemoryConfirmed] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     if (!bridge?.status) return;
@@ -72,13 +68,10 @@ export default function ServerLocationSettings() {
     }).catch(() => {
       if (current) setIssue(true);
     });
-    void preferences?.get().then((value) => {
-      if (current) setStopOnQuit(value.stopServiceOnQuit);
-    }).catch(() => undefined);
     return () => {
       current = false;
     };
-  }, [bridge, preferences]);
+  }, [bridge]);
 
   if (!bridge?.status || !["win32", "darwin"].includes(window.outcomego?.platform ?? "")) return null;
   const local = isLocalServer(API_BASE, snapshot?.apiPort ?? null);
@@ -129,8 +122,6 @@ export default function ServerLocationSettings() {
     }
   };
 
-  const guest = snapshot?.engine?.memoryBytes;
-  const memory = localMemoryChange(computer, desktop, guest);
   const remove = (purgeData: boolean) =>
     run(async () => {
       const next = await bridge.remove({ purgeData });
@@ -228,18 +219,6 @@ export default function ServerLocationSettings() {
                   className={settingsSecondaryButton}
                   disabled={working}
                   onClick={() => {
-                    setMode("memory");
-                    setMemoryConfirmed(false);
-                  }}
-                  type="button"
-                >
-                  <MemoryStick size={14} />
-                  {t("Memory limits")}
-                </button>
-                <button
-                  className={settingsSecondaryButton}
-                  disabled={working}
-                  onClick={() => {
                     setMode("remove");
                     setPermanent(false);
                     setWord("");
@@ -250,25 +229,6 @@ export default function ServerLocationSettings() {
                   {t("Remove local services")}
                 </button>
               </div>
-            }
-          />
-        ) : null}
-        {local && preferences ? (
-          <SettingsRow
-            title={t("Stop local services when quitting")}
-            control={
-              <input
-                aria-label={t("Stop local services when quitting")}
-                checked={stopOnQuit}
-                onChange={(event) => {
-                  const checked = event.target.checked;
-                  void preferences
-                    .set(checked)
-                    .then((value) => setStopOnQuit(value.stopServiceOnQuit))
-                    .catch(() => setIssue(true));
-                }}
-                type="checkbox"
-              />
             }
           />
         ) : null}
@@ -352,62 +312,6 @@ export default function ServerLocationSettings() {
         </div>
       ) : null}
 
-      {mode === "memory" && local ? (
-        <div className="mt-3 flex flex-col items-start gap-2">
-          <label>
-            {t("Computer memory limit")}{" "}
-            <input
-              className={settingsInput}
-              onChange={(event) => {
-                setComputer(event.target.value);
-                setMemoryConfirmed(false);
-              }}
-              placeholder="4g"
-              value={computer}
-            />
-          </label>
-          <label>
-            {t("Desktop memory limit")}{" "}
-            <input
-              className={settingsInput}
-              onChange={(event) => {
-                setDesktop(event.target.value);
-                setMemoryConfirmed(false);
-              }}
-              placeholder="3g"
-              value={desktop}
-            />
-          </label>
-          {!memory ? <p>{t("Enter at least 1 GiB for each limit, for example 4g.")}</p> : null}
-          {memory?.capped ? <p>{t("The engine will cap this value at 75% of its memory.")}</p> : null}
-          <label>
-            <input
-              checked={memoryConfirmed}
-              onChange={(event) => setMemoryConfirmed(event.target.checked)}
-              type="checkbox"
-            />{" "}
-            {t("Changing memory limits interrupts running tasks.")}
-          </label>
-          <button
-            className={settingsSecondaryButton}
-            disabled={working || !memory || !memoryConfirmed}
-            onClick={() => {
-              if (memory && memoryConfirmed) {
-                void run(() =>
-                  bridge.resources({
-                    computerMemory: memory.computerMemory,
-                    desktopMemory: memory.desktopMemory,
-                  })
-                );
-              }
-            }}
-            type="button"
-          >
-            {t("Apply memory limits")}
-          </button>
-        </div>
-      ) : null}
-
       {mode ? (
         <button
           className={`${settingsSecondaryButton} mt-2`}
@@ -425,12 +329,21 @@ export default function ServerLocationSettings() {
       ) : null}
 
       {local && state && state !== "not-installed" ? (
-        <ContainersPanel
-          busy={working}
-          onAfterRestart={() => void refreshStatus()}
-          onStartStack={() => void run(bridge.start)}
-          stackState={state}
-        />
+        <>
+          <ContainersPanel
+            busy={working}
+            onAfterRestart={() => void refreshStatus()}
+            onStartStack={() => void run(bridge.start)}
+            stackState={state}
+          />
+          <AutostartSection busy={working} />
+          <ResourcesSection busy={working} onApplied={() => void refreshStatus()} />
+          <ProxySection
+            busy={working}
+            engineKind={engineKind}
+            onApplied={() => void refreshStatus()}
+          />
+        </>
       ) : null}
     </section>
   );
