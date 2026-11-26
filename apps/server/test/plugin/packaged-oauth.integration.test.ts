@@ -59,8 +59,13 @@ test.skipIf(!databaseUrl)(
         "packageBinaryFiles",
         "packageFiles",
       ]);
-      expect(Object.keys(configuration.env)).toEqual(["PROVIDER_ACCESS_TOKEN", "OUTCOMEGO_PLUGIN_ACCOUNT_ID"]);
+      expect(Object.keys(configuration.env)).toEqual([
+        "PROVIDER_ACCESS_TOKEN",
+        "OUTCOMEGO_PLUGIN_ACCOUNT_ID",
+        "OPENTEAM_PLUGIN_ACCOUNT_ID",
+      ]);
       expect(configuration.env.OUTCOMEGO_PLUGIN_ACCOUNT_ID).toBeTruthy();
+      expect(configuration.env.OPENTEAM_PLUGIN_ACCOUNT_ID).toBe(configuration.env.OUTCOMEGO_PLUGIN_ACCOUNT_ID);
       expect(JSON.stringify(configuration)).not.toContain("fixture-client-secret");
       if (path.endsWith("/discover") && discoveryFailure)
         throw new Error("Enable provider MCP access. fixture-client-secret");

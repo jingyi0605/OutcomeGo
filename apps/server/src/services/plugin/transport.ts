@@ -596,7 +596,11 @@ export class PluginTransport {
           command: configuration.command,
           args: configuration.args,
           cwd: configuration.cwd,
-          env: { ...env, OUTCOMEGO_PLUGIN_ACCOUNT_ID: current.id },
+          env: {
+            ...env,
+            OUTCOMEGO_PLUGIN_ACCOUNT_ID: current.id,
+            OPENTEAM_PLUGIN_ACCOUNT_ID: current.id,
+          },
           packageFiles: definition?.files ?? {},
           packageBinaryFiles: definition?.binaryFiles ?? {},
             runtimeAssets: definition?.connections.find(
