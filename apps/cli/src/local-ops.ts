@@ -78,6 +78,7 @@ export interface LocalContainerInfo {
   exitCode: number | null;
   restartable: boolean;
   stats: LocalContainerStats | null;
+  diskUsageBytes?: number | null;
 }
 
 export interface LocalContainersSnapshot {
@@ -266,6 +267,7 @@ export const parseComposePsContainers = (stdout: string): LocalContainerInfo[] =
       exitCode,
       restartable: role === "core",
       stats: null,
+      diskUsageBytes: null,
     });
   }
   containers.sort((a, b) => {
@@ -276,6 +278,216 @@ export const parseComposePsContainers = (stdout: string): LocalContainerInfo[] =
     return ka[2].localeCompare(kb[2]);
   });
   return containers;
+};
+
+interface DockerDfImageRow {
+  ID?: unknown;
+  Repository?: unknown;
+  Tag?: unknown;
+  Size?: unknown;
+}
+
+interface DockerDfContainerRow {
+  Names?: unknown;
+  Image?: unknown;
+  Size?: unknown;
+  Mounts?: unknown;
+  Labels?: unknown;
+}
+
+interface DockerDfVolumeRow {
+  Name?: unknown;
+  Size?: unknown;
+}
+
+const extractComposeImageLabel = (labels: string): string | null => {
+  for (const part of labels.split(",")) {
+    const eq = part.indexOf("=");
+    if (eq <= 0) continue;
+    const key = part.slice(0, eq).trim();
+    if (key === "com.docker.compose.image") {
+      const value = part.slice(eq + 1).trim();
+      if (value) return value;
+    }
+  }
+  return null;
+};
+
+const normalizeImageIdKeys = (raw: string): string[] => {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+  const keys = new Set<string>([trimmed]);
+  const digestIndex = trimmed.indexOf("@sha256:");
+  const hashPart =
+    digestIndex >= 0
+      ? trimmed.slice(digestIndex + 1)
+      : trimmed;
+  keys.add(hashPart);
+  if (hashPart.startsWith("sha256:")) {
+    const hex = hashPart.slice("sha256:".length);
+    if (hex) {
+      keys.add(hex);
+      if (hex.length >= 12) keys.add(hex.slice(0, 12));
+    }
+  } else if (/^[a-f0-9]{12,64}$/i.test(hashPart)) {
+    keys.add(`sha256:${hashPart}`);
+    keys.add(hashPart.slice(0, 12));
+  }
+  return [...keys];
+};
+
+const preferredVolumeOwnerService = (volumeName: string): string | null => {
+  const lower = volumeName.toLowerCase();
+  if (lower.includes("postgres")) return "postgres";
+  if (
+    lower.includes("computer") ||
+    lower.includes("box_store") ||
+    lower.includes("workspace") ||
+    lower.includes("agent_data")
+  ) {
+    return "computer";
+  }
+  if (lower.includes("assets")) return "server";
+  if (lower.includes("caddy")) return "caddy";
+  return null;
+};
+
+export const parseDockerSystemDfDiskUsage = (
+  stdout: string,
+  containers: readonly LocalContainerInfo[]
+): Map<string, number> => {
+  const result = new Map<string, number>();
+  const trimmed = stdout.trim();
+  if (!trimmed || containers.length === 0) return result;
+
+  let parsed: Record<string, unknown>;
+  try {
+    const value = JSON.parse(trimmed);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return result;
+    parsed = value as Record<string, unknown>;
+  } catch {
+    return result;
+  }
+
+  const imageSizes = new Map<string, { canonicalId: string; bytes: number }>();
+  if (Array.isArray(parsed.Images)) {
+    for (const raw of parsed.Images) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const row = raw as DockerDfImageRow;
+      const id = typeof row.ID === "string" ? row.ID.trim() : "";
+      const sizeStr = typeof row.Size === "string" ? row.Size : "";
+      const bytes = parseByteSize(sizeStr);
+      if (!id) continue;
+      const entry = { canonicalId: id, bytes };
+      for (const key of normalizeImageIdKeys(id)) {
+        imageSizes.set(key, entry);
+      }
+      if (
+        typeof row.Repository === "string" &&
+        row.Repository &&
+        row.Repository !== "<none>" &&
+        typeof row.Tag === "string" &&
+        row.Tag &&
+        row.Tag !== "<none>"
+      ) {
+        imageSizes.set(`${row.Repository}:${row.Tag}`, entry);
+      }
+    }
+  }
+
+  const volumeSizes = new Map<string, number>();
+  if (Array.isArray(parsed.Volumes)) {
+    for (const raw of parsed.Volumes) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const row = raw as DockerDfVolumeRow;
+      const name = typeof row.Name === "string" ? row.Name.trim() : "";
+      const sizeStr = typeof row.Size === "string" ? row.Size : "";
+      if (name) {
+        volumeSizes.set(name, parseByteSize(sizeStr));
+      }
+    }
+  }
+
+  const dfByContainerName = new Map<
+    string,
+    { rwBytes: number; imageCandidates: string[]; mounts: string[] }
+  >();
+  if (Array.isArray(parsed.Containers)) {
+    for (const raw of parsed.Containers) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const row = raw as DockerDfContainerRow;
+      const name = typeof row.Names === "string" ? row.Names.trim().replace(/^\/+/, "") : "";
+      if (!name) continue;
+      const sizeRaw = typeof row.Size === "string" ? row.Size.split("(")[0] ?? "" : "";
+      const rwBytes = parseByteSize(sizeRaw);
+      const labels = typeof row.Labels === "string" ? row.Labels : "";
+      const imageLabel = extractComposeImageLabel(labels);
+      const imageField = typeof row.Image === "string" ? row.Image.trim() : "";
+      const imageCandidates = [
+        ...(imageLabel ? normalizeImageIdKeys(imageLabel) : []),
+        ...(imageField ? normalizeImageIdKeys(imageField) : []),
+      ];
+      const mounts =
+        typeof row.Mounts === "string"
+          ? row.Mounts.split(",")
+              .map((m) => m.trim())
+              .filter(Boolean)
+          : [];
+      dfByContainerName.set(name, { rwBytes, imageCandidates, mounts });
+    }
+  }
+
+  // Attribute each mounted volume once to a single owner container (preferring core services)
+  const volumeMounters = new Map<string, LocalContainerInfo[]>();
+  for (const container of containers) {
+    const dfRow = dfByContainerName.get(container.containerName);
+    if (!dfRow) continue;
+    for (const mount of dfRow.mounts) {
+      if (!volumeSizes.has(mount)) continue;
+      const list = volumeMounters.get(mount) ?? [];
+      list.push(container);
+      volumeMounters.set(mount, list);
+    }
+  }
+
+  const ownedVolumeBytes = new Map<string, number>();
+  for (const [volumeName, mounters] of volumeMounters.entries()) {
+    const coreMounters = mounters.filter((c) => c.role === "core");
+    const candidates = coreMounters.length > 0 ? coreMounters : mounters;
+    const preferredService = preferredVolumeOwnerService(volumeName);
+    const owner =
+      (preferredService ? candidates.find((c) => c.service === preferredService) : undefined) ??
+      candidates[0];
+    if (!owner) continue;
+    const bytes = volumeSizes.get(volumeName) ?? 0;
+    ownedVolumeBytes.set(owner.containerName, (ownedVolumeBytes.get(owner.containerName) ?? 0) + bytes);
+  }
+
+  // Attribute each container image once (in sorted core-first order) to avoid double counting shared images
+  const attributedImages = new Set<string>();
+  for (const container of containers) {
+    const dfRow = dfByContainerName.get(container.containerName);
+    if (!dfRow) continue;
+    let imageBytes = 0;
+    const candidateKeys = [
+      ...dfRow.imageCandidates,
+      ...normalizeImageIdKeys(container.image),
+    ];
+    for (const key of candidateKeys) {
+      const matched = imageSizes.get(key);
+      if (matched) {
+        if (!attributedImages.has(matched.canonicalId)) {
+          attributedImages.add(matched.canonicalId);
+          imageBytes = matched.bytes;
+        }
+        break;
+      }
+    }
+    const volumesBytes = ownedVolumeBytes.get(container.containerName) ?? 0;
+    result.set(container.containerName, dfRow.rwBytes + imageBytes + volumesBytes);
+  }
+
+  return result;
 };
 
 export const collectContainers = async (
@@ -313,6 +525,20 @@ export const collectContainers = async (
         }
       }
     }
+    if (containers.length > 0) {
+      const dfResult = engine.docker(
+        ["system", "df", "-v", "--format", "{{json .}}"],
+        { timeoutMs: 10_000 }
+      );
+      if (dfResult.status === 0 && dfResult.stdout.trim()) {
+        const diskMap = parseDockerSystemDfDiskUsage(dfResult.stdout, containers);
+        for (const container of containers) {
+          if (diskMap.has(container.containerName)) {
+            container.diskUsageBytes = diskMap.get(container.containerName) ?? null;
+          }
+        }
+      }
+    }
   }
   return {
     schemaVersion: 1,
@@ -336,7 +562,11 @@ export const containersCommand = async (
       const statsText = item.stats
         ? ` cpu=${item.stats.cpuPercent.toFixed(1)}% mem=${Math.round(item.stats.memoryUsageBytes / (1024 * 1024))}MiB`
         : "";
-      console.log(`${item.service}\t${item.role}\t${item.state}\t${item.health}\t${item.statusText}${statsText}`);
+      const diskText =
+        typeof item.diskUsageBytes === "number"
+          ? ` disk=${(item.diskUsageBytes / 1000 ** 3).toFixed(2)}GB`
+          : "";
+      console.log(`${item.service}\t${item.role}\t${item.state}\t${item.health}\t${item.statusText}${statsText}${diskText}`);
     }
   }
   return snapshot;

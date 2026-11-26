@@ -9,6 +9,7 @@ import {
   collectContainers,
   parseByteSize,
   parseDockerStatsOutput,
+  parseDockerSystemDfDiskUsage,
   redactSensitiveText,
   restartCommand,
 } from "../src/local-ops";
@@ -269,6 +270,106 @@ describe("CLI containers command", () => {
       JSON.stringify({ Name: "/outcomego-worker-1", CPUPerc: "4.2%", MemUsage: "256MiB / 2GiB", MemPerc: "12.5%" })
     );
     expect(stats.get("outcomego-worker-1")?.cpuPercent).toBe(4.2);
+  });
+
+  test("parses docker system df -v disk usage without double counting shared images or volumes", () => {
+    const containers = [
+      {
+        service: "server",
+        containerName: "outcomego-server-1",
+        role: "core" as const,
+        state: "running",
+        health: "healthy" as const,
+        statusText: "Up 1m",
+        image: "ghcr.io/test/server@sha256:aaaa",
+        exitCode: null,
+        restartable: true,
+        stats: null,
+      },
+      {
+        service: "computer",
+        containerName: "outcomego-computer-1",
+        role: "core" as const,
+        state: "running",
+        health: "healthy" as const,
+        statusText: "Up 1m",
+        image: "ghcr.io/test/computer@sha256:cccc",
+        exitCode: null,
+        restartable: true,
+        stats: null,
+      },
+      {
+        service: "postgres",
+        containerName: "outcomego-postgres-1",
+        role: "core" as const,
+        state: "running",
+        health: "healthy" as const,
+        statusText: "Up 1m",
+        image: "postgres:17-alpine@sha256:dddd",
+        exitCode: null,
+        restartable: true,
+        stats: null,
+      },
+      {
+        service: "computer-memory-init",
+        containerName: "outcomego-computer-memory-init-1",
+        role: "core" as const,
+        state: "running",
+        health: "none" as const,
+        statusText: "Up 1m",
+        image: "ghcr.io/test/computer@sha256:cccc",
+        exitCode: null,
+        restartable: true,
+        stats: null,
+      },
+    ];
+
+    const dfJson = JSON.stringify({
+      Images: [
+        { ID: "sha256:aaaa", Size: "400MB" },
+        { ID: "sha256:cccc", Size: "5GB" },
+        { ID: "sha256:dddd", Size: "400MB" },
+      ],
+      Containers: [
+        {
+          Names: "outcomego-server-1",
+          Size: "2MB",
+          Labels: "com.docker.compose.image=sha256:aaaa",
+          Mounts: "outcomego_assets,outcomego_workspace",
+        },
+        {
+          Names: "outcomego-computer-1",
+          Size: "3MB",
+          Labels: "com.docker.compose.image=sha256:cccc",
+          Mounts: "outcomego_computer_home,outcomego_workspace",
+        },
+        {
+          Names: "outcomego-postgres-1",
+          Size: "1MB",
+          Labels: "com.docker.compose.image=sha256:dddd",
+          Mounts: "outcomego_postgres",
+        },
+        {
+          Names: "outcomego-computer-memory-init-1",
+          Size: "4kB",
+          Labels: "com.docker.compose.image=sha256:cccc",
+          Mounts: "",
+        },
+      ],
+      Volumes: [
+        { Name: "outcomego_assets", Size: "10MB" },
+        { Name: "outcomego_workspace", Size: "200MB" },
+        { Name: "outcomego_computer_home", Size: "50MB" },
+        { Name: "outcomego_postgres", Size: "100MB" },
+      ],
+    });
+
+    const diskMap = parseDockerSystemDfDiskUsage(dfJson, containers);
+    expect(diskMap.get("outcomego-server-1")).toBe(412_000_000);
+    expect(diskMap.get("outcomego-computer-1")).toBe(5_253_000_000);
+    expect(diskMap.get("outcomego-postgres-1")).toBe(501_000_000);
+    // Shares image with computer, so only its own writable layer is counted
+    expect(diskMap.get("outcomego-computer-memory-init-1")).toBe(4_000);
   });
 });
 
