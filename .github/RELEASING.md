@@ -28,7 +28,7 @@ bun scripts/release/version.ts check              # CI runs this on every push
 
 ## Cutting a release
 
-1. Set the version, commit, and merge to the configured fork source branch `OutcomeGo`.
+1. Set the version and commit it on the configured fork source branch `OutcomeGo`.
 2. `git tag v0.1.0-beta.1 && git push origin v0.1.0-beta.1`.
 3. Watch the run. Running the workflow manually from a branch is a dry run: it builds
    everything, pushes and signs nothing, and publishes nothing.

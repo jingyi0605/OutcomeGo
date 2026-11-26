@@ -30,7 +30,6 @@ some plugins) keep their own licenses.
 |---|---|
 | `main` | Mirror of `upstream/main`. Fast-forward only, no local commits. Source for pull requests to upstream. |
 | `OutcomeGo` | Current GitHub default and source branch for the fork. |
-| `feat/*`, `fix/*` | Short-lived branches. Generic fixes start from `main`; fork-specific work starts from the current fork source branch. |
 
 Upstream changes reach the fork source branch only through `git merge upstream/main` (or the
 automated "sync upstream" pull request). Do not rebase the fork source branch. Upstream changes we do
