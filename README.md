@@ -33,8 +33,6 @@
 
 ## 亮点
 
-以下动图取自桌面端本机部署过程中展示的海报，是功能示意动画，不是实际界面截图。
-
 <h3 align="center">做懂你的、属于你的个人助理</h3>
 
 <p align="center">记住你的偏好、项目和工作习惯，不用每次从头交代。</p>
@@ -113,8 +111,6 @@
   <img src="docs/images/highlights/connect.zh.webp" alt="动画：微信、飞书、钉钉、高德、Notion、邮件、NAS 等应用图标环绕在助理周围" width="720">
 </p>
 
-<p align="center"><sub>已内置微信（ClawBot 单聊）、钉钉、高德、Notion、邮件等插件；飞书和 NAS 暂无内置插件，需要自行接入 MCP 服务器。</sub></p>
-
 <br>
 
 <h3 align="center">数据归你，模型任选</h3>
@@ -130,10 +126,6 @@
 ## 快速开始
 
 把服务端部署在你自己的电脑上，再用桌面端或手机连接它。
-
-> [!NOTE]
-> 桌面端一键本地部署（在应用内完成部署，过程中展示上面这组海报）正在开发中，尚未包含在已发布的版本里，进度见
-> [Spec 012](specs/012-桌面端一键本地部署/README.md)。目前请使用下面的命令行安装器。
 
 你需要一台 **x64 或 arm64 机器**，运行 **面向 Linux 容器的 Docker Engine** 和 **Docker Compose 2.20+**。
 建议 **8 GB 内存**和 **8 GB 可用磁盘**。在 macOS 和 Windows 上，Docker Desktop 会提供引擎和 Compose。

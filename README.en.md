@@ -33,8 +33,6 @@
 
 ## Highlights
 
-These animations come from the posters shown while the desktop app deploys on your computer. They illustrate what OutcomeGo does and are not screenshots.
-
 <h3 align="center">An assistant that knows you, and is yours</h3>
 
 <p align="center">It remembers your preferences, projects and ways of working.</p>
@@ -113,8 +111,6 @@ These animations come from the posters shown while the desktop app deploys on yo
   <img src="docs/images/highlights/connect.en.webp" alt="Animation: icons for WeChat, Feishu, DingTalk, Amap, Notion, email and NAS circle the assistant" width="720">
 </p>
 
-<p align="center"><sub>Plugins for WeChat (ClawBot direct chats), DingTalk, Amap, Notion, email and more are built in. Feishu and NAS have no built-in plugin yet, so you connect your own MCP server.</sub></p>
-
 <br>
 
 <h3 align="center">Your data. Your model.</h3>
@@ -130,11 +126,6 @@ These animations come from the posters shown while the desktop app deploys on yo
 ## Get started
 
 Deploy the server on your own computer, then connect to it from the desktop app or your phone.
-
-> [!NOTE]
-> One-click local deployment in the desktop app (deploy inside the app, with these posters playing meanwhile)
-> is in development and is not part of a published release yet. See
-> [Spec 012](specs/012-桌面端一键本地部署/README.md). For now, use the command-line installer below.
 
 You need an **x64 or arm64 machine** with a running **Docker Engine for Linux containers** and
 **Docker Compose 2.20+**. We recommend **8 GB RAM** and **8 GB free disk**. On macOS and Windows,
@@ -225,80 +216,6 @@ The architecture is clean, the product is polished, and it ships at a remarkable
 Everything in this repository sits on top of that work, and we merge upstream changes
 selectively and regularly so that we keep benefiting from it.
 
-### What OpenTeam provides
-
-Everything below comes from upstream OpenTeam and works the same way in this fork.
-
-- **Give bots a computer.** Each bot has its own screen and browser. All bots share a workspace
-  and website sign-ins, so they can build on each other's files and you only sign in once.
-- **Keep context.** Conversations resume after restarts. Bots remember what they learn about
-  themselves and you across conversations.
-- **Work as a team.** Bring multiple bots into a group chat, let them message each other, or delegate
-  tasks to subagents.
-- **Automate recurring work.** Save instructions as routines that run on a schedule or respond
-  to configured events.
-- **Connect your tools.** Add skills and plugins for services such as Gmail, GitHub, Slack, and
-  Notion, or connect a custom MCP server. Connected accounts are available to every bot.
-
-[![OpenTeam desktop and iPhone apps showing the same vendor comparison and weekday pricing check](docs/images/openteam-desktop-mobile.png)](docs/images/openteam-desktop-mobile.png)
-
-### Compatibility with the mainland China ecosystem
-
-OpenTeam is built around services and networks that are often hard to reach or unsuitable from
-mainland China. This fork adapts it so that it works well there.
-
-Available now:
-
-- Voice and speech providers usable in China, such as Volcengine.
-- A Chinese-language Android client.
-- WeChat, DingTalk and Amap plugins.
-
-Planned:
-
-- Model, push-notification and messaging integrations that do not rely on services that are
-  blocked or unreliable in the mainland. Firebase push, for example, generally does not reach
-  phones in China.
-- Defaults, documentation, update checks and release channels that do not depend on upstream
-  infrastructure.
-
-Generic fixes that benefit everyone are sent upstream as pull requests. Work that only makes
-sense for China stays in this fork.
-
-### What this fork adds
-
-The latest upstream sync brought this fork up to OpenTeam 0.0.19 (2026-11-15). The fork keeps its own
-version line and does not follow upstream version numbers. On top of what upstream offers, it adds:
-
-- A native **Android client** with chat, bots, routines, push notifications, a share target and
-  a cloud computer viewer. Submitted upstream as
-  [#236](https://github.com/raghavpillai/openteam/pull/236).
-- **Realtime voice conversation** across the server, worker, desktop, iOS and Android, with VAD,
-  Opus transport, Volcengine and Deepgram providers, and narration of slow tool work.
-- A **model-provider catalog and custom providers**: the server supports OpenAI Chat, OpenAI
-  Responses and Anthropic Messages, with 38 vendor presets. Desktop, iOS and Android can add
-  providers from Settings, choose the protocol, and display vendor icons.
-- **Android release updates**: GitHub Releases ship a signed APK and `android-update.json`.
-  The app verifies the update manifest, APK checksum, application ID, version code and signing
-  certificate before installing; debug builds use a separate `.debug` application ID and can
-  sit beside the release app.
-- Haptic feedback across Android settings, sign-in, sessions, chat and routines, plus a unified
-  OutcomeGo brand icon across desktop, iOS and Android.
-- Magpie multimodal model metadata
-  ([#198](https://github.com/raghavpillai/openteam/pull/198)) and network fixes
-  ([#250](https://github.com/raghavpillai/openteam/pull/250),
-  [#251](https://github.com/raghavpillai/openteam/pull/251)).
-
-The full list is in [FORK.md](FORK.md). Versions and installers are on [GitHub Releases](https://github.com/jingyi0605/OutcomeGo/releases).
-iOS Release is deferred by decision, and real device upgrades and backup imports remain separate acceptance
-checks. See [FORK.md](FORK.md) and the
-[release decision](specs/004.1-项目更名与下一版本发布/docs/release-decision.md) for current gates.
-
-### Branches
-
-| Branch | Purpose |
-| --- | --- |
-| `OutcomeGo` | GitHub default branch and product line, updated with upstream changes. |
-| `main` | Mirror of upstream `main`. Never receives local commits. Pull requests to upstream start here. |
 
 ## License
 
