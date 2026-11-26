@@ -48,6 +48,20 @@ import {
   stopCommand,
   uninstallCommand,
 } from "./lifecycle";
+import {
+  autostartSetCommand,
+  autostartStatusCommand,
+  containersCommand,
+  logsJsonCommand,
+  resourcesStatusCommand,
+  restartCommand,
+} from "./local-ops";
+import {
+  applyStoredProxyToEnvironment,
+  proxySetCommand,
+  proxyStatusCommand,
+  proxyTestCommand,
+} from "./proxy-config";
 import { accountUpdateCommand } from "./password";
 import { SystemCommandRunner } from "./process";
 import {
@@ -83,7 +97,10 @@ const main = async (): Promise<void> => {
   }
   const directory = options.directory ? resolve(options.directory) : defaultInstallDirectory();
   const paths = installationPaths(directory);
-  if (options.command !== "engine-rollback" && !["bootstrap", "status", "engine-status", "doctor", "logs"].includes(options.command)) assertNoEngineRecovery(paths);
+  if (["install", "bootstrap", "update", "engine-upgrade"].includes(options.command)) {
+    applyStoredProxyToEnvironment(paths);
+  }
+  if (options.command !== "engine-rollback" && !["bootstrap", "status", "engine-status", "doctor", "logs", "containers", "autostart-status", "resources-status", "proxy-status", "proxy-test"].includes(options.command)) assertNoEngineRecovery(paths);
   if (process.env[UPDATE_AGENT_ENV] === "1") {
     await runUpdateAgent(paths);
     return;
@@ -99,7 +116,7 @@ const main = async (): Promise<void> => {
   const desktopDirectory = process.platform === "win32"
     ? windowsLocalPath(paths.directory) === windowsLocalPath(defaultDirectory)
     : paths.directory === defaultDirectory;
-  if (desktopVersion !== undefined && ["start", "stop", "uninstall", "resources-set"].includes(options.command)) {
+  if (desktopVersion !== undefined && ["start", "stop", "restart", "containers", "logs", "autostart-status", "autostart-set", "resources-status", "proxy-status", "proxy-set", "proxy-test", "uninstall", "resources-set"].includes(options.command)) {
     verifyDesktopCliVersion(desktopVersion, CLI_VERSION);
     const kind = recordedEngine(paths);
     if (!desktopDirectory || !kind || (kind === "external" && !requireRecordedEngine(paths, runner, kind).isLocal())) {
@@ -184,9 +201,8 @@ const main = async (): Promise<void> => {
       try {
         if (options.command === "engine-start") {
           await engine.ensureReady();
-          if (!manifest.uninstalledAt) engine.ensureAutostart();
+          if (!manifest.uninstalledAt && manifest.autostart?.enabled !== false) engine.ensureAutostart();
         } else if (options.command === "engine-stop") {
-          engine.removeAutostart();
           await engine.stop();
         } else {
           if (!options.purge || !manifest.uninstalledAt) throw new EngineError("INVALID_INPUT");
@@ -204,8 +220,32 @@ const main = async (): Promise<void> => {
       console.log(cliTranslate("Engine operation completed. Recovery files were retained at {path}.", { path: backup }));
       break;
     }
+    case "resources-status":
+      await resourcesStatusCommand(paths, runner, options);
+      break;
     case "resources-set":
       await resourcesSetCommand(paths, options, runner);
+      break;
+    case "containers":
+      await containersCommand(paths, runner, options);
+      break;
+    case "restart":
+      await restartCommand(paths, runner, options);
+      break;
+    case "autostart-status":
+      autostartStatusCommand(paths, runner, options);
+      break;
+    case "autostart-set":
+      autostartSetCommand(paths, runner, options);
+      break;
+    case "proxy-status":
+      proxyStatusCommand(paths, runner, options);
+      break;
+    case "proxy-set":
+      await proxySetCommand(paths, runner, options);
+      break;
+    case "proxy-test":
+      await proxyTestCommand(paths, runner, options);
       break;
     case "update":
       {
@@ -221,7 +261,8 @@ const main = async (): Promise<void> => {
       await runLifecycle(() => startCommand(paths, runner));
       break;
     case "logs":
-      logsCommand(paths, runner, options);
+      if (options.json) await logsJsonCommand(paths, runner, options);
+      else logsCommand(paths, runner, options);
       break;
     case "provider-login":
       await providerLoginCommand(paths, runner, options);

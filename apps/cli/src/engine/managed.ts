@@ -34,6 +34,36 @@ export abstract class ManagedEngine extends ExternalEngine {
   abstract remove(options: { purgeData: boolean }): Promise<void>;
   ensureAutostart(): boolean { return true; }
   removeAutostart(): boolean { return true; }
+  isAutostartRegistered(): boolean { return false; }
+  hostGatewayIp(): string | null { return null; }
+
+  readDockerProxyDropIn(): string | null {
+    if (!this.owned()) return null;
+    const result = this.runGuest(
+      ["/bin/sh", "-c", "if [ -f /etc/systemd/system/docker.service.d/outcomego-proxy.conf ]; then cat /etc/systemd/system/docker.service.d/outcomego-proxy.conf; fi"],
+      { timeoutMs: 10_000 }
+    );
+    if (result.status !== 0) return null;
+    return result.stdout.length > 0 ? result.stdout : null;
+  }
+
+  async applyDockerProxyDropIn(content: string | null): Promise<void> {
+    if (!this.owned()) throw new EngineError("ENGINE_UNAVAILABLE");
+    if (content === null) {
+      const removed = this.runGuest(
+        ["/bin/sh", "-c", "rm -f /etc/systemd/system/docker.service.d/outcomego-proxy.conf && systemctl daemon-reload && systemctl restart docker.service"],
+        { timeoutMs: 30_000 }
+      );
+      if (removed.status !== 0) throw new EngineError("ENGINE_START_FAILED");
+    } else {
+      const written = this.runGuest(
+        ["/bin/sh", "-c", "mkdir -p -m 0700 /etc/systemd/system/docker.service.d && umask 077 && cat > /etc/systemd/system/docker.service.d/outcomego-proxy.conf && systemctl daemon-reload && systemctl restart docker.service"],
+        { input: content, timeoutMs: 30_000 }
+      );
+      if (written.status !== 0) throw new EngineError("ENGINE_START_FAILED");
+    }
+    await this.waitForDocker();
+  }
   protected assetNames: readonly string[] = [];
 
   async prepareUpgrade(version: string) {
@@ -69,7 +99,7 @@ export abstract class ManagedEngine extends ExternalEngine {
     return { ...this.guest(this.dockerArguments(["image", "pull", reference])), cwd: this.options.paths.directory };
   }
 
-  override composeInvocation({ paths, projectName, composeFile, useImageSources }: ComposeTarget, args: readonly string[]) {
+  override composeInvocation({ paths, projectName, composeFile, useImageSources, localComposeFile }: ComposeTarget, args: readonly string[]) {
     if (!this.owned()) throw new EngineError("ENGINE_UNAVAILABLE");
     if (existsSync(paths.environment)) {
       const values = parseEnvironment(readFileSync(paths.environment, "utf8"));
@@ -80,9 +110,13 @@ export abstract class ManagedEngine extends ExternalEngine {
     }
     const directory = this.guestPath(paths.directory);
     const sources = useImageSources && composeFile === paths.compose ? imageSourcesPath(composeFile) : undefined;
+    const localCompose =
+      localComposeFile ??
+      (composeFile === paths.compose && existsSync(paths.localCompose) ? paths.localCompose : undefined);
     const invocation = this.guest(this.dockerArguments([
       "compose", "--project-name", projectName, "--project-directory", directory,
       "--env-file", this.guestPath(paths.environment), "--file", this.guestPath(composeFile),
+      ...(localCompose ? ["--file", this.guestPath(localCompose)] : []),
       ...(sources && hasImageSources(sources) ? ["--file", this.guestPath(sources)] : []), ...args,
     ]), directory);
     return { ...invocation, cwd: paths.directory, env: { ...composeProcessEnvironment(paths), ...invocation.env } };

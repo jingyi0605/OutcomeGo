@@ -29,7 +29,7 @@ import {
   writeManifest,
 } from "./config";
 import { CLI_VERSION, DEFAULT_REPOSITORY, PROJECT_NAME } from "./constants";
-import { validMemorySize } from "./deploy-resources";
+import { resourcesSetExtendedCommand } from "./local-ops";
 import { requireRecordedEngine } from "./engine/select";
 import { ManagedEngine } from "./engine/managed";
 import { pullReleaseImages } from "./engine/image-pull";
@@ -468,10 +468,6 @@ export const stopCommand = (paths: InstallationPaths, runner: CommandRunner): vo
   requireComposeProject(paths, runner, manifestProjectName(manifest)).runOrThrow(["stop"], {
     inherit: true,
   });
-  if (manifest.engine && manifest.engine.kind !== "external") {
-    const engine = requireRecordedEngine(paths, runner, manifest.engine.kind);
-    if (engine instanceof ManagedEngine) engine.removeAutostart();
-  }
   console.log(
     renderSummary(
       "stop",
@@ -513,7 +509,9 @@ export const startCommand = async (
     manifest.version,
     { skipIfReady: true }
   );
-  if (engine instanceof ManagedEngine) engine.ensureAutostart();
+  if (engine instanceof ManagedEngine && manifest.autostart?.enabled !== false) {
+    engine.ensureAutostart();
+  }
   const tailscale = await tailscaleStatus(paths, runner, true);
   if (tailscale.enabled && tailscale.issue) throw new CliError(tailscale.issue, 2);
   if (manifest.uninstalledAt) {
@@ -843,36 +841,25 @@ const confirmation = async (question: string): Promise<boolean> => {
 
 export const resourcesSetCommand = async (
   paths: InstallationPaths,
-  options: Pick<CliOptions, "computerMemory" | "desktopMemory" | "yes">,
+  options: Pick<
+    CliOptions,
+    | "computerMemory"
+    | "desktopMemory"
+    | "computerCpu"
+    | "workerConcurrency"
+    | "engineMemory"
+    | "engineCpu"
+    | "applyWslconfig"
+    | "restartWsl"
+    | "json"
+    | "yes"
+  >,
   runner: CommandRunner
 ): Promise<void> => {
-  const { computerMemory, desktopMemory } = options;
-  if (!validMemorySize(computerMemory) || !validMemorySize(desktopMemory)) {
-    throw new CliError(cliTranslate("Both memory limits must be integer sizes of at least 16 MiB (for example 4g or 3584m)."), 2);
-  }
-  const manifest = requireInstallation(paths);
-  const warning = cliTranslate("Changing memory limits restarts the computer services and interrupts running tasks.");
-  if (!options.yes && !(await confirmation(warning))) return;
-  if (options.yes) printMessage(warning, "warning");
-  const releaseLock = acquireUpdateLock(paths);
-  try {
-    const project = requireComposeProject(paths, runner, manifestProjectName(manifest));
-    const previous = readFileSync(paths.environment, "utf8");
-    const updated = replaceEnvironmentValue(
-      replaceEnvironmentValue(previous, "OUTCOMEGO_COMPUTER_MEMORY_LIMIT", computerMemory),
-      "OUTCOMEGO_DESKTOP_MEMORY_LIMIT", desktopMemory
-    );
-    const recreate = ["up", "-d", "--no-deps", "--force-recreate", "computer", "computer-memory-init"];
-    writeFileAtomic(paths.environment, updated);
-    try {
-      project.runOrThrow(recreate);
-    } catch (error) {
-      writeFileAtomic(paths.environment, previous);
-      throw error;
-    }
-  } finally {
-    releaseLock();
-  }
+  await resourcesSetExtendedCommand(paths, options, runner, {
+    confirm: confirmation,
+    printWarning: (warning) => printMessage(warning, "warning"),
+  });
 };
 
 export const uninstallCommand = async (

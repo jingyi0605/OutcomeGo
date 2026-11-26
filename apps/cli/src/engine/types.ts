@@ -42,6 +42,7 @@ export interface ComposeTarget {
   command: ComposeCommand;
   composeFile: string;
   useImageSources?: boolean;
+  localComposeFile?: string;
 }
 
 export interface EngineProvider {

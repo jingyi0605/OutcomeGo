@@ -23,6 +23,8 @@ MANAGEMENT_PRIORITY = '95'
 HOST_BRIDGE_CONFIG = Path('/home/box/.config/openteam/imessage-bridge.json')
 MODEL_CONFIG = Path('/home/box/.pi/agent/models.json')
 POLICY_STATE = Path('/run/outcomego-network-policy.json')
+HOSTS_FILE = Path('/etc/hosts')
+ALLOWED_PROXY_HOSTNAMES = ('host.docker.internal', 'host.lima.internal')
 MAX_CONFIG_BYTES = 4 * 1024 * 1024
 PRIVATE_V4 = ('10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16')
 PRIVATE_V6 = ('fc00::/7', 'fe80::/10')
@@ -155,6 +157,70 @@ def host_bridge_endpoint():
     return endpoint_from_url(config['endpoint'])
 
 
+def _parse_host_port(value):
+    if not isinstance(value, str) or not value or value != value.strip():
+        return None
+    if any(ord(ch) <= 32 or ch in '/\\@#?' for ch in value):
+        return None
+    if value.startswith('['):
+        end = value.find(']:')
+        if end <= 1:
+            return None
+        host = value[1:end]
+        port_str = value[end + 2:]
+    else:
+        if value.count(':') != 1:
+            return None
+        host, port_str = value.split(':', 1)
+    if not host or not port_str or not port_str.isascii() or not port_str.isdigit():
+        return None
+    port = int(port_str)
+    if not 1 <= port <= 65535:
+        return None
+    return host, port
+
+
+def _hosts_file_addresses(hostname, hosts_path=None):
+    path = HOSTS_FILE if hosts_path is None else Path(hosts_path)
+    addresses = []
+    try:
+        content = path.read_text(encoding='utf-8', errors='ignore')
+    except OSError:
+        return addresses
+    target = hostname.lower()
+    for line in content.splitlines():
+        stripped = line.split('#', 1)[0].strip()
+        if not stripped:
+            continue
+        parts = stripped.split()
+        if len(parts) < 2:
+            continue
+        if any(alias.lower() == target for alias in parts[1:]):
+            addresses.append(parts[0])
+    return addresses
+
+
+def host_proxy_endpoints(raw=None, hosts_path=None):
+    """Parse OUTCOMEGO_HOST_PROXY_TARGET (ip:port or [ipv6]:port) for nftables allowlisting."""
+    value = os.environ.get('OUTCOMEGO_HOST_PROXY_TARGET', '') if raw is None else raw
+    parsed = _parse_host_port(value)
+    if not parsed:
+        return set()
+    host, port = parsed
+    direct = endpoint_value(host, port)
+    if direct:
+        address = ipaddress.ip_address(direct[1])
+        return set() if address.is_loopback else {direct}
+    if host.lower() in ALLOWED_PROXY_HOSTNAMES:
+        endpoints = set()
+        for candidate in _hosts_file_addresses(host, hosts_path=hosts_path):
+            resolved = endpoint_value(candidate, port)
+            if resolved and not ipaddress.ip_address(resolved[1]).is_loopback:
+                endpoints.add(resolved)
+        return endpoints
+    return set()
+
+
 def model_endpoints():
     """Reserve literal private model endpoints without bypassing public egress."""
     config = read_json_file(MODEL_CONFIG, MAX_CONFIG_BYTES)
@@ -222,6 +288,7 @@ def update_network_policy(server_url, raw=None):
         endpoint = host_bridge_endpoint()
         if endpoint:
             bridge.add(endpoint)
+        bridge.update(host_proxy_endpoints())
         desired = model | bridge
         desired = {item for item in desired if item[0] in families}
         private = policy['mode'] == 'lan'

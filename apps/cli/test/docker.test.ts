@@ -91,6 +91,42 @@ describe("Docker Compose command selection", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  test("appends compose.local.yaml automatically when present and omits it when absent", () => {
+    const directory = mkdtempSync(join(tmpdir(), "outcomego-cli-docker-local-"));
+    try {
+      const paths = installationPaths(directory);
+      writeFileSync(paths.compose, "name: outcomego\n");
+      writeFileSync(paths.environment, "OUTCOMEGO_VERSION=1.3.0\n");
+      const runner = new RecordingRunner(true);
+      const command = findCompose(runner);
+      expect(command).not.toBeNull();
+      if (!command) throw new Error("expected Docker Compose to be available");
+
+      const project = new ComposeProject(paths, command, runner);
+      project.run(["ps"]);
+      expect(runner.calls.at(-1)?.args).not.toContain(paths.localCompose);
+
+      writeFileSync(paths.localCompose, "services:\n  computer:\n    cpus: 2\n");
+      project.run(["ps"]);
+      expect(runner.calls.at(-1)?.args).toEqual([
+        "compose",
+        "--project-name",
+        "outcomego",
+        "--project-directory",
+        directory,
+        "--env-file",
+        paths.environment,
+        "--file",
+        paths.compose,
+        "--file",
+        paths.localCompose,
+        "ps",
+      ]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("Docker Compose failure diagnosis", () => {

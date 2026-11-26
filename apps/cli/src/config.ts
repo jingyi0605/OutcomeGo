@@ -13,6 +13,8 @@ import { availableParallelism, homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
   COMPOSE_FILENAME,
+  LOCAL_COMPOSE_FILENAME,
+  PROXY_CONFIG_FILENAME,
   BACKUP_DIRECTORY,
   DEFAULT_IMAGE_PREFIX,
   DEFAULT_REPOSITORY,
@@ -46,11 +48,14 @@ export interface InstallationManifest {
   projectName?: string;
   ownerUsername?: string;
   engine?: InstallationEngine;
+  autostart?: { enabled: boolean };
 }
 
 export interface InstallationPaths {
   directory: string;
   compose: string;
+  localCompose: string;
+  proxyConfig: string;
   environment: string;
   manifest: string;
   updateState: string;
@@ -78,6 +83,8 @@ export const defaultInstallDirectory = (
 export const installationPaths = (directory: string): InstallationPaths => ({
   directory: resolve(directory),
   compose: join(resolve(directory), COMPOSE_FILENAME),
+  localCompose: join(resolve(directory), LOCAL_COMPOSE_FILENAME),
+  proxyConfig: join(resolve(directory), PROXY_CONFIG_FILENAME),
   environment: join(resolve(directory), ENV_FILENAME),
   manifest: join(resolve(directory), INSTALLATION_FILENAME),
   updateState: join(resolve(directory), UPDATE_STATE_FILENAME),
@@ -194,6 +201,21 @@ export const replaceEnvironmentValue = (contents: string, key: string, value: st
   return `${lines.filter((line, lineIndex) => line || lineIndex < lines.length - 1).join("\n")}\n`;
 };
 
+export const setOrClearEnvironmentValue = (
+  contents: string,
+  key: string,
+  value: string | null | undefined
+): string => {
+  if (value === null || value === undefined || value === "") {
+    const lines = contents
+      .split(/\r?\n/)
+      .filter((line) => !line.startsWith(`${key}=`));
+    while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+    return lines.length ? `${lines.join("\n")}\n` : "";
+  }
+  return replaceEnvironmentValue(contents, key, value);
+};
+
 export const ensureAuthenticationSecret = (contents: string): string => {
   let updated = contents;
   const current = parseEnvironment(updated);
@@ -255,7 +277,12 @@ export const readManifest = (
       typeof value.composeUrl !== "string" ||
       (value.projectName !== undefined && typeof value.projectName !== "string") ||
       (value.ownerUsername !== undefined && typeof value.ownerUsername !== "string") ||
-      (value.engine !== undefined && !validEngine(value.engine))
+      (value.engine !== undefined && !validEngine(value.engine)) ||
+      (value.autostart !== undefined &&
+        (!value.autostart ||
+          typeof value.autostart !== "object" ||
+          Array.isArray(value.autostart) ||
+          typeof value.autostart.enabled !== "boolean"))
     ) {
       throw new Error("unsupported manifest shape");
     }

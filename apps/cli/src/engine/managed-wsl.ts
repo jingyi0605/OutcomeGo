@@ -76,6 +76,14 @@ const autostartRemoveScript = [
   `$folder.DeleteTask('${MANAGED_WSL_AUTOSTART_TASK}', 0)`,
 ].join("; ");
 
+const autostartQueryScript = [
+  "$ErrorActionPreference='Stop'",
+  "$svc=New-Object -ComObject Schedule.Service",
+  "$svc.Connect()",
+  "$folder=$svc.GetFolder('\\')",
+  `try { $task=$folder.GetTask('${MANAGED_WSL_AUTOSTART_TASK}'); if ($task.Enabled) { 'registered' } else { 'disabled' } } catch { 'missing' }`,
+].join("; ");
+
 export class ManagedWslEngine extends ManagedEngine {
   override readonly kind = "managed-wsl";
   private readonly data: string;
@@ -185,9 +193,38 @@ export class ManagedWslEngine extends ManagedEngine {
     return this.runner.run(powershell, ["-NoProfile", "-NonInteractive", "-Command", autostartRemoveScript], { timeoutMs: 15_000 }).status === 0;
   }
 
+  override isAutostartRegistered(): boolean {
+    const result = this.runner.run(
+      powershell,
+      ["-NoProfile", "-NonInteractive", "-Command", autostartQueryScript],
+      { timeoutMs: 15_000 }
+    );
+    return result.status === 0 && output(result.stdout).trim() === "registered";
+  }
+
   override async stop() {
     if (!this.owned()) throw new EngineError("ENGINE_UNAVAILABLE");
     this.checkOperation(this.runWsl(["--terminate", MANAGED_ENGINE_NAME]));
+  }
+
+  shutdownAllWsl(): void {
+    this.checkOperation(this.runWsl(["--shutdown"]));
+  }
+
+  override hostGatewayIp(): string | null {
+    if (!this.owned()) return null;
+    const routeResult = this.runGuest(
+      ["/bin/sh", "-c", "ip -4 route show default 2>/dev/null | awk '/default/ {print $3; exit}'"],
+      { timeoutMs: 10_000 }
+    );
+    const routeIp = output(routeResult.stdout).trim();
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(routeIp)) return routeIp;
+    const resolvResult = this.runGuest(
+      ["/bin/sh", "-c", "awk '/^nameserver[[:space:]]+/ {print $2; exit}' /etc/resolv.conf 2>/dev/null"],
+      { timeoutMs: 10_000 }
+    );
+    const resolvIp = output(resolvResult.stdout).trim();
+    return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(resolvIp) ? resolvIp : null;
   }
 
   override async remove({ purgeData }: { purgeData: boolean }) {

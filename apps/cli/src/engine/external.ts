@@ -27,6 +27,7 @@ interface DockerInfo {
   ServerVersion?: string;
   CgroupVersion?: string;
   MemTotal?: number;
+  NCPU?: number;
   OSType?: string;
   SecurityOptions?: string[];
 }
@@ -175,6 +176,9 @@ export class ExternalEngine implements EngineProvider {
 
   composeInvocation(target: ComposeTarget, args: readonly string[]): ReturnType<EngineProvider["composeInvocation"]> {
     const { paths, projectName, command, composeFile } = target;
+    const localCompose =
+      target.localComposeFile ??
+      (composeFile === paths.compose && existsSync(paths.localCompose) ? paths.localCompose : undefined);
     return {
       command: command.executable,
       args: [
@@ -183,6 +187,7 @@ export class ExternalEngine implements EngineProvider {
         "--project-directory", paths.directory,
         "--env-file", paths.environment,
         "--file", composeFile,
+        ...(localCompose ? ["--file", localCompose] : []),
         ...args,
       ],
       cwd: paths.directory,
@@ -192,6 +197,11 @@ export class ExternalEngine implements EngineProvider {
 
   memoryBytes(): number | null {
     const value = this.info.MemTotal;
+    return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
+  }
+
+  cpuCores(): number | null {
+    const value = this.info.NCPU;
     return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : null;
   }
 

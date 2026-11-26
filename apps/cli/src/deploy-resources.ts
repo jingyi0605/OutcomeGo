@@ -66,10 +66,17 @@ export const checkDeployResources = async (options: {
   return { code: "PORT_IN_USE", message, action: { kind: "free-port", detail } };
 };
 
-export const validMemorySize = (value: string | undefined): value is string => {
-  const match = value && /^(\d+)([kmgt]?)b?$/i.exec(value);
-  if (!match) return false;
+export const parseMemoryBytes = (value: string | undefined): number | null => {
+  const match = value && /^(\d+)([kmgt]?)i?b?$/i.exec(value.trim());
+  if (!match) return null;
   const units = { "": 1, k: 1024, m: 1024 ** 2, g: 1024 ** 3, t: 1024 ** 4 };
   const bytes = Number(match[1]) * units[match[2]!.toLowerCase() as keyof typeof units];
-  return Number.isSafeInteger(bytes) && bytes >= 16 * 1024 ** 2;
+  return Number.isSafeInteger(bytes) && bytes > 0 ? bytes : null;
 };
+
+export const validMemorySize = (value: string | undefined): value is string => {
+  const bytes = parseMemoryBytes(value);
+  return bytes !== null && bytes >= 16 * 1024 ** 2;
+};
+
+export { availableDiskBytes };

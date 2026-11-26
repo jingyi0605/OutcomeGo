@@ -111,6 +111,13 @@ services:
       OUTCOMEGO_AGENT_DATA_CANONICAL_ROOT: /home/box/sand-data
       OUTCOMEGO_BOX_STORE_ROOT: /box-store
       OUTCOMEGO_BOX_COPY_IN: ${OUTCOMEGO_BOX_COPY_IN:-0}
+      HTTP_PROXY: ${OUTCOMEGO_HTTP_PROXY:-}
+      HTTPS_PROXY: ${OUTCOMEGO_HTTPS_PROXY:-}
+      NO_PROXY: ${OUTCOMEGO_NO_PROXY:-}
+      http_proxy: ${OUTCOMEGO_HTTP_PROXY:-}
+      https_proxy: ${OUTCOMEGO_HTTPS_PROXY:-}
+      no_proxy: ${OUTCOMEGO_NO_PROXY:-}
+      OUTCOMEGO_HOST_PROXY_TARGET: ${OUTCOMEGO_HOST_PROXY_TARGET:-}
     depends_on:
       agent-data-init:
         condition: service_completed_successfully
@@ -192,6 +199,12 @@ services:
       OUTCOMEGO_AGENT_DATA_ROOT: /home/box/agent-data
       OUTCOMEGO_ASSET_ROOT: /asset-store
       OUTCOMEGO_MARKETPLACE_FILE: ${OUTCOMEGO_MARKETPLACE_FILE:-}
+      HTTP_PROXY: ${OUTCOMEGO_HTTP_PROXY:-}
+      HTTPS_PROXY: ${OUTCOMEGO_HTTPS_PROXY:-}
+      NO_PROXY: ${OUTCOMEGO_NO_PROXY:-}
+      http_proxy: ${OUTCOMEGO_HTTP_PROXY:-}
+      https_proxy: ${OUTCOMEGO_HTTPS_PROXY:-}
+      no_proxy: ${OUTCOMEGO_NO_PROXY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -199,6 +212,8 @@ services:
         condition: service_completed_successfully
       computer:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${OUTCOMEGO_BIND_HOST:-127.0.0.1}:${OUTCOMEGO_API_PORT:-8787}:8787"
     healthcheck:
@@ -264,6 +279,12 @@ services:
       OUTCOMEGO_WORKSPACE_ROOT: /workspace
       OUTCOMEGO_AGENT_DATA_ROOT: /home/box/agent-data
       OUTCOMEGO_ASSET_ROOT: /asset-store
+      HTTP_PROXY: ${OUTCOMEGO_HTTP_PROXY:-}
+      HTTPS_PROXY: ${OUTCOMEGO_HTTPS_PROXY:-}
+      NO_PROXY: ${OUTCOMEGO_NO_PROXY:-}
+      http_proxy: ${OUTCOMEGO_HTTP_PROXY:-}
+      https_proxy: ${OUTCOMEGO_HTTPS_PROXY:-}
+      no_proxy: ${OUTCOMEGO_NO_PROXY:-}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -271,6 +292,8 @@ services:
         condition: service_completed_successfully
       computer:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "node", "/app/healthcheck.js"]
       interval: 30s

@@ -19,7 +19,15 @@ export type CommandName =
   | "engine-remove"
   | "engine-docker"
   | "engine-enable-wsl"
+  | "resources-status"
   | "resources-set"
+  | "containers"
+  | "restart"
+  | "autostart-status"
+  | "autostart-set"
+  | "proxy-status"
+  | "proxy-set"
+  | "proxy-test"
   | "update"
   | "stop"
   | "start"
@@ -40,6 +48,8 @@ export type CommandName =
 export type HelpTopic =
   | "global"
   | CommandName
+  | "autostart"
+  | "proxy"
   | "provider"
   | "model"
   | "account"
@@ -85,6 +95,9 @@ export interface CliOptions {
   reasoning?: boolean;
   noAuth?: boolean;
   json?: boolean;
+  stats?: boolean;
+  enabled?: boolean;
+  configStdin?: boolean;
   httpsPort?: string;
   apnsConfig?: string;
   apnsKeyFile?: string;
@@ -93,6 +106,12 @@ export interface CliOptions {
   apnsTopic?: string;
   computerMemory?: string;
   desktopMemory?: string;
+  computerCpu?: string;
+  workerConcurrency?: string;
+  engineMemory?: string;
+  engineCpu?: string;
+  applyWslconfig?: boolean;
+  restartWsl?: boolean;
   engine?: string;
   apiPort?: string;
   acceptLowMemory?: boolean;
@@ -113,7 +132,15 @@ const commands = new Set<CommandName>([
   "engine-status",
   "engine-start", "engine-stop", "engine-remove", "engine-docker", "engine-enable-wsl",
   "engine-upgrade", "engine-rollback",
+  "resources-status",
   "resources-set",
+  "containers",
+  "restart",
+  "autostart-status",
+  "autostart-set",
+  "proxy-status",
+  "proxy-set",
+  "proxy-test",
   "update",
   "stop",
   "start",
@@ -161,7 +188,27 @@ const commandFlags: Record<CommandName, ReadonlySet<string>> = {
   "engine-remove": new Set(["--purge-data"]),
   "engine-docker": new Set(),
   "engine-enable-wsl": new Set(["--yes"]),
-  "resources-set": new Set(["--computer-memory", "--desktop-memory", "--yes", "-y"]),
+  "resources-status": new Set(["--json"]),
+  "resources-set": new Set([
+    "--computer-memory",
+    "--desktop-memory",
+    "--computer-cpu",
+    "--worker-concurrency",
+    "--engine-memory",
+    "--engine-cpu",
+    "--apply-wslconfig",
+    "--restart-wsl",
+    "--json",
+    "--yes",
+    "-y",
+  ]),
+  containers: new Set(["--json", "--stats"]),
+  restart: new Set(["--json", "--yes", "-y"]),
+  "autostart-status": new Set(["--json"]),
+  "autostart-set": new Set(["--enabled", "--json"]),
+  "proxy-status": new Set(["--json"]),
+  "proxy-set": new Set(["--config-stdin", "--yes", "-y", "--json"]),
+  "proxy-test": new Set(["--config-stdin", "--json"]),
   update: new Set([
     "--version",
     "--repository",
@@ -177,7 +224,7 @@ const commandFlags: Record<CommandName, ReadonlySet<string>> = {
   ]),
   stop: new Set(),
   start: new Set(),
-  logs: new Set(["--follow", "-f", "--tail", "--service"]),
+  logs: new Set(["--follow", "-f", "--tail", "--service", "--json"]),
   "provider-list": new Set(),
   "provider-login": new Set(["--auth"]),
   "provider-logout": new Set(),
@@ -259,7 +306,17 @@ const helpTopicFromArguments = (parts: readonly string[]): HelpTopic => {
   if (!topic || topic === "--help" || topic === "-h") return "global";
   if (extra.length > 0) throw new CliError(`Unknown help topic: ${parts.join(" ")}`);
   if (topic === "engine" && (!action || engineActions.some(value => value === action))) return `engine-${action ?? "status"}` as HelpTopic;
-  if (topic === "resources" && (!action || action === "set")) return "resources-set";
+  if (topic === "resources" && (!action || action === "set" || action === "status")) {
+    return `resources-${action ?? "set"}` as HelpTopic;
+  }
+  if (topic === "autostart") {
+    if (!action) return "autostart";
+    if (["status", "set"].includes(action)) return `autostart-${action}` as HelpTopic;
+  }
+  if (topic === "proxy") {
+    if (!action) return "proxy";
+    if (["status", "set", "test"].includes(action)) return `proxy-${action}` as HelpTopic;
+  }
   if (topic === "tailscale") {
     if (!action) return "tailscale";
     if (["enable", "status", "disable"].includes(action)) return `tailscale-${action}` as HelpTopic;
@@ -313,6 +370,10 @@ const valueFlags = new Map<
   | "apnsTopic"
   | "computerMemory"
   | "desktopMemory"
+  | "computerCpu"
+  | "workerConcurrency"
+  | "engineMemory"
+  | "engineCpu"
   | "engine"
   | "apiPort"
 >([
@@ -320,6 +381,10 @@ const valueFlags = new Map<
   ["--api-port", "apiPort"],
   ["--computer-memory", "computerMemory"],
   ["--desktop-memory", "desktopMemory"],
+  ["--computer-cpu", "computerCpu"],
+  ["--worker-concurrency", "workerConcurrency"],
+  ["--engine-memory", "engineMemory"],
+  ["--engine-cpu", "engineCpu"],
   ["--https-port", "httpsPort"],
   ["--config", "apnsConfig"],
   ["--key-file", "apnsKeyFile"],
@@ -357,10 +422,22 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
   }
   const nestedEngine = rawCommand === "engine";
   const nestedResources = rawCommand === "resources";
+  const autostartAction = rawCommand === "autostart" ? rawRest[0] : undefined;
+  if (rawCommand === "autostart" && (!autostartAction || autostartAction.startsWith("-")))
+    return emptyOptions("help", "autostart");
+  if (rawCommand === "autostart" && !["status", "set"].includes(autostartAction!))
+    throw new CliError(cliTranslate("Unknown autostart command; use status or set."), 2);
+  const nestedAutostart = rawCommand === "autostart";
+  const proxyAction = rawCommand === "proxy" ? rawRest[0] : undefined;
+  if (rawCommand === "proxy" && (!proxyAction || proxyAction.startsWith("-")))
+    return emptyOptions("help", "proxy");
+  if (rawCommand === "proxy" && !["status", "set", "test"].includes(proxyAction!))
+    throw new CliError(cliTranslate("Unknown proxy command; use status, set, or test."), 2);
+  const nestedProxy = rawCommand === "proxy";
   if (nestedResources && (!rawRest[0] || ["--help", "-h"].includes(rawRest[0])))
     return emptyOptions("help", "resources-set");
-  if (nestedResources && rawRest[0] !== "set")
-    throw new CliError(cliTranslate("Unknown resources command; use set."), 2);
+  if (nestedResources && rawRest[0] !== "set" && rawRest[0] !== "status")
+    throw new CliError(cliTranslate("Unknown resources command; use status or set."), 2);
   if (nestedEngine && (!rawRest[0] || ["--help", "-h"].includes(rawRest[0])))
     return emptyOptions("help", "engine-status");
   if (nestedEngine && !engineActions.some(action => action === rawRest[0]))
@@ -401,8 +478,12 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
     );
   }
   const command = nestedResources
-    ? "resources-set"
-    : nestedTailscale
+    ? `resources-${rawRest[0]}`
+    : nestedAutostart
+      ? `autostart-${autostartAction}`
+      : nestedProxy
+        ? `proxy-${proxyAction}`
+        : nestedTailscale
     ? `tailscale-${tailscaleAction}`
     : nestedNotifications
       ? `notifications-${notificationAction}`
@@ -429,6 +510,8 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
                           : rawCommand;
   let rest =
     nestedResources ||
+    nestedAutostart ||
+    nestedProxy ||
     nestedEngine ||
     nestedTailscale ||
     nestedNotifications ||
@@ -528,6 +611,9 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
   } else if (command === "logs") {
     if (positional.length > 1) throw new CliError("outcomego logs accepts one service name");
     options.service = positional[0];
+  } else if (command === "restart") {
+    if (positional.length > 1) throw new CliError("outcomego restart accepts at most one service name");
+    options.service = positional[0];
   } else if (positional.length > 0) {
     throw new CliError(`Unexpected argument for ${rawCommand}: ${positional[0]}`);
   }
@@ -579,6 +665,23 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
       options.json = true;
       continue;
     }
+    if (flag === "--stats") {
+      options.stats = true;
+      continue;
+    }
+    if (flag === "--enabled") {
+      const value = rest[index + 1];
+      if (value !== "true" && value !== "false") {
+        throw new CliError("INVALID_INPUT: --enabled must be true or false", 2);
+      }
+      options.enabled = value === "true";
+      index += 1;
+      continue;
+    }
+    if (flag === "--config-stdin") {
+      options.configStdin = true;
+      continue;
+    }
     if (flag === "--json-progress") {
       options.jsonProgress = true;
       continue;
@@ -589,6 +692,14 @@ export const parseArguments = (argv: readonly string[]): CliOptions => {
     }
     if (flag === "--accept-low-memory") {
       options.acceptLowMemory = true;
+      continue;
+    }
+    if (flag === "--apply-wslconfig") {
+      options.applyWslconfig = true;
+      continue;
+    }
+    if (flag === "--restart-wsl") {
+      options.restartWsl = true;
       continue;
     }
     if (flag === "--password") {

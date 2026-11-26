@@ -308,6 +308,63 @@ class PolicyPersistenceTests(unittest.TestCase):
             network.update_host_bridge('http://server:8788')
         self.assertEqual(network.current_policy(), network.policy_value(allowlist))
 
+    def test_host_proxy_target_parses_valid_and_ignores_invalid_values(self):
+        self.assertEqual(
+            network.host_proxy_endpoints('172.24.160.1:7890'),
+            {('-4', '172.24.160.1', '7890')},
+        )
+        self.assertEqual(
+            network.host_proxy_endpoints('[fd75::1]:1080'),
+            {('-6', 'fd75::1', '1080')},
+        )
+        hosts = Path(self.path).with_name('hosts')
+        hosts.write_text('127.0.0.1 localhost\n192.168.5.2 host.lima.internal host.docker.internal\n')
+        self.assertEqual(
+            network.host_proxy_endpoints('host.docker.internal:7890', hosts_path=hosts),
+            {('-4', '192.168.5.2', '7890')},
+        )
+        self.assertEqual(
+            network.host_proxy_endpoints('host.lima.internal:7891', hosts_path=hosts),
+            {('-4', '192.168.5.2', '7891')},
+        )
+        for invalid in [
+            '',
+            '   ',
+            '127.0.0.1:7890',
+            '[::1]:7890',
+            '0.0.0.0:7890',
+            '224.0.0.1:7890',
+            '172.24.160.1:0',
+            '172.24.160.1:70000',
+            'http://172.24.160.1:7890',
+            'proxy.example.com:7890',
+            '172.24.160.1:7890\nnewline',
+            '172.24.160.1',
+            'fd75::1:7890',
+        ]:
+            with self.subTest(raw=invalid):
+                self.assertEqual(network.host_proxy_endpoints(invalid, hosts_path=hosts), set())
+
+    def test_host_proxy_target_is_added_to_host_bridge_nft_and_ip_rule(self):
+        commands = []
+
+        def record(*args, **kwargs):
+            commands.append((args, kwargs))
+            return ''
+
+        with patch.dict(os.environ, {'OUTCOMEGO_HOST_PROXY_TARGET': '172.24.160.1:7890'}):
+            with patch.object(network, 'run', record):
+                network.update_network_policy('http://server:8788', {'mode': 'allowlist', 'rules': []})
+
+        nft = next(kwargs['input'] for args, kwargs in commands if args == ('nft', '-f', '-'))
+        self.assertIn('add element inet outcomego_network host_bridge_v4 { 172.24.160.1 . 7890 }', nft)
+        self.assertTrue(
+            any(
+                args == ('ip', '-4', 'rule', 'add', 'pref', '98', 'to', '172.24.160.1', 'ipproto', 'tcp', 'dport', '7890', 'lookup', 'main')
+                for args, _ in commands
+            )
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -41,8 +41,19 @@ export class ComposeProject {
 
   invocation(args: readonly string[], composeFile = this.paths.compose, useImageSources = true) {
     if (!existsSync(composeFile)) throw new CliError(`Compose file not found: ${composeFile}`);
+    const localComposeFile =
+      composeFile === this.paths.compose && existsSync(this.paths.localCompose)
+        ? this.paths.localCompose
+        : undefined;
     return this.engine.composeInvocation(
-      { paths: this.paths, projectName: this.projectName, command: this.command, composeFile, useImageSources },
+      {
+        paths: this.paths,
+        projectName: this.projectName,
+        command: this.command,
+        composeFile,
+        useImageSources,
+        localComposeFile,
+      },
       args
     );
   }

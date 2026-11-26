@@ -31,8 +31,8 @@
 
 ## 阶段 1：CLI 运维契约、引擎能力与 Compose 底座
 
-- [ ] 1.1 扩展 Compose 环境变量透传、本地覆盖文件支持与 `computer` 宿主机代理端口放通
-  - 状态：TODO
+- [x] 1.1 扩展 Compose 环境变量透传、本地覆盖文件支持与 `computer` 宿主机代理端口放通
+  - 状态：DONE
   - 这一步到底做什么：给 `deploy/compose.yaml` 补齐可选的代理环境变量透传与 `server`/`worker` 的 `host.docker.internal` 映射；让 CLI `ComposeProject` 在安装目录存在 `compose.local.yaml` 时自动叠加加载；并在 `docker/outcomego-computer-network.py` 里支持根据 `OUTCOMEGO_HOST_PROXY_TARGET` 放行宿主机代理 `ip:port`。
   - 做完你能看到什么：不改旧 `.env` 时 `docker compose config` 行为零变化；填入代理变量或生成 `compose.local.yaml` 后，容器能正确拿到代理环境变量、CPU 限额，且 `computer` 容器能连上宿主机代理端口。
   - 先依赖什么：无
@@ -55,8 +55,8 @@
   - 对应需求：`requirements.md` 需求 4 / 验收 4.3、需求 5 / 验收 5.3、需求 6 / 验收 6.3
   - 对应设计：`design.md` §3.3.3、§6.1
 
-- [ ] 1.2 实现 CLI 容器查询、实时指标、单容器重启与脱敏日志命令
-  - 状态：TODO
+- [x] 1.2 实现 CLI 容器查询、实时指标、单容器重启与脱敏日志命令
+  - 状态：DONE
   - 这一步到底做什么：在 CLI 中新增 `containers --json [--stats]`、`restart [service] --json --yes`、`logs <service> --tail <n> --json`，补齐参数解析、服务名白名单校验、核心服务与初始化任务区分、`computer` 重启联动 `computer-memory-init`，以及统一日志脱敏。
   - 做完你能看到什么：命令行运行 `outcomego containers --json --stats`、`outcomego restart computer --json --yes`、`outcomego logs server --tail 200 --json` 都能输出规范的 `schemaVersion: 1` JSON，敏感凭据不会泄露。
   - 先依赖什么：1.1
@@ -83,8 +83,8 @@
   - 对应需求：`requirements.md` 需求 2 / 验收 2.2、2.4、2.5，需求 6 / 验收 6.1、6.2，需求 7 / 验收 7.3
   - 对应设计：`design.md` §2.3.2、§3.2.1、§3.3.1、§6.2
 
-- [ ] 1.3 实现本地服务开机自启独立配置与双平台引擎支持
-  - 状态：TODO
+- [x] 1.3 实现本地服务开机自启独立配置与双平台引擎支持
+  - 状态：DONE
   - 这一步到底做什么：在 `installation.json` 增加 `autostart.enabled` 持久化偏好；解耦 `startCommand`/`stopCommand` 不再静默覆盖用户偏好；为 `ManagedWslEngine` 补齐计划任务存在性查询；为 `ManagedLimaEngine` 实现 macOS 用户级 LaunchAgent（`~/Library/LaunchAgents/com.outcomego.managed-engine.plist`）的查询、注册与卸载；新增 `outcomego autostart status|set --enabled <true|false> --json`。
   - 做完你能看到什么：无论 Windows 还是 macOS 托管引擎，都可以独立查看和开关“本地服务开机自启”，手动停止或启动服务不会把用户的自启开关搞乱；外部引擎返回清晰的只读说明。
   - 先依赖什么：1.2
@@ -111,8 +111,8 @@
   - 对应需求：`requirements.md` 需求 3 / 验收 3.2、3.3、3.4、3.5，需求 6 / 验收 6.1、6.2
   - 对应设计：`design.md` §3.2.2、§3.3.1、§4.1、§4.2
 
-- [ ] 1.4 扩展性能与资源查询及配置命令（容器级 + Lima VM + Windows `.wslconfig`）
-  - 状态：TODO
+- [x] 1.4 扩展性能与资源查询及配置命令（容器级 + Lima VM + Windows `.wslconfig`）
+  - 状态：DONE
   - 这一步到底做什么：新增 `outcomego resources status --json` 回显宿主机、容器生效配置与引擎分配；扩展 `outcomego resources set --json --yes` 支持 `computer` 内存/CPU（写入 `compose.local.yaml`）、`desktop` 内存、`worker` 并发，以及 macOS Lima VM 内存/CPU 编辑（失败回滚）和 Windows `%USERPROFILE%\.wslconfig` 安全备份与增量更新。
   - 做完你能看到什么：命令行可一次性查清当前所有生效资源配置，也能安全调整并只在受影响范围重建容器或引擎，失败时自动恢复原配置。
   - 先依赖什么：1.1、1.2
@@ -137,8 +137,8 @@
   - 对应需求：`requirements.md` 需求 4 / 验收 4.1、4.2、4.3、4.4、4.5、4.6，需求 6 / 验收 6.1、6.2
   - 对应设计：`design.md` §3.2.3、§3.3.1、§4.1、§5
 
-- [ ] 1.5 实现本地代理配置、回环地址映射、托管 Docker daemon 同步与一键测通
-  - 状态：TODO
+- [x] 1.5 实现本地代理配置、回环地址映射、托管 Docker daemon 同步与一键测通
+  - 状态：DONE
   - 这一步到底做什么：新增 `apps/cli/src/proxy-config.ts` 与 `outcomego proxy status|set|test --json`（`set` / `test` 从 stdin 读取 JSON 防密码入参）；支持直连/系统/手动代理，自动映射宿主机回环地址（WSL NAT 网关 IP / `host.lima.internal` / `host.docker.internal`），强制合并内网 `NO_PROXY`，同步写入 `proxy.json`、`.env`、托管引擎 Docker daemon drop-in（`/etc/systemd/system/docker.service.d/outcomego-proxy.conf`）并重建受影响容器；同时让 CLI 资产/Release 下载器读取本地代理配置作为默认代理。
   - 做完你能看到什么：一条 `outcomego proxy test --json` 可实测代理及外部端点连通性；`outcomego proxy set --json --config-stdin --yes` 生效后，容器出网、托管引擎拉镜像和 CLI 下载都能走代理，失败时完整回滚，且任何输出都不含明文密码。
   - 先依赖什么：1.1、1.2
@@ -171,8 +171,8 @@
 
 ### 阶段检查
 
-- [ ] 1.6 阶段 1 检查点（CLI 与底座验证）
-  - 状态：TODO
+- [x] 1.6 阶段 1 检查点（CLI 与底座验证）
+  - 状态：DONE
   - 这一步到底做什么：确认阶段 1 所有 CLI 子命令、引擎扩展、Compose 兼容与单元测试全部跑通，契约稳定，可支撑桌面端对接。
   - 做完你能看到什么：CLI 层所有新能力已自洽并具备全量自动化测试保障，没有留给桌面端擦屁股的协议漏洞。
   - 先依赖什么：1.1、1.2、1.3、1.4、1.5

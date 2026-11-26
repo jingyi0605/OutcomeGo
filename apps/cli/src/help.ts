@@ -74,10 +74,102 @@ ${helpHint}`,
   "engine-docker": heading("outcomego engine docker [--dir <path>] -- <args>", "Run the container CLI using the recorded engine."),
   "engine-enable-wsl": heading("outcomego engine enable-wsl --yes [--dir <path>]", "Authorize enabling WSL for an expressly requested deployment."),
 
-  "resources-set": `${heading("outcomego resources set --computer-memory <size> --desktop-memory <size>", "Change memory limits and restart the computer services. Running tasks will be interrupted.")}
+  "resources-status": `${heading("outcomego resources status [--json]", "Show host hardware, container resource limits, and managed engine allocation.")}
 
 Options:
-  --yes, -y             Confirm the restart without prompting
+  --json                Print a single JSON object
+${directoryOption}
+${helpHint}`,
+
+  "resources-set": `${heading("outcomego resources set [options]", "Change container or managed engine resource limits and restart affected services.")}
+
+Options:
+  --computer-memory <size>   Computer container memory limit (e.g. 8g)
+  --desktop-memory <size>    Desktop memory limit inside computer (e.g. 6g)
+  --computer-cpu <cores|none> Computer container CPU limit (e.g. 4 or none)
+  --worker-concurrency <n>   Worker job concurrency (1..64)
+  --engine-memory <size>     Managed engine memory limit (Lima / .wslconfig)
+  --engine-cpu <n>           Managed engine CPU cores (Lima / .wslconfig)
+  --apply-wslconfig          Explicitly allow updating %USERPROFILE%\\.wslconfig
+  --restart-wsl              Shutdown WSL2 after updating .wslconfig so changes apply
+  --json                     Print updated resource snapshot as JSON
+  --yes, -y                  Confirm the restart without prompting
+${directoryOption}
+${helpHint}`,
+
+  containers: `${heading("outcomego containers [--json] [--stats]", "List OutcomeGo service containers and optional live resource usage.")}
+
+Options:
+  --json                Print a single JSON object
+  --stats               Include live CPU and memory usage
+${directoryOption}
+${helpHint}`,
+
+  restart: `${heading("outcomego restart [service] [--json] [--yes]", "Restart all OutcomeGo services or a single core service.")}
+
+Options:
+  --json                Print updated status as JSON
+  --yes, -y             Confirm without prompting
+${directoryOption}
+${helpHint}`,
+
+  autostart: `${heading("outcomego autostart <status|set> [options]", "Inspect or configure automatic startup of local managed OutcomeGo services.")}
+
+Commands:
+  status                Show whether local service autostart is enabled and registered
+  set                   Enable or disable local service autostart
+
+Options:
+${directoryOption}
+${helpHint}`,
+
+  "autostart-status": `${heading("outcomego autostart status [--json]", "Inspect local service autostart status.")}
+
+Options:
+  --json                Print a single JSON object
+${directoryOption}
+${helpHint}`,
+
+  "autostart-set": `${heading("outcomego autostart set --enabled <true|false> [--json]", "Enable or disable local service autostart for managed engines.")}
+
+Options:
+  --enabled <true|false>  Turn local service autostart on or off
+  --json                  Print updated status as JSON
+${directoryOption}
+${helpHint}`,
+
+  proxy: `${heading("outcomego proxy <status|set|test> [options]", "Configure and test the proxy used by local OutcomeGo services and managed engine image pulls.")}
+
+Commands:
+  status                Show the current proxy configuration (without secrets)
+  set                   Validate, save, and apply proxy configuration from stdin
+  test                  Test proxy connectivity from stdin without modifying saved settings
+
+Options:
+${directoryOption}
+${helpHint}`,
+
+  "proxy-status": `${heading("outcomego proxy status [--json]", "Inspect the current local service proxy configuration.")}
+
+Options:
+  --json                Print a single JSON object
+${directoryOption}
+${helpHint}`,
+
+  "proxy-set": `${heading("outcomego proxy set --config-stdin --yes [--json]", "Save and apply proxy settings supplied as JSON via stdin.")}
+
+Options:
+  --config-stdin        Read proxy JSON configuration from stdin
+  --yes, -y             Confirm service restart
+  --json                Print updated redacted configuration as JSON
+${directoryOption}
+${helpHint}`,
+
+  "proxy-test": `${heading("outcomego proxy test --config-stdin [--json]", "Test candidate proxy configuration supplied as JSON via stdin without saving.")}
+
+Options:
+  --config-stdin        Read proxy JSON configuration from stdin
+  --json                Print connectivity check results as JSON
 ${directoryOption}
 ${helpHint}`,
 
@@ -463,10 +555,102 @@ ${zhHelpHint}`,
   "engine-docker": zhHeading("outcomego engine docker [--dir <路径>] -- <参数>", "通过安装清单记录的引擎运行容器命令。"),
   "engine-enable-wsl": zhHeading("outcomego engine enable-wsl --yes [--dir <路径>]", "为明确请求的部署授权启用 WSL。"),
 
-  "resources-set": `${zhHeading("outcomego resources set --computer-memory <大小> --desktop-memory <大小>", "修改内存上限并重启电脑服务。进行中的任务将中断。")}
+  "resources-status": `${zhHeading("outcomego resources status [--json]", "查看宿主机硬件、容器生效资源限额与托管引擎资源分配。")}
 
 选项:
-  --yes, -y             确认重启，不再询问
+  --json                输出单行 JSON 对象
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  "resources-set": `${zhHeading("outcomego resources set [选项]", "修改容器或托管引擎资源限额并重启受影响服务。进行中的任务将中断。")}
+
+选项:
+  --computer-memory <大小>   电脑容器内存上限（例如 8g）
+  --desktop-memory <大小>    桌面环境内存上限（例如 6g）
+  --computer-cpu <核数|none> 电脑容器 CPU 核心上限（例如 4 或 none）
+  --worker-concurrency <数>  Worker 并发数（1..64）
+  --engine-memory <大小>     托管引擎内存上限（Lima / .wslconfig）
+  --engine-cpu <核数>        托管引擎 CPU 核数（Lima / .wslconfig）
+  --apply-wslconfig          显式确认更新 %USERPROFILE%\\.wslconfig
+  --restart-wsl              更新 .wslconfig 后关闭所有 WSL2 实例以立即生效
+  --json                     以 JSON 输出最新资源快照
+  --yes, -y                  确认重启，不再询问
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  containers: `${zhHeading("outcomego containers [--json] [--stats]", "查看 OutcomeGo 服务容器状态与可选实时资源占用。")}
+
+选项:
+  --json                输出单行 JSON 对象
+  --stats               附带实时 CPU 与内存占用
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  restart: `${zhHeading("outcomego restart [service] [--json] [--yes]", "重启全部 OutcomeGo 本地服务或指定核心服务。")}
+
+选项:
+  --json                以 JSON 格式输出最新状态
+  --yes, -y             跳过交互确认
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  autostart: `${zhHeading("outcomego autostart <status|set> [选项]", "查看或设置本地托管服务的开机自启动。")}
+
+命令:
+  status                查看本地服务开机自启状态与系统注册项
+  set                   开启或关闭本地服务开机自启
+
+选项:
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  "autostart-status": `${zhHeading("outcomego autostart status [--json]", "查看本地服务开机自启状态。")}
+
+选项:
+  --json                输出单行 JSON 对象
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  "autostart-set": `${zhHeading("outcomego autostart set --enabled <true|false> [--json]", "开启或关闭托管引擎的本地服务开机自启。")}
+
+选项:
+  --enabled <true|false>  开启或关闭开机自启
+  --json                  以 JSON 格式输出更新后的状态
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  proxy: `${zhHeading("outcomego proxy <status|set|test> [选项]", "配置并测试本地服务容器出网与托管引擎镜像拉取使用的代理服务器。")}
+
+命令:
+  status                查看当前代理配置（不输出明文密码）
+  set                   从 stdin 读取 JSON 保存并应用代理配置
+  test                  从 stdin 读取 JSON 测试代理连通性（不改动当前配置）
+
+选项:
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  "proxy-status": `${zhHeading("outcomego proxy status [--json]", "查看当前本地服务代理配置。")}
+
+选项:
+  --json                输出单行 JSON 对象
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  "proxy-set": `${zhHeading("outcomego proxy set --config-stdin --yes [--json]", "通过 stdin 传入 JSON 保存并应用代理配置。")}
+
+选项:
+  --config-stdin        从 stdin 读取代理 JSON 配置
+  --yes, -y             确认重启受影响服务
+  --json                以 JSON 输出脱敏后的最新配置
+${zhDirectoryOption}
+${zhHelpHint}`,
+
+  "proxy-test": `${zhHeading("outcomego proxy test --config-stdin [--json]", "通过 stdin 传入 JSON 测试代理连通性，不修改已保存配置。")}
+
+选项:
+  --config-stdin        从 stdin 读取代理 JSON 配置
+  --json                以 JSON 输出分项连通测试结果
 ${zhDirectoryOption}
 ${zhHelpHint}`,
 
