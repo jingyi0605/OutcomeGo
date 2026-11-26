@@ -3803,6 +3803,8 @@ export const sourceTranslations: Record<string, string> = {
   "{count} items": "{count} 项",
   "All day & deadlines": "全天与截止",
   "Timed schedule": "定时安排",
+  "Now": "现在",
+  "{count} overdue": "{count} 项逾期",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

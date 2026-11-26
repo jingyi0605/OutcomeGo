@@ -1,13 +1,24 @@
 import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  BellRing,
+  Bot,
+  Calendar,
   CalendarDays,
+  CheckSquare,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  Hand,
   Loader2,
-  LocateFixed,
+  Repeat,
   RotateCcw,
   SlidersHorizontal,
+  Target,
+  type LucideIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ScheduleQuery, TimeItem, TimeItemKind } from "@outcomego/contracts/task-overview";
 import { localDateOf } from "@outcomego/contracts/task-overview";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
@@ -51,6 +62,19 @@ const kindLabels: Record<TimeItemKind, string> = {
   scheduled_once: "Upcoming work",
   external_event: "External calendar",
 };
+
+const kindIcons: Record<TimeItemKind, LucideIcon> = {
+  goal_due: Target,
+  human_task: Hand,
+  work_item: Bot,
+  todo: CheckSquare,
+  follow_up: BellRing,
+  routine_run: Repeat,
+  scheduled_once: Clock,
+  external_event: Calendar,
+};
+
+const DONE_STATES = new Set(["completed", "cancelled", "skipped"]);
 const EXTERNAL_STORAGE_KEY = "outcomego.goal-calendar";
 
 function browserTimeZone(): string {
@@ -137,6 +161,10 @@ function itemTooltip(
   return parts.join("\n");
 }
 
+function isItemDone(item: TimeItem): boolean {
+  return DONE_STATES.has(item.state);
+}
+
 function CalendarItemCard({
   item,
   timeZone,
@@ -161,10 +189,12 @@ function CalendarItemCard({
   const density = forceDetailed ? "detailed" : metrics.density;
   const showTime = forceDetailed || metrics.showTime;
   const showMeta = forceDetailed || metrics.showMeta;
-  const metaText =
-    item.kind === "scheduled_once"
-      ? [botName, t(styleForActivity(item.state).label)].filter(Boolean).join(" · ")
-      : botName;
+  const showIcon = forceDetailed || density === "detailed";
+  const activity = item.kind === "scheduled_once" ? styleForActivity(item.state) : null;
+  const metaText = activity
+    ? [botName, t(activity.label)].filter(Boolean).join(" · ")
+    : botName;
+  const KindIcon = item.overdue ? AlertCircle : kindIcons[item.kind];
 
   return (
     <button
@@ -173,6 +203,7 @@ function CalendarItemCard({
       data-calendar-item={item.id}
       data-cal-kind={item.kind}
       data-cal-overdue={item.overdue ? "true" : undefined}
+      data-cal-done={isItemDone(item) ? "true" : undefined}
       data-density={density}
       draggable={item.editable}
       onDragStart={(event) => {
@@ -191,15 +222,29 @@ function CalendarItemCard({
         </>
       ) : (
         <>
-          <span className="outcome-calendar-item-title">{item.title || t("Untitled")}</span>
+          <span className="outcome-calendar-item-row">
+            {showIcon && (
+              <KindIcon
+                aria-hidden="true"
+                className="outcome-calendar-kind-icon size-[11px]"
+                strokeWidth={2}
+              />
+            )}
+            <span className="outcome-calendar-item-title">{item.title || t("Untitled")}</span>
+          </span>
           {showTime && (
             <span className="outcome-calendar-item-sub">
-              {time}
-              {item.overdue ? ` · ${t("Overdue")}` : ""}
+              <span>
+                {time}
+                {item.overdue ? ` · ${t("Overdue")}` : ""}
+              </span>
             </span>
           )}
           {showMeta && metaText && (
-            <span className="outcome-calendar-item-sub">{metaText}</span>
+            <span className="outcome-calendar-item-sub">
+              {activity?.animated && <span aria-hidden="true" className="outcome-calendar-live-dot" />}
+              <span>{metaText}</span>
+            </span>
           )}
         </>
       )}
@@ -352,8 +397,7 @@ function MonthGrid({
           const visibleCount = visibleCountForCell(entries.length, metrics);
           const overflow = entries.length - visibleCount;
           const dayNumber = Number(date.slice(8, 10));
-          const showMonthPrefix =
-            metrics.density !== "minimal" && (isFirstOfMonth(date) || outside) && isFirstOfMonth(date);
+          const showMonthPrefix = metrics.density !== "minimal" && isFirstOfMonth(date);
           const dateLabel = showMonthPrefix
             ? dateText(dayStart(date, timeZone), timeZone, locale, {
                 month: "short",
@@ -497,6 +541,7 @@ function WeekGrid({
   days,
   today,
   todayPulse,
+  nowClock,
   items,
   timeZone,
   locale,
@@ -512,6 +557,7 @@ function WeekGrid({
   days: string[];
   today: string;
   todayPulse: number;
+  nowClock: string;
   items: Map<string, TimeItem[]>;
   timeZone: string;
   locale: string;
@@ -577,7 +623,9 @@ function WeekGrid({
                   {dayNumber}
                 </button>
                 {isToday && metrics.showTodayLabel && (
-                  <span className="outcome-calendar-today-pill">{t("Today")}</span>
+                  <span className="outcome-calendar-today-pill">
+                    {metrics.density === "detailed" ? `${t("Today")} · ${nowClock}` : t("Today")}
+                  </span>
                 )}
               </div>
             </header>
@@ -665,6 +713,8 @@ function WeekGrid({
 function DayBoard({
   date,
   today,
+  now,
+  nowClock,
   entries,
   timeZone,
   locale,
@@ -676,6 +726,8 @@ function DayBoard({
 }: {
   date: string;
   today: string;
+  now: Date;
+  nowClock: string;
   entries: TimeItem[];
   timeZone: string;
   locale: string;
@@ -690,19 +742,33 @@ function DayBoard({
   const allDayItems = entries.filter((item) => item.allDay);
   const timedItems = entries.filter((item) => !item.allDay);
   const splitColumns = metrics.dayColumns === 2 && allDayItems.length > 0 && timedItems.length > 0;
+  const nowMs = now.getTime();
 
-  const renderCard = (item: TimeItem) => {
+  // Compute chronological index where the live "Now" divider sits among today's timed items.
+  const nowInsertIndex = useMemo(() => {
+    if (!isToday || timedItems.length === 0) return -1;
+    const idx = timedItems.findIndex((item) => {
+      const instant = item.start ?? item.end;
+      return instant ? Date.parse(instant) >= nowMs : false;
+    });
+    return idx === -1 ? timedItems.length : idx;
+  }, [isToday, nowMs, timedItems]);
+
+  const renderCard = (item: TimeItem, showRail = false) => {
     const time = itemTimeLabel(item, timeZone, locale, t);
     const botName = bots.find((bot) => bot.id === item.botId)?.name;
-    const statusLabel = item.kind === "scheduled_once" ? t(styleForActivity(item.state).label) : "";
-    return (
+    const activity = item.kind === "scheduled_once" ? styleForActivity(item.state) : null;
+    const statusLabel = activity ? t(activity.label) : "";
+    const KindIcon = item.overdue ? AlertCircle : kindIcons[item.kind];
+
+    const card = (
       <button
-        key={item.id}
         type="button"
         className="outcome-calendar-day-card"
         data-calendar-item={item.id}
         data-cal-kind={item.kind}
         data-cal-overdue={item.overdue ? "true" : undefined}
+        data-cal-done={isItemDone(item) ? "true" : undefined}
         draggable={item.editable}
         onDragStart={(event) => {
           event.dataTransfer.setData("application/x-outcomego-calendar", item.id);
@@ -710,21 +776,23 @@ function DayBoard({
         }}
         onClick={() => onOpen(item)}
       >
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex items-center gap-2">
             <span className="truncate text-[13px] font-medium text-foreground">
               {item.title || t("Untitled")}
             </span>
             {item.overdue && (
-              <span className="shrink-0 rounded-full bg-destructive/12 px-2 py-0.5 text-[10px] font-medium text-destructive">
+              <span className="shrink-0 rounded-full bg-destructive/12 px-2 py-0.5 text-[10px] font-semibold text-destructive">
                 {t("Overdue")}
               </span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-foreground-secondary tabular-nums">
-            <span>{time}</span>
-            <span>·</span>
-            <span>{t(kindLabels[item.kind])}</span>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-foreground-secondary tabular-nums">
+            <span className="outcome-calendar-day-kind-pill" data-cal-kind={item.kind}>
+              <KindIcon aria-hidden="true" className="size-3" strokeWidth={2} />
+              <span>{t(kindLabels[item.kind])}</span>
+            </span>
+            {!showRail && <span>{time}</span>}
             {botName && (
               <>
                 <span>·</span>
@@ -734,14 +802,39 @@ function DayBoard({
             {statusLabel && (
               <>
                 <span>·</span>
-                <span>{statusLabel}</span>
+                <span className="inline-flex items-center gap-1">
+                  {activity?.animated && (
+                    <span aria-hidden="true" className="outcome-calendar-live-dot" />
+                  )}
+                  <span>{statusLabel}</span>
+                </span>
               </>
             )}
           </div>
         </div>
       </button>
     );
+
+    if (!showRail) return <Fragment key={item.id}>{card}</Fragment>;
+    return (
+      <div key={item.id} className="outcome-calendar-day-row">
+        <span className="outcome-calendar-day-rail">{time}</span>
+        {card}
+      </div>
+    );
   };
+
+  const renderNowDivider = () => (
+    <div className="outcome-calendar-now-line" aria-label={`${t("Now")} ${nowClock}`}>
+      <span className="outcome-calendar-now-badge">
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-white" />
+        <span>
+          {t("Now")} · {nowClock}
+        </span>
+      </span>
+      <span className="outcome-calendar-now-rule" aria-hidden="true" />
+    </div>
+  );
 
   return (
     <section
@@ -762,7 +855,7 @@ function DayBoard({
     >
       <header className="outcome-calendar-day-head">
         <div className="flex items-center gap-2.5">
-          <h3 className="text-[14px] font-semibold text-foreground">
+          <h3 className="text-[14.5px] font-semibold tracking-tight text-foreground">
             {dateText(dayStart(date, timeZone), timeZone, locale, {
               year: "numeric",
               month: "long",
@@ -770,7 +863,11 @@ function DayBoard({
               weekday: "long",
             })}
           </h3>
-          {isToday && <span className="outcome-calendar-today-pill">{t("Today")}</span>}
+          {isToday && (
+            <span className="outcome-calendar-today-pill">
+              {t("Today")} · {nowClock}
+            </span>
+          )}
         </div>
         <span className="text-xs text-foreground-secondary tabular-nums">
           {t("{count} items", { count: entries.length })}
@@ -784,19 +881,27 @@ function DayBoard({
         ) : (
           <div className="outcome-calendar-day-grid" data-columns={splitColumns ? "2" : "1"}>
             {allDayItems.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-medium uppercase tracking-wide text-foreground-secondary">
+              <div className="space-y-2.5">
+                <h4 className="text-[11px] font-semibold tracking-wide text-foreground-secondary">
                   {t("All day & deadlines")}
                 </h4>
-                <div className="space-y-2">{allDayItems.map(renderCard)}</div>
+                <div className="space-y-2">{allDayItems.map((item) => renderCard(item, false))}</div>
               </div>
             )}
             {timedItems.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-medium uppercase tracking-wide text-foreground-secondary">
+              <div className="space-y-2.5">
+                <h4 className="text-[11px] font-semibold tracking-wide text-foreground-secondary">
                   {t("Timed schedule")}
                 </h4>
-                <div className="space-y-2">{timedItems.map(renderCard)}</div>
+                <div className="space-y-2">
+                  {timedItems.map((item, index) => (
+                    <Fragment key={item.id}>
+                      {index === nowInsertIndex && renderNowDivider()}
+                      {renderCard(item, true)}
+                    </Fragment>
+                  ))}
+                  {nowInsertIndex === timedItems.length && renderNowDivider()}
+                </div>
               </div>
             )}
           </div>
@@ -836,6 +941,16 @@ export function CalendarPage({
   const generation = useRef(0);
 
   const today = useMemo(() => localDateOf(now, timeZone), [now, timeZone]);
+  const todayDayNumber = Number(today.slice(8, 10));
+  const nowClock = useMemo(
+    () =>
+      dateText(now, timeZone, locale, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      }),
+    [locale, now, timeZone]
+  );
   const days = useMemo(() => calendarDays(selectedDate, view), [selectedDate, view]);
   const grouped = useMemo(() => itemsByDay(items, timeZone), [items, timeZone]);
   const weekRows = view === "month" ? Math.max(1, Math.ceil(days.length / 7)) : 1;
@@ -851,8 +966,15 @@ export function CalendarPage({
     [surfaceSize.width, surfaceSize.height, view, weekRows]
   );
 
-  // Keep "today" accurate across midnight and wake-from-sleep.
-  useEffect(() => subscribeDayClock((nextNow) => setNow(nextNow)), []);
+  // Keep "today" and live clock fresh across minutes, midnight, and wake-from-sleep.
+  useEffect(() => {
+    const unsubscribe = subscribeDayClock((nextNow) => setNow(nextNow));
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => {
+      unsubscribe();
+      window.clearInterval(timer);
+    };
+  }, []);
 
   // Measure the calendar surface so grid density & item limits adapt smoothly on window resize.
   useEffect(() => {
@@ -1029,6 +1151,11 @@ export function CalendarPage({
       current.includes(kind) ? current.filter((entry) => entry !== kind) : [...current, kind]
     );
 
+  const soloOrRestoreKind = (kind: TimeItemKind) =>
+    setSelectedKinds((current) =>
+      current.length === 1 && current[0] === kind ? [...defaultCalendarKinds] : [kind]
+    );
+
   const resetFilters = () => {
     setSelectedKinds([...defaultCalendarKinds]);
     setSelectedBot("");
@@ -1045,33 +1172,51 @@ export function CalendarPage({
       ? isSameMonth(today, selectedDate)
       : periodContainsDate(days, today);
 
-  const periodTitle = useMemo(() => {
+  // Direction to today when viewing away: -1 means today is in the past (left), +1 means future (right).
+  const todayDirection = isViewingToday ? 0 : selectedDate > today ? -1 : 1;
+
+  // Typographic split title (primary month/range + secondary year) for crisp hierarchy.
+  const periodHeading = useMemo(() => {
+    const anchor = dayStart(selectedDate, timeZone);
     if (view === "month") {
-      return dateText(dayStart(selectedDate, timeZone), timeZone, locale, {
-        year: "numeric",
-        month: "long",
-      });
+      return {
+        primary: dateText(anchor, timeZone, locale, { month: "long" }),
+        secondary: dateText(anchor, timeZone, locale, { year: "numeric" }),
+      };
     }
     if (view === "week" && days.length >= 7) {
       const first = dayStart(days[0]!, timeZone);
       const last = dayStart(days[days.length - 1]!, timeZone);
-      const startText = dateText(first, timeZone, locale, {
-        month: "short",
-        day: "numeric",
-      });
-      const endText = dateText(last, timeZone, locale, {
-        year: days[0]!.slice(0, 4) !== days[days.length - 1]!.slice(0, 4) ? "numeric" : undefined,
-        month: "short",
-        day: "numeric",
-      });
-      return `${startText} – ${endText}`;
+      return {
+        primary: `${dateText(first, timeZone, locale, { month: "short", day: "numeric" })} – ${dateText(
+          last,
+          timeZone,
+          locale,
+          { month: "short", day: "numeric" }
+        )}`,
+        secondary: dateText(first, timeZone, locale, { year: "numeric" }),
+      };
     }
-    return dateText(dayStart(selectedDate, timeZone), timeZone, locale, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    return {
+      primary: dateText(anchor, timeZone, locale, { month: "long", day: "numeric" }),
+      secondary: dateText(anchor, timeZone, locale, { year: "numeric", weekday: "short" }),
+    };
   }, [days, locale, selectedDate, timeZone, view]);
+
+  // Period summary breakdown for wide viewports (shown inline in toolbar at zero vertical cost).
+  const periodSummary = useMemo(() => {
+    const counts = new Map<TimeItemKind, number>();
+    let overdue = 0;
+    for (const item of items) {
+      if (item.overdue) overdue += 1;
+      counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
+    }
+    const kinds = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return { kinds, overdue };
+  }, [items]);
+
+  const showToolbarSummary = surfaceSize.width >= 940 && !loading && !error && items.length > 0;
+  const stageKey = `${view}:${days[0] ?? selectedDate}`;
 
   const openDayView = (date: string) => {
     setSelectedDate(date);
@@ -1107,7 +1252,10 @@ export function CalendarPage({
       >
         <div className="outcome-calendar-toolbar">
           <div className="outcome-calendar-toolbar-group">
-            <h2 className="outcome-calendar-period-title">{periodTitle}</h2>
+            <h2 className="outcome-calendar-period-title">
+              <span className="outcome-calendar-period-primary">{periodHeading.primary}</span>
+              <span className="outcome-calendar-period-secondary">{periodHeading.secondary}</span>
+            </h2>
             <div className="outcome-calendar-nav-group">
               <button
                 type="button"
@@ -1134,12 +1282,13 @@ export function CalendarPage({
               onClick={jumpToToday}
               title={t("Back to today")}
             >
-              {isViewingToday ? (
-                <span aria-hidden="true" className="outcome-calendar-today-dot" />
-              ) : (
-                <LocateFixed aria-hidden="true" className="size-3.5 shrink-0" />
-              )}
+              {todayDirection === -1 && <ArrowLeft aria-hidden="true" className="size-3 shrink-0" />}
+              <span aria-hidden="true" className="outcome-calendar-mini-day">
+                <span className="outcome-calendar-mini-day-cap" />
+                <span className="outcome-calendar-mini-day-num">{todayDayNumber}</span>
+              </span>
               <span>{isViewingToday ? t("Today") : t("Back to today")}</span>
+              {todayDirection === 1 && <ArrowRight aria-hidden="true" className="size-3 shrink-0" />}
             </button>
             {loading && (
               <span className="outcome-calendar-status-pill" role="status">
@@ -1155,6 +1304,31 @@ export function CalendarPage({
           </div>
 
           <div className="outcome-calendar-toolbar-group">
+            {showToolbarSummary && (
+              <div className="outcome-calendar-summary">
+                {periodSummary.overdue > 0 && (
+                  <span className="outcome-calendar-summary-chip" data-cal-overdue="true">
+                    <AlertCircle aria-hidden="true" className="size-3" />
+                    <span>{t("{count} overdue", { count: periodSummary.overdue })}</span>
+                  </span>
+                )}
+                {periodSummary.kinds.map(([kind, count]) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    className="outcome-calendar-summary-chip"
+                    data-cal-kind={kind}
+                    onClick={() => soloOrRestoreKind(kind)}
+                    title={t(kindLabels[kind])}
+                  >
+                    <span className="outcome-calendar-dot" data-cal-kind={kind} aria-hidden="true" />
+                    <span>{t(kindLabels[kind])}</span>
+                    <span className="font-semibold text-foreground">{count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -1187,6 +1361,7 @@ export function CalendarPage({
                 <div className="flex flex-wrap gap-1.5">
                   {defaultCalendarKinds.map((kind) => {
                     const active = selectedKinds.includes(kind);
+                    const Icon = kindIcons[kind];
                     return (
                       <button
                         key={kind}
@@ -1196,10 +1371,10 @@ export function CalendarPage({
                         aria-pressed={active}
                         onClick={() => toggleKind(kind)}
                       >
-                        <span
-                          className="outcome-calendar-dot"
-                          data-cal-kind={kind}
+                        <Icon
                           aria-hidden="true"
+                          className="outcome-calendar-kind-icon size-3"
+                          strokeWidth={2}
                         />
                         <span>{t(kindLabels[kind])}</span>
                       </button>
@@ -1292,57 +1467,62 @@ export function CalendarPage({
           className="outcome-calendar-surface"
           data-calendar-density={metrics.density}
         >
-          {view === "month" && (
-            <MonthGrid
-              days={days}
-              selectedDate={selectedDate}
-              today={today}
-              todayPulse={todayPulse}
-              items={grouped}
-              timeZone={timeZone}
-              locale={locale}
-              bots={bots}
-              metrics={metrics}
-              dragOverDate={dragOverDate}
-              onDragOverDate={setDragOverDate}
-              onDragStart={setDragged}
-              onDrop={(date) => void reschedule(date)}
-              onOpen={openItem}
-              onOpenDay={openDayView}
-            />
-          )}
-          {view === "week" && (
-            <WeekGrid
-              days={days}
-              today={today}
-              todayPulse={todayPulse}
-              items={grouped}
-              timeZone={timeZone}
-              locale={locale}
-              bots={bots}
-              metrics={metrics}
-              dragOverDate={dragOverDate}
-              onDragOverDate={setDragOverDate}
-              onDragStart={setDragged}
-              onDrop={(date) => void reschedule(date)}
-              onOpen={openItem}
-              onOpenDay={openDayView}
-            />
-          )}
-          {view === "day" && (
-            <DayBoard
-              date={selectedDate}
-              today={today}
-              entries={grouped.get(selectedDate) ?? []}
-              timeZone={timeZone}
-              locale={locale}
-              bots={bots}
-              metrics={metrics}
-              onDragStart={setDragged}
-              onDrop={(date) => void reschedule(date)}
-              onOpen={openItem}
-            />
-          )}
+          <div key={stageKey} className="outcome-calendar-stage">
+            {view === "month" && (
+              <MonthGrid
+                days={days}
+                selectedDate={selectedDate}
+                today={today}
+                todayPulse={todayPulse}
+                items={grouped}
+                timeZone={timeZone}
+                locale={locale}
+                bots={bots}
+                metrics={metrics}
+                dragOverDate={dragOverDate}
+                onDragOverDate={setDragOverDate}
+                onDragStart={setDragged}
+                onDrop={(date) => void reschedule(date)}
+                onOpen={openItem}
+                onOpenDay={openDayView}
+              />
+            )}
+            {view === "week" && (
+              <WeekGrid
+                days={days}
+                today={today}
+                todayPulse={todayPulse}
+                nowClock={nowClock}
+                items={grouped}
+                timeZone={timeZone}
+                locale={locale}
+                bots={bots}
+                metrics={metrics}
+                dragOverDate={dragOverDate}
+                onDragOverDate={setDragOverDate}
+                onDragStart={setDragged}
+                onDrop={(date) => void reschedule(date)}
+                onOpen={openItem}
+                onOpenDay={openDayView}
+              />
+            )}
+            {view === "day" && (
+              <DayBoard
+                date={selectedDate}
+                today={today}
+                now={now}
+                nowClock={nowClock}
+                entries={grouped.get(selectedDate) ?? []}
+                timeZone={timeZone}
+                locale={locale}
+                bots={bots}
+                metrics={metrics}
+                onDragStart={setDragged}
+                onDrop={(date) => void reschedule(date)}
+                onOpen={openItem}
+              />
+            )}
+          </div>
         </div>
       </div>
     </section>
