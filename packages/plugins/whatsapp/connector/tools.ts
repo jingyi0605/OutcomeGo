@@ -27,7 +27,7 @@ export function whatsappTools(account: WhatsAppAccount): Tool[] {
       tool("whatsapp_link_status", "Inspect device approval and collector readiness.", {}, [], () => account.linkStatus()),
       tool("whatsapp_cancel_link", "Stop the matching device approval.", { sessionId: text("Active approval session ID", 128) }, ["sessionId"], (a) => account.cancelLink(a.sessionId), "write"),
       tool("whatsapp_remove_account", "Stop account use before private state removal.", {}, [], () => account.removeAccount(), "destructive"),
-    ].map((entry) => ({ ...entry, _meta: { "openteam/hostOnly": true },
+    ].map((entry) => ({ ...entry, _meta: { "outcomego/hostOnly": true, "openteam/hostOnly": true },
       run: async (args: Args) => new ToolContent([{ type: "text", text: JSON.stringify(await entry.run(args)) }]) })),
     tool("restart_sync", "Restart this account's background sync after troubleshooting. Does not pair or send messages.", {}, [], () => account.restart(), "write"),
     tool("list_chats", "Find retained WhatsApp chats by name or number, and inspect unread, archive, pin, and mute state. Reads local data without marking messages read.", {

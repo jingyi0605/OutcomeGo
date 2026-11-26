@@ -33,7 +33,7 @@ test("installed WhatsApp adapter uses shared QR projection across cancellation, 
   await writeFile(shim, `#!${process.execPath}\n${await native.outputs[0]!.text()}`); await chmod(shim, 0o700);
   const input = { ...connector.configuration!, command: process.execPath, args: ["${PLUGIN_ROOT}/connector/server.mjs"],
     persistentState: connector.persistentState, packageFiles: { ...definition.files, "connector/server.mjs": await bundle.outputs[0]!.text() },
-    env: { HOME: root, OPENTEAM_PLUGIN_ACCOUNT_ID: accountId, WHATSAPP_TEST_NATIVE_EXECUTABLE: shim, WHATSAPP_READ_ONLY: "true" } };
+    env: { HOME: root, OUTCOMEGO_PLUGIN_ACCOUNT_ID: accountId, WHATSAPP_TEST_NATIVE_EXECUTABLE: shim, WHATSAPP_READ_ONLY: "true" } };
   const call = async (name: string, args = {}) => deviceLinkResult(await manager.call(accountId, input, name, args, generation));
   const status = () => call("whatsapp_link_status");
   const control = (value: string) => writeFile(join(state, "control"), value);
@@ -41,7 +41,11 @@ test("installed WhatsApp adapter uses shared QR projection across cancellation, 
     const inventory = await manager.discover(accountId, input, generation);
     const hidden = connectorHostTools(connector);
     expect(hidden).toHaveLength(5);
-    for (const name of hidden) expect(inventory.find((t: any) => t.name === name)?._meta?.["openteam/hostOnly"]).toBe(true);
+    for (const name of hidden) {
+      const meta = inventory.find((t: any) => t.name === name)?._meta;
+      expect(meta?.["outcomego/hostOnly"]).toBe(true);
+      expect(meta?.["openteam/hostOnly"]).toBe(true);
+    }
     const transport: any = new PluginTransport({ pluginConnection: { findUnique: async () => ({ connectorKey: connector.key, installation: { manifest: definition } }) } } as any, {} as any, "", async () => Response.json({ tools: inventory }));
     transport.stdioRuntime = async () => ({});
     const visible = await transport.discoverStdio({ id: accountId, configuration: {} });

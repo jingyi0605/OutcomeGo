@@ -18,9 +18,10 @@ async function fixture() {
 
 test("account stores are stable, isolated, and do not inherit provider secrets", () => {
   const first = settings({ OPENTEAM_PLUGIN_ACCOUNT_ID: "../../first", OTHER_API_KEY: "secret", WACLI_READONLY: "1", WACLI_DEVICE_LABEL: "Other client", WACLI_DEVICE_PLATFORM: "MACOS" }, "/home/box");
-  const same = settings({ OPENTEAM_PLUGIN_ACCOUNT_ID: "../../first" }, "/home/box");
+  const same = settings({ OUTCOMEGO_PLUGIN_ACCOUNT_ID: "../../first" }, "/home/box");
+  const preferred = settings({ OUTCOMEGO_PLUGIN_ACCOUNT_ID: "../../first", OPENTEAM_PLUGIN_ACCOUNT_ID: "legacy-other" }, "/home/box");
   const second = settings({ OPENTEAM_PLUGIN_ACCOUNT_ID: "second" }, "/home/box");
-  expect(first.store).toBe(same.store); expect(first.store).not.toBe(second.store);
+  expect(first.store).toBe(same.store); expect(first.store).toBe(preferred.store); expect(first.store).not.toBe(second.store);
   expect(first.store).toStartWith("/home/box/.local/share/openteam/whatsapp/");
   expect(first.store).not.toContain("..");
   expect(first.env.OTHER_API_KEY).toBeUndefined(); expect(first.env.WACLI_READONLY).toBeUndefined();

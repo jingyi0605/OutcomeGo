@@ -9,8 +9,8 @@ import release from "./release.json";
 
 export type Settings = ReturnType<typeof settings>;
 export function settings(env: Record<string, string | undefined> = process.env, home = homedir(), options: { readOnly?: string; maxMessages?: string } = {}) {
-  const accountId = env.OPENTEAM_PLUGIN_ACCOUNT_ID;
-  if (!accountId || accountId.length > 200) throw new Error("WhatsApp requires an OpenTeam plugin account ID. Connect the account in Marketplace.");
+  const accountId = env.OUTCOMEGO_PLUGIN_ACCOUNT_ID || env.OPENTEAM_PLUGIN_ACCOUNT_ID;
+  if (!accountId || accountId.length > 200) throw new Error("WhatsApp requires a plugin account ID. Connect the account in Marketplace.");
   const accountKey = createHash("sha256").update(accountId).digest("hex").slice(0, 24);
   const readOnly = options.readOnly ?? env.WHATSAPP_READ_ONLY ?? "false";
   if (!["true", "false"].includes(readOnly)) throw new Error("Read-only access must be true or false.");
