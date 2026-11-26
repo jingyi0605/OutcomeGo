@@ -618,7 +618,7 @@ export class LocalDeployManager {
       this.operation = "starting";
       try {
         const args = ["restart", ...(validated ? [validated] : []), "--json", "--yes"];
-        const { status, code } = await this.command(args);
+        const { status, code } = await this.command(args, { bundled: true });
         if (status !== 0) throw new Error(code ?? "STACK_START_FAILED");
       } finally {
         this.operation = undefined;
@@ -663,13 +663,16 @@ export class LocalDeployManager {
     if (typeof enabled !== "boolean") throw new Error("INVALID_INPUT");
     return this.mutate(async () => {
       this.assertCanManage(serverUrl);
-      const { status, code, output } = await this.command([
-        "autostart",
-        "set",
-        "--enabled",
-        enabled ? "true" : "false",
-        "--json",
-      ]);
+      const { status, code, output } = await this.command(
+        [
+          "autostart",
+          "set",
+          "--enabled",
+          enabled ? "true" : "false",
+          "--json",
+        ],
+        { bundled: true, timeout: 30_000 }
+      );
       if (status !== 0) throw new Error(code ?? "UNKNOWN");
       return parseJsonOutput<LocalAutostartStatus>(output);
     });
@@ -703,7 +706,7 @@ export class LocalDeployManager {
       if (validated.applyWslconfig) args.push("--apply-wslconfig");
       if (validated.restartWsl) args.push("--restart-wsl");
       args.push("--json", "--yes");
-      const { status, code, output } = await this.command(args);
+      const { status, code, output } = await this.command(args, { bundled: true });
       if (status !== 0) throw new Error(code ?? "STACK_START_FAILED");
       return parseJsonOutput<LocalResourceSnapshot>(output);
     });
@@ -726,7 +729,7 @@ export class LocalDeployManager {
       this.assertCanManage(serverUrl);
       const { status, code, output } = await this.command(
         ["proxy", "set", "--config-stdin", "--yes", "--json"],
-        { stdin: JSON.stringify(validated), secretValues }
+        { bundled: true, stdin: JSON.stringify(validated), secretValues }
       );
       if (status !== 0) throw new Error(code ?? "STACK_START_FAILED");
       return parseJsonOutput<LocalProxyConfig>(output);
