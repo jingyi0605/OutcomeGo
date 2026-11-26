@@ -225,12 +225,13 @@ export function TodoRow({ item, disabled, act, update, attention, selection, dis
   );
 }
 
-export function TodoPanel({ client, hiddenIds, onChanged, refreshVersion = 0, handoff }: {
+export function TodoPanel({ client, hiddenIds, onChanged, refreshVersion = 0, handoff, showComposer = true }: {
   client: TodoClient;
   hiddenIds?: ReadonlySet<string>;
   onChanged?: () => void;
   refreshVersion?: number;
   handoff?: Omit<TodoHandoffActions, "change">;
+  showComposer?: boolean;
 }) {
   const { t } = useI18n();
   const [view, setView] = useState<PanelView>("all");
@@ -370,7 +371,7 @@ export function TodoPanel({ client, hiddenIds, onChanged, refreshVersion = 0, ha
           {view !== "history" && <OutcomeButton type="button" variant="ghost" disabled={busy} onClick={() => changeView("history")}>{t("Show to-do history")}</OutcomeButton>}
         </div>
       </div>
-      {view === "all" && <TodoComposer disabled={acting} create={async (input) => {
+      {showComposer && view === "all" && <TodoComposer disabled={acting} create={async (input) => {
         setCreating(true);
         try {
           const added = await client.create(input);

@@ -244,7 +244,23 @@ export default function OutcomeWorkspace({
               />
             )}
             {tab === "inbox" && (
-              <OutcomeInbox client={api.outcomeInbox} onSelect={select} refreshVersion={version} />
+              <OutcomeInbox
+                client={api.outcomeInbox}
+                todos={api.outcomes.todos}
+                todoHandoff={
+                  api.outcomes.todos
+                    ? {
+                        bots,
+                        client: api.outcomes.todos,
+                        goals: api.outcomes,
+                        onOpenChannel,
+                        onSelectOutcome: review,
+                      }
+                    : undefined
+                }
+                onSelect={select}
+                refreshVersion={version}
+              />
             )}
             {tab === "explore" && (
               <ExplorePanel

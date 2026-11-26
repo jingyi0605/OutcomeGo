@@ -411,3 +411,55 @@ test("an auto-accepted item is labeled and can be dismissed directly", async () 
   expect(changes[0]).toEqual({ id: "Item iota", action: "dismiss", input: { revision: 3 } });
   expect(host.textContent).not.toContain("Item iota");
 });
+
+test("OutcomeInbox exposes To-dos management (current, suggestions, history) without the inline composer", async () => {
+  const { OutcomeInbox } = await import("../src/renderer/components/outcomego/outcomes/inbox/outcome-inbox");
+  const { I18nProvider } = await import("../src/renderer/lib/i18n");
+  const listCalls: Array<string | undefined> = [];
+  const items = [
+    todo("Later this week", { displayState: "this_week", dueAt: timestamp }),
+    suggestion("s1", "Suggested work"),
+    todo("Finished work", { status: "done", displayState: "done" }),
+  ];
+  const todosClient = {
+    list: async (query?: { view?: string }) => {
+      listCalls.push(query?.view);
+      return {
+        items: query?.view === "history"
+          ? items.filter((item) => item.status === "done")
+          : query?.view === "suggestions"
+            ? items.filter((item) => item.status === "suggested")
+            : items.filter((item) => item.status === "open"),
+        nextCursor: null,
+      };
+    },
+    create: async () => { throw new Error("unexpected create"); },
+    update: async () => items[0]!,
+    act: async () => items[0]!,
+    bulk: async () => ({ items: [] }),
+    handoff: async () => items[0]!,
+    linkOutcome: async () => items[0]!,
+  } as never;
+  host = dom.document.createElement("div");
+  dom.document.body.append(host);
+  root = createRoot(host);
+  await act(async () =>
+    root.render(
+      createElement(I18nProvider, {
+        children: createElement(OutcomeInbox, {
+          client: { list: async () => ({ items: [], nextCursor: null }), decision: async () => null, resolve: async () => null },
+          todos: todosClient,
+          onSelect: () => undefined,
+        }),
+      })
+    )
+  );
+  await click(button("To-dos"));
+  expect(host.querySelector('input[aria-label="New to-do"]')).toBeNull();
+  expect(host.textContent).toContain("Later this week");
+  await click(button("To-do suggestions"));
+  expect(host.textContent).toContain("Suggested work");
+  await click(button("Show to-do history"));
+  expect(host.textContent).toContain("Finished work");
+  expect(listCalls).toEqual(["all", "suggestions", "history"]);
+});
