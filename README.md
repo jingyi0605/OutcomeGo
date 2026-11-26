@@ -213,68 +213,6 @@ OutcomeGo 之所以存在，是因为 OpenTeam 是一个非常出色的项目，
 并通过桌面端和移动端随时找到你。架构清晰，产品打磨精细，迭代速度令人惊叹。
 本仓库的一切都建立在这项工作之上，我们会有选择地、定期合并上游的更新，持续从中受益。
 
-### OpenTeam 提供的能力
-
-以下能力来自上游 OpenTeam，在本分支中的用法相同。
-
-- **给 bot 一台电脑。** 每个 bot 有自己的屏幕和浏览器。所有 bot 共享工作区和网站登录状态，
-  可以在彼此的文件上继续工作，你只需登录一次。
-- **保留上下文。** 对话在重启后继续。bot 会跨对话记住关于自己和你的信息。
-- **像团队一样工作。** 把多个 bot 拉进群聊，让它们互相发消息，或把任务委派给子 Agent。
-- **自动化重复工作。** 把指令保存为例行任务，按计划运行，或响应配置好的事件。
-- **连接你的工具。** 为 Gmail、GitHub、Slack、Notion 等服务添加技能和插件，或接入自定义 MCP 服务器。
-  已连接的账号对每个 bot 都可用。
-
-[![OpenTeam 桌面端和 iPhone 应用显示同一份供应商对比和工作日价格检查](docs/images/openteam-desktop-mobile.png)](docs/images/openteam-desktop-mobile.png)
-
-### 中国大陆本地化生态兼容
-
-OpenTeam 依赖的许多服务和网络环境，在中国大陆难以访问或并不适用。本分支负责让它在国内好用。
-
-已有：
-
-- 国内可用的语音与语音识别服务，例如火山引擎。
-- 中文界面的 Android 客户端。
-- 微信、钉钉、高德地图插件。
-
-计划中：
-
-- 不依赖大陆被屏蔽或不稳定服务的模型、推送和消息渠道集成。例如 Firebase 推送在国内手机上通常收不到。
-- 不依赖上游基础设施的默认配置、文档、更新检查和发布渠道。
-
-对所有人都有益的通用修复，会以 pull request 的形式提交给上游；只对中国有意义的工作留在本分支。
-
-### 本分支增加的内容
-
-本分支最近一次与上游同步到 OpenTeam 0.0.19（2026-11-15）。本分支使用独立的版本线，不沿用上游的版本号。
-在上游能力之上，本分支增加了：
-
-- 原生 **Android 客户端**：聊天、bot、例行任务、推送通知、分享入口和云端电脑查看器。
-  已作为 [#236](https://github.com/raghavpillai/openteam/pull/236) 提交给上游。
-- 覆盖服务端、worker、桌面端、iOS 和 Android 的**实时语音对话**：包含语音活动检测、Opus 传输、
-  火山引擎和 Deepgram 服务商，以及对耗时工具操作的语音旁白。
-- **模型服务商目录与自定义服务商**：服务端支持 OpenAI Chat、OpenAI Responses 和 Anthropic
-  Messages 协议，内置 38 个厂商预设；桌面端、iOS 和 Android 都可以从设置中添加服务商、
-  选择协议并显示厂商图标。
-- **Android 发布更新**：GitHub Release 提供签名 APK 和 `android-update.json`，应用会校验
-  更新清单、APK 校验和、应用 ID、版本号和签名证书后再安装；调试包使用独立的 `.debug`
-  应用 ID，可以和正式版并存。
-- Android 设置、登录、会话、聊天和例程页面支持震动反馈；桌面端、iOS 和 Android 的
-  OutcomeGo 品牌图标已统一。
-- Magpie 多模态模型元数据（[#198](https://github.com/raghavpillai/openteam/pull/198)）和网络修复
-  （[#250](https://github.com/raghavpillai/openteam/pull/250)、
-  [#251](https://github.com/raghavpillai/openteam/pull/251)）。
-
-完整清单见 [FORK.md](FORK.md)。版本和安装包见 [GitHub Releases](https://github.com/jingyi0605/OutcomeGo/releases)。iOS Release 按决定延期；真实设备升级和备份导入仍需单独验收。
-签名、CI 和发布门槛见 [FORK.md](FORK.md) 与[发布决策记录](specs/004.1-项目更名与下一版本发布/docs/release-decision.md)。
-
-### 分支
-
-| 分支 | 用途 |
-| --- | --- |
-| `OutcomeGo` | GitHub 默认分支和产品主线，定期合并上游。 |
-| `main` | 上游 `main` 的镜像，不接收本地提交。向上游提交 PR 从这里开始。 |
-
 ## 许可证
 
 OutcomeGo 采用 [GNU 通用公共许可证 v3.0](LICENSE)，与 OpenTeam 相同。部分捆绑的第三方组件，
