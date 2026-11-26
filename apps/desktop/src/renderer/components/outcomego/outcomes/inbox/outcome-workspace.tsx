@@ -228,7 +228,6 @@ export default function OutcomeWorkspace({
                 onOpenScheduledGoal={openScheduledGoal}
                 activityPolicy={{
                   cardMaxItems: policy["activity.cardMaxItems"] as number,
-                  dashboardLayout: policy["activity.dashboardLayout"] as string,
                 }}
                 refreshVersion={version}
               />

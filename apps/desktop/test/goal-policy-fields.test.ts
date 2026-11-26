@@ -95,8 +95,8 @@ describe("turning what the owner typed into a value to save", () => {
   });
 
   test("an enum field accepts only its listed options", () => {
-    const choice = TASK_POLICY_FIELDS.find((candidate) => candidate.type === "enum")!;
-    expect(parsePolicyInput(choice, choice.options![0]!)).toEqual({ ok: true, value: choice.options![0]! });
+    const choice = { key: "sample.choice", group: "activity", type: "enum", options: ["alpha", "beta"], initial: "alpha" } as const;
+    expect(parsePolicyInput(choice, "alpha")).toEqual({ ok: true, value: "alpha" });
     expect(parsePolicyInput(choice, "not-an-option").ok).toBe(false);
   });
 });

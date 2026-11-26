@@ -40,11 +40,6 @@ export function policyCopy(key: TaskPolicyKey): { title: string; description: st
         title: translateCurrent("Most items shown as cards"),
         description: translateCurrent("Up to this many items are shown as cards; more are shown as a table."),
       };
-    case "activity.dashboardLayout":
-      return {
-        title: translateCurrent("Dashboard layout"),
-        description: translateCurrent("Whether the dashboard shows the activity list, the goal lanes, or both, so you can compare them."),
-      };
     case "todo.suggestionTtlDays":
       return {
         title: translateCurrent("Expire unanswered suggestions after"),
@@ -108,12 +103,7 @@ export function policyCopy(key: TaskPolicyKey): { title: string; description: st
   }
 }
 
-/** The label of one choice of an option field. Only the dashboard layout has choices today. */
-export function policyOptionLabel(key: TaskPolicyKey, option: string): string {
-  if (key === "activity.dashboardLayout") {
-    if (option === "both") return translateCurrent("Activity and goal lanes together");
-    if (option === "activity") return translateCurrent("Activity only");
-    if (option === "lanes") return translateCurrent("Goal lanes only");
-  }
+/** The label of one choice of an option field. */
+export function policyOptionLabel(_key: TaskPolicyKey, option: string): string {
   return option;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   CheckCheck,
   ChevronRight,
@@ -6,8 +6,6 @@ import {
   ClipboardCheck,
   Hand,
   Lightbulb,
-  Plus,
-  Target,
   type LucideIcon,
 } from "lucide-react";
 import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-view";
@@ -20,7 +18,6 @@ import type { OutcomeClient } from "../../../../client/outcome-api";
 import { subscribeOutcomeListRefresh } from "../../../../lib/outcome-events";
 import { useI18n } from "../../../../lib/i18n";
 import type { InboxClient } from "../inbox/inbox-api";
-import { outcomeStatusLabels } from "../outcome-list";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { OutcomeButton, OutcomeRefresh } from "../outcome-ui";
 import {
@@ -28,23 +25,20 @@ import {
   attentionRows,
   needsMeQueue,
   attentionVerbs,
-  BOT_OUTCOME_STATUSES,
   brief,
   DASHBOARD_ROW_LIMIT,
   formatCount,
-  laneOutcomes,
   STALE_AFTER_MINUTES,
-  STUCK_OUTCOME_STATUSES,
   summarizeOutcomes,
   waitingLabel,
   waitingMinutes,
   type AttentionRow,
 } from "./dashboard-state";
 import { ActivitySection } from "./activity-section";
-import { dashboardSections, styleForActivity } from "./activity-state";
+import { mergeInProgressItems, styleForActivity } from "./activity-state";
 import { GoalFocusDetail, type GoalFocusClient } from "./goal-focus";
 import { QuickDecision } from "./quick-decision";
-import { TodoPanel, TodoRow, todoAttentionLabels } from "./todo-panel";
+import { TodoRow, todoAttentionLabels } from "./todo-panel";
 
 interface Loaded {
   outcomes: OutcomeSummary[];
@@ -92,13 +86,23 @@ function TodoDigestCard({ digest }: { digest: TodoDigest }) {
   );
 }
 
-/** One quiet number with a label; the "needs you" card is the only one that takes a color. */
-function Metric({ label, value, tone }: { label: string; value: string; tone?: "attention" }) {
+/** One compact clickable status pill; the "needs you" pill takes a warm tone when items wait. */
+function Metric({
+  label,
+  value,
+  tone,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  tone?: "attention";
+  onClick: () => void;
+}) {
   return (
-    <div className="outcome-dash-metric" data-tone={tone}>
+    <button type="button" className="outcome-dash-metric" data-tone={tone} onClick={onClick}>
       <span className="outcome-dash-metric-value">{value}</span>
       <span className="outcome-dash-metric-label">{label}</span>
-    </div>
+    </button>
   );
 }
 
@@ -245,30 +249,11 @@ function FocusStep({
   );
 }
 
-function Lane({
-  title,
-  count,
-  children,
-}: {
-  title: string;
-  count: number;
-  children: ReactNode;
-}) {
-  return (
-    <div className="outcome-dash-lane">
-      <h3>
-        {title}
-        <span>{count}</span>
-      </h3>
-      {children}
-    </div>
-  );
-}
-
 /**
- * First screen of the goals page. Top: how things stand. Middle: whose turn it is — the owner's list first,
- * led by one focus card that can answer a decision in place. Bottom: what the Bots are doing and what is
- * paused or failed. Each goal shows once; the other tabs hold the complete lists.
+ * First screen of the goals page. Top: compact clickable status strip + minimal actions.
+ * First focus: what needs the owner's action right now.
+ * Second focus: unified "In progress" work (bot activity + active/paused/failed goals, deduplicated).
+ * On demand: upcoming scheduled work when present.
  */
 export function OutcomeDashboard({
   outcomes,
@@ -278,7 +263,6 @@ export function OutcomeDashboard({
   onSelectStep,
   onShowSteps,
   onShowGoals,
-  onCreateGoal,
   onCreateIdea,
   onOpenChannel,
   onOpenRoutine,
@@ -293,18 +277,17 @@ export function OutcomeDashboard({
   onSelectStep: (item: OutcomeInboxItemView) => void;
   onShowSteps: () => void;
   onShowGoals: () => void;
-  onCreateGoal: () => void;
+  onCreateGoal?: () => void;
   onCreateIdea: () => void;
   /** Opens a channel's conversation: where a request or a channel routine leads. Without it those rows are text only. */
   onOpenChannel?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId: string) => void;
   onOpenScheduledGoal?: (id: string) => void;
   /** The owner's choices for the activity area; each falls back to the policy's initial value. */
-  activityPolicy?: { cardMaxItems?: number | undefined; dashboardLayout?: string | undefined };
+  activityPolicy?: { cardMaxItems?: number | undefined };
   refreshVersion?: number;
 }) {
   const { t } = useI18n();
-  const layout = dashboardSections(activityPolicy?.dashboardLayout ?? DEFAULT_POLICY["activity.dashboardLayout"]);
   const cardMaxItems = activityPolicy?.cardMaxItems ?? (DEFAULT_POLICY["activity.cardMaxItems"] as number);
   const [showAll, setShowAll] = useState(false);
   const [data, setData] = useState<Loaded | null>(null);
@@ -313,7 +296,7 @@ export function OutcomeDashboard({
   const [allQueue, setAllQueue] = useState(false);
   const [todoActing, setTodoActing] = useState(false);
   const [todoError, setTodoError] = useState(false);
-  const [todoRefreshVersion, setTodoRefreshVersion] = useState(0);
+  const inProgressRef = useRef<HTMLElement>(null);
   const generation = useRef(0);
   async function load() {
     const request = ++generation.current;
@@ -324,9 +307,8 @@ export function OutcomeDashboard({
         outcomes.list(new URLSearchParams({ limit: String(OUTCOME_LIMITS.listPageSizeMax) }).toString()),
         // An older server without the Inbox still gets a working dashboard, just without steps.
         inbox.list({ status: "pending" }).catch(() => ({ items: [], nextCursor: null })),
-        // The owner's activity is only asked for when it will be shown. A server without it, or one that fails, just
-        // leaves the area out: the goals and the owner's list do not depend on it.
-        (layout.activity || onOpenScheduledGoal) && outcomes.activity
+        // A server without the activity endpoint, or one that fails, simply leaves bot activity out; goals still show.
+        outcomes.activity
           ? outcomes.activity({ includeAll: showAll }).catch(() => null)
           : Promise.resolve(null),
         // Requests nobody can move join the owner's list. An older server just has none.
@@ -356,7 +338,7 @@ export function OutcomeDashboard({
       window.clearInterval(interval);
       unsubscribe();
     };
-  }, [outcomes, inbox, showAll, layout.activity, Boolean(onOpenScheduledGoal)]);
+  }, [outcomes, inbox, showAll]);
   useEffect(() => {
     if (refreshVersion > 0) void load();
   }, [refreshVersion]);
@@ -370,9 +352,7 @@ export function OutcomeDashboard({
   const queue = focus ? entries.slice(1) : entries;
   const rowLimit = DASHBOARD_ROW_LIMIT - 1;
   const visibleQueue = allQueue ? queue : queue.slice(0, rowLimit);
-  const visibleTodos = new Set(visibleQueue.flatMap((entry) => entry.kind === "todo" ? [entry.item.todo.id] : []));
-  const working = laneOutcomes(goals, BOT_OUTCOME_STATUSES, attention);
-  const stuck = laneOutcomes(goals, STUCK_OUTCOME_STATUSES, attention);
+  const inProgressItems = mergeInProgressItems(data?.activity, goals, attention);
   const attentionCount = data ? `${formatCount(entries.length)}${data.moreSteps ? "+" : ""}` : "–";
   const value = (count: number) => (data ? formatCount(count) : "–");
   const open = (row: AttentionRow) => (row.step ? onSelectStep(row.step) : onSelectOutcome(row.outcomeId));
@@ -385,7 +365,6 @@ export function OutcomeDashboard({
       if (updated.status === "done" || updated.status === "dismissed" || updated.displayState === "snoozed") {
         setData((current) => current && { ...current, todos: current.todos.filter((entry) => entry.todo.id !== updated.id) });
       }
-      setTodoRefreshVersion((version) => version + 1);
       void load();
       return true;
     } catch {
@@ -398,8 +377,6 @@ export function OutcomeDashboard({
   }
   const actOnTodo = (item: TodoItemView, action: TodoAction, input?: Omit<TodoActionInput, "revision">) =>
     outcomes.todos ? mutateTodo(() => outcomes.todos!.act(item.id, action, { revision: item.revision, ...input })) : Promise.resolve(false);
-  const botName = (outcome: OutcomeSummary) =>
-    bots.find((bot) => bot.id === outcome.botId)?.name ?? t("Bot");
   const todoHandoff = outcomes.todos && { bots, client: outcomes.todos, goals: outcomes, onOpenChannel, onSelectOutcome };
   const canOpenActivity = (item: ActivityItem) =>
     item.link.type === "outcome" || (item.link.type === "channel" && onOpenChannel !== undefined) ||
@@ -409,63 +386,55 @@ export function OutcomeDashboard({
     else if (item.link.type === "channel") onOpenChannel?.(item.link.id);
     else if (item.link.type === "routine") onOpenRoutine?.(item.link.id, item.botId);
   };
-  const lane = (items: { rows: OutcomeSummary[]; total: number }) =>
-    items.rows.length === 0 ? (
-      <p className="outcome-dash-lane-empty">{t("Nothing here.")}</p>
-    ) : (
-      <ul className="outcome-rows">
-        {items.rows.map((outcome) => (
-          <li key={outcome.id}>
-            <button className="outcome-row" onClick={() => onSelectOutcome(outcome.id)}>
-              <span className="min-w-0 flex-1">
-                <span className="outcome-row-title">{outcome.title}</span>
-                <span className="outcome-row-meta">
-                  {botName(outcome)} · {new Date(outcome.updatedAt).toLocaleString()}
-                </span>
-              </span>
-              <span className="outcome-status" data-outcome-status={outcome.status}>
-                {t(outcomeStatusLabels[outcome.status])}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    );
+  const jumpToInProgress = () => {
+    if (inProgressItems.length > 0 && inProgressRef.current?.scrollIntoView) {
+      inProgressRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      onShowGoals();
+    }
+  };
   return (
     <section aria-label={t("Dashboard")} aria-busy={busy} className="outcome-dash">
-      <div className="outcome-toolbar">
-        <p className="outcome-toolbar-description">{t("Where your goals stand right now.")}</p>
+      <div className="outcome-dash-topbar">
+        <div className="outcome-dash-metrics" role="group" aria-label={t("Overview summary")}>
+          <Metric
+            label={t("Needs your action")}
+            value={attentionCount}
+            tone={entries.length > 0 ? "attention" : undefined}
+            onClick={onShowSteps}
+          />
+          <Metric
+            label={t("In progress")}
+            value={value(inProgressItems.length)}
+            onClick={jumpToInProgress}
+          />
+          <Metric
+            label={t("Accepted")}
+            value={value(stats.accepted)}
+            onClick={onShowGoals}
+          />
+          <Metric
+            label={t("All goals")}
+            value={value(stats.total)}
+            onClick={onShowGoals}
+          />
+        </div>
         <div className="outcome-toolbar-controls">
           <OutcomeButton onClick={onCreateIdea}>
             <Lightbulb aria-hidden="true" className="size-3.5" />
             {t("Capture an idea")}
           </OutcomeButton>
-          <OutcomeRefresh busy={busy} onRefresh={() => {
-            setTodoRefreshVersion((version) => version + 1);
-            void load();
-          }} />
+          <OutcomeRefresh busy={busy} onRefresh={() => void load()} />
         </div>
       </div>
-      {outcomes.todos && <TodoPanel client={outcomes.todos} hiddenIds={visibleTodos} onChanged={() => void load()} refreshVersion={todoRefreshVersion} handoff={todoHandoff} />}
       {error && (
-        <p role="alert" className="text-xs text-destructive">
+        <p role="alert" className="mt-3 text-xs text-destructive">
           {t("Could not load goals. Try again.")}{" "}
           <OutcomeButton variant="ghost" onClick={() => void load()}>
             {t("Retry")}
           </OutcomeButton>
         </p>
       )}
-
-      <div className="outcome-dash-metrics">
-        <Metric label={t("In progress")} value={value(stats.active)} />
-        <Metric
-          label={t("Needs your action")}
-          value={attentionCount}
-          tone={entries.length > 0 ? "attention" : undefined}
-        />
-        <Metric label={t("Accepted")} value={value(stats.accepted)} />
-        <Metric label={t("All goals")} value={value(stats.total)} />
-      </div>
 
       <section aria-label={t("Needs your action")} className="outcome-dash-section">
         <SectionHeading
@@ -541,6 +510,22 @@ export function OutcomeDashboard({
         )}
       </section>
 
+      <ActivitySection
+        sectionRef={inProgressRef}
+        title="In progress"
+        description={null}
+        emptyLabel="No goals in progress."
+        items={inProgressItems}
+        botName={(botId) => bots.find((bot) => bot.id === botId)?.name ?? t("Bot")}
+        cardMaxItems={cardMaxItems}
+        showAll={showAll}
+        showAllToggle={data?.activity != null}
+        onToggleAll={() => setShowAll((previous) => !previous)}
+        viewAllAction={stats.total > 0 ? { label: t("View all"), onClick: onShowGoals } : undefined}
+        onOpen={openActivity}
+        canOpen={canOpenActivity}
+      />
+
       {!!data?.upcoming.length && (
         <section aria-label={t("Upcoming work")} className="outcome-dash-section">
           <SectionHeading title={t("Upcoming work")} count={String(data.upcoming.length)} />
@@ -558,46 +543,6 @@ export function OutcomeDashboard({
             ))}
           </ul>
         </section>
-      )}
-      {layout.activity && data?.activity != null && (
-        <ActivitySection
-          items={data.activity}
-          botName={(botId) => bots.find((bot) => bot.id === botId)?.name ?? t("Bot")}
-          cardMaxItems={cardMaxItems}
-          showAll={showAll}
-          onToggleAll={() => setShowAll((previous) => !previous)}
-          onOpen={openActivity}
-          canOpen={canOpenActivity}
-        />
-      )}
-
-      {layout.lanes && (
-      <section aria-label={t("In progress")} className="outcome-dash-section">
-        <SectionHeading
-          title={t("In progress")}
-          count={working.total + stuck.total > 0 ? String(working.total + stuck.total) : undefined}
-          action={stats.total > 0 ? { label: t("View all"), onClick: onShowGoals } : undefined}
-        />
-        {data && working.total + stuck.total === 0 && attention.length === 0 ? (
-          <div className="outcome-dash-empty" role="status">
-            <Target aria-hidden="true" className="size-4" strokeWidth={1.6} />
-            {t("No goals in progress.")}
-            <OutcomeButton variant="ghost" onClick={onCreateGoal}>
-              <Plus aria-hidden="true" className="size-3.5" />
-              {t("New Outcome")}
-            </OutcomeButton>
-          </div>
-        ) : (
-          <div className="outcome-dash-lanes">
-            <Lane title={t("Bots are working")} count={working.total}>
-              {lane(working)}
-            </Lane>
-            <Lane title={t("Paused or failed")} count={stuck.total}>
-              {lane(stuck)}
-            </Lane>
-          </div>
-        )}
-      </section>
       )}
     </section>
   );

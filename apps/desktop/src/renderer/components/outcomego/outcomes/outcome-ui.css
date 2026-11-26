@@ -448,46 +448,75 @@ label.outcome-card:has(> input[type="radio"]:checked) {
   background: color-mix(in srgb, currentColor 9%, transparent);
 }
 
-/* Dashboard: metrics on top, then the steps that need the owner, then goals in motion. */
+/* Dashboard: compact clickable status strip on top, then owner focus, then unified in-progress work. */
 .outcome-dash {
   display: flex;
   flex-direction: column;
 }
+.outcome-dash-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
 .outcome-dash-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 .outcome-dash-metric {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   border: 0.5px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 18px;
+  border-radius: 999px;
+  background: var(--background);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.outcome-dash-metric:hover {
+  background: var(--hover);
+  border-color: color-mix(in srgb, var(--foreground) 18%, var(--border));
+}
+.outcome-dash-metric:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 40%, transparent);
+  outline-offset: 1px;
 }
 .outcome-dash-metric-value {
-  font-size: 26px;
-  font-weight: 500;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
+  color: var(--foreground);
 }
 .outcome-dash-metric-label {
   font-size: 12px;
   color: var(--foreground-secondary);
 }
+.outcome-dash-metric[data-tone="attention"] {
+  border-color: color-mix(in srgb, light-dark(#966e2a, #d4b579) 45%, var(--border));
+  background: color-mix(in srgb, light-dark(#966e2a, #d4b579) 8%, var(--background));
+}
 .outcome-dash-metric[data-tone="attention"] .outcome-dash-metric-value {
   color: light-dark(#966e2a, #d4b579);
 }
 .outcome-dash-section {
-  margin-top: 32px;
+  margin-top: 24px;
 }
 .outcome-dash-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+}
+.outcome-dash-heading-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 .outcome-dash-heading h2 {
   display: flex;
@@ -733,43 +762,12 @@ label.outcome-card:has(> input[type="radio"]:checked) {
   text-overflow: ellipsis;
   white-space: pre;
 }
-.outcome-dash-lanes {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  align-items: start;
-}
-.outcome-dash-lane h3 {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: var(--foreground-secondary);
-}
-.outcome-dash-lane h3 span {
-  font-weight: 400;
-  color: var(--foreground-tertiary);
-  font-variant-numeric: tabular-nums;
-}
 .outcome-dash-lane-empty {
   border: 0.5px dashed var(--border);
   border-radius: 12px;
   padding: 14px 16px;
   font-size: 12px;
   color: var(--foreground-tertiary);
-}
-.outcome-dash-lane .outcome-row {
-  padding: 12px 14px;
-}
-
-@media (max-width: 760px) {
-  .outcome-dash-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .outcome-dash-lanes {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 760px) {

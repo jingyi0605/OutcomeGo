@@ -1,5 +1,6 @@
 import type { ActivityItem } from "@outcomego/contracts/task-overview";
-import { Fragment } from "react";
+import { ChevronRight, Target } from "lucide-react";
+import { Fragment, type ReactNode, type RefObject } from "react";
 import { useI18n } from "../../../../lib/i18n";
 import {
   activityPresentation,
@@ -10,9 +11,9 @@ import {
 } from "./activity-state";
 
 /**
- * What every bot is doing right now (specs/004.10 design §3.3), beside the two goal lanes. Cards while the list is
- * short, one table past the owner's limit; grouped by bot with a count of what is working, waiting and blocked. Anything
- * a bot wrote is shown as plain text and labelled as the bot's: React escapes it, and nothing here parses markup or links.
+ * Unified "In progress" / bot activity view. Cards while the list is short, one table past the owner's limit;
+ * grouped by bot with a count of what is working, waiting and blocked. Anything a bot wrote is shown as plain text
+ * and labelled as the bot's: React escapes it, and nothing here parses markup or links.
  */
 export interface ActivitySectionProps {
   items: readonly ActivityItem[];
@@ -24,6 +25,19 @@ export interface ActivitySectionProps {
   onOpen: (item: ActivityItem) => void;
   /** Whether an item leads anywhere in this window. One that does not is shown as text only. */
   canOpen: (item: ActivityItem) => boolean;
+  /** Optional section title key (defaults to "Activity"). */
+  title?: string;
+  /** Optional subtitle key; pass null to hide. */
+  description?: string | null;
+  /** Optional empty state message key (defaults to "No bot is working right now."). */
+  emptyLabel?: string;
+  /** Optional action shown inside the quiet empty row. */
+  emptyAction?: ReactNode;
+  /** Whether to show the Show all / Show less toggle (defaults to true). */
+  showAllToggle?: boolean;
+  /** Optional secondary heading action (e.g. "View all >"). */
+  viewAllAction?: { label: string; onClick: () => void };
+  sectionRef?: RefObject<HTMLElement | null>;
 }
 
 function StateBadge({ state }: { state: string }) {
@@ -82,7 +96,22 @@ function Summary({ group }: { group: ActivityGroup }) {
   return parts.length ? <span className="outcome-activity-summary">{parts.join(" · ")}</span> : null;
 }
 
-export function ActivitySection({ items, botName, cardMaxItems, showAll, onToggleAll, onOpen, canOpen }: ActivitySectionProps) {
+export function ActivitySection({
+  items,
+  botName,
+  cardMaxItems,
+  showAll,
+  onToggleAll,
+  onOpen,
+  canOpen,
+  title = "Activity",
+  description = "What your bots are doing right now.",
+  emptyLabel = "No bot is working right now.",
+  emptyAction,
+  showAllToggle = true,
+  viewAllAction,
+  sectionRef,
+}: ActivitySectionProps) {
   const { t } = useI18n();
   const times = useTimes();
   const visible = visibleActivity(items);
@@ -90,18 +119,36 @@ export function ActivitySection({ items, botName, cardMaxItems, showAll, onToggl
   const presentation = activityPresentation(visible.length, cardMaxItems);
 
   return (
-    <section aria-label={t("Activity")} className="outcome-dash-section outcome-activity">
+    <section ref={sectionRef} aria-label={t(title)} className="outcome-dash-section outcome-activity">
       <div className="outcome-dash-heading">
         <h2>
-          {t("Activity")}
+          {t(title)}
           {visible.length > 0 && <span>{visible.length}</span>}
         </h2>
-        <button type="button" data-dash="" aria-pressed={showAll} onClick={onToggleAll}>
-          {t(showAll ? "Show less" : "Show all")}
-        </button>
+        {(showAllToggle || viewAllAction) && (
+          <div className="outcome-dash-heading-actions">
+            {showAllToggle && (
+              <button type="button" data-dash="" aria-pressed={showAll} onClick={onToggleAll}>
+                {t(showAll ? "Show less" : "Show all")}
+              </button>
+            )}
+            {viewAllAction && (
+              <button type="button" data-dash="" onClick={viewAllAction.onClick}>
+                {viewAllAction.label}
+                <ChevronRight aria-hidden="true" className="size-3" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <p className="outcome-activity-description">{t("What your bots are doing right now.")}</p>
-      {groups.length === 0 && <p className="outcome-dash-lane-empty">{t("No bot is working right now.")}</p>}
+      {description && <p className="outcome-activity-description">{t(description)}</p>}
+      {groups.length === 0 && (
+        <div className="outcome-dash-empty" role="status">
+          <Target aria-hidden="true" className="size-4" strokeWidth={1.6} />
+          {t(emptyLabel)}
+          {emptyAction}
+        </div>
+      )}
 
       {presentation === "cards" &&
         groups.map((group) => (

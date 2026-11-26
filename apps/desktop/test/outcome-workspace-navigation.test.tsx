@@ -566,13 +566,11 @@ test("dashboard shows metrics, then whose turn it is: the owner first, then Bots
   ).toBe("Dashboard");
   expect(
     [...host.querySelectorAll(".outcome-dash-metric")].map((node) => node.textContent)
-  ).toEqual(["3In progress", "1Needs your action", "1Accepted", "4All goals"]);
+  ).toEqual(["1Needs your action", "2In progress", "1Accepted", "4All goals"]);
   const [mine, progress] = sectionTitles();
   expect(mine).toContain("Choose delivery route");
   expect(mine).toContain("Choose a source");
-  expect(progress).toContain("Bots are working");
   expect(progress).toContain("Backup comparison");
-  expect(progress).toContain("Paused or failed");
   expect(progress).toContain("Paused goal");
   // The goal behind the pending step is on the owner's list only.
   expect(host.textContent).not.toContain("Prepare the delivery");
@@ -688,7 +686,7 @@ test("dashboard details button opens the decision in a dialog and keeps the dash
   ).toBe("Dashboard");
 });
 
-test("dashboard section links switch to the full lists and Bot lanes show five goals", async () => {
+test("dashboard section links switch to the full lists and unified In progress lists active goals", async () => {
   list = async () => ({
     items: Array.from({ length: 7 }, (_, index) => ({
       ...outcomeFixture,
@@ -700,7 +698,7 @@ test("dashboard section links switch to the full lists and Bot lanes show five g
   });
   await mount(page());
   const progress = host.querySelectorAll<HTMLElement>(".outcome-dash-section")[1]!;
-  expect(progress.querySelectorAll(".outcome-row").length).toBe(5);
+  expect(progress.querySelectorAll(".outcome-activity-card").length).toBe(7);
   await click("View all", progress);
   expect(
     host.querySelector('nav[aria-label="Outcome sections"] button[aria-current="page"]')

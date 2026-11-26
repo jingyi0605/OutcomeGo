@@ -1,5 +1,7 @@
+import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
 import type { ActivityItem } from "@outcomego/contracts/task-overview";
 import type { TimelineTone } from "../timeline/timeline-status";
+import { BOT_OUTCOME_STATUSES, STUCK_OUTCOME_STATUSES, type AttentionRow } from "./dashboard-state";
 
 /**
  * What the activity area of the dashboard shows and how (specs/004.10 design §3.3). Pure: no number is defined here.
@@ -15,7 +17,7 @@ export interface ActivityStateStyle {
   animated: boolean;
 }
 
-/** The states an activity item can be in: those of a request, a routine and a goal's bot task. */
+/** The states an activity or in-progress goal item can be in. */
 export const ACTIVITY_STATE_STYLE: Record<string, ActivityStateStyle> = {
   in_progress: { label: "In progress", icon: "▶", tone: "review", animated: true },
   verifying: { label: "Verifying", icon: "◎", tone: "review", animated: false },
@@ -28,6 +30,8 @@ export const ACTIVITY_STATE_STYLE: Record<string, ActivityStateStyle> = {
   queued: { label: "Queued", icon: "⧗", tone: "plan", animated: false },
   cancelled: { label: "Cancelled", icon: "–", tone: "muted", animated: false },
   running: { label: "Running", icon: "▶", tone: "review", animated: true },
+  planning: { label: "Planning", icon: "◎", tone: "plan", animated: false },
+  approved: { label: "Starting execution", icon: "◷", tone: "plan", animated: false },
   failed: { label: "Failed", icon: "✕", tone: "fail", animated: false },
   skipped: { label: "Skipped", icon: "–", tone: "muted", animated: false },
   paused: { label: "Paused", icon: "⏸", tone: "muted", animated: false },
@@ -44,7 +48,7 @@ export const styleForActivity = (state: string): ActivityStateStyle =>
 export type ActivityBucket = "working" | "waiting" | "blocked" | "other";
 
 const BUCKETS: Record<string, ActivityBucket> = {
-  in_progress: "working", verifying: "working", running: "working",
+  in_progress: "working", verifying: "working", running: "working", planning: "working", approved: "working",
   waiting: "waiting", scheduled: "waiting", deferred: "waiting", paused: "waiting", idle: "waiting",
   blocked: "blocked", failed: "blocked", check_not_fired: "blocked", no_follow_up: "blocked", needs_owner: "blocked",
 };
@@ -87,14 +91,48 @@ export function groupActivityByBot(items: readonly ActivityItem[], botName: (bot
 /** Cards while the list is short enough to read at a glance, a table past the owner's limit. */
 export const activityPresentation = (count: number, cardMaxItems: number): "cards" | "table" => (count <= cardMaxItems ? "cards" : "table");
 
-export type DashboardLayout = "both" | "activity" | "lanes";
-
 /**
- * What the owner chose to compare: the activity area, the goal lanes, or both. It only decides these two; the
- * owner's "needs you" area shows in every layout, and nothing here removes anything for good.
+ * Merges bot activity items with active/paused/failed outcomes into one deduplicated "In progress" stream:
+ * - Items already on the owner's "Needs your action" list stay out of this stream.
+ * - Outcomes in planning/approved/running that are already represented by a live goal_task activity row are skipped
+ *   so the same goal never shows twice.
+ * - Paused and failed outcomes are always included (unless already on the owner's list) so stalled work is never hidden.
  */
-export function dashboardSections(layout: unknown): { activity: boolean; lanes: boolean } {
-  if (layout === "activity") return { activity: true, lanes: false };
-  if (layout === "lanes") return { activity: false, lanes: true };
-  return { activity: true, lanes: true };
+export function mergeInProgressItems(
+  activity: readonly ActivityItem[] | null | undefined,
+  outcomes: readonly OutcomeSummary[],
+  attention: readonly AttentionRow[],
+): ActivityItem[] {
+  const base = visibleActivity(activity ?? []);
+  const attentionIds = new Set(attention.map((row) => row.outcomeId));
+  const coveredOutcomeIds = new Set(
+    base
+      .filter((item) => item.type === "goal_task" && item.link.type === "outcome")
+      .map((item) => item.link.id),
+  );
+  const synthesized: ActivityItem[] = [];
+  for (const outcome of outcomes) {
+    if (attentionIds.has(outcome.id)) continue;
+    const isWorking = BOT_OUTCOME_STATUSES.includes(outcome.status);
+    const isStuck = STUCK_OUTCOME_STATUSES.includes(outcome.status);
+    if (!isWorking && !isStuck) continue;
+    if (isWorking && coveredOutcomeIds.has(outcome.id)) continue;
+    synthesized.push({
+      id: `outcome:${outcome.id}`,
+      type: "goal_task",
+      botId: outcome.botId ?? "",
+      title: outcome.title,
+      state: outcome.status as ActivityItem["state"],
+      reason: null,
+      doing: null,
+      progress: null,
+      lastActivityAt: outcome.updatedAt,
+      nextCheckAt: null,
+      needsOwner: false,
+      link: { type: "outcome", id: outcome.id },
+    });
+  }
+  return [...base, ...synthesized].sort((a, b) =>
+    a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : a.id < b.id ? -1 : 1,
+  );
 }

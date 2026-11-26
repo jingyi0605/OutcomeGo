@@ -38,7 +38,6 @@ const POLICY_FIELDS = [
   { key: "activity.recentCompletedHours", group: "activity", type: "integer", unit: "hours", min: 1, max: 24 * 365, initial: 24 },
   { key: "activity.checkOverdueMinutes", group: "activity", type: "integer", unit: "minutes", min: 1, max: 10_080, initial: 10 },
   { key: "activity.cardMaxItems", group: "activity", type: "integer", unit: "items", min: 1, max: 200, initial: 8 },
-  { key: "activity.dashboardLayout", group: "activity", type: "enum", options: ["both", "activity", "lanes"], initial: "both" },
   { key: "todo.suggestionTtlDays", group: "todo", type: "integer", unit: "days", min: 0, max: DAY_LIMIT, initial: 14 },
   { key: "todo.restoreRetentionDays", group: "todo", type: "integer", unit: "days", min: 1, max: DAY_LIMIT, initial: 30 },
   { key: "todo.maxPendingSuggestionsPerBot", group: "todo", type: "integer", unit: "items", min: 1, max: COUNT_LIMIT, initial: null, unlimitedWhenUnset: true },

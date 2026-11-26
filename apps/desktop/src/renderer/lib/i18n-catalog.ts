@@ -3384,6 +3384,7 @@ export const sourceTranslations: Record<string, string> = {
   Older: "更早",
   "Load more": "加载更多",
   Dashboard: "概览",
+  "Overview summary": "概览统计",
   "Where your goals stand right now.": "目标进展、待办步骤和进行中的目标，一眼看清。",
   "Needs your action": "需要我处理",
   "View all": "查看全部",

@@ -77,23 +77,13 @@ describe("goal management page", () => {
   test("the activity view group lists every activity policy field, each from the metadata", () => {
     const html = render(features());
     expect(activityFields.map((entry) => entry.key).sort()).toEqual([
-      "activity.cardMaxItems", "activity.checkOverdueMinutes", "activity.dashboardLayout", "activity.recentCompletedHours",
+      "activity.cardMaxItems", "activity.checkOverdueMinutes", "activity.recentCompletedHours",
     ]);
     for (const entry of activityFields) expect(html).toContain(`data-policy-key="${entry.key}"`);
     for (const entry of activityFields.filter((field) => field.type === "integer")) {
       expect(html).toContain(`${entry.min}`);
       expect(html).toContain(`${entry.max}`);
     }
-  });
-
-  test("how the dashboard is shown is a choice among exactly the three the metadata names, initially both", () => {
-    const layout = TASK_POLICY_FIELDS.find((entry) => entry.key === "activity.dashboardLayout")!;
-    expect(layout.options).toEqual(["both", "activity", "lanes"]);
-    expect(layout.initial).toBe("both");
-    const html = render(features());
-    const select = html.match(/<select[^>]*data-policy-input="activity\.dashboardLayout"[^>]*>([\s\S]*?)<\/select>/)!;
-    for (const option of layout.options!) expect(select[1]).toContain(`value="${option}"`);
-    expect(select[0]).toMatch(/value="both"[^>]*selected|<option value="both"[^>]*>/);
   });
 
   test("a field with nothing stored offers no restore; a field with a stored value does", () => {

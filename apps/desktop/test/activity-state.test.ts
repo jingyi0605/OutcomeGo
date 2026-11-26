@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test";
+import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
 import type { ActivityItem } from "@outcomego/contracts/task-overview";
 import { missingKeys } from "../src/renderer/lib/i18n-catalog";
 import {
   ACTIVITY_STATE_STYLE,
   activityBucket,
   activityPresentation,
-  dashboardSections,
   groupActivityByBot,
+  mergeInProgressItems,
   styleForActivity,
   visibleActivity,
 } from "../src/renderer/components/outcomego/outcomes/dashboard/activity-state";
@@ -75,17 +76,26 @@ describe("cards or a table", () => {
   });
 });
 
-describe("how the owner has chosen to see the dashboard", () => {
-  test("both is the default and shows the activity area and the two goal lanes", () => {
-    expect(dashboardSections("both")).toEqual({ activity: true, lanes: true });
+describe("merging bot activity and in-progress goals", () => {
+  const outcome = (id: string, status: OutcomeSummary["status"], overrides: Partial<OutcomeSummary> = {}): OutcomeSummary =>
+    ({
+      id, title: `Goal ${id}`, status, botId: "bot-a", currentRevision: 1,
+      updatedAt: "2026-11-25T11:00:00.000Z", prereviewStatus: null, ...overrides,
+    }) as unknown as OutcomeSummary;
+
+  test("deduplicates a running goal already covered by a live goal_task activity item", () => {
+    const task = item({ id: "goal_task:1", type: "goal_task", state: "running", title: "Step 1 — Goal g1", link: { type: "outcome", id: "g1" } });
+    const merged = mergeInProgressItems([task], [outcome("g1", "running"), outcome("g2", "planning")], []);
+    expect(merged.map((entry) => entry.id)).toEqual(["goal_task:1", "outcome:g2"]);
   });
-  test("activity only hides the lanes; lanes only hides the activity area", () => {
-    expect(dashboardSections("activity")).toEqual({ activity: true, lanes: false });
-    expect(dashboardSections("lanes")).toEqual({ activity: false, lanes: true });
-  });
-  test("a value an older settings page never wrote falls back to both", () => {
-    expect(dashboardSections(undefined)).toEqual({ activity: true, lanes: true });
-    expect(dashboardSections("something else")).toEqual({ activity: true, lanes: true });
+
+  test("keeps paused and failed goals visible and skips goals already on the owner's list", () => {
+    const merged = mergeInProgressItems(
+      [item({ id: "req:mine", needsOwner: true, state: "needs_owner" })],
+      [outcome("g1", "paused"), outcome("g2", "failed"), outcome("g3", "running"), outcome("g4", "accepted")],
+      [{ key: "s1", outcomeId: "g3", title: "Goal g3", category: "decision_pending", since: "2026-11-25T10:00:00.000Z", completed: "", problem: "", next: "" }],
+    );
+    expect(merged.map((entry) => entry.id)).toEqual(["outcome:g1", "outcome:g2"]);
   });
 });
 
