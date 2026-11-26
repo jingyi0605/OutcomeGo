@@ -74,7 +74,7 @@ import XCTest
     continueAfterFailure = false
     try await configure("/__qa/reset", [:])
     try await configure("/__qa/scene", ["scene": "dark-home"])
-    let plugins: [[String: Any]] = ["gmail", "google-drive", "slack"].map { key in
+    let plugins: [[String: Any]] = ["email", "google-drive", "slack"].map { key in
       ["key": key, "pluginKey": key, "name": key, "installed": true,
        "status": "installed", "connections": [],
        "logoUrl": base + "/unbundled-plugin-artwork/" + key + ".png"]

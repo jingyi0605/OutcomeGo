@@ -3,13 +3,13 @@ import { readFileSync } from "node:fs";
 const upstream = "http://127.0.0.1:20013";
 const port = 20014;
 const catalog = [
-  { key: "qa-gmail", name: "Gmail", description: "Search, read, draft, and manage email." },
+  { key: "qa-email", name: "Email", description: "Search, read, draft, and manage email." },
   { key: "qa-calendar", name: "Google Calendar", description: "Search events and schedule meetings." },
   { key: "qa-drive", name: "Google Drive", description: "Search, read, create, and share files." },
   { key: "qa-granola", name: "Granola", description: "Your meetings in your workflow." },
   { key: "qa-asana", name: "asana", description: "Asana project management integration." },
 ].map((p, index) => {
-  const name = ["gmail", "google-calendar", "google-drive", "granola"][index];
+  const name = ["email", "google-calendar", "google-drive", "granola"][index];
   const logoUrl = name ? "data:image/png;base64," + readFileSync(new URL(`../../../packages/plugins/${name}/assets/icon.png`, import.meta.url)).toString("base64") : null;
   return { ...p, featured: index < 4, category: "Team plugins", logoUrl,
     publisher: "OutcomeGo QA", version: "1.0.0", setupFields: [], hasSkills: false };
@@ -32,7 +32,7 @@ let failures: Record<string, number> = {};
 let requests: { method: string; path: string; query: string; input: unknown }[] = [];
 const connection = (key: string) => ({
   id: key + "-connection", revision: "1", pluginKey: key, connectorKey: "qa-connector",
-  name: key === "qa-calendar" ? "Google Calendar" : "Gmail", alias: "QA account",
+  name: key === "qa-calendar" ? "Google Calendar" : "Email", alias: "QA account",
   transport: "http", auth: "oauth", oauthCallbackMode: callbackMode, status, authorizationUrl, authorizationExpiresAt,
   statusMessage: status === "error" ? "Didn't finish connecting. Try signing in again." : null,
   instructions: "", canAuthenticate: true, configured: true, tools: [],
@@ -52,7 +52,7 @@ const server = Bun.serve({ hostname: "127.0.0.1", port, idleTimeout: 40, async f
   let input: any = {};
   try { if (bytes?.byteLength) input = JSON.parse(new TextDecoder().decode(bytes)); } catch {}
   if (path === "/__settings/reset") {
-    installed = new Set(["qa-gmail"]);
+    installed = new Set(["qa-email"]);
     status = ["failed", "catalog-failed"].includes(input.scene) ? "error" : "needs_auth";
     if (["failed", "access", "authorize", "manual-authorize", "connect"].includes(input.scene)) installed.add("qa-calendar");
     callbackMode = input.scene === "manual-authorize" ? "manual" : "server";

@@ -32,7 +32,7 @@ public struct PluginAuthorizationSession: Sendable {
 public enum MobilePluginAuthorization {
   /// First-party Google plugins share one Google Cloud OAuth client and its setup guidance.
   public static let googlePluginKeys: Set<String> = [
-    "gmail", "google-calendar", "google-drive", "google-docs", "google-sheets", "google-slides",
+    "google-calendar", "google-drive", "google-docs", "google-sheets", "google-slides",
   ]
   public static func providerSetupDescription(pluginKey: String, description: String) -> String {
     googlePluginKeys.contains(pluginKey)
