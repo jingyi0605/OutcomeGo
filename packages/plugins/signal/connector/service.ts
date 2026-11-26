@@ -387,7 +387,10 @@ export class SignalService {
 export function configuredService(environment = process.env) {
   const directory =
     environment.OPENTEAM_PLUGIN_STATE_DIR ??
-    accountDirectory(environment.OPENTEAM_PLUGIN_ACCOUNT_ID ?? "", environment.SIGNAL_STATE_ROOT);
+    accountDirectory(
+      environment.OUTCOMEGO_PLUGIN_ACCOUNT_ID || environment.OPENTEAM_PLUGIN_ACCOUNT_ID || "",
+      environment.SIGNAL_STATE_ROOT
+    );
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   chmodSync(directory, 0o700);
   const executable = environment.SIGNAL_CLI_PATH ?? environment.OPENTEAM_RUNTIME_SIGNAL_CLI;
