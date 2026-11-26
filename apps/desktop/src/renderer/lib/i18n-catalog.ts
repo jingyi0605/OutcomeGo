@@ -3797,6 +3797,12 @@ export const sourceTranslations: Record<string, string> = {
   "Choose a calendar": "选择日历",
   "Show only busy": "只显示忙碌",
   "External calendar overlay unavailable": "外部日历叠加不可用",
+  "Reset filters": "重置筛选",
+  "View full day": "查看当天",
+  "Item types": "日程类型",
+  "{count} items": "{count} 项",
+  "All day & deadlines": "全天与截止",
+  "Timed schedule": "定时安排",
 };
 
 const interpolate = (text: string, values?: TranslationValues): string =>

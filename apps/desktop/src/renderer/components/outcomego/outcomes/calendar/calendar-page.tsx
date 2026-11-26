@@ -1,16 +1,45 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Filter, RotateCcw } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  LocateFixed,
+  RotateCcw,
+  SlidersHorizontal,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ScheduleQuery, TimeItem, TimeItemKind } from "@outcomego/contracts/task-overview";
+import { localDateOf } from "@outcomego/contracts/task-overview";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { api } from "../../../../client/outcomego-api";
-import { localDateOf } from "@outcomego/contracts/task-overview";
-import { useI18n } from "../../../../lib/i18n";
-import { cn } from "../../../../lib/cn";
 import { ClientError } from "../../../../client/http";
+import { cn } from "../../../../lib/cn";
+import { subscribeDayClock } from "../../../../lib/day-clock";
+import { useI18n } from "../../../../lib/i18n";
 import { subscribeOutcomeListRefresh } from "../../../../lib/outcome-events";
+import { Popover, PopoverContent, PopoverTrigger } from "../../../ui/popover";
 import { styleForActivity } from "../dashboard/activity-state";
 import { OutcomeButton } from "../outcome-ui";
-import { calendarDays, dayStart, defaultCalendarKinds, itemsByDay, movePeriod, moveToCalendarDate, shiftDate, type CalendarView } from "./calendar-dates";
+import {
+  calendarDays,
+  dayStart,
+  defaultCalendarKinds,
+  itemsByDay,
+  movePeriod,
+  moveToCalendarDate,
+  shiftDate,
+  type CalendarView,
+} from "./calendar-dates";
+import {
+  computeCalendarMetrics,
+  isFirstOfMonth,
+  isSameMonth,
+  isWeekend,
+  periodContainsDate,
+  visibleCountForCell,
+  type CalendarMetrics,
+} from "./calendar-layout";
+import "./calendar.css";
 
 const kindLabels: Record<TimeItemKind, string> = {
   goal_due: "Goal deadlines",
@@ -24,26 +53,42 @@ const kindLabels: Record<TimeItemKind, string> = {
 };
 const EXTERNAL_STORAGE_KEY = "outcomego.goal-calendar";
 
+function browserTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
 function externalSelection(): { connectionId: string; calendarId: string; busyOnly: boolean } {
   try {
     const value = JSON.parse(localStorage.getItem(EXTERNAL_STORAGE_KEY) ?? "{}") as Record<string, unknown>;
-    return { connectionId: typeof value.connectionId === "string" ? value.connectionId : "", calendarId: typeof value.calendarId === "string" ? value.calendarId : "", busyOnly: value.busyOnly === true };
+    return {
+      connectionId: typeof value.connectionId === "string" ? value.connectionId : "",
+      calendarId: typeof value.calendarId === "string" ? value.calendarId : "",
+      busyOnly: value.busyOnly === true,
+    };
   } catch {
     return { connectionId: "", calendarId: "", busyOnly: false };
   }
 }
 
-type CalendarPageProps = {
+export type CalendarPageProps = {
   bots: OutcomeExecutionBot[];
-  onClose: () => void;
+  /** Present when mounted standalone outside OutcomeWorkspace. */
+  onClose?: () => void;
+  /** True when rendered as a tab inside OutcomeWorkspace (omits duplicate titlebar). */
+  embedded?: boolean;
   onOpenOutcome: (outcomeId: string) => void;
   onOpenChannel?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId?: string) => void;
   onOpenScheduledGoal?: (id: string) => void;
 };
 
-function dateText(value: Date, timeZone: string, options: Intl.DateTimeFormatOptions): string {
-  return new Intl.DateTimeFormat(undefined, { timeZone, ...options }).format(value);
+function dateText(
+  value: Date,
+  timeZone: string,
+  locale: string,
+  options: Intl.DateTimeFormatOptions
+): string {
+  return new Intl.DateTimeFormat(locale, { timeZone, ...options }).format(value);
 }
 
 function rangeFor(value: string, view: CalendarView, timeZone: string): { from: string; to: string } {
@@ -66,46 +111,549 @@ function shiftedItemValue(item: TimeItem, targetDate: string, timeZone: string):
   return moveToCalendarDate(source, targetDate, timeZone);
 }
 
-function CalendarItem({ item, timeZone, botName, onDragStart, onOpen }: { item: TimeItem; timeZone: string; botName?: string; onDragStart: (item: TimeItem) => void; onOpen: () => void }) {
+function itemTimeLabel(item: TimeItem, timeZone: string, locale: string, t: (key: string) => string): string {
+  if (item.allDay) return t("All day");
+  return dateText(new Date(item.start ?? item.end ?? Date.now()), timeZone, locale, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function itemTooltip(
+  item: TimeItem,
+  time: string,
+  botName: string | undefined,
+  t: (key: string) => string
+): string {
+  const parts = [
+    item.title || t("Untitled"),
+    `${t(kindLabels[item.kind])} · ${time}`,
+    item.overdue ? t("Overdue") : "",
+    item.kind === "scheduled_once"
+      ? [botName, t(styleForActivity(item.state).label)].filter(Boolean).join(" · ")
+      : botName ?? "",
+    item.editable ? t("Drag to change the date") : t("Read-only calendar item"),
+  ].filter(Boolean);
+  return parts.join("\n");
+}
+
+function CalendarItemCard({
+  item,
+  timeZone,
+  locale,
+  botName,
+  metrics,
+  forceDetailed = false,
+  onDragStart,
+  onOpen,
+}: {
+  item: TimeItem;
+  timeZone: string;
+  locale: string;
+  botName?: string;
+  metrics: CalendarMetrics;
+  forceDetailed?: boolean;
+  onDragStart: (item: TimeItem) => void;
+  onOpen: () => void;
+}) {
   const { t } = useI18n();
-  const time = item.allDay ? t("All day") : dateText(new Date(item.start ?? item.end ?? Date.now()), timeZone, { hour: "numeric", minute: "2-digit" });
+  const time = itemTimeLabel(item, timeZone, locale, t);
+  const density = forceDetailed ? "detailed" : metrics.density;
+  const showTime = forceDetailed || metrics.showTime;
+  const showMeta = forceDetailed || metrics.showMeta;
+  const metaText =
+    item.kind === "scheduled_once"
+      ? [botName, t(styleForActivity(item.state).label)].filter(Boolean).join(" · ")
+      : botName;
+
   return (
     <button
       type="button"
-      className={cn("group w-full rounded-md border px-2 py-1 text-left text-xs transition-colors hover:bg-hover", item.overdue ? "border-destructive/60 text-destructive" : "border-border")}
+      className="outcome-calendar-item"
       data-calendar-item={item.id}
+      data-cal-kind={item.kind}
+      data-cal-overdue={item.overdue ? "true" : undefined}
+      data-density={density}
       draggable={item.editable}
       onDragStart={(event) => {
         event.dataTransfer.setData("application/x-outcomego-calendar", item.id);
         onDragStart(item);
       }}
       onClick={onOpen}
-      title={item.editable ? t("Drag to change the date") : t("Read-only calendar item")}
+      title={itemTooltip(item, time, botName, t)}
     >
-      <span className="block truncate font-medium">{item.title || t("Untitled")}</span>
-      <span className="block truncate text-[10px] text-foreground-secondary">{time}{item.overdue ? ` · ${t("Overdue")}` : ""}</span>
-      {item.kind === "scheduled_once" && <span className="block truncate text-[10px] text-foreground-secondary">
-        {[botName, t(styleForActivity(item.state).label)].filter(Boolean).join(" · ")}
-      </span>}
+      {density === "compact" ? (
+        <>
+          <span className="outcome-calendar-item-title">{item.title || t("Untitled")}</span>
+          {showTime && !item.allDay && (
+            <span className="outcome-calendar-item-inline-time">{time}</span>
+          )}
+        </>
+      ) : (
+        <>
+          <span className="outcome-calendar-item-title">{item.title || t("Untitled")}</span>
+          {showTime && (
+            <span className="outcome-calendar-item-sub">
+              {time}
+              {item.overdue ? ` · ${t("Overdue")}` : ""}
+            </span>
+          )}
+          {showMeta && metaText && (
+            <span className="outcome-calendar-item-sub">{metaText}</span>
+          )}
+        </>
+      )}
     </button>
   );
 }
 
-function CalendarGrid({ days, view, items, timeZone, bots, onDragStart, onDrop, onOpen }: { days: string[]; view: CalendarView; items: Map<string, TimeItem[]>; timeZone: string; bots: OutcomeExecutionBot[]; onDragStart: (item: TimeItem) => void; onDrop: (date: string) => void; onOpen: (item: TimeItem) => void }) {
+function DayItemsPopover({
+  date,
+  entries,
+  today,
+  timeZone,
+  locale,
+  bots,
+  metrics,
+  onDragStart,
+  onOpen,
+  onOpenDay,
+  trigger,
+}: {
+  date: string;
+  entries: TimeItem[];
+  today: string;
+  timeZone: string;
+  locale: string;
+  bots: OutcomeExecutionBot[];
+  metrics: CalendarMetrics;
+  onDragStart: (item: TimeItem) => void;
+  onOpen: (item: TimeItem) => void;
+  onOpenDay: (date: string) => void;
+  trigger: React.ReactNode;
+}) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const heading = dateText(dayStart(date, timeZone), timeZone, locale, {
+    month: "short",
+    day: "numeric",
+    weekday: "short",
+  });
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-3">
+        <div className="mb-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-foreground">{heading}</span>
+            {date === today && (
+              <span className="outcome-calendar-today-pill">{t("Today")}</span>
+            )}
+          </div>
+          <button
+            type="button"
+            className="text-[11px] font-medium text-foreground-secondary hover:text-foreground"
+            onClick={() => {
+              setOpen(false);
+              onOpenDay(date);
+            }}
+          >
+            {t("View full day")}
+          </button>
+        </div>
+        <div className="max-h-72 space-y-1.5 overflow-y-auto pr-0.5">
+          {entries.map((item) => (
+            <CalendarItemCard
+              key={item.id}
+              item={item}
+              timeZone={timeZone}
+              locale={locale}
+              botName={bots.find((bot) => bot.id === item.botId)?.name}
+              metrics={metrics}
+              forceDetailed
+              onDragStart={onDragStart}
+              onOpen={() => {
+                setOpen(false);
+                onOpen(item);
+              }}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function MonthGrid({
+  days,
+  selectedDate,
+  today,
+  todayPulse,
+  items,
+  timeZone,
+  locale,
+  bots,
+  metrics,
+  dragOverDate,
+  onDragOverDate,
+  onDragStart,
+  onDrop,
+  onOpen,
+  onOpenDay,
+}: {
+  days: string[];
+  selectedDate: string;
+  today: string;
+  todayPulse: number;
+  items: Map<string, TimeItem[]>;
+  timeZone: string;
+  locale: string;
+  bots: OutcomeExecutionBot[];
+  metrics: CalendarMetrics;
+  dragOverDate: string | null;
+  onDragOverDate: (date: string | null) => void;
+  onDragStart: (item: TimeItem) => void;
+  onDrop: (date: string) => void;
+  onOpen: (item: TimeItem) => void;
+  onOpenDay: (date: string) => void;
+}) {
+  const { t } = useI18n();
+  const weekRows = Math.max(1, Math.ceil(days.length / 7));
+  const weekdayHeaders = days.slice(0, 7);
+
+  return (
+    <>
+      <div className="outcome-calendar-weekdays" role="row">
+        {weekdayHeaders.map((date) => (
+          <div
+            key={date}
+            role="columnheader"
+            className="outcome-calendar-weekday"
+            data-weekend={isWeekend(date) ? "true" : undefined}
+            data-density={metrics.density}
+          >
+            {dateText(dayStart(date, timeZone), timeZone, locale, {
+              weekday: metrics.weekdayFormat,
+            })}
+          </div>
+        ))}
+      </div>
+      <div
+        className="outcome-calendar-month-grid"
+        role="grid"
+        aria-label={t("Calendar")}
+        style={{ gridTemplateRows: `repeat(${weekRows}, minmax(0, 1fr))` }}
+      >
+        {days.map((date) => {
+          const entries = items.get(date) ?? [];
+          const isToday = date === today;
+          const outside = !isSameMonth(date, selectedDate);
+          const weekend = isWeekend(date);
+          const visibleCount = visibleCountForCell(entries.length, metrics);
+          const overflow = entries.length - visibleCount;
+          const dayNumber = Number(date.slice(8, 10));
+          const showMonthPrefix =
+            metrics.density !== "minimal" && (isFirstOfMonth(date) || outside) && isFirstOfMonth(date);
+          const dateLabel = showMonthPrefix
+            ? dateText(dayStart(date, timeZone), timeZone, locale, {
+                month: "short",
+                day: "numeric",
+              })
+            : String(dayNumber);
+
+          return (
+            <section
+              key={isToday ? `${date}-${todayPulse}` : date}
+              className="outcome-calendar-cell"
+              data-calendar-day={date}
+              data-calendar-today={isToday ? "true" : undefined}
+              data-pulse={isToday && todayPulse > 0 ? "true" : undefined}
+              data-outside={outside ? "true" : undefined}
+              data-weekend={weekend ? "true" : undefined}
+              data-density={metrics.density}
+              data-drag-over={dragOverDate === date ? "true" : undefined}
+              onDragOver={(event) => {
+                if (event.dataTransfer.types.includes("application/x-outcomego-calendar")) {
+                  event.preventDefault();
+                  if (dragOverDate !== date) onDragOverDate(date);
+                }
+              }}
+              onDragLeave={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  if (dragOverDate === date) onDragOverDate(null);
+                }
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                onDragOverDate(null);
+                onDrop(date);
+              }}
+            >
+              <div className="outcome-calendar-cell-head">
+                <div className="outcome-calendar-date-group">
+                  <button
+                    type="button"
+                    className="outcome-calendar-date-num"
+                    data-today={isToday ? "true" : undefined}
+                    onClick={() => onOpenDay(date)}
+                    title={dateText(dayStart(date, timeZone), timeZone, locale, {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      weekday: "long",
+                    })}
+                  >
+                    {dateLabel}
+                  </button>
+                  {isToday && metrics.showTodayLabel && (
+                    <span className="outcome-calendar-today-pill">{t("Today")}</span>
+                  )}
+                </div>
+                {metrics.density !== "minimal" && entries.length > 0 && (
+                  <span className="outcome-calendar-day-count">{entries.length}</span>
+                )}
+              </div>
+
+              {metrics.density === "minimal" ? (
+                entries.length > 0 && (
+                  <DayItemsPopover
+                    date={date}
+                    entries={entries}
+                    today={today}
+                    timeZone={timeZone}
+                    locale={locale}
+                    bots={bots}
+                    metrics={metrics}
+                    onDragStart={onDragStart}
+                    onOpen={onOpen}
+                    onOpenDay={onOpenDay}
+                    trigger={
+                      <button
+                        type="button"
+                        className="outcome-calendar-dots-btn"
+                        aria-label={t("{count} items", { count: entries.length })}
+                      >
+                        {entries.slice(0, 4).map((item) => (
+                          <span
+                            key={item.id}
+                            className="outcome-calendar-dot"
+                            data-cal-kind={item.kind}
+                            data-cal-overdue={item.overdue ? "true" : undefined}
+                          />
+                        ))}
+                        {entries.length > 4 && (
+                          <span className="text-[9px] font-medium leading-none text-foreground-secondary tabular-nums">
+                            +{entries.length - 4}
+                          </span>
+                        )}
+                      </button>
+                    }
+                  />
+                )
+              ) : (
+                <div className="outcome-calendar-cell-items">
+                  {entries.slice(0, visibleCount).map((item) => (
+                    <CalendarItemCard
+                      key={item.id}
+                      item={item}
+                      timeZone={timeZone}
+                      locale={locale}
+                      botName={bots.find((bot) => bot.id === item.botId)?.name}
+                      metrics={metrics}
+                      onDragStart={onDragStart}
+                      onOpen={() => onOpen(item)}
+                    />
+                  ))}
+                  {overflow > 0 && (
+                    <DayItemsPopover
+                      date={date}
+                      entries={entries}
+                      today={today}
+                      timeZone={timeZone}
+                      locale={locale}
+                      bots={bots}
+                      metrics={metrics}
+                      onDragStart={onDragStart}
+                      onOpen={onOpen}
+                      onOpenDay={onOpenDay}
+                      trigger={
+                        <button type="button" className="outcome-calendar-more-btn">
+                          {t("{count} more", { count: overflow })}
+                        </button>
+                      }
+                    />
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+function WeekGrid({
+  days,
+  today,
+  todayPulse,
+  items,
+  timeZone,
+  locale,
+  bots,
+  metrics,
+  dragOverDate,
+  onDragOverDate,
+  onDragStart,
+  onDrop,
+  onOpen,
+  onOpenDay,
+}: {
+  days: string[];
+  today: string;
+  todayPulse: number;
+  items: Map<string, TimeItem[]>;
+  timeZone: string;
+  locale: string;
+  bots: OutcomeExecutionBot[];
+  metrics: CalendarMetrics;
+  dragOverDate: string | null;
+  onDragOverDate: (date: string | null) => void;
+  onDragStart: (item: TimeItem) => void;
+  onDrop: (date: string) => void;
+  onOpen: (item: TimeItem) => void;
+  onOpenDay: (date: string) => void;
+}) {
   const { t } = useI18n();
   return (
-    <div className={cn("grid min-h-[420px] gap-px overflow-hidden rounded-lg border border-border bg-border", view === "day" ? "grid-cols-1" : "grid-cols-7")} role="grid" aria-label={t("Calendar") }>
+    <div className="outcome-calendar-week" role="grid" aria-label={t("Calendar")}>
       {days.map((date) => {
         const entries = items.get(date) ?? [];
+        const isToday = date === today;
+        const weekend = isWeekend(date);
+        const visibleCount = visibleCountForCell(entries.length, metrics);
+        const overflow = entries.length - visibleCount;
+        const dayNumber = Number(date.slice(8, 10));
+
         return (
-          <section key={date} className={cn("min-h-[116px] bg-background p-2", view === "day" && "min-h-[420px]")} data-calendar-day={date} onDragOver={(event) => { if (event.dataTransfer.types.includes("application/x-outcomego-calendar")) event.preventDefault(); }} onDrop={(event) => { event.preventDefault(); onDrop(date); }}>
-            <h3 className="mb-2 flex items-center justify-between text-xs font-semibold text-foreground-secondary">
-              <span>{dateText(dayStart(date, timeZone), timeZone, { weekday: view === "day" ? "long" : "short", month: "short", day: "numeric" })}</span>
-              {entries.length > 0 && <span className="rounded-full bg-subtle px-1.5 py-0.5 tabular-nums">{entries.length}</span>}
-            </h3>
-            <div className="space-y-1">
-              {entries.slice(0, view === "month" ? 3 : undefined).map((item) => <CalendarItem key={item.id} item={item} timeZone={timeZone} botName={bots.find((bot) => bot.id === item.botId)?.name} onDragStart={onDragStart} onOpen={() => onOpen(item)} />)}
-              {view === "month" && entries.length > 3 && <p className="px-1 text-[10px] text-foreground-secondary">{t("{count} more", { count: entries.length - 3 })}</p>}
+          <section
+            key={isToday ? `${date}-${todayPulse}` : date}
+            className="outcome-calendar-week-col"
+            data-calendar-day={date}
+            data-calendar-today={isToday ? "true" : undefined}
+            data-pulse={isToday && todayPulse > 0 ? "true" : undefined}
+            data-weekend={weekend ? "true" : undefined}
+            data-drag-over={dragOverDate === date ? "true" : undefined}
+            onDragOver={(event) => {
+              if (event.dataTransfer.types.includes("application/x-outcomego-calendar")) {
+                event.preventDefault();
+                if (dragOverDate !== date) onDragOverDate(date);
+              }
+            }}
+            onDragLeave={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                if (dragOverDate === date) onDragOverDate(null);
+              }
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              onDragOverDate(null);
+              onDrop(date);
+            }}
+          >
+            <header className="outcome-calendar-week-head">
+              <span className="text-[11px] font-medium text-foreground-secondary">
+                {dateText(dayStart(date, timeZone), timeZone, locale, {
+                  weekday: metrics.weekdayFormat,
+                })}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  className="outcome-calendar-date-num"
+                  data-today={isToday ? "true" : undefined}
+                  onClick={() => onOpenDay(date)}
+                >
+                  {dayNumber}
+                </button>
+                {isToday && metrics.showTodayLabel && (
+                  <span className="outcome-calendar-today-pill">{t("Today")}</span>
+                )}
+              </div>
+            </header>
+
+            <div className="outcome-calendar-week-body">
+              {metrics.density === "minimal" ? (
+                entries.length > 0 && (
+                  <DayItemsPopover
+                    date={date}
+                    entries={entries}
+                    today={today}
+                    timeZone={timeZone}
+                    locale={locale}
+                    bots={bots}
+                    metrics={metrics}
+                    onDragStart={onDragStart}
+                    onOpen={onOpen}
+                    onOpenDay={onOpenDay}
+                    trigger={
+                      <button
+                        type="button"
+                        className="outcome-calendar-dots-btn mx-auto"
+                        aria-label={t("{count} items", { count: entries.length })}
+                      >
+                        {entries.slice(0, 5).map((item) => (
+                          <span
+                            key={item.id}
+                            className="outcome-calendar-dot"
+                            data-cal-kind={item.kind}
+                            data-cal-overdue={item.overdue ? "true" : undefined}
+                          />
+                        ))}
+                        {entries.length > 5 && (
+                          <span className="text-[9px] font-medium text-foreground-secondary tabular-nums">
+                            +{entries.length - 5}
+                          </span>
+                        )}
+                      </button>
+                    }
+                  />
+                )
+              ) : (
+                <>
+                  {entries.slice(0, visibleCount).map((item) => (
+                    <CalendarItemCard
+                      key={item.id}
+                      item={item}
+                      timeZone={timeZone}
+                      locale={locale}
+                      botName={bots.find((bot) => bot.id === item.botId)?.name}
+                      metrics={metrics}
+                      onDragStart={onDragStart}
+                      onOpen={() => onOpen(item)}
+                    />
+                  ))}
+                  {overflow > 0 && (
+                    <DayItemsPopover
+                      date={date}
+                      entries={entries}
+                      today={today}
+                      timeZone={timeZone}
+                      locale={locale}
+                      bots={bots}
+                      metrics={metrics}
+                      onDragStart={onDragStart}
+                      onOpen={onOpen}
+                      onOpenDay={onOpenDay}
+                      trigger={
+                        <button type="button" className="outcome-calendar-more-btn">
+                          {t("{count} more", { count: overflow })}
+                        </button>
+                      }
+                    />
+                  )}
+                </>
+              )}
             </div>
           </section>
         );
@@ -114,11 +662,165 @@ function CalendarGrid({ days, view, items, timeZone, bots, onDragStart, onDrop, 
   );
 }
 
-export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOpenRoutine, onOpenScheduledGoal }: CalendarPageProps) {
+function DayBoard({
+  date,
+  today,
+  entries,
+  timeZone,
+  locale,
+  bots,
+  metrics,
+  onDragStart,
+  onDrop,
+  onOpen,
+}: {
+  date: string;
+  today: string;
+  entries: TimeItem[];
+  timeZone: string;
+  locale: string;
+  bots: OutcomeExecutionBot[];
+  metrics: CalendarMetrics;
+  onDragStart: (item: TimeItem) => void;
+  onDrop: (date: string) => void;
+  onOpen: (item: TimeItem) => void;
+}) {
   const { t } = useI18n();
-  const [timeZone, setTimeZone] = useState("UTC");
+  const isToday = date === today;
+  const allDayItems = entries.filter((item) => item.allDay);
+  const timedItems = entries.filter((item) => !item.allDay);
+  const splitColumns = metrics.dayColumns === 2 && allDayItems.length > 0 && timedItems.length > 0;
+
+  const renderCard = (item: TimeItem) => {
+    const time = itemTimeLabel(item, timeZone, locale, t);
+    const botName = bots.find((bot) => bot.id === item.botId)?.name;
+    const statusLabel = item.kind === "scheduled_once" ? t(styleForActivity(item.state).label) : "";
+    return (
+      <button
+        key={item.id}
+        type="button"
+        className="outcome-calendar-day-card"
+        data-calendar-item={item.id}
+        data-cal-kind={item.kind}
+        data-cal-overdue={item.overdue ? "true" : undefined}
+        draggable={item.editable}
+        onDragStart={(event) => {
+          event.dataTransfer.setData("application/x-outcomego-calendar", item.id);
+          onDragStart(item);
+        }}
+        onClick={() => onOpen(item)}
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-[13px] font-medium text-foreground">
+              {item.title || t("Untitled")}
+            </span>
+            {item.overdue && (
+              <span className="shrink-0 rounded-full bg-destructive/12 px-2 py-0.5 text-[10px] font-medium text-destructive">
+                {t("Overdue")}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-foreground-secondary tabular-nums">
+            <span>{time}</span>
+            <span>·</span>
+            <span>{t(kindLabels[item.kind])}</span>
+            {botName && (
+              <>
+                <span>·</span>
+                <span>{botName}</span>
+              </>
+            )}
+            {statusLabel && (
+              <>
+                <span>·</span>
+                <span>{statusLabel}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </button>
+    );
+  };
+
+  return (
+    <section
+      className="outcome-calendar-day"
+      data-calendar-day={date}
+      data-calendar-today={isToday ? "true" : undefined}
+      role="grid"
+      aria-label={t("Calendar")}
+      onDragOver={(event) => {
+        if (event.dataTransfer.types.includes("application/x-outcomego-calendar")) {
+          event.preventDefault();
+        }
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        onDrop(date);
+      }}
+    >
+      <header className="outcome-calendar-day-head">
+        <div className="flex items-center gap-2.5">
+          <h3 className="text-[14px] font-semibold text-foreground">
+            {dateText(dayStart(date, timeZone), timeZone, locale, {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              weekday: "long",
+            })}
+          </h3>
+          {isToday && <span className="outcome-calendar-today-pill">{t("Today")}</span>}
+        </div>
+        <span className="text-xs text-foreground-secondary tabular-nums">
+          {t("{count} items", { count: entries.length })}
+        </span>
+      </header>
+      <div className="outcome-calendar-day-body">
+        {entries.length === 0 ? (
+          <div className="grid h-full min-h-[160px] place-items-center text-xs text-foreground-secondary">
+            {t("Nothing scheduled for this period.")}
+          </div>
+        ) : (
+          <div className="outcome-calendar-day-grid" data-columns={splitColumns ? "2" : "1"}>
+            {allDayItems.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[11px] font-medium uppercase tracking-wide text-foreground-secondary">
+                  {t("All day & deadlines")}
+                </h4>
+                <div className="space-y-2">{allDayItems.map(renderCard)}</div>
+              </div>
+            )}
+            {timedItems.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-[11px] font-medium uppercase tracking-wide text-foreground-secondary">
+                  {t("Timed schedule")}
+                </h4>
+                <div className="space-y-2">{timedItems.map(renderCard)}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function CalendarPage({
+  bots,
+  onClose,
+  embedded = false,
+  onOpenOutcome,
+  onOpenChannel,
+  onOpenRoutine,
+  onOpenScheduledGoal,
+}: CalendarPageProps) {
+  const { t, locale } = useI18n();
+  const [timeZone, setTimeZone] = useState(browserTimeZone);
+  const [now, setNow] = useState(() => new Date());
   const [view, setView] = useState<CalendarView>("month");
-  const [selectedDate, setSelectedDate] = useState(() => localDateOf(new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"));
+  const [selectedDate, setSelectedDate] = useState(() => localDateOf(new Date(), browserTimeZone()));
+  const [todayPulse, setTodayPulse] = useState(0);
   const [selectedKinds, setSelectedKinds] = useState<TimeItemKind[]>([...defaultCalendarKinds]);
   const [selectedBot, setSelectedBot] = useState("");
   const [mine, setMine] = useState(false);
@@ -128,9 +830,49 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
   const [error, setError] = useState(false);
   const [externalUnavailable, setExternalUnavailable] = useState<string | null>(null);
   const [dragged, setDragged] = useState<TimeItem | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [surfaceSize, setSurfaceSize] = useState({ width: 0, height: 0 });
+  const surfaceRef = useRef<HTMLDivElement>(null);
   const generation = useRef(0);
+
+  const today = useMemo(() => localDateOf(now, timeZone), [now, timeZone]);
   const days = useMemo(() => calendarDays(selectedDate, view), [selectedDate, view]);
   const grouped = useMemo(() => itemsByDay(items, timeZone), [items, timeZone]);
+  const weekRows = view === "month" ? Math.max(1, Math.ceil(days.length / 7)) : 1;
+
+  const metrics = useMemo(
+    () =>
+      computeCalendarMetrics({
+        width: surfaceSize.width,
+        height: surfaceSize.height,
+        view,
+        weekRows,
+      }),
+    [surfaceSize.width, surfaceSize.height, view, weekRows]
+  );
+
+  // Keep "today" accurate across midnight and wake-from-sleep.
+  useEffect(() => subscribeDayClock((nextNow) => setNow(nextNow)), []);
+
+  // Measure the calendar surface so grid density & item limits adapt smoothly on window resize.
+  useEffect(() => {
+    const element = surfaceRef.current;
+    if (!element) return;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      setSurfaceSize((current) =>
+        Math.round(current.width) === Math.round(rect.width) &&
+        Math.round(current.height) === Math.round(rect.height)
+          ? current
+          : { width: rect.width, height: rect.height }
+      );
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const load = useCallback(async () => {
     const request = ++generation.current;
@@ -139,14 +881,28 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
     try {
       const zone = await api.userTimeZone();
       const range = rangeFor(selectedDate, view, zone.timeZone);
-      const query = { ...range, kinds: selectedKinds, ...(selectedBot ? { botId: selectedBot } : {}), ...(mine ? { mine: true } : {}) } satisfies ScheduleQuery;
+      const query = {
+        ...range,
+        kinds: selectedKinds,
+        ...(selectedBot ? { botId: selectedBot } : {}),
+        ...(mine ? { mine: true } : {}),
+      } satisfies ScheduleQuery;
       let response: Awaited<ReturnType<typeof api.schedule.list>>;
       try {
         response = await api.schedule.list(query);
       } catch (cause) {
-        if (!selectedKinds.includes("scheduled_once") || !(cause instanceof ClientError) || cause.status !== 400 || cause.code !== "invalid_request") throw cause;
+        if (
+          !selectedKinds.includes("scheduled_once") ||
+          !(cause instanceof ClientError) ||
+          cause.status !== 400 ||
+          cause.code !== "invalid_request"
+        ) {
+          throw cause;
+        }
         const legacyKinds = selectedKinds.filter((kind) => kind !== "scheduled_once");
-        response = legacyKinds.length ? await api.schedule.list({ ...query, kinds: legacyKinds }) : { items: [], truncated: false };
+        response = legacyKinds.length
+          ? await api.schedule.list({ ...query, kinds: legacyKinds })
+          : { items: [], truncated: false };
       }
       const external = externalSelection();
       let externalItems: TimeItem[] = [];
@@ -167,7 +923,11 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
       if (request === generation.current) setLoading(false);
     }
   }, [mine, selectedBot, selectedDate, selectedKinds, view]);
-  useEffect(() => { void load(); }, [load]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
   useEffect(() => {
     const refresh = () => void load();
     const unsubscribe = subscribeOutcomeListRefresh(refresh);
@@ -181,22 +941,81 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
     };
   }, [load]);
 
-  const move = (amount: number) => {
-    setSelectedDate(movePeriod(selectedDate, view, amount));
-  };
+  const move = useCallback(
+    (direction: number) => setSelectedDate((current) => movePeriod(current, view, direction)),
+    [view]
+  );
+
+  const jumpToToday = useCallback(() => {
+    const freshNow = new Date();
+    setNow(freshNow);
+    setSelectedDate(localDateOf(freshNow, timeZone));
+    setTodayPulse((value) => value + 1);
+  }, [timeZone]);
+
+  // Keyboard shortcut: press T to jump back to today when not typing in a field.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (event.key === "t" || event.key === "T") {
+        event.preventDefault();
+        jumpToToday();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [jumpToToday]);
+
   const openItem = (item: TimeItem) => {
-    if (item.kind === "scheduled_once" && item.link.type === "routine") return onOpenScheduledGoal?.(item.link.id);
-    if (item.outcomeId) return onOpenOutcome(item.outcomeId);
-    if (item.link.type === "channel") return onOpenChannel?.(item.link.id);
-    if (item.link.type === "routine") return onOpenRoutine?.(item.link.id, item.botId);
+    if (item.kind === "scheduled_once" && item.link.type === "routine") {
+      onOpenScheduledGoal?.(item.link.id);
+      return;
+    }
+    if (item.outcomeId) onOpenOutcome(item.outcomeId);
+    else if (item.link.type === "channel") onOpenChannel?.(item.link.id);
+    else if (item.link.type === "routine") onOpenRoutine?.(item.link.id, item.botId);
+    else if (item.link.type === "todo") onOpenOutcome("");
   };
-  const reschedule = async (date: string) => {
-    if (!dragged || !dragged.editable) return;
-    const value = shiftedItemValue(dragged, date, timeZone);
+
+  const reschedule = async (targetDate: string) => {
+    if (!dragged || !dragged.editable || itemDate(dragged, timeZone) === targetDate) {
+      setDragged(null);
+      return;
+    }
+    const value = shiftedItemValue(dragged, targetDate, timeZone);
     try {
-      if (dragged.kind === "goal_due" && dragged.outcomeId && api.outcomes.setDue) await api.outcomes.setDue(dragged.outcomeId, { dueAt: value, clientRequestId: crypto.randomUUID() });
-      else if ((dragged.kind === "work_item" || dragged.kind === "human_task") && dragged.outcomeId && api.outcomes.setWorkItemSchedule) await api.outcomes.setWorkItemSchedule(dragged.outcomeId, dragged.link.id, { scheduledAt: dragged.allDay ? undefined : value, dueAt: dragged.allDay ? value : undefined, clientRequestId: crypto.randomUUID() });
-      else if (dragged.kind === "todo") await api.schedule.rescheduleTodo(dragged.link.id, dragged.allDay ? "dueAt" : "scheduledAt", value);
+      if (dragged.kind === "goal_due" && dragged.outcomeId && api.outcomes.setDue) {
+        await api.outcomes.setDue(dragged.outcomeId, {
+          dueAt: value,
+          clientRequestId: crypto.randomUUID(),
+        });
+      } else if (
+        (dragged.kind === "work_item" || dragged.kind === "human_task") &&
+        dragged.outcomeId &&
+        api.outcomes.setWorkItemSchedule
+      ) {
+        await api.outcomes.setWorkItemSchedule(dragged.outcomeId, dragged.link.id, {
+          scheduledAt: dragged.allDay ? undefined : value,
+          dueAt: dragged.allDay ? value : undefined,
+          clientRequestId: crypto.randomUUID(),
+        });
+      } else if (dragged.kind === "todo") {
+        await api.schedule.rescheduleTodo(
+          dragged.link.id,
+          dragged.allDay ? "dueAt" : "scheduledAt",
+          value
+        );
+      }
       await load();
     } catch {
       setError(true);
@@ -204,38 +1023,328 @@ export function CalendarPage({ bots, onClose, onOpenOutcome, onOpenChannel, onOp
       setDragged(null);
     }
   };
-  const toggleKind = (kind: TimeItemKind) => setSelectedKinds((current) => current.includes(kind) ? current.filter((entry) => entry !== kind) : [...current, kind]);
-  const title = view === "month" ? dateText(dayStart(selectedDate, timeZone), timeZone, { month: "long", year: "numeric" }) : dateText(dayStart(selectedDate, timeZone), timeZone, { month: "long", day: "numeric", year: "numeric" });
+
+  const toggleKind = (kind: TimeItemKind) =>
+    setSelectedKinds((current) =>
+      current.includes(kind) ? current.filter((entry) => entry !== kind) : [...current, kind]
+    );
+
+  const resetFilters = () => {
+    setSelectedKinds([...defaultCalendarKinds]);
+    setSelectedBot("");
+    setMine(false);
+  };
+
+  const activeFilterCount =
+    (selectedKinds.length !== defaultCalendarKinds.length ? 1 : 0) +
+    (selectedBot ? 1 : 0) +
+    (mine ? 1 : 0);
+
+  const isViewingToday =
+    view === "month"
+      ? isSameMonth(today, selectedDate)
+      : periodContainsDate(days, today);
+
+  const periodTitle = useMemo(() => {
+    if (view === "month") {
+      return dateText(dayStart(selectedDate, timeZone), timeZone, locale, {
+        year: "numeric",
+        month: "long",
+      });
+    }
+    if (view === "week" && days.length >= 7) {
+      const first = dayStart(days[0]!, timeZone);
+      const last = dayStart(days[days.length - 1]!, timeZone);
+      const startText = dateText(first, timeZone, locale, {
+        month: "short",
+        day: "numeric",
+      });
+      const endText = dateText(last, timeZone, locale, {
+        year: days[0]!.slice(0, 4) !== days[days.length - 1]!.slice(0, 4) ? "numeric" : undefined,
+        month: "short",
+        day: "numeric",
+      });
+      return `${startText} – ${endText}`;
+    }
+    return dateText(dayStart(selectedDate, timeZone), timeZone, locale, {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  }, [days, locale, selectedDate, timeZone, view]);
+
+  const openDayView = (date: string) => {
+    setSelectedDate(date);
+    setView("day");
+  };
 
   return (
-    <section className="outcome-page flex min-h-0 flex-1 flex-col" aria-label={t("Calendar") }>
-      <header className="outcome-page-header">
-        <div className="outcome-page-titlebar electron-drag">
-          <h1><CalendarDays aria-hidden="true" className="size-[17px] text-foreground-secondary" strokeWidth={1.6} />{t("Calendar")}</h1>
-          <OutcomeButton className="electron-no-drag" variant="ghost" onClick={onClose}>{t("Back to outcomes")}</OutcomeButton>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
-          <OutcomeButton aria-label={t("Previous period")} variant="ghost" size="icon" onClick={() => move(-1)}><ChevronLeft className="size-4" /></OutcomeButton>
-          <OutcomeButton variant="ghost" onClick={() => setSelectedDate(localDateOf(new Date(), timeZone))}><RotateCcw className="mr-1 size-3.5" />{t("Today")}</OutcomeButton>
-          <OutcomeButton aria-label={t("Next period")} variant="ghost" size="icon" onClick={() => move(1)}><ChevronRight className="size-4" /></OutcomeButton>
-          <h2 className="min-w-[150px] flex-1 text-center text-sm font-semibold">{title}</h2>
-          <div className="flex rounded-md border border-border p-0.5" role="group" aria-label={t("Calendar view")}>{(["day", "week", "month"] as const).map((entry) => <button key={entry} type="button" className={cn("rounded px-2 py-1 text-xs", view === entry && "bg-selected font-medium")} aria-pressed={view === entry} onClick={() => setView(entry)}>{t(entry === "day" ? "Day" : entry === "week" ? "Week" : "Month")}</button>)}</div>
-        </div>
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto"><div className="outcome-page-content space-y-4">
-        <div className="rounded-lg border border-border bg-subtle/30 p-3">
-          <div className="mb-2 flex items-center gap-2 text-xs font-semibold"><Filter className="size-3.5" />{t("Filters")}</div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-            {defaultCalendarKinds.map((kind) => <label key={kind} className="inline-flex items-center gap-1.5"><input type="checkbox" checked={selectedKinds.includes(kind)} onChange={() => toggleKind(kind)} />{t(kindLabels[kind])}</label>)}
-            <select aria-label={t("Bot")} className="rounded border border-border bg-background px-2 py-1" value={selectedBot} onChange={(event) => setSelectedBot(event.target.value)}><option value="">{t("All bots")}</option>{bots.map((bot) => <option key={bot.id} value={bot.id}>{bot.name}</option>)}</select>
-            <label className="inline-flex items-center gap-1.5"><input type="checkbox" checked={mine} onChange={(event) => setMine(event.target.checked)} />{t("Only mine")}</label>
+    <section
+      className={cn(!embedded && "outcome-page", "flex min-h-0 flex-1 flex-col overflow-hidden")}
+      aria-label={t("Calendar")}
+    >
+      {!embedded && onClose && (
+        <header className="outcome-page-header">
+          <div className="outcome-page-titlebar electron-drag">
+            <h1>
+              <CalendarDays
+                aria-hidden="true"
+                className="size-[17px] text-foreground-secondary"
+                strokeWidth={1.6}
+              />
+              {t("Calendar")}
+            </h1>
+            <OutcomeButton className="electron-no-drag" variant="ghost" onClick={onClose}>
+              {t("Back to outcomes")}
+            </OutcomeButton>
+          </div>
+        </header>
+      )}
+
+      <div
+        className="outcome-calendar"
+        data-compact-toolbar={metrics.compactToolbar ? "true" : undefined}
+      >
+        <div className="outcome-calendar-toolbar">
+          <div className="outcome-calendar-toolbar-group">
+            <h2 className="outcome-calendar-period-title">{periodTitle}</h2>
+            <div className="outcome-calendar-nav-group">
+              <button
+                type="button"
+                className="outcome-calendar-icon-btn"
+                aria-label={t("Previous period")}
+                onClick={() => move(-1)}
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+              <button
+                type="button"
+                className="outcome-calendar-icon-btn"
+                aria-label={t("Next period")}
+                onClick={() => move(1)}
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="outcome-calendar-today-btn"
+              data-calendar-today-button=""
+              data-away={!isViewingToday ? "true" : "false"}
+              onClick={jumpToToday}
+              title={t("Back to today")}
+            >
+              {isViewingToday ? (
+                <span aria-hidden="true" className="outcome-calendar-today-dot" />
+              ) : (
+                <LocateFixed aria-hidden="true" className="size-3.5 shrink-0" />
+              )}
+              <span>{isViewingToday ? t("Today") : t("Back to today")}</span>
+            </button>
+            {loading && (
+              <span className="outcome-calendar-status-pill" role="status">
+                <Loader2 className="size-3 animate-spin" />
+                {!metrics.compactToolbar && <span>{t("Loading calendar…")}</span>}
+              </span>
+            )}
+            {!loading && !error && items.length === 0 && !metrics.compactToolbar && (
+              <span className="outcome-calendar-status-pill">
+                {t("Nothing scheduled for this period.")}
+              </span>
+            )}
+          </div>
+
+          <div className="outcome-calendar-toolbar-group">
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="outcome-calendar-filter-btn"
+                  data-active={activeFilterCount > 0 ? "true" : undefined}
+                  aria-label={t("Filters")}
+                >
+                  <SlidersHorizontal aria-hidden="true" className="size-3.5" />
+                  {!metrics.compactToolbar && <span>{t("Filters")}</span>}
+                  {activeFilterCount > 0 && (
+                    <span className="outcome-calendar-filter-badge">{activeFilterCount}</span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 space-y-3.5 p-3.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground">{t("Item types")}</span>
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 text-[11px] text-foreground-secondary hover:text-foreground"
+                      onClick={resetFilters}
+                    >
+                      <RotateCcw className="size-3" />
+                      {t("Reset filters")}
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {defaultCalendarKinds.map((kind) => {
+                    const active = selectedKinds.includes(kind);
+                    return (
+                      <button
+                        key={kind}
+                        type="button"
+                        className="outcome-calendar-filter-chip"
+                        data-cal-kind={kind}
+                        aria-pressed={active}
+                        onClick={() => toggleKind(kind)}
+                      >
+                        <span
+                          className="outcome-calendar-dot"
+                          data-cal-kind={kind}
+                          aria-hidden="true"
+                        />
+                        <span>{t(kindLabels[kind])}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="space-y-2 border-t border-border pt-3">
+                  <label className="block space-y-1 text-[11px] font-medium text-foreground-secondary">
+                    <span>{t("Bot")}</span>
+                    <select
+                      aria-label={t("Bot")}
+                      className="outcome-control w-full"
+                      value={selectedBot}
+                      onChange={(event) => setSelectedBot(event.target.value)}
+                    >
+                      <option value="">{t("All bots")}</option>
+                      {bots.map((bot) => (
+                        <option key={bot.id} value={bot.id}>
+                          {bot.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="inline-flex cursor-pointer items-center gap-2 pt-0.5 text-xs text-foreground">
+                    <input
+                      type="checkbox"
+                      className="accent-[var(--cal-accent)]"
+                      checked={mine}
+                      onChange={(event) => setMine(event.target.checked)}
+                    />
+                    <span>{t("Only mine")}</span>
+                  </label>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div
+              className="outcome-calendar-segmented"
+              role="group"
+              aria-label={t("Calendar view")}
+            >
+              {(["day", "week", "month"] as const).map((entry) => (
+                <button
+                  key={entry}
+                  type="button"
+                  aria-pressed={view === entry}
+                  onClick={() => setView(entry)}
+                >
+                  {t(entry === "day" ? "Day" : entry === "week" ? "Week" : "Month")}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        {truncated && <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{t("Too many items. Narrow the date range or filters.")}</p>}
-        {error && <div role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-xs text-destructive">{t("Calendar could not be loaded.")} <button className="underline" onClick={() => void load()}>{t("Retry")}</button></div>}
-        {externalUnavailable && <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{t("External calendar overlay unavailable")}: {externalUnavailable}</div>}
-        {loading ? <p role="status">{t("Loading calendar…")}</p> : items.length === 0 ? <div className="rounded-lg border border-dashed border-border px-4 py-12 text-center text-sm text-foreground-secondary">{t("Nothing scheduled for this period.")}</div> : <CalendarGrid days={days} view={view} items={grouped} timeZone={timeZone} bots={bots} onDragStart={setDragged} onDrop={(date) => void reschedule(date)} onOpen={openItem} />}
-      </div></div>
+
+        {(truncated || error || externalUnavailable) && (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {truncated && (
+              <p
+                role="status"
+                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs"
+              >
+                {t("Too many items. Narrow the date range or filters.")}
+              </p>
+            )}
+            {error && (
+              <div
+                role="alert"
+                className="rounded-md border border-destructive/40 bg-destructive/8 px-2.5 py-1 text-xs text-destructive"
+              >
+                {t("Calendar could not be loaded.")}{" "}
+                <button type="button" className="underline" onClick={() => void load()}>
+                  {t("Retry")}
+                </button>
+              </div>
+            )}
+            {externalUnavailable && (
+              <div
+                role="status"
+                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs"
+              >
+                {t("External calendar overlay unavailable")}: {externalUnavailable}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div
+          ref={surfaceRef}
+          className="outcome-calendar-surface"
+          data-calendar-density={metrics.density}
+        >
+          {view === "month" && (
+            <MonthGrid
+              days={days}
+              selectedDate={selectedDate}
+              today={today}
+              todayPulse={todayPulse}
+              items={grouped}
+              timeZone={timeZone}
+              locale={locale}
+              bots={bots}
+              metrics={metrics}
+              dragOverDate={dragOverDate}
+              onDragOverDate={setDragOverDate}
+              onDragStart={setDragged}
+              onDrop={(date) => void reschedule(date)}
+              onOpen={openItem}
+              onOpenDay={openDayView}
+            />
+          )}
+          {view === "week" && (
+            <WeekGrid
+              days={days}
+              today={today}
+              todayPulse={todayPulse}
+              items={grouped}
+              timeZone={timeZone}
+              locale={locale}
+              bots={bots}
+              metrics={metrics}
+              dragOverDate={dragOverDate}
+              onDragOverDate={setDragOverDate}
+              onDragStart={setDragged}
+              onDrop={(date) => void reschedule(date)}
+              onOpen={openItem}
+              onOpenDay={openDayView}
+            />
+          )}
+          {view === "day" && (
+            <DayBoard
+              date={selectedDate}
+              today={today}
+              entries={grouped.get(selectedDate) ?? []}
+              timeZone={timeZone}
+              locale={locale}
+              bots={bots}
+              metrics={metrics}
+              onDragStart={setDragged}
+              onDrop={(date) => void reschedule(date)}
+              onOpen={openItem}
+            />
+          )}
+        </div>
+      </div>
     </section>
   );
 }
