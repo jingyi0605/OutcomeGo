@@ -58,7 +58,9 @@ export function AutostartSection({
   };
 
   const updateBackgroundPreference = async (
-    patch: Partial<Pick<BackgroundPreferenceState, "stopServiceOnQuit" | "launchAtLogin" | "launchHidden">>
+    patch: Partial<
+      Pick<BackgroundPreferenceState, "stopServiceOnQuit" | "launchAtLogin" | "launchHidden">
+    >
   ) => {
     if (!preferences || savingPrefs) return;
     setSavingPrefs(true);
@@ -74,15 +76,12 @@ export function AutostartSection({
   };
 
   const serviceSupported = autostart?.serviceSupported ?? false;
-  const serviceDescription = !autostart
-    ? t("Checking autostart status…")
-    : !autostart.serviceSupported
-      ? t(
-          "Autostart is managed by your external container engine (for example Docker Desktop or OrbStack)."
-        )
-      : autostart.serviceEnabled && !autostart.serviceRegistered
-        ? t("Enabled in preferences, but the system task is not registered. Toggle to repair.")
-        : t("Automatically start the managed container engine and local services when you sign in.");
+  const serviceDescription =
+    autostart && !autostart.serviceSupported
+      ? t("Managed by external container engine.")
+      : autostart && autostart.serviceEnabled && !autostart.serviceRegistered
+        ? t("System task missing. Toggle to repair.")
+        : undefined;
 
   return (
     <div className="mt-5">
@@ -90,8 +89,6 @@ export function AutostartSection({
       <SettingsGroup>
         {bridge?.autostartStatus ? (
           <SettingsRow
-            title={t("Start local services at login")}
-            description={serviceDescription}
             control={
               <InteractiveSwitch
                 checked={Boolean(serviceSupported && autostart?.serviceEnabled)}
@@ -100,14 +97,14 @@ export function AutostartSection({
                 onChange={(checked) => void toggleServiceAutostart(checked)}
               />
             }
+            description={serviceDescription}
+            title={t("Start local services at login")}
           />
         ) : null}
 
         {preferences ? (
           <>
             <SettingsRow
-              title={t("Launch OutcomeGo at login")}
-              description={t("Start the OutcomeGo desktop app automatically when you sign in.")}
               control={
                 <InteractiveSwitch
                   checked={prefs.launchAtLogin}
@@ -118,28 +115,24 @@ export function AutostartSection({
                   }
                 />
               }
+              title={t("Launch OutcomeGo at login")}
             />
+            {prefs.launchAtLogin ? (
+              <SettingsRow
+                control={
+                  <InteractiveSwitch
+                    checked={prefs.launchHidden}
+                    disabled={savingPrefs}
+                    label="Start minimized to tray"
+                    onChange={(checked) =>
+                      void updateBackgroundPreference({ launchHidden: checked })
+                    }
+                  />
+                }
+                title={t("Start minimized to tray")}
+              />
+            ) : null}
             <SettingsRow
-              title={t("Start minimized to tray")}
-              description={t(
-                "Keep the main window hidden in the tray when launched automatically at login."
-              )}
-              control={
-                <InteractiveSwitch
-                  checked={prefs.launchHidden}
-                  disabled={savingPrefs || !prefs.launchAtLogin}
-                  label="Start minimized to tray"
-                  onChange={(checked) =>
-                    void updateBackgroundPreference({ launchHidden: checked })
-                  }
-                />
-              }
-            />
-            <SettingsRow
-              title={t("Stop local services when quitting")}
-              description={t(
-                "When disabled, local services stay running in the background after you quit the desktop app."
-              )}
               control={
                 <InteractiveSwitch
                   checked={prefs.stopServiceOnQuit}
@@ -150,6 +143,7 @@ export function AutostartSection({
                   }
                 />
               }
+              title={t("Stop local services when quitting")}
             />
           </>
         ) : null}

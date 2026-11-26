@@ -1,12 +1,17 @@
 import {
+  Activity,
   AlertTriangle,
+  Check,
   CheckCircle2,
-  Globe,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
+  Trash2,
+  X,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { cn } from "../../../../lib/cn";
 import { useI18n } from "../../../../lib/i18n";
 import type {
   EngineKind,
@@ -17,15 +22,16 @@ import type {
   ProxyProtocol,
   SystemProxySnapshot,
 } from "../../../../lib/local-deploy-contract";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../../ui/tooltip";
 import {
+  InteractiveSwitch,
   SectionLabel,
   SettingsGroup,
   SettingsRow,
   settingsInput,
-  settingsPrimaryButton,
-  settingsSecondaryButton,
   settingsSelect,
 } from "../ui";
+import { IconActionButton } from "./icon-action-button";
 
 const isLoopbackAddress = (host: string): boolean => {
   const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, "");
@@ -87,7 +93,7 @@ export function ProxySection({
   const [applyToDockerDaemon, setApplyToDockerDaemon] = useState(!isExternal);
   const [systemSnapshot, setSystemSnapshot] = useState<SystemProxySnapshot | null>(null);
 
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmingSave, setConfirmingSave] = useState(false);
   const [testResult, setTestResult] = useState<LocalProxyTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
@@ -106,7 +112,7 @@ export function ProxySection({
       setApplyToContainers(config.applyToContainers);
       setApplyToDockerDaemon(isExternal ? false : config.applyToDockerDaemon);
       if (config.systemResolved) setSystemSnapshot(config.systemResolved);
-      setConfirmed(false);
+      setConfirmingSave(false);
     },
     [isExternal]
   );
@@ -160,10 +166,41 @@ export function ProxySection({
     return null;
   }, [mode, host, port]);
 
+  const isDirty = useMemo(() => {
+    if (!savedConfig) return false;
+    if (mode !== savedConfig.mode) return true;
+    if (noProxy.trim() !== (savedConfig.noProxy ?? "").trim()) return true;
+    if (applyToContainers !== savedConfig.applyToContainers) return true;
+    if (!isExternal && applyToDockerDaemon !== savedConfig.applyToDockerDaemon) return true;
+    if (mode === "manual") {
+      if (protocol !== (savedConfig.protocol ?? "http")) return true;
+      if (host.trim() !== (savedConfig.host ?? "")) return true;
+      if (port.trim() !== (savedConfig.port ? String(savedConfig.port) : "7890")) return true;
+      if (username.trim() !== (savedConfig.username ?? "")) return true;
+      if (password.length > 0 || clearPassword) return true;
+    }
+    return false;
+  }, [
+    savedConfig,
+    mode,
+    protocol,
+    host,
+    port,
+    username,
+    password,
+    clearPassword,
+    noProxy,
+    applyToContainers,
+    applyToDockerDaemon,
+    isExternal,
+  ]);
+
   const usesLoopback = useMemo(() => {
     if (mode === "manual") return isLoopbackAddress(host);
     if (mode === "system") {
-      return urlUsesLoopback(systemSnapshot?.httpsProxy) || urlUsesLoopback(systemSnapshot?.httpProxy);
+      return (
+        urlUsesLoopback(systemSnapshot?.httpsProxy) || urlUsesLoopback(systemSnapshot?.httpProxy)
+      );
     }
     return false;
   }, [mode, host, systemSnapshot]);
@@ -219,7 +256,7 @@ export function ProxySection({
   };
 
   const handleSave = async () => {
-    if (!bridge?.saveProxy || validationError || !confirmed || saving || busy) return;
+    if (!bridge?.saveProxy || validationError || saving || busy) return;
     setSaving(true);
     setError(null);
     setSavedNotice(null);
@@ -239,367 +276,326 @@ export function ProxySection({
 
   if (!bridge?.proxyStatus) return null;
 
+  const detectedProxyLine =
+    systemSnapshot?.httpsProxy ?? systemSnapshot?.httpProxy ?? null;
+
   return (
     <div className="mt-5">
       <div className="mb-2 flex items-center justify-between px-2">
         <SectionLabel>{t("Proxy server")}</SectionLabel>
-        <button
-          className={settingsSecondaryButton}
-          disabled={loading || saving}
-          onClick={() => void loadConfig()}
-          type="button"
-        >
-          <RefreshCw className={loading ? "animate-spin" : ""} size={13} />
-          {t("Refresh")}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {bridge.testProxy ? (
+            <IconActionButton
+              disabled={testing || saving || Boolean(validationError)}
+              icon={<Activity className={testing ? "animate-pulse" : ""} size={13} />}
+              label={t(testing ? "Testing…" : "Test proxy connection")}
+              onClick={() => void handleTest()}
+            />
+          ) : null}
+          <IconActionButton
+            disabled={loading || saving}
+            icon={<RefreshCw className={loading ? "animate-spin" : ""} size={13} />}
+            label={t("Refresh")}
+            onClick={() => void loadConfig()}
+          />
+        </div>
       </div>
 
       <SettingsGroup>
         <SettingsRow
-          title={t("Proxy mode")}
-          description={t(
-            "Route local service outbound requests (AI models, web search, plugins) and managed engine image pulls through a proxy. Does not affect cloud computer browser egress."
-          )}
           control={
-            <div className="flex flex-wrap gap-1.5">
+            <div className="inline-flex rounded-[8px] bg-black/[0.06] p-0.5 dark:bg-white/[0.08]">
               {(["off", "system", "manual"] as const).map((option) => (
                 <button
-                  className={mode === option ? settingsPrimaryButton : settingsSecondaryButton}
+                  className={cn(
+                    "h-6 rounded-[6px] px-2.5 text-[12px] transition-colors outline-none disabled:opacity-50",
+                    mode === option
+                      ? "bg-background font-medium text-foreground shadow-xs"
+                      : "text-foreground-secondary hover:text-foreground"
+                  )}
                   disabled={saving || busy}
                   key={option}
                   onClick={() => {
                     setMode(option);
-                    setTestResult(null);
-                    setConfirmed(false);
+                    setConfirmingSave(false);
                     setSavedNotice(null);
                   }}
                   type="button"
                 >
-                  {t(
-                    option === "off"
-                      ? "Direct"
-                      : option === "system"
-                        ? "Follow system proxy"
-                        : "Manual proxy"
-                  )}
+                  {t(option === "off" ? "Off" : option === "system" ? "System" : "Manual")}
                 </button>
               ))}
             </div>
           }
+          title={t("Proxy mode")}
         />
 
         {mode === "system" ? (
-          <div className="border-t border-black/[0.065] py-3 text-[12px] dark:border-white/[0.07]">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 font-medium text-foreground">
-                <Globe size={14} />
-                <span>{t("Detected system proxy")}</span>
-              </div>
-              <button
-                className={settingsSecondaryButton}
-                disabled={detecting}
-                onClick={() => void detectSystem()}
-                type="button"
-              >
-                <RefreshCw className={detecting ? "animate-spin" : ""} size={12} />
-                {t("Detect again")}
-              </button>
-            </div>
-            <div className="mt-2 space-y-1 font-mono text-[11px] text-foreground-secondary">
-              <div>
-                HTTPS: {systemSnapshot?.httpsProxy ?? t("None detected (direct)")}
-              </div>
-              <div>
-                HTTP: {systemSnapshot?.httpProxy ?? t("None detected (direct)")}
-              </div>
-              {systemSnapshot?.noProxy ? (
-                <div className="truncate">NO_PROXY: {systemSnapshot.noProxy}</div>
-              ) : null}
-            </div>
+          <div className="flex items-center justify-between gap-2 border-t border-black/[0.065] py-2.5 text-[12px] dark:border-white/[0.07]">
+            <span className="truncate font-mono text-[11px] text-foreground-secondary">
+              {detectedProxyLine ?? t("None detected (direct)")}
+            </span>
+            <IconActionButton
+              disabled={detecting}
+              icon={<RefreshCw className={detecting ? "animate-spin" : ""} size={12} />}
+              label={t("Detect again")}
+              onClick={() => void detectSystem()}
+            />
           </div>
         ) : null}
 
         {mode === "manual" ? (
-          <div className="space-y-3 border-t border-black/[0.065] py-3 dark:border-white/[0.07]">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">{t("Protocol")}</span>
-                <select
-                  className={settingsSelect}
-                  disabled={saving || busy}
-                  onChange={(e) => {
-                    setProtocol(e.target.value as ProxyProtocol);
-                    setConfirmed(false);
-                  }}
-                  value={protocol}
-                >
-                  <option value="http">HTTP</option>
-                  <option value="https">HTTPS</option>
-                  <option value="socks5">SOCKS5</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">{t("Proxy host")}</span>
-                <input
-                  className={settingsInput}
-                  disabled={saving || busy}
-                  onChange={(e) => {
-                    setHost(e.target.value);
-                    setConfirmed(false);
-                  }}
-                  placeholder="127.0.0.1"
-                  value={host}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">{t("Port")}</span>
-                <input
-                  className={settingsInput}
-                  disabled={saving || busy}
-                  max={65535}
-                  min={1}
-                  onChange={(e) => {
-                    setPort(e.target.value);
-                    setConfirmed(false);
-                  }}
-                  placeholder="7890"
-                  type="number"
-                  value={port}
-                />
-              </label>
+          <div className="space-y-2.5 border-t border-black/[0.065] py-3 dark:border-white/[0.07]">
+            <div className="grid grid-cols-[92px_minmax(0,1fr)_84px] gap-2">
+              <select
+                aria-label={t("Protocol")}
+                className={settingsSelect}
+                disabled={saving || busy}
+                onChange={(e) => {
+                  setProtocol(e.target.value as ProxyProtocol);
+                  setConfirmingSave(false);
+                }}
+                value={protocol}
+              >
+                <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+                <option value="socks5">SOCKS5</option>
+              </select>
+              <input
+                aria-label={t("Proxy host")}
+                className={settingsInput}
+                disabled={saving || busy}
+                onChange={(e) => {
+                  setHost(e.target.value);
+                  setConfirmingSave(false);
+                }}
+                placeholder="127.0.0.1"
+                value={host}
+              />
+              <input
+                aria-label={t("Port")}
+                className={settingsInput}
+                disabled={saving || busy}
+                max={65535}
+                min={1}
+                onChange={(e) => {
+                  setPort(e.target.value);
+                  setConfirmingSave(false);
+                }}
+                placeholder="7890"
+                type="number"
+                value={port}
+              />
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">{t("Username (optional)")}</span>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <input
+                aria-label={t("Username (optional)")}
+                className={settingsInput}
+                disabled={saving || busy}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  setConfirmingSave(false);
+                }}
+                placeholder={t("Username (optional)")}
+                value={username}
+              />
+              <div className="flex items-center gap-1.5">
                 <input
-                  className={settingsInput}
-                  disabled={saving || busy}
-                  onChange={(e) => {
-                    setUsername(e.target.value);
-                    setConfirmed(false);
-                  }}
-                  value={username}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">
-                  {t(savedConfig?.hasPassword ? "Password (saved)" : "Password (optional)")}
-                </span>
-                <input
-                  className={settingsInput}
+                  aria-label={t(
+                    savedConfig?.hasPassword ? "Password (saved)" : "Password (optional)"
+                  )}
+                  className={`${settingsInput} flex-1`}
                   disabled={saving || busy || clearPassword}
                   onChange={(e) => {
                     setPassword(e.target.value);
-                    setConfirmed(false);
+                    setConfirmingSave(false);
                   }}
-                  placeholder={
-                    savedConfig?.hasPassword
-                      ? t("Leave blank to keep saved password")
-                      : ""
-                  }
+                  placeholder={t(
+                    clearPassword
+                      ? "Password will be cleared"
+                      : savedConfig?.hasPassword
+                        ? "Password (saved)"
+                        : "Password (optional)"
+                  )}
                   type="password"
                   value={password}
                 />
-              </label>
+                {savedConfig?.hasPassword ? (
+                  <IconActionButton
+                    active={clearPassword}
+                    disabled={saving || busy}
+                    icon={<Trash2 size={12} />}
+                    label={t("Clear saved proxy password")}
+                    onClick={() => {
+                      setClearPassword((prev) => {
+                        const next = !prev;
+                        if (next) setPassword("");
+                        return next;
+                      });
+                      setConfirmingSave(false);
+                    }}
+                    variant="danger"
+                  />
+                ) : null}
+              </div>
             </div>
-
-            {savedConfig?.hasPassword ? (
-              <label className="flex items-center gap-2 text-[12px] text-foreground-secondary">
-                <input
-                  checked={clearPassword}
-                  disabled={saving || busy}
-                  onChange={(e) => {
-                    setClearPassword(e.target.checked);
-                    if (e.target.checked) setPassword("");
-                    setConfirmed(false);
-                  }}
-                  type="checkbox"
-                />
-                <span>{t("Clear saved proxy password")}</span>
-              </label>
-            ) : null}
           </div>
         ) : null}
 
         {mode !== "off" ? (
-          <div className="space-y-3 border-t border-black/[0.065] py-3 text-[12px] dark:border-white/[0.07]">
-            <label className="flex flex-col gap-1">
-              <span className="text-foreground-secondary">
-                {t("Bypass proxy for (NO_PROXY, comma-separated)")}
-              </span>
+          <div className="space-y-2.5 border-t border-black/[0.065] py-3 text-[12px] dark:border-white/[0.07]">
+            <div className="flex items-center gap-2">
               <input
-                className={settingsInput}
+                aria-label={t("Bypass proxy for (NO_PROXY, comma-separated)")}
+                className={`${settingsInput} flex-1`}
                 disabled={saving || busy}
                 onChange={(e) => {
                   setNoProxy(e.target.value);
-                  setConfirmed(false);
+                  setConfirmingSave(false);
                 }}
-                placeholder=".corp.local,internal.example.com"
+                placeholder={t("NO_PROXY (e.g. .corp.local)")}
                 value={noProxy}
               />
-            </label>
-            <div className="flex items-start gap-1.5 text-[11px] text-foreground-tertiary">
-              <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
-              <span>
-                {t(
-                  "Local intranet services (localhost, 127.0.0.1, postgres, server, worker, computer, private subnets, host.docker.internal) always bypass the proxy automatically."
-                )}
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex text-foreground-tertiary">
+                    <ShieldCheck className="size-4" />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t(
+                    "Local intranet services (localhost, 127.0.0.1, postgres, server, worker, computer, private subnets, host.docker.internal) always bypass the proxy automatically."
+                  )}
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             {usesLoopback ? (
-              <div className="flex items-start gap-2 rounded-[10px] border border-amber-500/30 bg-amber-500/10 p-2.5 text-[12px] text-foreground">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <div className="space-y-0.5">
-                  <div>
-                    {t(
-                      "Loopback proxy detected: OutcomeGo automatically maps 127.0.0.1 / localhost to the host gateway reachable from containers."
-                    )}
-                    {savedConfig?.loopbackMappedHost ? (
-                      <span className="ml-1 font-mono text-[11px]">
-                        ({savedConfig.loopbackMappedHost})
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="text-foreground-secondary">
-                    {t(
-                      "Make sure your local proxy app (for example Clash or v2rayN) has 'Allow LAN' enabled and is allowed through the firewall."
-                    )}
-                  </div>
-                </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="size-3.5 shrink-0" />
+                <span>
+                  {t("Loopback proxy mapped automatically; enable 'Allow LAN' in your proxy app.")}
+                </span>
               </div>
             ) : null}
 
-            <div className="space-y-2 pt-1">
-              <label className="flex items-center gap-2 text-foreground">
-                <input
+            <div className="space-y-2 pt-0.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[12px] text-foreground">{t("Apply to local containers")}</span>
+                <InteractiveSwitch
                   checked={applyToContainers}
                   disabled={saving || busy}
-                  onChange={(e) => {
-                    setApplyToContainers(e.target.checked);
-                    setConfirmed(false);
+                  label="Apply to local containers"
+                  onChange={(checked) => {
+                    setApplyToContainers(checked);
+                    setConfirmingSave(false);
                   }}
-                  type="checkbox"
                 />
-                <span>{t("Apply to local service containers (AI models, web search, plugins)")}</span>
-              </label>
-              <label
-                className={`flex items-start gap-2 ${isExternal ? "text-foreground-tertiary" : "text-foreground"}`}
-              >
-                <input
-                  checked={!isExternal && applyToDockerDaemon}
-                  disabled={saving || busy || isExternal}
-                  onChange={(e) => {
-                    setApplyToDockerDaemon(e.target.checked);
-                    setConfirmed(false);
-                  }}
-                  type="checkbox"
-                />
-                <span>
-                  {t("Apply to managed engine image pulls (Docker daemon)")}
-                  {isExternal ? (
-                    <span className="block text-[11px] text-foreground-tertiary">
-                      {t(
-                        "External engines manage Docker daemon proxy settings in Docker Desktop or OrbStack."
-                      )}
-                    </span>
-                  ) : null}
-                </span>
-              </label>
+              </div>
+              {!isExternal ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[12px] text-foreground">{t("Apply to image pulls")}</span>
+                  <InteractiveSwitch
+                    checked={applyToDockerDaemon}
+                    disabled={saving || busy}
+                    label="Apply to image pulls"
+                    onChange={(checked) => {
+                      setApplyToDockerDaemon(checked);
+                      setConfirmingSave(false);
+                    }}
+                  />
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
 
-        <div className="space-y-2.5 border-t border-black/[0.065] py-3 dark:border-white/[0.07]">
-          {validationError ? (
-            <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">
-              {t(validationError)}
-            </p>
-          ) : null}
-
-          <label className="flex items-center gap-2 text-[12px] text-foreground">
-            <input
-              checked={confirmed}
-              disabled={saving || busy}
-              onChange={(e) => setConfirmed(e.target.checked)}
-              type="checkbox"
-            />
-            <span>
-              {t("Applying proxy settings briefly restarts local services and interrupts running tasks.")}
-            </span>
-          </label>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {bridge.testProxy ? (
-              <button
-                className={settingsSecondaryButton}
-                disabled={testing || saving || Boolean(validationError)}
-                onClick={() => void handleTest()}
-                type="button"
-              >
-                <RefreshCw className={testing ? "animate-spin" : ""} size={13} />
-                {t(testing ? "Testing…" : "Test proxy connection")}
-              </button>
-            ) : null}
-            <button
-              className={settingsPrimaryButton}
-              disabled={busy || saving || Boolean(validationError) || !confirmed}
-              onClick={() => void handleSave()}
-              type="button"
-            >
-              {t(saving ? "Applying…" : "Save and apply proxy")}
-            </button>
-          </div>
-
-          {testResult ? (
-            <div className="mt-2 space-y-2 rounded-[10px] border border-black/[0.08] bg-black/[0.03] p-3 text-[12px] dark:border-white/[0.08] dark:bg-black/30">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium text-foreground">
-                  {t(testResult.ok ? "Proxy test passed" : "Proxy test found connectivity issues")}
+        {isDirty || validationError ? (
+          <div className="flex items-center justify-between gap-3 border-t border-black/[0.065] py-2.5 text-[12px] dark:border-white/[0.07]">
+            <div className="min-w-0 flex-1">
+              {validationError ? (
+                <span className="text-red-600 dark:text-red-400" role="alert">
+                  {t(validationError)}
                 </span>
-                {testResult.effectiveProxy ? (
-                  <span className="truncate font-mono text-[11px] text-foreground-tertiary">
-                    {testResult.effectiveProxy}
-                  </span>
-                ) : null}
-              </div>
-              <div className="space-y-1.5">
-                {testResult.checks.map((check) => (
-                  <div
-                    className="flex flex-wrap items-center justify-between gap-2 text-[12px]"
-                    key={check.target}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      {check.ok ? (
-                        <CheckCircle2 className="size-3.5 text-emerald-500" />
-                      ) : (
-                        <XCircle className="size-3.5 text-red-500" />
-                      )}
-                      <span className="text-foreground">{t(checkTargetLabel(check.target))}</span>
-                    </div>
-                    <div className="flex items-center gap-2 font-mono text-[11px] text-foreground-secondary">
-                      {check.statusCode ? <span>HTTP {check.statusCode}</span> : null}
-                      {check.latencyMs !== null ? <span>{check.latencyMs} ms</span> : null}
-                      {check.error ? (
-                        <span className="max-w-[280px] truncate text-red-600 dark:text-red-400">
-                          {check.error}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {!testResult.ok && usesLoopback ? (
-                <p className="pt-1 text-[11px] text-amber-600 dark:text-amber-400">
-                  {t(
-                    "Tip: if your proxy runs on 127.0.0.1, enable 'Allow LAN' in your proxy client and allow the port in Windows Firewall."
-                  )}
-                </p>
-              ) : null}
+              ) : confirmingSave ? (
+                <span className="text-amber-700 dark:text-amber-300">
+                  {t("Confirm applying and restarting local services?")}
+                </span>
+              ) : (
+                <span className="text-foreground-secondary">
+                  {t("Applying briefly restarts local services.")}
+                </span>
+              )}
             </div>
-          ) : null}
-        </div>
+
+            <div className="flex shrink-0 items-center gap-1.5">
+              {confirmingSave ? (
+                <>
+                  <IconActionButton
+                    disabled={busy || saving || Boolean(validationError)}
+                    icon={<Check size={13} />}
+                    label={t(saving ? "Applying…" : "Confirm apply")}
+                    onClick={() => void handleSave()}
+                    variant="primary"
+                  />
+                  <IconActionButton
+                    disabled={saving}
+                    icon={<X size={13} />}
+                    label={t("Cancel")}
+                    onClick={() => setConfirmingSave(false)}
+                  />
+                </>
+              ) : (
+                <>
+                  <IconActionButton
+                    disabled={saving || busy}
+                    icon={<RotateCcw size={13} />}
+                    label={t("Reset changes")}
+                    onClick={() => {
+                      if (savedConfig) hydrate(savedConfig);
+                    }}
+                  />
+                  <IconActionButton
+                    disabled={busy || saving || Boolean(validationError)}
+                    icon={<Check size={13} />}
+                    label={t("Save and apply proxy")}
+                    onClick={() => setConfirmingSave(true)}
+                    variant="primary"
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {testResult ? (
+          <div className="space-y-1.5 border-t border-black/[0.065] py-2.5 text-[12px] dark:border-white/[0.07]">
+            {testResult.checks.map((check) => (
+              <div
+                className="flex items-center justify-between gap-2 text-[12px]"
+                key={check.target}
+              >
+                <div className="flex items-center gap-1.5">
+                  {check.ok ? (
+                    <CheckCircle2 className="size-3.5 text-emerald-500" />
+                  ) : (
+                    <XCircle className="size-3.5 text-red-500" />
+                  )}
+                  <span className="text-foreground">{t(checkTargetLabel(check.target))}</span>
+                </div>
+                <div className="flex items-center gap-2 font-mono text-[11px] text-foreground-secondary">
+                  {check.latencyMs !== null ? <span>{check.latencyMs} ms</span> : null}
+                  {check.error ? (
+                    <span className="max-w-[220px] truncate text-red-600 dark:text-red-400">
+                      {check.error}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </SettingsGroup>
 
       {savedNotice ? (

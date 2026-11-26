@@ -1,3 +1,4 @@
+import { SlidersHorizontal } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { useState } from "react";
 import { API_BASE } from "../../../client/http";
@@ -6,8 +7,8 @@ import { AdvancedComputerSettings, MachineSettings } from "./machines";
 import { TailscaleSettings } from "./tailscale";
 import { ServerActivity } from "./server-activity";
 import { AutomationWebhookPublicUrlSettings } from "./automation-webhook-url";
+import { IconActionButton } from "./local-service/icon-action-button";
 import { SectionLabel, SettingsGroup, SettingsLink, SettingsRow } from "./ui";
-import { settingsSecondaryButton } from "./ui";
 import { useI18n } from "../../../lib/i18n";
 
 const BrowserNetworkSettings = lazy(() => import("./browser-network"));
@@ -33,9 +34,11 @@ export default function ServerSettings() {
             title={t("Private network access")}
             description={t("Choose whether the cloud computer can reach LAN services and manage TCP exceptions.")}
             control={
-              <button className={settingsSecondaryButton} onClick={() => setPolicyOpen(true)} type="button">
-                {t("Manage")}
-              </button>
+              <IconActionButton
+                icon={<SlidersHorizontal size={13} />}
+                label={t("Manage")}
+                onClick={() => setPolicyOpen(true)}
+              />
             }
           />
         </SettingsGroup>

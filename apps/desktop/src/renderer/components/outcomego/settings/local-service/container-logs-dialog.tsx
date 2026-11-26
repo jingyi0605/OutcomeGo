@@ -9,7 +9,9 @@ import {
   DialogDescription,
   DialogTitle,
 } from "../../../ui/dialog";
-import { settingsInput, settingsSecondaryButton, settingsSelect } from "../ui";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../../ui/tooltip";
+import { settingsInput, settingsSelect } from "../ui";
+import { IconActionButton } from "./icon-action-button";
 
 const TAIL_OPTIONS = [100, 200, 500] as const;
 
@@ -73,29 +75,32 @@ export function ContainerLogsDialog({
         className="flex max-h-[82vh] w-[min(900px,92vw)] max-w-none flex-col gap-3 overflow-hidden p-4"
         showCloseButton={false}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
             <DialogTitle className="text-[15px] font-medium text-foreground">
               {t("Container logs: {service}", { service: service ?? "" })}
             </DialogTitle>
-            <DialogDescription className="mt-0.5 flex items-center gap-1.5 text-[12px] text-foreground-secondary">
-              <ShieldCheck className="size-3.5 shrink-0" />
-              <span>{t("Sensitive credentials, tokens, and proxy passwords are automatically redacted.")}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex text-foreground-tertiary">
+                  <ShieldCheck className="size-3.5" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t("Sensitive credentials, tokens, and proxy passwords are automatically redacted.")}
+              </TooltipContent>
+            </Tooltip>
+            <DialogDescription className="sr-only">
+              {t("Sensitive credentials, tokens, and proxy passwords are automatically redacted.")}
             </DialogDescription>
           </div>
           <DialogClose asChild>
-            <button
-              aria-label={t("Close")}
-              className="inline-flex size-7 items-center justify-center rounded-[8px] text-foreground-secondary hover:bg-black/[0.06] dark:hover:bg-white/[0.09]"
-              type="button"
-            >
-              <X size={15} />
-            </button>
+            <IconActionButton icon={<X size={14} />} label={t("Close")} />
           </DialogClose>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[180px]">
+        <div className="flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-foreground-tertiary" />
             <input
               aria-label={t("Filter logs")}
@@ -117,24 +122,18 @@ export function ContainerLogsDialog({
               </option>
             ))}
           </select>
-          <button
-            className={settingsSecondaryButton}
+          <IconActionButton
             disabled={loading}
+            icon={<RefreshCw className={loading ? "animate-spin" : ""} size={13} />}
+            label={t("Refresh")}
             onClick={() => void loadLogs()}
-            type="button"
-          >
-            <RefreshCw className={loading ? "animate-spin" : ""} size={13} />
-            {t("Refresh")}
-          </button>
-          <button
-            className={settingsSecondaryButton}
+          />
+          <IconActionButton
             disabled={filteredLines.length === 0}
+            icon={copied ? <Check size={13} /> : <Copy size={13} />}
+            label={t(copied ? "Copied" : "Copy")}
             onClick={() => void handleCopy()}
-            type="button"
-          >
-            {copied ? <Check size={13} /> : <Copy size={13} />}
-            {t(copied ? "Copied" : "Copy")}
-          </button>
+          />
         </div>
 
         {error ? (
@@ -160,13 +159,6 @@ export function ContainerLogsDialog({
             {t("{count} lines shown", { count: filteredLines.length })}
             {data?.truncated ? ` · ${t("showing latest {count}", { count: tail })}` : ""}
           </span>
-          <button
-            className={settingsSecondaryButton}
-            onClick={() => onOpenChange(false)}
-            type="button"
-          >
-            {t("Close")}
-          </button>
         </div>
       </DialogContent>
     </Dialog>

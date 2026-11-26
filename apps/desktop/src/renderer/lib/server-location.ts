@@ -260,3 +260,60 @@ export const validateLocalResourceForm = (input: {
     parsedEngineCpu,
   };
 };
+
+const GIB = 1024 ** 3;
+const MIB = 1024 ** 2;
+const KIB = 1024;
+
+export const formatMegabytes = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
+  const mb = bytes / MIB;
+  if (mb < 10) return `${mb.toFixed(1)} MB`;
+  return `${Math.round(mb)} MB`;
+};
+
+export const formatGigabytes = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0.00 GB";
+  return `${(bytes / 1000 ** 3).toFixed(2)} GB`;
+};
+
+export const formatFriendlyBytes = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
+  if (bytes >= GIB) {
+    const val = bytes / GIB;
+    const rounded = val >= 10 ? val.toFixed(1) : val.toFixed(1);
+    return `${rounded.replace(/\.0$/, "")} GB`;
+  }
+  if (bytes >= MIB) {
+    return `${Math.max(1, Math.round(bytes / MIB))} MB`;
+  }
+  if (bytes >= KIB) {
+    return `${Math.max(1, Math.round(bytes / KIB))} KB`;
+  }
+  return `${Math.round(bytes)} B`;
+};
+
+export const formatMemoryGib = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === "") return "—";
+  const bytes = typeof value === "number" ? value : memorySizeBytes(value);
+  if (bytes === null) return String(value);
+  const gib = bytes / GIB;
+  const formatted = gib.toFixed(1).replace(/\.0$/, "");
+  return `${formatted} GB`;
+};
+
+export const memoryStringToHalfGib = (value: string, fallbackGib: number): number => {
+  const bytes = memorySizeBytes(value);
+  if (!bytes) return fallbackGib;
+  const rawGib = bytes / GIB;
+  // Floor to 0.5 GB increments when derived from raw byte caps so default values stay under warning limits
+  const floored = Math.floor(rawGib * 2 + 1e-6) / 2;
+  return Math.max(1, floored);
+};
+
+export const halfGibToCliMemory = (gib: number): string => {
+  const safe = Math.max(1, Math.round(gib * 2) / 2);
+  if (Number.isInteger(safe)) return `${safe}g`;
+  return `${Math.round(safe * 1024)}m`;
+};
+

@@ -1,13 +1,15 @@
 import {
+  ArrowRight,
   ArrowRightLeft,
   Check,
-  Copy,
-  FolderOpen,
   HardDrive,
   Play,
   RotateCw,
+  ScrollText,
   Square,
+  Stethoscope,
   Trash2,
+  X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -17,6 +19,7 @@ import {
 } from "../../../client/auth";
 import { API_BASE } from "../../../client/http";
 import { saveConfiguredApiBase } from "../../../client/runtime-url";
+import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
 import type { LocalServerStatus } from "../../../lib/local-deploy-contract";
 import {
@@ -28,15 +31,23 @@ import { serverAddressProblem } from "../../../lib/server-address";
 import { reloadInto } from "../first-run-shell";
 import { AutostartSection } from "./local-service/autostart-section";
 import { ContainersPanel } from "./local-service/containers-panel";
+import { IconActionButton } from "./local-service/icon-action-button";
 import { ProxySection } from "./local-service/proxy-section";
 import { ResourcesSection } from "./local-service/resources-section";
-import { SectionLabel, SettingsGroup, SettingsRow, settingsInput, settingsSecondaryButton } from "./ui";
+import { SectionLabel, SettingsGroup, settingsInput, settingsSecondaryButton } from "./ui";
 
 const engineKindLabel = (kind: string | undefined): string => {
   if (kind === "managed-wsl") return "Managed WSL 2";
   if (kind === "managed-lima") return "Managed Lima VM";
   if (kind === "external") return "External Docker Engine";
   return "Local container engine";
+};
+
+const stackDotClass = (state: LocalServerStatus["stack"]["state"] | undefined): string => {
+  if (state === "running") return "bg-emerald-500";
+  if (state === "starting" || state === "updating") return "bg-amber-500";
+  if (state === "unhealthy") return "bg-red-500";
+  return "bg-foreground-tertiary";
 };
 
 export default function ServerLocationSettings() {
@@ -78,6 +89,7 @@ export default function ServerLocationSettings() {
   const state = snapshot?.stack.state;
   const working = busy || state === "starting" || state === "removing" || state === "updating";
   const engineKind = snapshot?.engine?.engine?.kind;
+  const installed = Boolean(local && state && state !== "not-installed");
 
   const run = async (operation: () => Promise<LocalServerStatus>) => {
     if (working) return;
@@ -129,11 +141,9 @@ export default function ServerLocationSettings() {
       return next;
     });
 
-  const overviewMeta = [
-    engineKind ? t(engineKindLabel(engineKind)) : null,
-    snapshot?.version ? `v${snapshot.version}` : null,
-    snapshot?.apiPort ? `${t("Port")} ${snapshot.apiPort}` : null,
-    snapshot?.directory ? snapshot.directory : null,
+  const subtitle = [
+    state ? t(serverStateLabel(state)) : t("Checking server…"),
+    local && engineKind ? t(engineKindLabel(engineKind)) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -146,189 +156,182 @@ export default function ServerLocationSettings() {
     >
       <SectionLabel>{t(local ? "Local service management" : "Server location")}</SectionLabel>
       <SettingsGroup>
-        <SettingsRow
-          title={t(local ? "On this computer" : "Remote server")}
-          description={
-            <div className="space-y-0.5">
-              <div>{state ? t(serverStateLabel(state)) : t("Checking server…")}</div>
-              {local && overviewMeta ? (
-                <div className="truncate font-mono text-[11px] text-foreground-tertiary">
-                  {overviewMeta}
-                </div>
-              ) : null}
+        <div className="flex min-h-[54px] items-center justify-between gap-4 py-2.5">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className={cn("size-2 shrink-0 rounded-full", stackDotClass(state))} />
+              <span className="truncate text-[13px] font-medium text-foreground">
+                {t(local ? "On this computer" : "Remote server")}
+              </span>
             </div>
-          }
-          control={
-            <button
-              className={settingsSecondaryButton}
-              disabled={working}
-              onClick={() => setMode(mode === "switch" ? null : "switch")}
-              type="button"
-            >
-              <ArrowRightLeft size={14} />
-              {t("Switch server")}
-            </button>
-          }
-        />
-        {local && state && state !== "not-installed" ? (
-          <SettingsRow
-            title={t("Local services")}
-            control={
-              <div className="flex flex-wrap justify-end gap-2">
-                <button
-                  className={settingsSecondaryButton}
+            <div className="mt-0.5 truncate pl-4 text-[12px] text-foreground-secondary">
+              {subtitle}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            {installed ? (
+              <>
+                <IconActionButton
                   disabled={working}
+                  icon={
+                    state === "running" ? (
+                      <Square className="fill-current" size={11} />
+                    ) : (
+                      <Play className="fill-current" size={12} />
+                    )
+                  }
+                  label={t(state === "running" ? "Stop local services" : "Start local services")}
                   onClick={() => void run(state === "running" ? bridge.stop : bridge.start)}
-                  type="button"
-                >
-                  {state === "running" ? <Square size={14} /> : <Play size={14} />}
-                  {t(state === "running" ? "Stop local services" : "Start local services")}
-                </button>
+                  variant={state === "running" ? "danger" : "default"}
+                />
                 {bridge.restart ? (
-                  <button
-                    className={settingsSecondaryButton}
+                  <IconActionButton
                     disabled={working || (state !== "running" && state !== "unhealthy")}
+                    icon={<RotateCw className={working ? "animate-spin" : ""} size={14} />}
+                    label={t("Restart local services")}
                     onClick={() => void run(() => bridge.restart!())}
-                    type="button"
-                  >
-                    <RotateCw size={14} />
-                    {t("Restart local services")}
-                  </button>
+                  />
                 ) : null}
                 {bridge.openLogsFolder ? (
+                  <IconActionButton
+                    disabled={working}
+                    icon={<ScrollText size={14} />}
+                    label={t("Open logs folder")}
+                    onClick={() => void bridge.openLogsFolder?.()}
+                  />
+                ) : null}
+                <IconActionButton
+                  disabled={working}
+                  icon={copiedDiag ? <Check size={14} /> : <Stethoscope size={14} />}
+                  label={t(copiedDiag ? "Copied" : "Copy diagnostics")}
+                  onClick={() => void copyDiagnostics()}
+                />
+              </>
+            ) : null}
+
+            <IconActionButton
+              active={mode === "switch"}
+              disabled={working}
+              icon={<ArrowRightLeft size={14} />}
+              label={t("Switch server")}
+              onClick={() => setMode(mode === "switch" ? null : "switch")}
+            />
+
+            {installed ? (
+              <IconActionButton
+                active={mode === "remove"}
+                disabled={working}
+                icon={<Trash2 size={14} />}
+                label={t("Remove local services")}
+                onClick={() => {
+                  setMode(mode === "remove" ? null : "remove");
+                  setPermanent(false);
+                  setWord("");
+                }}
+                variant="danger"
+              />
+            ) : null}
+          </div>
+        </div>
+
+        {mode === "switch" ? (
+          <form
+            className="flex items-center gap-2 border-t border-black/[0.065] py-2.5 dark:border-white/[0.07]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void changeServer(address);
+            }}
+          >
+            {!local && snapshot?.apiPort && snapshot.stack.state === "running" ? (
+              <IconActionButton
+                disabled={working}
+                icon={<HardDrive size={13} />}
+                label={t("Use local server")}
+                onClick={() => void changeServer(`http://127.0.0.1:${snapshot.apiPort}`)}
+              />
+            ) : null}
+            <input
+              aria-label={t("Server address")}
+              className={`${settingsInput} flex-1`}
+              onChange={(event) => setAddress(event.target.value)}
+              placeholder="https://example.com"
+              value={address}
+            />
+            <IconActionButton
+              disabled={working || !address.trim()}
+              icon={<ArrowRight size={13} />}
+              label={t("Connect")}
+              type="submit"
+              variant="primary"
+            />
+            <IconActionButton
+              icon={<X size={13} />}
+              label={t("Cancel")}
+              onClick={() => setMode(null)}
+            />
+          </form>
+        ) : null}
+
+        {mode === "remove" && local ? (
+          <div className="space-y-2.5 border-t border-black/[0.065] py-3 text-[12px] dark:border-white/[0.07]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-foreground-secondary">
+                <input
+                  checked={permanent}
+                  onChange={(event) => setPermanent(event.target.checked)}
+                  type="checkbox"
+                />
+                <span>{t("Permanently delete local data")}</span>
+              </label>
+              <div className="flex items-center gap-1.5">
+                {!permanent ? (
                   <button
                     className={settingsSecondaryButton}
                     disabled={working}
-                    onClick={() => void bridge.openLogsFolder?.()}
+                    onClick={() => void remove(false)}
                     type="button"
                   >
-                    <FolderOpen size={14} />
-                    {t("Open logs folder")}
+                    {t("Remove services and keep data")}
                   </button>
                 ) : null}
-                <button
-                  className={settingsSecondaryButton}
-                  disabled={working}
-                  onClick={() => void copyDiagnostics()}
-                  type="button"
-                >
-                  {copiedDiag ? <Check size={14} /> : <Copy size={14} />}
-                  {t(copiedDiag ? "Copied" : "Copy diagnostics")}
-                </button>
-                <button
-                  className={settingsSecondaryButton}
-                  disabled={working}
-                  onClick={() => {
-                    setMode("remove");
-                    setPermanent(false);
-                    setWord("");
-                  }}
-                  type="button"
-                >
-                  <Trash2 size={14} />
-                  {t("Remove local services")}
-                </button>
+                <IconActionButton
+                  icon={<X size={13} />}
+                  label={t("Cancel")}
+                  onClick={() => setMode(null)}
+                />
               </div>
-            }
-          />
+            </div>
+            {permanent ? (
+              <div className="flex items-center gap-2">
+                <input
+                  aria-label={t("This cannot be undone. Type DELETE to confirm.")}
+                  className={`${settingsInput} flex-1`}
+                  id="remove-local-confirmation"
+                  onChange={(event) => setWord(event.target.value)}
+                  placeholder={t("This cannot be undone. Type DELETE to confirm.")}
+                  value={word}
+                />
+                <IconActionButton
+                  disabled={working || !canDeleteLocalData(permanent, word)}
+                  icon={<Trash2 size={13} />}
+                  label={t("Permanently delete local data")}
+                  onClick={() => void remove(true)}
+                  variant="danger"
+                />
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </SettingsGroup>
 
-      {mode === "switch" ? (
-        <form
-          className="mt-3 flex flex-wrap gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void changeServer(address);
-          }}
-        >
-          {!local && snapshot?.apiPort && snapshot.stack.state === "running" ? (
-            <button
-              className={settingsSecondaryButton}
-              disabled={working}
-              onClick={() => void changeServer(`http://127.0.0.1:${snapshot.apiPort}`)}
-              type="button"
-            >
-              <HardDrive size={14} />
-              {t("Use local server")}
-            </button>
-          ) : null}
-          <input
-            aria-label={t("Server address")}
-            className={settingsInput}
-            onChange={(event) => setAddress(event.target.value)}
-            placeholder="https://example.com"
-            value={address}
-          />
-          <button
-            className={settingsSecondaryButton}
-            disabled={working || !address.trim()}
-            type="submit"
-          >
-            {t("Connect")}
-          </button>
-        </form>
-      ) : null}
-
-      {mode === "remove" && local ? (
-        <div className="mt-3 flex flex-col items-start gap-2">
-          <button
-            className={settingsSecondaryButton}
-            disabled={working}
-            onClick={() => void remove(false)}
-            type="button"
-          >
-            {t("Remove services and keep data")}
-          </button>
-          <label>
-            <input
-              checked={permanent}
-              onChange={(event) => setPermanent(event.target.checked)}
-              type="checkbox"
-            />{" "}
-            {t("Permanently delete local data")}
-          </label>
-          {permanent ? (
-            <>
-              <label htmlFor="remove-local-confirmation">
-                {t("This cannot be undone. Type DELETE to confirm.")}
-              </label>
-              <input
-                className={settingsInput}
-                id="remove-local-confirmation"
-                onChange={(event) => setWord(event.target.value)}
-                value={word}
-              />
-              <button
-                className={settingsSecondaryButton}
-                disabled={working || !canDeleteLocalData(permanent, word)}
-                onClick={() => void remove(true)}
-                type="button"
-              >
-                {t("Permanently delete local data")}
-              </button>
-            </>
-          ) : null}
-        </div>
-      ) : null}
-
-      {mode ? (
-        <button
-          className={`${settingsSecondaryButton} mt-2`}
-          onClick={() => setMode(null)}
-          type="button"
-        >
-          {t("Cancel")}
-        </button>
-      ) : null}
-
       {issue ? (
-        <p className="mt-2 text-sm" role="alert">
+        <p className="mt-2 px-2 text-[12px] text-red-600 dark:text-red-400" role="alert">
           {t("The local service operation did not finish.")}
         </p>
       ) : null}
 
-      {local && state && state !== "not-installed" ? (
+      {installed ? (
         <>
           <ContainersPanel
             busy={working}

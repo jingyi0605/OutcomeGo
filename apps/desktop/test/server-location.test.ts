@@ -2,9 +2,15 @@ import { expect, test } from "bun:test";
 import {
   canDeleteLocalData,
   computeResourcePresets,
+  formatFriendlyBytes,
+  formatGigabytes,
+  formatMegabytes,
+  formatMemoryGib,
+  halfGibToCliMemory,
   isLocalServer,
   localMemoryChange,
   memorySizeBytes,
+  memoryStringToHalfGib,
   serverStateLabel,
   validateLocalResourceForm,
 } from "../src/renderer/lib/server-location";
@@ -132,4 +138,31 @@ test("local-service zh-CN catalog has non-empty entries for all Spec 012.1 keys"
   expect(localServiceTranslations["Manage local services…"]).toBe("服务管理…");
   expect(localServiceTranslations["Proxy server"]).toBe("代理服务器");
   expect(localServiceTranslations["Performance and resources"]).toBe("性能与资源配置");
+});
+
+test("formats raw byte strings and converts slider half-GB steps into CLI memory notation", () => {
+  expect(formatFriendlyBytes(0)).toBe("0 MB");
+  expect(formatFriendlyBytes(45 * 1024 ** 2)).toBe("45 MB");
+  expect(formatFriendlyBytes(6 * 1024 ** 3)).toBe("6 GB");
+  expect(formatFriendlyBytes(6238479360)).toBe("5.8 GB");
+
+  expect(formatMemoryGib("6238479360")).toBe("5.8 GB");
+  expect(formatMemoryGib("5164737536")).toBe("4.8 GB");
+  expect(formatMemoryGib("6g")).toBe("6 GB");
+
+  expect(memoryStringToHalfGib("6238479360", 6)).toBe(5.5);
+  expect(memoryStringToHalfGib("5164737536", 4)).toBe(4.5);
+  expect(memoryStringToHalfGib("8g", 6)).toBe(8);
+  expect(memoryStringToHalfGib("5632m", 6)).toBe(5.5);
+
+  expect(halfGibToCliMemory(6)).toBe("6g");
+  expect(halfGibToCliMemory(5.5)).toBe("5632m");
+  expect(memorySizeBytes(halfGibToCliMemory(5.5))).toBe(5.5 * 1024 ** 3);
+
+  expect(formatMegabytes(0)).toBe("0 MB");
+  expect(formatMegabytes(249_856)).toBe("0.2 MB");
+  expect(formatMegabytes(330_825_728)).toBe("316 MB");
+  expect(formatGigabytes(0)).toBe("0.00 GB");
+  expect(formatGigabytes(5_320_000_000)).toBe("5.32 GB");
+  expect(formatGigabytes(406_000_000)).toBe("0.41 GB");
 });

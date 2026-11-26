@@ -76,6 +76,7 @@ export interface LocalContainerInfo {
   exitCode: number | null;
   restartable: boolean;
   stats: LocalContainerStats | null;
+  diskUsageBytes?: number | null;
 }
 
 export interface LocalContainersSnapshot {

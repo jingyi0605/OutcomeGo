@@ -1,5 +1,22 @@
-import { AlertTriangle, Cpu, RefreshCw } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Cpu,
+  Feather,
+  Gauge,
+  Infinity as InfinityIcon,
+  Layers,
+  MemoryStick,
+  Monitor,
+  RefreshCw,
+  RotateCcw,
+  X,
+  Zap,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { cn } from "../../../../lib/cn";
 import { useI18n } from "../../../../lib/i18n";
 import type {
   LocalResourceSnapshot,
@@ -7,18 +24,104 @@ import type {
 } from "../../../../lib/local-deploy-contract";
 import {
   computeResourcePresets,
+  formatFriendlyBytes,
+  formatMemoryGib,
+  halfGibToCliMemory,
+  memoryStringToHalfGib,
   validateLocalResourceForm,
   type ResourcePresetId,
 } from "../../../../lib/server-location";
-import {
-  SectionLabel,
-  SettingsGroup,
-  SettingsRow,
-  settingsInput,
-  settingsPrimaryButton,
-  settingsSecondaryButton,
-} from "../ui";
-import { formatCompactBytes } from "./containers-panel";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../../ui/tooltip";
+import { InteractiveSwitch, SectionLabel, SettingsGroup } from "../ui";
+import { IconActionButton } from "./icon-action-button";
+
+const GIB = 1024 ** 3;
+
+const formatGibLabel = (gib: number): string =>
+  `${gib.toFixed(1).replace(/\.0$/, "")} GB`;
+
+function SliderField({
+  icon,
+  label,
+  valueLabel,
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  warn,
+  warnTooltip,
+  extraControl,
+  onChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  valueLabel: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  disabled?: boolean;
+  warn?: boolean;
+  warnTooltip?: string;
+  extraControl?: React.ReactNode;
+  onChange: (next: number) => void;
+}) {
+  const safeMax = Math.max(min, max);
+  const clamped = Math.min(safeMax, Math.max(min, value));
+  return (
+    <div className="space-y-1.5 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-foreground">
+          <span className="text-foreground-tertiary">{icon}</span>
+          <span className="truncate">{label}</span>
+          {warn && warnTooltip ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex text-amber-500">
+                  <AlertTriangle className="size-3.5" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{warnTooltip}</TooltipContent>
+            </Tooltip>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span
+            className={cn(
+              "min-w-[54px] text-right text-[12px] font-medium tabular-nums",
+              warn ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+            )}
+          >
+            {valueLabel}
+          </span>
+          {extraControl}
+        </div>
+      </div>
+      <input
+        aria-label={label}
+        className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-black/[0.1] accent-foreground disabled:cursor-default disabled:opacity-45 dark:bg-white/[0.14]"
+        disabled={disabled || safeMax <= min}
+        max={safeMax}
+        min={min}
+        onChange={(event) => onChange(Number(event.target.value))}
+        step={step}
+        type="range"
+        value={clamped}
+      />
+    </div>
+  );
+}
+
+interface ResourceFormState {
+  computerGib: number;
+  desktopGib: number;
+  cpuUnlimited: boolean;
+  computerCpu: number;
+  workerConcurrency: number;
+  engineMemoryGib: number;
+  engineCpu: number;
+}
 
 export function ResourcesSection({
   busy,
@@ -31,53 +134,75 @@ export function ResourcesSection({
   const bridge = window.outcomego?.localServer;
 
   const [snapshot, setSnapshot] = useState<LocalResourceSnapshot | null>(null);
+  const [initialForm, setInitialForm] = useState<ResourceFormState | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
 
   const [preset, setPreset] = useState<ResourcePresetId>("custom");
-  const [computerMemory, setComputerMemory] = useState("");
-  const [desktopMemory, setDesktopMemory] = useState("");
-  const [computerCpu, setComputerCpu] = useState("");
-  const [workerConcurrency, setWorkerConcurrency] = useState("8");
+  const [computerGib, setComputerGib] = useState(6);
+  const [desktopGib, setDesktopGib] = useState(4);
+  const [cpuUnlimited, setCpuUnlimited] = useState(true);
+  const [computerCpu, setComputerCpu] = useState(4);
+  const [workerConcurrency, setWorkerConcurrency] = useState(8);
 
-  const [modifyEngine, setModifyEngine] = useState(false);
-  const [engineMemory, setEngineMemory] = useState("");
-  const [engineCpu, setEngineCpu] = useState("");
+  const [engineExpanded, setEngineExpanded] = useState(false);
+  const [engineMemoryGib, setEngineMemoryGib] = useState(8);
+  const [engineCpu, setEngineCpu] = useState(4);
   const [applyWslconfig, setApplyWslconfig] = useState(false);
   const [restartWsl, setRestartWsl] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmingApply, setConfirmingApply] = useState(false);
 
   const hydrateFromSnapshot = useCallback((snap: LocalResourceSnapshot) => {
     setSnapshot(snap);
-    setComputerMemory(snap.containers.computerMemory);
-    setDesktopMemory(snap.containers.desktopMemory);
-    setComputerCpu(snap.containers.computerCpu === null ? "" : String(snap.containers.computerCpu));
-    setWorkerConcurrency(String(snap.containers.workerConcurrency));
-    if (snap.engine.configurable === "wslconfig") {
-      setEngineMemory(
-        snap.engine.wslConfig?.memory?.replace(/gb$/i, "g").replace(/mb$/i, "m") ??
-          (snap.engine.memoryBytes ? `${Math.round(snap.engine.memoryBytes / 1024 ** 3)}g` : "")
-      );
-      setEngineCpu(
-        snap.engine.wslConfig?.processors
-          ? String(snap.engine.wslConfig.processors)
-          : snap.engine.cpuCores
-            ? String(snap.engine.cpuCores)
-            : ""
-      );
-    } else {
-      setEngineMemory(
-        snap.engine.memoryBytes ? `${Math.round(snap.engine.memoryBytes / 1024 ** 3)}g` : ""
-      );
-      setEngineCpu(snap.engine.cpuCores ? String(snap.engine.cpuCores) : "");
-    }
+    const hostCores = Math.max(1, snap.host.cpuCores);
+    const comp = Math.max(2, memoryStringToHalfGib(snap.containers.computerMemory, 6));
+    const rawDesk = memoryStringToHalfGib(snap.containers.desktopMemory, Math.max(1, comp - 1));
+    const desk = Math.max(1, Math.min(rawDesk, comp - 0.5));
+    const unlimited = snap.containers.computerCpu === null;
+    const cpu =
+      snap.containers.computerCpu !== null
+        ? Math.max(1, Math.min(hostCores, snap.containers.computerCpu))
+        : Math.max(1, Math.min(4, Math.floor(hostCores / 2) || 1));
+    const worker = Math.max(1, Math.min(16, snap.containers.workerConcurrency));
+
+    const engMemRaw =
+      snap.engine.configurable === "wslconfig" && snap.engine.wslConfig?.memory
+        ? memoryStringToHalfGib(snap.engine.wslConfig.memory, 8)
+        : snap.engine.memoryBytes
+          ? Math.max(2, Math.round(snap.engine.memoryBytes / GIB))
+          : Math.max(4, Math.round((snap.host.memoryBytes * 0.5) / GIB));
+    const engMem = Math.max(2, Math.round(engMemRaw));
+    const engCpu =
+      snap.engine.configurable === "wslconfig" && snap.engine.wslConfig?.processors
+        ? Math.max(1, Math.min(hostCores, snap.engine.wslConfig.processors))
+        : snap.engine.cpuCores
+          ? Math.max(1, Math.min(hostCores, snap.engine.cpuCores))
+          : Math.max(1, Math.min(hostCores, Math.floor(hostCores / 2) || 1));
+
+    const nextInitial: ResourceFormState = {
+      computerGib: comp,
+      desktopGib: desk,
+      cpuUnlimited: unlimited,
+      computerCpu: cpu,
+      workerConcurrency: worker,
+      engineMemoryGib: engMem,
+      engineCpu: engCpu,
+    };
+
+    setInitialForm(nextInitial);
+    setComputerGib(comp);
+    setDesktopGib(desk);
+    setCpuUnlimited(unlimited);
+    setComputerCpu(cpu);
+    setWorkerConcurrency(worker);
+    setEngineMemoryGib(engMem);
+    setEngineCpu(engCpu);
     setPreset("custom");
-    setModifyEngine(false);
     setApplyWslconfig(false);
     setRestartWsl(false);
-    setConfirmed(false);
+    setConfirmingApply(false);
   }, []);
 
   const loadSnapshot = useCallback(async () => {
@@ -98,55 +223,117 @@ export function ResourcesSection({
     void loadSnapshot();
   }, [loadSnapshot]);
 
+  const engineChanged = Boolean(
+    initialForm &&
+      snapshot &&
+      snapshot.engine.configurable !== "readonly" &&
+      (engineMemoryGib !== initialForm.engineMemoryGib || engineCpu !== initialForm.engineCpu)
+  );
+
+  const containerChanged = Boolean(
+    initialForm &&
+      (computerGib !== initialForm.computerGib ||
+        desktopGib !== initialForm.desktopGib ||
+        cpuUnlimited !== initialForm.cpuUnlimited ||
+        (!cpuUnlimited && computerCpu !== initialForm.computerCpu) ||
+        workerConcurrency !== initialForm.workerConcurrency)
+  );
+
+  const isDirty = containerChanged || engineChanged;
+
+  const effectiveEngineBytes = useMemo(() => {
+    if (!snapshot) return null;
+    if (engineChanged) return engineMemoryGib * GIB;
+    return snapshot.engine.memoryBytes;
+  }, [snapshot, engineChanged, engineMemoryGib]);
+
+  const hostCores = Math.max(1, snapshot?.host.cpuCores ?? 4);
+  const hostMemoryGib = Math.max(4, Math.floor((snapshot?.host.memoryBytes ?? 8 * GIB) / GIB));
+  const maxComputerGib = useMemo(() => {
+    const budgetBytes = effectiveEngineBytes ?? snapshot?.host.memoryBytes ?? 16 * GIB;
+    return Math.max(2, Math.floor((budgetBytes / GIB) * 2) / 2);
+  }, [effectiveEngineBytes, snapshot]);
+
   const presets = useMemo(() => {
     if (!snapshot) return null;
     return computeResourcePresets(
       snapshot.host.memoryBytes,
       snapshot.host.cpuCores,
-      snapshot.engine.memoryBytes
+      effectiveEngineBytes
     );
-  }, [snapshot]);
+  }, [snapshot, effectiveEngineBytes]);
 
   const validation = useMemo(() => {
     if (!snapshot) return null;
     return validateLocalResourceForm({
-      computerMemory,
-      desktopMemory,
-      computerCpu,
-      workerConcurrency,
-      engineMemory,
-      engineCpu,
-      modifyEngine,
-      snapshot,
+      computerMemory: halfGibToCliMemory(computerGib),
+      desktopMemory: halfGibToCliMemory(desktopGib),
+      computerCpu: cpuUnlimited ? "" : String(computerCpu),
+      workerConcurrency: String(workerConcurrency),
+      engineMemory: halfGibToCliMemory(engineMemoryGib),
+      engineCpu: String(engineCpu),
+      modifyEngine: engineChanged,
+      snapshot: {
+        ...snapshot,
+        engine: {
+          ...snapshot.engine,
+          memoryBytes: effectiveEngineBytes,
+        },
+      },
     });
   }, [
     snapshot,
-    computerMemory,
-    desktopMemory,
+    computerGib,
+    desktopGib,
+    cpuUnlimited,
     computerCpu,
     workerConcurrency,
-    engineMemory,
+    engineMemoryGib,
     engineCpu,
-    modifyEngine,
+    engineChanged,
+    effectiveEngineBytes,
   ]);
 
   const applyPreset = (id: Exclude<ResourcePresetId, "custom">) => {
     if (!presets) return;
     const p = presets[id];
+    const comp = Math.max(2, memoryStringToHalfGib(p.computerMemory, 6));
+    const desk = Math.max(1, Math.min(memoryStringToHalfGib(p.desktopMemory, comp - 1), comp - 0.5));
     setPreset(id);
-    setComputerMemory(p.computerMemory);
-    setDesktopMemory(p.desktopMemory);
-    setComputerCpu(p.computerCpu === null ? "" : String(p.computerCpu));
-    setWorkerConcurrency(String(p.workerConcurrency));
-    setConfirmed(false);
+    setComputerGib(comp);
+    setDesktopGib(desk);
+    if (p.computerCpu === null) {
+      setCpuUnlimited(true);
+    } else {
+      setCpuUnlimited(false);
+      setComputerCpu(Math.max(1, Math.min(hostCores, p.computerCpu)));
+    }
+    setWorkerConcurrency(p.workerConcurrency);
+    setConfirmingApply(false);
     setSavedNotice(null);
   };
 
+  const resetForm = () => {
+    if (!initialForm) return;
+    setComputerGib(initialForm.computerGib);
+    setDesktopGib(initialForm.desktopGib);
+    setCpuUnlimited(initialForm.cpuUnlimited);
+    setComputerCpu(initialForm.computerCpu);
+    setWorkerConcurrency(initialForm.workerConcurrency);
+    setEngineMemoryGib(initialForm.engineMemoryGib);
+    setEngineCpu(initialForm.engineCpu);
+    setPreset("custom");
+    setApplyWslconfig(false);
+    setRestartWsl(false);
+    setConfirmingApply(false);
+    setError(null);
+  };
+
   const handleSave = async () => {
-    if (!bridge?.updateResources || !snapshot || !validation?.valid || !confirmed || saving || busy) {
+    if (!bridge?.updateResources || !snapshot || !validation?.valid || saving || busy) {
       return;
     }
-    if (snapshot.engine.configurable === "wslconfig" && modifyEngine && !applyWslconfig) {
+    if (snapshot.engine.configurable === "wslconfig" && engineChanged && !applyWslconfig) {
       setError(t("Please confirm updating Windows .wslconfig before applying engine limits."));
       return;
     }
@@ -155,13 +342,13 @@ export function ResourcesSection({
     setSavedNotice(null);
     try {
       const payload: LocalResourceUpdate = {
-        computerMemory: computerMemory.trim(),
-        desktopMemory: desktopMemory.trim(),
+        computerMemory: halfGibToCliMemory(computerGib),
+        desktopMemory: halfGibToCliMemory(desktopGib),
         computerCpu: validation.parsedComputerCpu,
-        workerConcurrency: validation.parsedWorkerConcurrency ?? snapshot.containers.workerConcurrency,
+        workerConcurrency: validation.parsedWorkerConcurrency ?? workerConcurrency,
       };
-      if (modifyEngine && snapshot.engine.configurable !== "readonly") {
-        if (engineMemory.trim()) payload.engineMemory = engineMemory.trim();
+      if (engineChanged && snapshot.engine.configurable !== "readonly") {
+        payload.engineMemory = halfGibToCliMemory(engineMemoryGib);
         if (validation.parsedEngineCpu !== null) payload.engineCpu = validation.parsedEngineCpu;
         if (snapshot.engine.configurable === "wslconfig") {
           payload.applyWslconfig = true;
@@ -171,7 +358,7 @@ export function ResourcesSection({
       const next = await bridge.updateResources(payload);
       hydrateFromSnapshot(next);
       setSavedNotice(
-        snapshot.engine.configurable === "wslconfig" && modifyEngine && !restartWsl
+        snapshot.engine.configurable === "wslconfig" && engineChanged && !restartWsl
           ? t("Resource settings saved. Restart WSL2 or reboot Windows for .wslconfig changes to take effect.")
           : t("Resource settings applied.")
       );
@@ -185,270 +372,269 @@ export function ResourcesSection({
 
   if (!bridge?.resourcesStatus) return null;
 
+  const hardwareTooltip = snapshot
+    ? [
+        `${t("Host hardware")}: ${formatFriendlyBytes(snapshot.host.memoryBytes)} · ${snapshot.host.cpuCores} ${t("cores")}`,
+        snapshot.engine.memoryBytes
+          ? `${t("Engine")}: ${formatFriendlyBytes(snapshot.engine.memoryBytes)}${snapshot.engine.cpuCores ? ` · ${snapshot.engine.cpuCores} ${t("cores")}` : ""}`
+          : null,
+        snapshot.host.diskAvailableBytes !== null
+          ? `${t("Free disk")}: ${formatFriendlyBytes(snapshot.host.diskAvailableBytes)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" / ")
+    : "";
+
+  const tierMeta = presets
+    ? ([
+        {
+          id: "light" as const,
+          label: "Light",
+          icon: <Feather size={13} />,
+          summary: `${formatMemoryGib(presets.light.computerMemory)} · ${presets.light.computerCpu ?? hostCores}${t("C")}`,
+        },
+        {
+          id: "balanced" as const,
+          label: "Balanced",
+          icon: <Gauge size={13} />,
+          summary: `${formatMemoryGib(presets.balanced.computerMemory)} · ${presets.balanced.computerCpu ?? hostCores}${t("C")}`,
+        },
+        {
+          id: "performance" as const,
+          label: "Performance",
+          icon: <Zap size={13} />,
+          summary: `${formatMemoryGib(presets.performance.computerMemory)} · ${t("Unlimited")}`,
+        },
+      ] as const)
+    : [];
+
   return (
     <div className="mt-5">
-      <div className="mb-2 flex items-center justify-between px-2">
+      <div className="mb-2 flex items-center justify-between gap-2 px-2">
         <SectionLabel>{t("Performance and resources")}</SectionLabel>
-        <button
-          className={settingsSecondaryButton}
-          disabled={loading || saving}
-          onClick={() => void loadSnapshot()}
-          type="button"
-        >
-          <RefreshCw className={loading ? "animate-spin" : ""} size={13} />
-          {t("Refresh")}
-        </button>
+        <div className="flex items-center gap-2">
+          {snapshot ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-default rounded-md bg-black/[0.045] px-2 py-1 text-[11px] tabular-nums text-foreground-secondary dark:bg-white/[0.07]">
+                  {formatFriendlyBytes(snapshot.host.memoryBytes)} · {snapshot.host.cpuCores}{t("C")}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{hardwareTooltip}</TooltipContent>
+            </Tooltip>
+          ) : null}
+          <IconActionButton
+            disabled={loading || saving}
+            icon={<RefreshCw className={loading ? "animate-spin" : ""} size={13} />}
+            label={t("Refresh")}
+            onClick={() => void loadSnapshot()}
+          />
+        </div>
       </div>
 
       <SettingsGroup>
         {!snapshot ? (
-          <div className="py-4 text-[12px] text-foreground-secondary">
+          <div className="py-3.5 text-[12px] text-foreground-secondary">
             {loading ? t("Loading resource configuration…") : t("Resource information is currently unavailable.")}
           </div>
         ) : (
           <>
-            <SettingsRow
-              title={t("Host hardware")}
-              description={t(
-                "Total memory {memory} · {cores} CPU cores · Free disk {disk}",
-                {
-                  memory: formatCompactBytes(snapshot.host.memoryBytes),
-                  cores: snapshot.host.cpuCores,
-                  disk:
-                    snapshot.host.diskAvailableBytes !== null
-                      ? formatCompactBytes(snapshot.host.diskAvailableBytes)
-                      : t("Unknown"),
+            <div className="grid grid-cols-3 gap-2 py-3">
+              {tierMeta.map((tier) => {
+                const selected = preset === tier.id;
+                return (
+                  <button
+                    className={cn(
+                      "flex flex-col items-start gap-1 rounded-[10px] border px-2.5 py-2 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-50",
+                      selected
+                        ? "border-foreground/30 bg-background text-foreground shadow-xs"
+                        : "border-transparent bg-black/[0.035] text-foreground-secondary hover:bg-black/[0.06] hover:text-foreground dark:bg-white/[0.04] dark:hover:bg-white/[0.08]"
+                    )}
+                    disabled={saving || busy}
+                    key={tier.id}
+                    onClick={() => applyPreset(tier.id)}
+                    type="button"
+                  >
+                    <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-foreground">
+                      {tier.icon}
+                      {t(tier.label)}
+                    </span>
+                    <span className="text-[11px] tabular-nums text-foreground-tertiary">
+                      {tier.summary}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="divide-y divide-black/[0.06] border-t border-black/[0.065] dark:divide-white/[0.06] dark:border-white/[0.07]">
+              <SliderField
+                disabled={saving || busy}
+                icon={<MemoryStick size={13} />}
+                label={t("Computer memory limit")}
+                max={maxComputerGib}
+                min={2}
+                onChange={(next) => {
+                  setComputerGib(next);
+                  if (desktopGib >= next) {
+                    setDesktopGib(Math.max(1, next - 0.5));
+                  }
+                  setPreset("custom");
+                  setConfirmingApply(false);
+                  setSavedNotice(null);
+                }}
+                step={0.5}
+                value={computerGib}
+                valueLabel={formatGibLabel(computerGib)}
+                warn={Boolean(validation?.warning)}
+                warnTooltip={validation?.warning ? t(validation.warning) : undefined}
+              />
+
+              <SliderField
+                disabled={saving || busy}
+                icon={<Monitor size={13} />}
+                label={t("Desktop memory limit")}
+                max={Math.max(1, computerGib - 0.5)}
+                min={1}
+                onChange={(next) => {
+                  setDesktopGib(next);
+                  setPreset("custom");
+                  setConfirmingApply(false);
+                  setSavedNotice(null);
+                }}
+                step={0.5}
+                value={desktopGib}
+                valueLabel={formatGibLabel(desktopGib)}
+              />
+
+              <SliderField
+                disabled={saving || busy || cpuUnlimited}
+                extraControl={
+                  <IconActionButton
+                    active={cpuUnlimited}
+                    className="size-6"
+                    disabled={saving || busy}
+                    icon={<InfinityIcon size={12} />}
+                    label={t("Unlimited")}
+                    onClick={() => {
+                      setCpuUnlimited((prev) => !prev);
+                      setPreset("custom");
+                      setConfirmingApply(false);
+                      setSavedNotice(null);
+                    }}
+                  />
                 }
-              )}
-              control={
-                <span className="inline-flex items-center gap-1 text-[12px] text-foreground-secondary">
-                  <Cpu size={14} />
-                  {snapshot.engine.memoryBytes
-                    ? `${t("Engine")}: ${formatCompactBytes(snapshot.engine.memoryBytes)}${
-                        snapshot.engine.cpuCores ? ` / ${snapshot.engine.cpuCores}C` : ""
-                      }`
-                    : t("Engine info unavailable")}
-                </span>
-              }
-            />
+                icon={<Cpu size={13} />}
+                label={t("Computer CPU limit")}
+                max={hostCores}
+                min={1}
+                onChange={(next) => {
+                  setComputerCpu(next);
+                  setCpuUnlimited(false);
+                  setPreset("custom");
+                  setConfirmingApply(false);
+                  setSavedNotice(null);
+                }}
+                step={1}
+                value={cpuUnlimited ? hostCores : computerCpu}
+                valueLabel={cpuUnlimited ? t("Unlimited") : `${computerCpu} ${t("cores")}`}
+              />
 
-            <SettingsRow
-              title={t("Performance preset")}
-              description={t("Choose a recommended tier or customize individual container limits below.")}
-              control={
-                <div className="flex flex-wrap gap-1.5">
-                  {(["light", "balanced", "performance"] as const).map((tier) => (
-                    <button
-                      className={
-                        preset === tier ? settingsPrimaryButton : settingsSecondaryButton
-                      }
-                      disabled={saving || busy}
-                      key={tier}
-                      onClick={() => applyPreset(tier)}
-                      type="button"
-                    >
-                      {t(
-                        tier === "light"
-                          ? "Light"
-                          : tier === "balanced"
-                            ? "Balanced"
-                            : "Performance"
-                      )}
-                    </button>
-                  ))}
-                </div>
-              }
-            />
-
-            <SettingsRow
-              title={t("Container limits")}
-              description={t(
-                "Current: Computer {computerMem}, Desktop {desktopMem}, CPU {cpu}, Worker {worker}.",
-                {
-                  computerMem: snapshot.containers.computerMemory,
-                  desktopMem: snapshot.containers.desktopMemory,
-                  cpu:
-                    snapshot.containers.computerCpu !== null
-                      ? `${snapshot.containers.computerCpu}C`
-                      : t("Unlimited"),
-                  worker: snapshot.containers.workerConcurrency,
-                }
-              )}
-              descriptionBelow
-              control={null}
-            />
-
-            <div className="grid grid-cols-1 gap-3 border-t border-black/[0.065] py-3 sm:grid-cols-2 dark:border-white/[0.07]">
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">{t("Computer memory limit")}</span>
-                <input
-                  className={settingsInput}
-                  disabled={saving || busy}
-                  onChange={(e) => {
-                    setComputerMemory(e.target.value);
-                    setPreset("custom");
-                    setConfirmed(false);
-                  }}
-                  placeholder="8g"
-                  value={computerMemory}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">{t("Desktop memory limit")}</span>
-                <input
-                  className={settingsInput}
-                  disabled={saving || busy}
-                  onChange={(e) => {
-                    setDesktopMemory(e.target.value);
-                    setPreset("custom");
-                    setConfirmed(false);
-                  }}
-                  placeholder="6g"
-                  value={desktopMemory}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">
-                  {t("Computer CPU limit (blank for unlimited)")}
-                </span>
-                <input
-                  className={settingsInput}
-                  disabled={saving || busy}
-                  onChange={(e) => {
-                    setComputerCpu(e.target.value);
-                    setPreset("custom");
-                    setConfirmed(false);
-                  }}
-                  placeholder={t("Unlimited")}
-                  value={computerCpu}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-[12px]">
-                <span className="text-foreground-secondary">{t("Worker concurrency (1–16)")}</span>
-                <input
-                  className={settingsInput}
-                  disabled={saving || busy}
-                  max={64}
-                  min={1}
-                  onChange={(e) => {
-                    setWorkerConcurrency(e.target.value);
-                    setPreset("custom");
-                    setConfirmed(false);
-                  }}
-                  type="number"
-                  value={workerConcurrency}
-                />
-              </label>
+              <SliderField
+                disabled={saving || busy}
+                icon={<Layers size={13} />}
+                label={t("Worker concurrency")}
+                max={16}
+                min={1}
+                onChange={(next) => {
+                  setWorkerConcurrency(next);
+                  setPreset("custom");
+                  setConfirmingApply(false);
+                  setSavedNotice(null);
+                }}
+                step={1}
+                value={workerConcurrency}
+                valueLabel={String(workerConcurrency)}
+              />
             </div>
 
             {snapshot.engine.configurable === "readonly" ? (
-              <SettingsRow
-                title={t("Container engine allocation")}
-                description={t(
-                  "Your external container engine manages its own VM CPU and memory limits. Adjust them in Docker Desktop or OrbStack settings."
-                )}
-              />
+              <div className="border-t border-black/[0.065] py-2.5 text-[11px] text-foreground-tertiary dark:border-white/[0.07]">
+                {t("External container engine manages VM limits in Docker Desktop or OrbStack.")}
+              </div>
             ) : (
-              <div className="border-t border-black/[0.065] py-3 dark:border-white/[0.07]">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[13px] text-foreground">
+              <div className="border-t border-black/[0.065] py-2 dark:border-white/[0.07]">
+                <button
+                  className="flex w-full items-center justify-between gap-2 py-1 text-left text-[12px] text-foreground-secondary hover:text-foreground"
+                  onClick={() => setEngineExpanded((prev) => !prev)}
+                  type="button"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    {engineExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    <span>
                       {snapshot.engine.configurable === "direct"
-                        ? t("Managed Lima VM resources")
-                        : t("Windows WSL2 global resources (.wslconfig)")}
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-foreground-secondary">
-                      {snapshot.engine.configurable === "direct"
-                        ? t("Changing Lima VM memory or CPU restarts the managed virtual machine and all local services.")
-                        : t(
-                            "WSL2 memory and processor limits are stored in %USERPROFILE%\\.wslconfig and affect all WSL2 distributions on this PC."
-                          )}
-                    </div>
-                  </div>
-                  <label className="flex shrink-0 items-center gap-1.5 text-[12px] text-foreground">
-                    <input
-                      checked={modifyEngine}
+                        ? t("Virtual machine limits")
+                        : t("WSL2 global limits")}
+                    </span>
+                  </span>
+                  <span className="tabular-nums text-[11px] text-foreground-tertiary">
+                    {formatGibLabel(engineMemoryGib)} · {engineCpu} {t("cores")}
+                  </span>
+                </button>
+
+                {engineExpanded ? (
+                  <div className="mt-1 space-y-1 pl-5">
+                    <SliderField
                       disabled={saving || busy}
-                      onChange={(e) => {
-                        setModifyEngine(e.target.checked);
-                        setConfirmed(false);
+                      icon={<MemoryStick size={13} />}
+                      label={t("Engine memory limit")}
+                      max={hostMemoryGib}
+                      min={2}
+                      onChange={(next) => {
+                        setEngineMemoryGib(next);
+                        setConfirmingApply(false);
+                        setSavedNotice(null);
                       }}
-                      type="checkbox"
+                      step={1}
+                      value={engineMemoryGib}
+                      valueLabel={formatGibLabel(engineMemoryGib)}
                     />
-                    {t("Edit engine limits")}
-                  </label>
-                </div>
-
-                {snapshot.engine.configurable === "wslconfig" && snapshot.engine.wslConfig ? (
-                  <div className="mt-2 font-mono text-[11px] text-foreground-tertiary">
-                    {snapshot.engine.wslConfig.path} (
-                    {snapshot.engine.wslConfig.exists
-                      ? `memory=${snapshot.engine.wslConfig.memory ?? "default"}, processors=${snapshot.engine.wslConfig.processors ?? "default"}`
-                      : t("not created yet")}
-                    )
-                  </div>
-                ) : null}
-
-                {modifyEngine ? (
-                  <div className="mt-3 space-y-2.5">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <label className="flex flex-col gap-1 text-[12px]">
-                        <span className="text-foreground-secondary">{t("Engine memory limit")}</span>
-                        <input
-                          className={settingsInput}
-                          disabled={saving || busy}
-                          onChange={(e) => {
-                            setEngineMemory(e.target.value);
-                            setConfirmed(false);
-                          }}
-                          placeholder="8g"
-                          value={engineMemory}
-                        />
-                      </label>
-                      <label className="flex flex-col gap-1 text-[12px]">
-                        <span className="text-foreground-secondary">{t("Engine CPU cores")}</span>
-                        <input
-                          className={settingsInput}
-                          disabled={saving || busy}
-                          max={snapshot.host.cpuCores}
-                          min={1}
-                          onChange={(e) => {
-                            setEngineCpu(e.target.value);
-                            setConfirmed(false);
-                          }}
-                          type="number"
-                          value={engineCpu}
-                        />
-                      </label>
-                    </div>
-                    {snapshot.engine.configurable === "wslconfig" ? (
-                      <div className="space-y-1.5 rounded-[10px] border border-amber-500/30 bg-amber-500/10 p-2.5 text-[12px]">
-                        <label className="flex items-start gap-2">
-                          <input
+                    <SliderField
+                      disabled={saving || busy}
+                      icon={<Cpu size={13} />}
+                      label={t("Engine CPU cores")}
+                      max={hostCores}
+                      min={1}
+                      onChange={(next) => {
+                        setEngineCpu(next);
+                        setConfirmingApply(false);
+                        setSavedNotice(null);
+                      }}
+                      step={1}
+                      value={engineCpu}
+                      valueLabel={`${engineCpu} ${t("cores")}`}
+                    />
+                    {snapshot.engine.configurable === "wslconfig" && engineChanged ? (
+                      <div className="space-y-2 rounded-[10px] border border-amber-500/25 bg-amber-500/10 p-2.5 text-[12px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-foreground">{t("Update global .wslconfig")}</span>
+                          <InteractiveSwitch
                             checked={applyWslconfig}
                             disabled={saving || busy}
-                            onChange={(e) => setApplyWslconfig(e.target.checked)}
-                            type="checkbox"
+                            label="Update global .wslconfig"
+                            onChange={setApplyWslconfig}
                           />
-                          <span>
-                            {t(
-                              "I understand this updates global Windows .wslconfig (a backup will be saved to .wslconfig.outcomego.bak)."
-                            )}
-                          </span>
-                        </label>
-                        <label className="flex items-start gap-2 text-foreground-secondary">
-                          <input
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-foreground-secondary">{t("Restart WSL2 now")}</span>
+                          <InteractiveSwitch
                             checked={restartWsl}
                             disabled={saving || busy || !applyWslconfig}
-                            onChange={(e) => setRestartWsl(e.target.checked)}
-                            type="checkbox"
+                            label="Restart WSL2 now"
+                            onChange={setRestartWsl}
                           />
-                          <span>
-                            {t(
-                              "Restart all WSL2 instances now (runs wsl --shutdown and interrupts other WSL2 distributions)."
-                            )}
-                          </span>
-                        </label>
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -456,46 +642,75 @@ export function ResourcesSection({
               </div>
             )}
 
-            <div className="space-y-2 border-t border-black/[0.065] py-3 dark:border-white/[0.07]">
-              {validation?.error ? (
-                <p className="text-[12px] text-red-600 dark:text-red-400" role="alert">
-                  {t(validation.error)}
-                </p>
-              ) : null}
-              {validation?.warning ? (
-                <div className="flex items-start gap-1.5 text-[12px] text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                  <span>{t(validation.warning)}</span>
+            {isDirty || validation?.error ? (
+              <div className="flex items-center justify-between gap-3 border-t border-black/[0.065] py-2.5 text-[12px] dark:border-white/[0.07]">
+                <div className="min-w-0 flex-1">
+                  {validation?.error ? (
+                    <span className="text-red-600 dark:text-red-400" role="alert">
+                      {t(validation.error)}
+                    </span>
+                  ) : confirmingApply ? (
+                    <span className="text-amber-700 dark:text-amber-300">
+                      {t("Confirm applying and restarting affected services?")}
+                    </span>
+                  ) : (
+                    <span className="text-foreground-secondary">
+                      {t("Applying restarts affected local services.")}
+                    </span>
+                  )}
                 </div>
-              ) : null}
-              <label className="flex items-center gap-2 text-[12px] text-foreground">
-                <input
-                  checked={confirmed}
-                  disabled={saving || busy}
-                  onChange={(e) => setConfirmed(e.target.checked)}
-                  type="checkbox"
-                />
-                <span>
-                  {t("Applying resource changes restarts affected local services and interrupts running tasks.")}
-                </span>
-              </label>
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  className={settingsPrimaryButton}
-                  disabled={
-                    busy ||
-                    saving ||
-                    !validation?.valid ||
-                    !confirmed ||
-                    (snapshot.engine.configurable === "wslconfig" && modifyEngine && !applyWslconfig)
-                  }
-                  onClick={() => void handleSave()}
-                  type="button"
-                >
-                  {t(saving ? "Applying…" : "Save and apply resources")}
-                </button>
+
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {confirmingApply ? (
+                    <>
+                      <IconActionButton
+                        disabled={
+                          busy ||
+                          saving ||
+                          !validation?.valid ||
+                          (snapshot.engine.configurable === "wslconfig" &&
+                            engineChanged &&
+                            !applyWslconfig)
+                        }
+                        icon={<Check size={13} />}
+                        label={t(saving ? "Applying…" : "Confirm apply")}
+                        onClick={() => void handleSave()}
+                        variant="primary"
+                      />
+                      <IconActionButton
+                        disabled={saving}
+                        icon={<X size={13} />}
+                        label={t("Cancel")}
+                        onClick={() => setConfirmingApply(false)}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <IconActionButton
+                        disabled={saving || busy}
+                        icon={<RotateCcw size={13} />}
+                        label={t("Reset changes")}
+                        onClick={resetForm}
+                      />
+                      <IconActionButton
+                        disabled={
+                          busy ||
+                          saving ||
+                          !validation?.valid ||
+                          (snapshot.engine.configurable === "wslconfig" &&
+                            engineChanged &&
+                            !applyWslconfig)
+                        }
+                        icon={<Check size={13} />}
+                        label={t("Save and apply resources")}
+                        onClick={() => setConfirmingApply(true)}
+                        variant="primary"
+                      />
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : null}
           </>
         )}
       </SettingsGroup>
