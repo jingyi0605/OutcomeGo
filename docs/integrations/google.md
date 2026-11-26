@@ -1,6 +1,6 @@
 # Google
 
-Connect Gmail, Google Calendar, Google Drive, Google Docs, Google Sheets, and Google Slides so bots can work with your email, events, files, documents, spreadsheets, and presentations. Each is a separate plugin, so set up only the ones you need.
+Connect Google Calendar, Google Drive, Google Docs, Google Sheets, and Google Slides so bots can work with your events, files, documents, spreadsheets, and presentations. Each is a separate plugin, so set up only the ones you need.
 
 Google requires every app that accesses these services to be registered, so you'll create your own OAuth app in Google Cloud. You only need to do this once, and you can reuse it for every Google plugin.
 
@@ -16,8 +16,8 @@ In OutcomeGo, open **Marketplace** and choose **Add** on the Google plugin you w
 ## 2. Create a Google Cloud app
 
 1. In the [Google Cloud Console](https://console.cloud.google.com/), create or select a project.
-2. Enable the API for each plugin you'll use: **Gmail API**, **Google Calendar API**, **Google Drive API**, **Google Docs API**, **Google Sheets API**, or **Google Slides API**.
-3. Set up the OAuth consent screen. For a personal Gmail account, choose **External** as the audience and add your Google account as a test user. On a Google Workspace account, you can choose **Internal** instead.
+2. Enable the API for each plugin you'll use: **Google Calendar API**, **Google Drive API**, **Google Docs API**, **Google Sheets API**, or **Google Slides API**.
+3. Set up the OAuth consent screen. For a personal Google account, choose **External** as the audience and add your Google account as a test user. On a Google Workspace account, you can choose **Internal** instead.
 4. Add the scopes listed under **Required provider scopes** on the plugin's page. If you're reusing the app for several plugins, add the scopes for each.
 5. Create an OAuth client:
    - **HTTPS server:** choose **Web application**, and add the **Authorized redirect URI** shown on the plugin's page. It looks like `https://<your-server>/api/v0/plugin-oauth/callback`.
@@ -40,7 +40,6 @@ To check the account, expand **Settings → Advanced settings** on the plugin's 
 
 | Plugin | Tool | Input |
 | --- | --- | --- |
-| Gmail | `get_profile` | `{}` |
 | Calendar | `list_calendars` | `{}` |
 | Drive | `list_recent_files` | `{"pageSize":5}` |
 | Docs | `read_document` | `{"documentId":"<id from a document URL>"}` |
@@ -51,7 +50,6 @@ Repeat for each plugin. To connect another Google account, choose **Add Another 
 
 ## What bots can do
 
-- **Gmail:** search and read email, create and apply labels, move messages to trash or spam and back, and write, edit and delete Gmail drafts. To send, a bot posts a draft card in its chat; when you choose **Send**, OutcomeGo sends it from your Gmail address, threaded under the original for replies. The card's **From** menu lists your verified **Send mail as** addresses, and your Gmail signature is added under the message. See [Approve before it sends](email.md#approve-before-it-sends) for the approval menu. Bots can't send Gmail any other way.
 - **Calendar:** find events, check availability, create, update, or delete events, and respond to invitations. Bots can set an event's reminders, remove them, or use your calendar's default reminders. On Google Workspace accounts, they can also set your working location, including an office building, floor, and desk. Unless you name other dates, event lists cover the next seven days. Changes can notify attendees, so review them first.
 - **Drive:** search for files, browse folders, and read Docs, Sheets, Slides, and text files. Bots can download files or export Google files as PDF and other formats, create folders and files (including turning Markdown into a Google Doc or CSV into a Google Sheet), replace a file's text, and move, rename, copy, or trash files. They can see who has access, share a file with a person, group, or domain you name, and read, add, reply to, or resolve comments. Google limits changes to the files and folders bots created through this plugin, so bots can't edit, move, share, trash, or comment on your other files, or add files to folders they didn't create. Trashed files stay recoverable for about 30 days, and bots can't delete anything permanently. Downloads and exports are limited to 10 MB, and other file operations to 64 MB.
 
@@ -65,7 +63,7 @@ Bots can only reach what your Google account can.
 
 ## Keep the connection working
 
-While an **External** app's publishing status is **Testing**, Google expires refresh tokens after seven days and you'll need to sign in again. For a longer-lasting connection, configure the app for **In production**, meeting Google's applicable requirements, then sign in again to obtain a new grant. Production grants can still be revoked, for example after access is removed or a Gmail account's password changes. See [Google's token expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
+While an **External** app's publishing status is **Testing**, Google expires refresh tokens after seven days and you'll need to sign in again. For a longer-lasting connection, configure the app for **In production**, meeting Google's applicable requirements, then sign in again to obtain a new grant. Production grants can still be revoked, for example after access is removed or a Google account's password changes. See [Google's token expiration rules](https://developers.google.com/identity/protocols/oauth2#expiration).
 
 OutcomeGo renews short-lived access tokens automatically. If Google rejects the refresh token, the affected account shows **Sign-in needed**. Select **Sign in** for that account and complete authorization. Restarting the connector cannot repair a revoked grant. Other connected accounts keep their own credentials.
 

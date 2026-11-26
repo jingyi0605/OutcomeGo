@@ -8,7 +8,7 @@ Each plugin signs in to its service in one of a few ways. This page explains wha
 | --- | --- |
 | Linear, Notion, Granola | Browser sign-in. Nothing to set up first. |
 | GitHub | A fine-grained personal access token |
-| Gmail, Google Calendar, Google Drive | Your own Google OAuth app. See [Google](google.md). |
+| Google Calendar, Google Drive | Your own Google OAuth app. See [Google](google.md). |
 | Slack | Your own Slack app. See [Slack](slack.md). Needs an HTTPS server address. |
 | 1Password | A read-only 1Password service account token, entered when you add the plugin |
 | Custom MCP | Whatever the MCP server requires |

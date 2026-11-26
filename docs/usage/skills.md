@@ -57,7 +57,7 @@ Some installed plugins include skills and runtime instructions. These load for a
 | [Google Slides](../../packages/plugins/google-slides/README.md) | 1: `google-slides` |
 | [T3 Code](../../packages/plugins/t3-code/README.md) | 3: `t3-code`, `t3-threads`, and `t3-setup` |
 
-Gmail, Google Calendar, GitHub, Linear, and Slack (stealth) provide tools without bundled skills. You can create a private skill that uses those tools.
+Google Calendar, GitHub, Linear, and Slack (stealth) provide tools without bundled skills. You can create a private skill that uses those tools.
 
 Provider skills keep their original upstream instructions. Installing or updating Granola and Notion fetches their pinned skills automatically; you don't need to copy files yourself. Updating a plugin updates its included skills. Your private skills remain separate, and plugin skills are read-only.
 

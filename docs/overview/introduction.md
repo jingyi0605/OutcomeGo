@@ -17,7 +17,7 @@ OutcomeGo runs a team of AI bots on hardware you control. Each bot gets its own 
 | [Workspace](../usage/files.md) | A shared `/workspace` folder where all your bots read and write files. |
 | [Memory](../usage/memory.md) | Preferences and facts it carries from one task to the next. |
 | [Skills](../usage/skills.md) | Saved instructions for work you repeat. |
-| [Plugins](../usage/plugins.md) | Access to services such as Gmail, GitHub, Slack, and Notion. |
+| [Plugins](../usage/plugins.md) | Access to services such as Email, GitHub, Slack, and Notion. |
 | [Routines](../usage/routines.md) | Tasks it runs on a schedule or when an event arrives. |
 
 ## An example
