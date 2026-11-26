@@ -14,7 +14,7 @@ export const llmsOverview = `# OutcomeGo
 - Models: sign in with ChatGPT (Codex) or Claude (Claude Code), use an OpenAI, Anthropic, or OpenRouter API key, or connect a compatible custom endpoint. All bots use the model selected for the server.
 - Apps: desktop apps for macOS (Apple silicon) and Linux (x64), and an iPhone app in beta on TestFlight. Windows and Intel Mac desktop builds aren't available yet. Work continues on the server when the apps are closed.
 - Teamwork: bots work together in group chats, message each other, and delegate tasks to subagents.
-- Integrations: skills and plugins for services such as Gmail, GitHub, Slack, and Notion, plus custom MCP servers. Installed plugins and connected accounts are available to every bot.
+- Integrations: skills and plugins for services such as Email, GitHub, Slack, and Notion, plus custom MCP servers. Installed plugins and connected accounts are available to every bot.
 - Automation: routines run saved instructions on a schedule or when an event arrives.
 - Install: the public installer is linked from ${DOCS_ORIGIN}/download. The latest published release is beta.13 with the former product identity; OutcomeGo beta.14 has not been released.
 `;

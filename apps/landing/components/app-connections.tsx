@@ -19,7 +19,6 @@ import "./connections-polish.css";
 const connections = [
   {
     name: "Email",
-    logo: "/logos/gmail.png",
     icon: Mail,
     color: "#e45546",
     action: "Reading the introduction email",

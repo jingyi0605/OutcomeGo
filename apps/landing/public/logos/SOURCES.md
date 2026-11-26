@@ -21,7 +21,7 @@ These trademarks identify the services shown in the interactive plugin demo. Ret
 
 Copied unchanged from the corresponding plugin's `assets/icon.png` in `packages/plugins`:
 
-- **Gmail, Google Calendar, Google Drive:** Official Google product marks. Source URLs and original rasterization notes are recorded in each plugin's `assets/SOURCES.md`.
+- **Google Calendar, Google Drive:** Official Google product marks. Source URLs and original rasterization notes are recorded in each plugin's `assets/SOURCES.md`.
 - **Granola:** Official 192 × 192 app mark from [Granola's web app assets](https://www.granola.ai/favicon/web-app-manifest-192x192.png).
 
 Example skills use distinct Lucide icons for meeting preparation, commitments, travel, fares, invoices, and spend analysis.

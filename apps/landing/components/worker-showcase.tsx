@@ -9,6 +9,7 @@ import {
   FileText,
   Globe,
   ListChecks,
+  Mail,
   Plane,
   ReceiptText,
   Search,
@@ -21,7 +22,7 @@ import "./worker-showcase.css";
 import "./worker-polish.css";
 
 const toolMarks = {
-  Gmail: { logo: "/logos/gmail.png" },
+  Email: { icon: Mail },
   "Google Calendar": { logo: "/logos/google-calendar.png" },
   Granola: { logo: "/logos/granola.png" },
   Notion: { logo: "/logos/notion.svg" },
@@ -48,7 +49,7 @@ const workers = [
     role: "Keep the day running smoothly.",
     instructions:
       "Prepare meeting briefs from calendar invites, email threads and Granola notes. Track decisions, owners and deadlines in Notion, and draft follow-ups for overdue commitments. Link the original context; ask before sending messages or moving a meeting.",
-    tools: ["Gmail", "Google Calendar", "Granola", "Notion"],
+    tools: ["Email", "Google Calendar", "Granola", "Notion"],
     skills: ["Meeting prep", "Commitment tracker"],
     file: "meeting-brief.md",
     task: "Prepare tomorrow’s meeting brief",
@@ -71,8 +72,8 @@ const workers = [
     color: "#27baae",
     role: "Keep a closer eye on the numbers.",
     instructions:
-      "Match invoices in Drive with receipts in Gmail. Reconcile vendor, amount and currency against the expense export; flag duplicates, missing receipts and unusual changes. Send unresolved questions to me with source links. Never approve invoices or move money.",
-    tools: ["Gmail", "Google Drive", "Terminal"],
+      "Match invoices in Drive with receipts in your email. Reconcile vendor, amount and currency against the expense export; flag duplicates, missing receipts and unusual changes. Send unresolved questions to me with source links. Never approve invoices or move money.",
+    tools: ["Email", "Google Drive", "Terminal"],
     skills: ["Invoice reconciliation", "Spend variance review"],
     file: "monthly-expenses.csv",
     task: "Review this month’s expenses",
