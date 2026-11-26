@@ -29,7 +29,7 @@ test("supported MCP structured and JSON text envelopes preserve connector data",
   expect(connectorRecord({ structuredContent: { identity: "me@example.com", sendingAddresses: ["me@example.com"] } })).toEqual({ identity: "me@example.com", sendingAddresses: ["me@example.com"] });
 });
 
-test("reviewed Gmail and fully accepted SMTP receipts confirm the intended recipients", () => {
+test("reviewed email ID and fully accepted SMTP receipts confirm the intended recipients", () => {
   for (const raw of ["sent-1", "12345678901234567890", "1e3", "12E34", { id: "sent-1", threadId: "thread-1", labelIds: ["SENT"] },
     { content: [{ type: "text", text: JSON.stringify({ id: "sent-1" }) }] }])
     expect(reviewedSendResult(raw, "email").id).toEqual(expect.any(String));

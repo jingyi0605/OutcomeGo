@@ -4,8 +4,8 @@ import { connectorDraftCardReminder } from "../src/services/connector-draft-remi
 import { InternalToolService } from "../src/services/internal-tool-service";
 
 const manifest = (drafts?: Record<string, string>) => ({
-  key: "gmail", name: "Gmail", skills: [],
-  connections: [{ key: "gmail", name: "Gmail", ...(drafts ? { drafts } : {}) }],
+  key: "mail", name: "Mail", skills: [],
+  connections: [{ key: "mail", name: "Mail", ...(drafts ? { drafts } : {}) }],
 });
 const call = async (options: { origin?: string; child?: boolean; toolName?: string; result?: unknown; drafts?: Record<string, string> | null }) => {
   const prisma = {
@@ -13,7 +13,7 @@ const call = async (options: { origin?: string; child?: boolean; toolName?: stri
       : { id: "current", botId: "bot", conversationId: "conversation", channelId: "channel", deliveryId: null, status: "running", origin: options.origin ?? "user", inboxEvents: [] } },
     subagent: { findUnique: async () => options.child ? { id: "child", parentBotId: "parent", parentRunId: "parent-run", subagentType: "executor" } : null },
     automationResult: { findUnique: async () => null },
-    pluginConnection: { findUnique: async () => ({ connectorKey: "gmail", installation: { name: "Gmail", manifest: manifest(options.drafts === null ? undefined : options.drafts ?? { platform: "email", tool: "send_reviewed_email" }) } }) },
+    pluginConnection: { findUnique: async () => ({ connectorKey: "mail", installation: { name: "Mail", manifest: manifest(options.drafts === null ? undefined : options.drafts ?? { platform: "email", tool: "send_reviewed_email" }) } }) },
   };
   const result = options.result ?? { content: [{ type: "text", text: JSON.stringify({ id: "r-1", messageId: "m-1" }) }] };
   const plugins = { invoke: async () => result };
@@ -22,13 +22,13 @@ const call = async (options: { origin?: string; child?: boolean; toolName?: stri
     tool: "PluginCall", arguments: { connectionId: "connection", toolName: options.toolName ?? "create_draft", arguments: {} } }))) as { content: Array<{ text: string }> };
 };
 
-test("a Gmail create_draft reminds the main agent that the user expects the draft card", async () => {
+test("an email connector create_draft reminds the main agent that the user expects the draft card", async () => {
   const result = await call({});
   expect(result.content.map((item) => item.text)).toEqual([
     JSON.stringify({ id: "r-1", messageId: "m-1" }),
-    "\n\n<system_reminder>\nThis saved a draft in the user's Gmail mailbox. If it is for a file you are about to attach with UploadFile, or the user asked you to save the draft in their mailbox, carry on. Otherwise the user expects the in-app draft card: show the same message with DraftExternalMessage, and tell the user a Gmail draft was also saved. Leave that draft as it is.\n</system_reminder>",
+    "\n\n<system_reminder>\nThis saved a draft in the user's Mail mailbox. If it is for a file you are about to attach with UploadFile, or the user asked you to save the draft in their mailbox, carry on. Otherwise the user expects the in-app draft card: show the same message with DraftExternalMessage, and tell the user a Mail draft was also saved. Leave that draft as it is.\n</system_reminder>",
   ]);
-  expect(result.content[1]!.text).toBe(connectorDraftCardReminder("Gmail"));
+  expect(result.content[1]!.text).toBe(connectorDraftCardReminder("Mail"));
 });
 
 test("no reminder where no card can be drafted, after a failure, or for other tools and connectors", async () => {

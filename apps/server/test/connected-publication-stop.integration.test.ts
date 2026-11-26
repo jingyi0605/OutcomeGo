@@ -33,13 +33,13 @@ async function fixture(nativeFiles = false, origin: "background_revival" | "user
     botId: bot.id, conversationId: bot.conversation!.id, runId: run.id,
     idempotencyKey: crypto.randomUUID(), type: "subagent.completed", payload: { taskContextRunId: root.id },
   } });
-  const pluginKey = nativeFiles ? "gmail" : `publication-${crypto.randomUUID()}`;
+  const pluginKey = nativeFiles ? "slack" : `publication-${crypto.randomUUID()}`;
   const installation = await db.pluginInstallation.create({ data: {
     pluginKey, version: "1.0.0", name: "Synthetic publisher", publisher: "Test",
     manifest: JSON.parse(JSON.stringify(createReviewedEmailPlugin(pluginKey))),
   } });
   const connection = await db.pluginConnection.create({ data: {
-    installationId: installation.id, connectorKey: nativeFiles ? "gmail" : "email", name: "Publisher",
+    installationId: installation.id, connectorKey: nativeFiles ? "slack" : "email", name: "Publisher",
     transport: "http", endpoint: "https://fixture.invalid/mcp", authType: "none", status: "ready",
     toolSnapshot: [{ name: "send_message", description: "Send message", inputSchema: {
       type: "object", properties: { chat_id: { type: "string" }, text: { type: "string" } },
@@ -47,7 +47,7 @@ async function fixture(nativeFiles = false, origin: "background_revival" | "user
   } });
   const input = {
     botId: bot.id, runId: run.id, callId: crypto.randomUUID(),
-    address: `${connection.id}:${nativeFiles ? "owner@example.invalid" : "synthetic-room"}`, content: "Synthetic result",
+    address: `${connection.id}:${nativeFiles ? "C123456" : "synthetic-room"}`, content: "Synthetic result",
   };
   const connector = (transportDb = db, http = { call: async () => ({ sent: true }) },
     token = async () => "synthetic-token") => {
@@ -254,8 +254,13 @@ for (const stoppedFirst of [true, false]) integration(
     const preparing = gate(), prepared = gate();
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
-      calls++; entered.resolve(); await release.promise; return Response.json({ id: "synthetic-message" });
+    globalThis.fetch = (async (url: any) => {
+      calls++;
+      if (calls === 1) { entered.resolve(); await release.promise; }
+      const target = String(url);
+      if (target.includes("getUploadURLExternal")) return Response.json({ ok: true, file_id: "F1", upload_url: "https://files.slack.com/upload/synthetic" });
+      if (target.includes("/upload/")) return new Response("OK");
+      return Response.json({ ok: true, files: [{ id: "F1" }] });
     }) as unknown as typeof fetch;
     const connector = f.connector(f.db, undefined, async () => {
       if (stoppedFirst) { preparing.resolve(); await prepared.promise; }
@@ -283,7 +288,7 @@ for (const stoppedFirst of [true, false]) integration(
         release.resolve();
         const result = await pending;
         expect(await connector.deliverConnectedChannel(input)).toEqual(result);
-        expect(calls).toBe(1);
+        expect(calls).toBe(3);
         expect(await f.invocation()).toMatchObject({ status: "completed" });
       }
     } finally {

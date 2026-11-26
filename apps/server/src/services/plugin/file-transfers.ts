@@ -10,7 +10,7 @@ import { canonicalJson, toolSnapshot } from "./values";
 import { toJson } from "../service-utils";
 import { FileTransferProvider } from "./file-transfer-providers";
 import type { PluginTransport } from "./transport";
-const providers = new Set(["google-drive", "gmail"]);
+const providers = new Set(["google-drive"]);
 interface Context {
   botId: string;
   runId: string;
@@ -48,7 +48,7 @@ export class ConnectorFileTransfers {
         service:matches[0]!.installation.name,candidates:matches.map((c)=>namespaces.get(c.id) ?? c.id)}});
     if (matches.length !== 1)
       throw Object.assign(new Error(
-        `Select one available file connection by ID: ${available.map((c) => `${c.name} account=${c.alias} id=${c.id}`).join(", ") || "none; connect Google Drive or Gmail"}`
+        `Select one available file connection by ID: ${available.map((c) => `${c.name} account=${c.alias} id=${c.id}`).join(", ") || "none; connect Google Drive"}`
       ), {outcome:{kind:"unknown_connection",available:available.map(c=>`${c.installation.pluginKey} (account="${c.alias}")`)}});
     const connection = matches[0]!;
     if (connection.status !== "ready")
@@ -177,16 +177,7 @@ export class ConnectorFileTransfers {
       };
       const result =
         raw.tool === "UploadFile"
-          ? connection.installation.pluginKey === "gmail"
-            ? await this.db.$transaction(
-                async (tx) => {
-                  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`gmail-draft:${connection.id}:${input.destination.draftId}`}, 0))`;
-                  signal?.throwIfAborted();
-                  return upload();
-                },
-                { maxWait: 130_000, timeout: 130_000 }
-              )
-            : await upload()
+          ? await upload()
           : transfer.stream ? await api.downloadStream(connection.installation.pluginKey, input.source, signal) : await api.download(connection.installation.pluginKey, input.source, signal);
       const { bytes: downloaded, stream, ...metadata } = result as Record<string, any>;
       const file = stagedDownload = stream ? await spoolFile(stream,{signal}) : undefined;

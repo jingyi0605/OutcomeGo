@@ -3,7 +3,6 @@ import { basename, extname } from "node:path";
 const part = encodeURIComponent;
 const transferError = (kind: string, message: string, extra: Record<string, unknown> = {}) => Object.assign(new Error(message), {outcome:{kind,message,...extra}});
 const drive = "https://www.googleapis.com/drive/v3";
-const gmail = "https://gmail.googleapis.com/gmail/v1/users/me";
 const exports: Record<string, [string, string]> = {
   "application/vnd.google-apps.document": [
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -19,51 +18,6 @@ const exports: Record<string, [string, string]> = {
   ],
   "application/vnd.google-apps.drawing": ["image/png", ".png"],
 };
-export function appendDraftAttachment(
-  raw: Buffer,
-  name: string,
-  mime: string,
-  bytes: Buffer
-): Buffer {
-  if (
-    !/^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+(?:;[ \t]*charset=[A-Za-z0-9_-]+)?$/.test(mime)
-  )
-    throw new Error("Invalid attachment content type");
-  const text = raw.toString("utf8").replace(/\r?\n/g, "\r\n");
-  const split = text.indexOf("\r\n\r\n");
-  if (split < 0) throw new Error("Draft has invalid MIME headers");
-  const headers = text.slice(0, split).split(/\r\n(?![ \t])/);
-  const body = text.slice(split + 4);
-  const boundary = `openteam-${crypto.randomUUID()}`;
-  const contentHeaders = headers.filter((h) => /^content-/i.test(h));
-  const messageHeaders = headers.filter((h) => !/^content-|^mime-version:/i.test(h));
-  const encodedName = encodeURIComponent(name).replace(/'/g, "%27");
-  const attachment =
-    bytes
-      .toString("base64")
-      .match(/.{1,76}/g)
-      ?.join("\r\n") ?? "";
-  return Buffer.from(
-    [
-      ...messageHeaders,
-      "MIME-Version: 1.0",
-      `Content-Type: multipart/mixed; boundary="${boundary}"`,
-      "",
-      `--${boundary}`,
-      ...contentHeaders,
-      "",
-      body,
-      `--${boundary}`,
-      `Content-Type: ${mime}`,
-      `Content-Disposition: attachment; filename*=UTF-8''${encodedName}`,
-      "Content-Transfer-Encoding: base64",
-      "",
-      attachment,
-      `--${boundary}--`,
-      "",
-    ].join("\r\n")
-  );
-}
 const mimeFor = (name: string) =>
   ({
     ".pdf": "application/pdf",
@@ -189,52 +143,6 @@ export class FileTransferProvider {
         webUrl: file.webViewLink,
       };
     }
-    if (provider === "gmail") {
-      const ids = source.fileId?.split("/");
-      if (ids?.length !== 2 || !ids[0] || !ids[1])
-        throw transferError("rejected", "Gmail fileId must be messageId/attachmentId");
-      const message = await this.json(`${gmail}/messages/${part(ids[0])}?format=full`, { signal });
-      const parts: any[] = [];
-      const collect = (p: any): void => {
-        if (p.body?.attachmentId) parts.push(p);
-        (p.parts ?? []).forEach(collect);
-      };
-      collect(message.payload ?? {});
-      const fetchAttachment = async (id: string) => {
-        const data = await this.json(`${gmail}/messages/${part(ids[0]!)}/attachments/${part(id)}`, { signal });
-        return Buffer.from(data.data ?? "", "base64url");
-      };
-      // Gmail issues a new attachmentId on every message read and keeps earlier
-      // ones valid, so the caller's ID rarely matches this read. Gmail also
-      // serves an attachment regardless of the message in the path, so
-      // membership is checked against this message's parts by size, and by
-      // bytes when several parts share that size.
-      let attachment = parts.find((p) => p.body.attachmentId === ids[1]);
-      if (attachment && Number(attachment.body.size) > CONNECTOR_TRANSFER_MAX_BYTES)
-        throw transferError("too_large", "Attachment exceeds 64 MiB", {maxBytes:CONNECTOR_TRANSFER_MAX_BYTES});
-      let bytes: Buffer;
-      try {
-        bytes = await fetchAttachment(ids[1]);
-      } catch (error) {
-        if ([400, 404].includes((error as any).status))
-          throw transferError("not_found", "Attachment does not belong to this message");
-        throw error;
-      }
-      if (bytes.length > CONNECTOR_TRANSFER_MAX_BYTES) throw transferError("too_large", "Attachment exceeds 64 MiB", {maxBytes:CONNECTOR_TRANSFER_MAX_BYTES});
-      if (!attachment) {
-        const sameSize = parts.filter((p) => Number(p.body.size) === bytes.length);
-        attachment = sameSize.length === 1 ? sameSize[0] : undefined;
-        for (const candidate of sameSize.length > 1 ? sameSize : [])
-          if ((await fetchAttachment(candidate.body.attachmentId)).equals(bytes)) { attachment = candidate; break; }
-      }
-      if (!attachment) throw transferError("not_found", "Attachment does not belong to this message");
-      return {
-        id: source.fileId!,
-        name: attachment.filename || `attachment-${ids[1]}`,
-        mimeType: attachment.mimeType ?? "application/octet-stream",
-        stream: new Response(new Uint8Array(bytes)).body!,
-      };
-    }
     throw new Error("Connection cannot transfer files");
   }
   async upload(
@@ -250,42 +158,7 @@ export class FileTransferProvider {
     // A destination name without an extension keeps the source file's type.
     const typedName = extname(name) ? name : basename(sourceName);
     const mimeType = mimeFor(typedName);
-    if (provider === "gmail") {
-      if (size > 25 * 1024 * 1024) throw transferError("too_large", "Draft with attachments exceeds 25 MiB", {maxBytes:25 * 1024 * 1024});
-      if (
-        !destination.draftId ||
-        destination.path ||
-        destination.folderId ||
-        destination.overwrite !== undefined
-      )
-        throw transferError("invalid_destination", "Gmail requires only draftId and optional name");
-      const draft = await this.json(`${gmail}/drafts/${part(destination.draftId)}?format=raw`, {
-        signal,
-      });
-      const raw = appendDraftAttachment(
-        Buffer.from(draft.message.raw, "base64url"),
-        name,
-        mimeType,
-        Buffer.from(await chunk(0,size))
-      );
-      if (raw.length > 25 * 1024 * 1024) throw transferError("too_large", "Draft with attachments exceeds 25 MiB", {maxBytes:25 * 1024 * 1024});
-      const latest = await this.json(`${gmail}/drafts/${part(destination.draftId)}?format=raw`, {
-        signal,
-      });
-      if (latest.message?.id !== draft.message?.id || latest.message?.raw !== draft.message?.raw)
-        throw transferError("rejected", "Draft changed while adding the attachment; reopen it before retrying");
-      const result = await this.json(`${gmail}/drafts/${part(destination.draftId)}`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          id: destination.draftId,
-          message: { raw: raw.toString("base64url"), threadId: draft.message.threadId },
-        }),
-        signal,
-      });
-      return { id: result.id, name, mimeType, sizeBytes: size, draftId: result.id };
-    }
-    if (destination.draftId) throw transferError("invalid_destination", "draftId only applies to Gmail");
+    if (destination.draftId) throw transferError("invalid_destination", "draftId is not supported");
     if (provider === "google-drive") {
       if (destination.overwrite !== undefined)
         throw transferError("invalid_destination", "Google Drive always creates a new file; overwrite is not supported");

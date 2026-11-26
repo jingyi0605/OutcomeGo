@@ -131,7 +131,7 @@ export class ExternalDraftService {
       const sendTool = connection?.sendTool;
       if (!connection || !sendTool)
         return fail(
-          "This connection can't send reviewed email. Use a connected Gmail or Email plugin account."
+          "This connection can't send reviewed email. Use a connected Email plugin account."
         );
       const result = connectorRecord(
         await this.plugins.invoke({

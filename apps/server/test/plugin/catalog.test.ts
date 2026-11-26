@@ -45,7 +45,7 @@ describe("plugin catalog", () => {
   });
 
   test("Google packages run on public APIs without a hosted MCP preview dependency", () => {
-    for (const key of ["gmail", "google-calendar", "google-drive", "google-docs", "google-sheets", "google-slides"]) {
+    for (const key of ["google-calendar", "google-drive", "google-docs", "google-sheets", "google-slides"]) {
       const plugin = pluginCatalog.find((candidate) => candidate.key === key)!;
       expect(plugin.connections[0]).toMatchObject({
         transport: "stdio",
@@ -56,7 +56,7 @@ describe("plugin catalog", () => {
         },
       });
       expect(plugin.files?.["connector/server.mjs"]).toContain("googleapis.com");
-      expect(plugin.files?.["connector/server.mjs"]).not.toContain("gmailmcp.googleapis.com");
+      expect(plugin.files?.["connector/server.mjs"]).not.toContain("calendarmcp.googleapis.com");
     }
   });
 
@@ -73,7 +73,7 @@ describe("plugin catalog", () => {
       }
     }
 
-    for (const key of ["gmail", "google-calendar", "google-drive", "slack"]) {
+    for (const key of ["google-calendar", "google-drive", "slack"]) {
       const setup = pluginCatalog.find((plugin) => plugin.key === key)?.setup;
       expect(setup?.kind).toBe("oauth_client");
       expect(setup?.fields).toEqual([

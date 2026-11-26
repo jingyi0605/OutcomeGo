@@ -1,27 +1,24 @@
 import { test, expect } from "bun:test";
-import {
-  FileTransferProvider,
-  appendDraftAttachment,
-} from "../../src/services/plugin/file-transfer-providers";
+import { FileTransferProvider } from "../../src/services/plugin/file-transfer-providers";
 import { CONNECTOR_TRANSFER_TOOLS, parseConnectorTransfer } from "@outcomego/contracts/connector-transfers";
 
 test("retired file providers cannot issue requests and are absent from tool guidance", async () => {
   const provider = new FileTransferProvider("fixture", (async (_url: any, _init?: RequestInit): Promise<Response> => {
     throw new Error("Unexpected provider request");
   }) as typeof fetch);
-  await expect(provider.download("onedrive", { fileId: "file" })).rejects.toThrow("Connection cannot transfer files");
-  await expect(provider.upload("onedrive", "file.txt", {}, Buffer.from("fixture"))).rejects.toThrow("Connection cannot receive files");
-  for (const tool of CONNECTOR_TRANSFER_TOOLS) {
-    expect(JSON.stringify(tool)).not.toMatch(/onedrive|sharepoint|outlook|send_draft|send_message|read_email/i);
-    expect(tool.description).toContain("The service short name (google-drive or gmail)");
+  for (const retired of ["onedrive", "gmail"]) {
+    await expect(provider.download(retired, { fileId: "file" })).rejects.toThrow("Connection cannot transfer files");
+    await expect(provider.upload(retired, "file.txt", {}, Buffer.from("fixture"))).rejects.toThrow("Connection cannot receive files");
   }
-  // File uploads preserve mailbox drafts; in-chat reviewed mail uses the card's attachment path.
-  const uploadDescription = CONNECTOR_TRANSFER_TOOLS.find(t => t.name === "UploadFile")!.description;
-  expect(uploadDescription).toContain("Use this only when the user asks to keep the draft in Gmail");
-  expect(uploadDescription).toContain("For an email reviewed and sent in chat, use DraftExternalMessage with attachments instead");
+  for (const tool of CONNECTOR_TRANSFER_TOOLS) {
+    expect(JSON.stringify(tool)).not.toMatch(/onedrive|sharepoint|outlook|gmail|send_draft|send_message|read_email/i);
+    expect(tool.description).toContain("The service short name (google-drive)");
+  }
+  expect(CONNECTOR_TRANSFER_TOOLS.find(t => t.name === "UploadFile")!.inputSchema.properties.destination.properties.draftId).toBeUndefined();
   expect(CONNECTOR_TRANSFER_TOOLS.find(t => t.name === "DownloadFile")!.inputSchema.properties.source.required).toEqual(["fileId"]);
   expect(() => parseConnectorTransfer("DownloadFile", { connection: "drive", source: { path: "file.txt" } })).toThrow("source.fileId");
   expect(() => parseConnectorTransfer("UploadFile", { connection: "drive", sourcePath: "/workspace/file.txt", destination: { overwrite: true } })).toThrow("destination.overwrite");
+  expect(() => parseConnectorTransfer("UploadFile", { connection: "drive", sourcePath: "/workspace/file.txt", destination: { draftId: "draft-1" } })).toThrow("destination.draftId");
 });
 
 test("Drive export preserves native document bytes and upload uses an authenticated resumable session", async () => {
@@ -61,98 +58,6 @@ test("Drive export preserves native document bytes and upload uses an authentica
       )
     )
   ).toBe(true);
-});
-
-test("Gmail attaches to an existing draft without losing MIME parts or sending mail; attachment reads return the bytes", async () => {
-  const old = Buffer.from(
-    'To: fixture@example.test\r\nSubject: Fixture\r\nContent-Type: multipart/mixed; boundary="old"\r\n\r\n--old\r\nContent-Type: text/plain\r\n\r\nBody\r\n--old\r\nContent-Type: application/octet-stream\r\nContent-Transfer-Encoding: base64\r\n\r\nb2xkLWZpbGU=\r\n--old--\r\n'
-  );
-  const combined = appendDraftAttachment(
-    old,
-    "résumé.pdf",
-    "application/pdf",
-    Buffer.from("new-file")
-  ).toString();
-  expect(combined).toContain("b2xkLWZpbGU=");
-  expect(combined).toContain("bmV3LWZpbGU=");
-  expect(combined).toContain("filename*=UTF-8''r%C3%A9sum%C3%A9.pdf");
-  let writes = 0;
-  const provider = new FileTransferProvider("fixture", (async (
-    url: any,
-    init: RequestInit = {}
-  ) => {
-    const u = String(url);
-    expect(u).not.toContain("/send");
-    if (init.method === "PUT") {
-      writes++;
-      expect(JSON.parse(String(init.body)).message.threadId).toBe("thread");
-      return Response.json({ id: "draft" });
-    }
-    if (u.includes("/drafts/"))
-      return Response.json({
-        id: "draft",
-        message: { raw: old.toString("base64url"), threadId: "thread" },
-      });
-    if (u.includes("/attachments/"))
-      return Response.json({ data: Buffer.from("binary\0attachment").toString("base64url") });
-    return Response.json({
-      payload: {
-        parts: [
-          {
-            filename: "file.bin",
-            mimeType: "application/octet-stream",
-            body: { attachmentId: "a", size: 17 },
-          },
-        ],
-      },
-    });
-  }) as typeof fetch);
-  expect(
-    await provider.upload("gmail", "new.pdf", { draftId: "draft" }, Buffer.from("new-file"))
-  ).toMatchObject({ id: "draft", draftId: "draft" });
-  expect(writes).toBe(1);
-  expect((await provider.download("gmail", { fileId: "m/a" })).bytes).toEqual(
-    Buffer.from("binary\0attachment")
-  );
-});
-
-test("Gmail downloads an attachment by an ID from an earlier message read", async () => {
-  // Real Gmail returns new attachment IDs on every message read, keeps older
-  // IDs valid, and serves an attachment whatever message is in the path.
-  const files: Record<string, Buffer> = {
-    "quote.pdf": Buffer.from("%PDF quote"),
-    "logo.png": Buffer.from("png-1"),
-    "icon.png": Buffer.from("png-2"),
-    "other.txt": Buffer.from("from another message"),
-  };
-  const issued = new Map<string, string>();
-  let reads = 0;
-  const provider = new FileTransferProvider("fixture", (async (url: any) => {
-    const u = String(url);
-    const attachment = u.match(/\/attachments\/([^/?]+)/)?.[1];
-    if (attachment) {
-      const name = issued.get(decodeURIComponent(attachment));
-      return name
-        ? Response.json({ data: files[name]!.toString("base64url"), size: files[name]!.length })
-        : Response.json({ error: { code: 400 } }, { status: 400 });
-    }
-    reads++;
-    const part = (filename: string) => {
-      const id = `${filename}#${reads}`;
-      issued.set(id, filename);
-      return { filename, mimeType: "application/octet-stream", body: { attachmentId: id, size: files[filename]!.length } };
-    };
-    return Response.json({ payload: { parts: [part("quote.pdf"), part("logo.png"), part("icon.png")] } });
-  }) as typeof fetch);
-  issued.set("other#0", "other.txt");
-  await provider.download("gmail", { fileId: "m/x" }).catch(() => {});
-  for (const name of ["quote.pdf", "icon.png"]) {
-    const earlier = [...issued].find(([id, file]) => file === name && id.endsWith("#1"))![0];
-    const result = await provider.download("gmail", { fileId: `m/${earlier}` });
-    expect(result).toMatchObject({ name, bytes: files[name] });
-  }
-  await expect(provider.download("gmail", { fileId: "m/other#0" })).rejects.toThrow("does not belong");
-  await expect(provider.download("gmail", { fileId: "m/never-issued" })).rejects.toThrow("does not belong");
 });
 
 test("file contracts reject destination ambiguity and unsafe filename shapes", () => {

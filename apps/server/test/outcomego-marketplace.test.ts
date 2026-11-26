@@ -10,13 +10,13 @@ describe("outcomeGo marketplace", () => {
     const source = new OutcomeGoMarketplaceSource(undefined, bundledOutcomeGoMarketplace);
     const plugins = await source.plugins();
 
-    expect(plugins).toHaveLength(26);
+    expect(plugins).toHaveLength(25);
     expect(plugins.map((plugin) => plugin.key)).toContain("dsh-web");
     expect(plugins.find(plugin => plugin.key === "1password")?.components).toEqual(["skills"]);
     expect(plugins.map((plugin) => plugin.key)).not.toContain("outcomego-utility-lab");
     expect(plugins.map((plugin) => plugin.key)).not.toContain("onedrive");
+    expect(plugins.map((plugin) => plugin.key)).not.toContain("gmail");
     expect(plugins.map((plugin) => plugin.key)).toContain("google-drive");
-    expect(plugins.map((plugin) => plugin.key)).toContain("gmail");
     expect(plugins.map((plugin) => plugin.key)).toContain("google-docs");
     expect(plugins.map((plugin) => plugin.key)).toContain("google-sheets");
     expect(plugins.map((plugin) => plugin.key)).toContain("google-slides");

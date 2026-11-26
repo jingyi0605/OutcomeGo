@@ -62,7 +62,7 @@ export function connectorRecord(raw: unknown): Record<string, any> {
   return result;
 }
 
-/** Reviewed email has known Gmail/SMTP success receipts. Managed Slack replies
+/** Reviewed email has known SMTP/message-id success receipts. Managed Slack replies
  * remain opaque; their server's successful nonmetadata records stay compatible. */
 export function reviewedSendResult(
   raw: unknown,

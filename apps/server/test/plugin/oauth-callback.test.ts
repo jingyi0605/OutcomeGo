@@ -82,21 +82,21 @@ test("Safari address-bar copies may omit only the expected callback's scheme", (
 });
 
 test("provider setup requires all fields, while dynamic registration needs no user-created app", () => {
-  const gmail = pluginCatalog.find((row) => row.key === "gmail")!;
+  const calendar = pluginCatalog.find((row) => row.key === "google-calendar")!;
   const connection = {
-    connectorKey: "gmail",
+    connectorKey: calendar.connections[0]!.key,
     authType: "oauth",
     status: "disconnected",
     configuration: {},
     credentials: {},
   };
-  expect(connectionSetupPhase(connection, gmail)).toBe("provider_setup_required");
+  expect(connectionSetupPhase(connection, calendar)).toBe("provider_setup_required");
   const partial = { ...connection, configuration: { clientId: "client" } };
-  expect(connectionConfigured(partial, gmail)).toBe(false);
+  expect(connectionConfigured(partial, calendar)).toBe(false);
   const configured = { ...partial, credentials: { clientSecret: "secret" } };
-  expect(connectionSetupPhase(configured, gmail)).toBe("ready_to_authorize");
-  expect(connectionSetupPhase({ ...configured, status: "error" }, gmail)).toBe("validation_failed");
-  expect(connectionSetupPhase({ ...configured, status: "ready" }, gmail)).toBe("connected");
+  expect(connectionSetupPhase(configured, calendar)).toBe("ready_to_authorize");
+  expect(connectionSetupPhase({ ...configured, status: "error" }, calendar)).toBe("validation_failed");
+  expect(connectionSetupPhase({ ...configured, status: "ready" }, calendar)).toBe("connected");
   const linear = pluginCatalog.find((row) => row.key === "linear")!;
   expect(connectionSetupPhase({ ...connection, connectorKey: "linear" }, linear)).toBe(
     "ready_to_authorize"

@@ -84,9 +84,6 @@ try {
     ["slack", "slack_search_channels", { query: "general", limit: 1, response_format: "concise" }],
     ["github", "get_me", {}],
     ["github", "search_repositories", { query: "outcomego in:name", perPage: 1 }],
-    ["gmail", "get_profile", {}],
-    ["gmail", "list_labels", {}],
-    ["gmail", "search_messages", { query: "in:inbox", maxResults: 1 }],
     ["google-calendar", "list_calendars", { maxResults: 1 }],
     [
       "google-calendar",

@@ -1,4 +1,3 @@
-import { appendDraftAttachment } from "./file-transfer-providers";
 export interface ExternalFile {
   assetId: string;
   name: string;
@@ -91,20 +90,6 @@ export async function deliverExternalFiles(
       files: (result.files ?? staged).map((file: any) => ({ id: file.id })),
       channel: target,
     };
-  }
-  if (provider === "gmail") {
-    if (!/^[^\s@<>,;:\r\n]+@[^\s@<>,;:\r\n]+\.[^\s@<>,;:\r\n]+$/.test(target))
-      throw new Error("Gmail file delivery requires one exact recipient email");
-    let mime: Buffer = Buffer.from(
-      `To: ${target}\r\nSubject: Files from OutcomeGo\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${Buffer.from(content).toString("base64")}\r\n`
-    );
-    for (const file of files)
-      mime = appendDraftAttachment(mime, file.name, file.mimeType, file.bytes);
-    if (mime.length > 25 * 1024 * 1024) throw new Error("Email with attachments exceeds 25 MiB");
-    const result = await json("https://gmail.googleapis.com/gmail/v1/users/me/messages/send", {
-      raw: mime.toString("base64url"),
-    });
-    return { sent: true, messageId: result.id, threadId: result.threadId };
   }
   throw new Error("This connected service has no native file delivery adapter");
 }
