@@ -1,9 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Inbox, Lightbulb, LayoutDashboard, ListChecks, Plus, Target } from "lucide-react";
+import { CalendarDays, Inbox, Lightbulb, LayoutDashboard, ListChecks, Plus, Target } from "lucide-react";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import { api } from "../../../../client/outcomego-api";
 import { useFeatureSettings } from "../../../../hooks/use-feature-settings";
-import type { DesktopOutcomeTarget } from "../../../../lib/outcome-target";
+import type { DesktopOutcomeTarget, OutcomeWorkspaceSection } from "../../../../lib/outcome-target";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeInbox } from "./outcome-inbox";
 import { useI18n } from "../../../../lib/i18n";
@@ -20,6 +20,9 @@ import { ScheduledGoalDetail } from "../detail/scheduled-goal-detail";
 const OutcomeRouteView = lazy(() =>
   import("./outcome-route-view").then((module) => ({ default: module.OutcomeRouteView }))
 );
+const CalendarPage = lazy(() =>
+  import("../calendar/calendar-page").then((module) => ({ default: module.CalendarPage }))
+);
 
 type Route =
   | { kind: "overview" }
@@ -27,20 +30,30 @@ type Route =
   | { kind: "new" }
   | { kind: "inbox" }
   | { kind: "explore" }
+  | { kind: "calendar" }
   | { kind: "decision"; id: string }
   | { kind: "outcome"; id: string; reviewRevision?: number }
   | { kind: "scheduledGoal"; id: string }
   | { kind: "human"; id: string };
-type Section = "overview" | "all" | "inbox" | "explore";
-const SECTIONS: readonly string[] = ["overview", "all", "inbox", "explore"];
+type Section = OutcomeWorkspaceSection;
+const SECTIONS: readonly Section[] = ["overview", "all", "inbox", "explore", "calendar"];
+const isSection = (kind: string): kind is Section => (SECTIONS as readonly string[]).includes(kind);
+const sectionFor = (target: DesktopOutcomeTarget): Section =>
+  target.section && isSection(target.section)
+    ? target.section
+    : target.decisionId
+      ? "inbox"
+      : target.outcomeId || target.scheduledGoalId
+        ? "all"
+        : "overview";
 const routeFor = (target: DesktopOutcomeTarget): Route =>
   target.scheduledGoalId
     ? { kind: "scheduledGoal", id: target.scheduledGoalId }
     : target.decisionId
-    ? { kind: "decision", id: target.decisionId }
-    : target.outcomeId
-      ? { kind: "outcome", id: target.outcomeId }
-      : { kind: "overview" };
+      ? { kind: "decision", id: target.decisionId }
+      : target.outcomeId
+        ? { kind: "outcome", id: target.outcomeId }
+        : { kind: sectionFor(target) };
 export default function OutcomeWorkspace({
   target,
   onClose,
@@ -63,7 +76,7 @@ export default function OutcomeWorkspace({
   const opener = useRef<HTMLElement | null>(null);
   const openRoute = (next: Route) => {
     if (
-      SECTIONS.includes(route.kind) &&
+      isSection(route.kind) &&
       document.activeElement instanceof HTMLElement
     )
       opener.current = document.activeElement;
@@ -71,11 +84,11 @@ export default function OutcomeWorkspace({
   };
   const [version, setVersion] = useState(0);
   const [botId, setBotId] = useState("");
-  const [origin, setOrigin] = useState<Section>("overview");
+  const [origin, setOrigin] = useState<Section>(() => sectionFor(target));
   const [ideaOpen, setIdeaOpen] = useState(false);
   useEffect(() => {
     setRoute(routeFor(target));
-    setOrigin(target.decisionId ? "inbox" : target.outcomeId || target.scheduledGoalId ? "all" : "overview");
+    setOrigin(sectionFor(target));
     // Reading the notification changes only its read marker, never the business state.
     if (target.channelId && target.notificationSequence)
       void api
@@ -101,8 +114,8 @@ export default function OutcomeWorkspace({
     openRoute({ kind: "outcome", id, reviewRevision });
   const openScheduledGoal = (id: string) => openRoute({ kind: "scheduledGoal", id });
   const selectedBotId = bots.some((bot) => bot.id === botId) ? botId : (bots[0]?.id ?? "");
-  const tab: Section = SECTIONS.includes(route.kind) ? (route.kind as Section) : origin;
-  const modalOpen = !SECTIONS.includes(route.kind);
+  const tab: Section = isSection(route.kind) ? route.kind : origin;
+  const modalOpen = !isSection(route.kind);
   const closeModal = () => {
     setVersion((value) => value + 1);
     setRoute({ kind: origin });
@@ -142,6 +155,7 @@ export default function OutcomeWorkspace({
               { kind: "all", label: "All goals", icon: ListChecks },
               { kind: "inbox", label: "Needs attention", icon: Inbox },
               { kind: "explore", label: "Explore ideas", icon: Lightbulb },
+              { kind: "calendar", label: "Calendar", icon: CalendarDays },
             ] as const
           ).map((item) => (
             <button
@@ -158,58 +172,91 @@ export default function OutcomeWorkspace({
           ))}
         </nav>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="outcome-page-content space-y-5">
-          {tab === "overview" && (
-            <OutcomeDashboard
-              outcomes={api.outcomes}
-              inbox={api.outcomeInbox}
+      {tab === "calendar" ? (
+        <div className="outcome-calendar-host flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Suspense
+            fallback={
+              <p className="grid flex-1 place-items-center text-xs text-foreground-secondary" role="status">
+                {t("Loading calendar…")}
+              </p>
+            }
+          >
+            <CalendarPage
+              embedded
               bots={bots}
-              onSelectOutcome={review}
-              onSelectStep={select}
-              onShowSteps={() => {
-                setOrigin("inbox");
-                setRoute({ kind: "inbox" });
+              onOpenOutcome={(outcomeId) => {
+                if (outcomeId) review(outcomeId);
+                else {
+                  setOrigin("overview");
+                  setRoute({ kind: "overview" });
+                }
               }}
-              onShowGoals={() => {
-                setOrigin("all");
-                setRoute({ kind: "all" });
-              }}
-              onCreateGoal={() => openRoute({ kind: "new" })}
-              onCreateIdea={() => setIdeaOpen(true)}
               onOpenChannel={onOpenChannel}
-              onOpenRoutine={onOpenRoutine}
+              onOpenRoutine={
+                onOpenRoutine
+                  ? (routineId, botId) => {
+                      if (botId) onOpenRoutine(routineId, botId);
+                    }
+                  : undefined
+              }
               onOpenScheduledGoal={openScheduledGoal}
-              activityPolicy={{
-                cardMaxItems: policy["activity.cardMaxItems"] as number,
-                dashboardLayout: policy["activity.dashboardLayout"] as string,
-              }}
-              refreshVersion={version}
             />
-          )}
-          {tab === "all" && (
-            <OutcomeList
-              client={api.outcomes}
-              bots={bots}
-              onSelect={review}
-              onCreate={() => openRoute({ kind: "new" })}
-              onOpenScheduledGoal={openScheduledGoal}
-              refreshVersion={version}
-            />
-          )}
-          {tab === "inbox" && (
-            <OutcomeInbox client={api.outcomeInbox} onSelect={select} refreshVersion={version} />
-          )}
-          {tab === "explore" && (
-            <ExplorePanel
-              client={api.explore}
-              outcomes={api.outcomes}
-              bots={bots}
-              onOutcome={review}
-            />
-          )}
+          </Suspense>
         </div>
-      </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="outcome-page-content space-y-5">
+            {tab === "overview" && (
+              <OutcomeDashboard
+                outcomes={api.outcomes}
+                inbox={api.outcomeInbox}
+                bots={bots}
+                onSelectOutcome={review}
+                onSelectStep={select}
+                onShowSteps={() => {
+                  setOrigin("inbox");
+                  setRoute({ kind: "inbox" });
+                }}
+                onShowGoals={() => {
+                  setOrigin("all");
+                  setRoute({ kind: "all" });
+                }}
+                onCreateGoal={() => openRoute({ kind: "new" })}
+                onCreateIdea={() => setIdeaOpen(true)}
+                onOpenChannel={onOpenChannel}
+                onOpenRoutine={onOpenRoutine}
+                onOpenScheduledGoal={openScheduledGoal}
+                activityPolicy={{
+                  cardMaxItems: policy["activity.cardMaxItems"] as number,
+                  dashboardLayout: policy["activity.dashboardLayout"] as string,
+                }}
+                refreshVersion={version}
+              />
+            )}
+            {tab === "all" && (
+              <OutcomeList
+                client={api.outcomes}
+                bots={bots}
+                onSelect={review}
+                onCreate={() => openRoute({ kind: "new" })}
+                onOpenScheduledGoal={openScheduledGoal}
+                refreshVersion={version}
+              />
+            )}
+            {tab === "inbox" && (
+              <OutcomeInbox client={api.outcomeInbox} onSelect={select} refreshVersion={version} />
+            )}
+            {tab === "explore" && (
+              <ExplorePanel
+                client={api.explore}
+                outcomes={api.outcomes}
+                bots={bots}
+                onOutcome={review}
+              />
+            )}
+          </div>
+        </div>
+      )}
       {ideaOpen && (
         <QuickIdeaDialog
           open

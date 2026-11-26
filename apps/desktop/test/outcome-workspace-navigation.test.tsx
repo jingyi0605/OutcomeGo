@@ -503,6 +503,38 @@ test("the calendar retries without the one-time source on a legacy server", asyn
   }
 });
 
+test("calendar lives as a tab inside OutcomeWorkspace, highlights today, and offers quick return to today", async () => {
+  await mount(<Workspace target={{ section: "calendar" }} bots={bots} onClose={() => {}} />);
+  // Wait for lazy CalendarPage import + initial schedule query.
+  await act(async () => {
+    for (let i = 0; i < 4; i++) {
+      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  });
+  const nav = host.querySelector('nav[aria-label="Outcome sections"]')!;
+  const calendarTab = Array.from(nav.querySelectorAll("button")).find((button) =>
+    button.textContent?.includes("Calendar")
+  );
+  expect(calendarTab?.getAttribute("aria-current")).toBe("page");
+  // Embedded tab omits the standalone "Back to outcomes" overlay header button.
+  expect(host.textContent).not.toContain("Back to outcomes");
+  // Today cell is highlighted in the current month grid.
+  expect(host.querySelector('[data-calendar-today="true"]')).not.toBeNull();
+  const todayBtn = () => host.querySelector<HTMLButtonElement>("[data-calendar-today-button]")!;
+  expect(todayBtn().getAttribute("data-away")).toBe("false");
+  // Navigating away switches the quick button into prominent "Back to today" mode.
+  const nextBtn = host.querySelector<HTMLButtonElement>('button[aria-label="Next period"]')!;
+  await act(async () => nextBtn.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+  await act(async () => nextBtn.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+  expect(todayBtn().getAttribute("data-away")).toBe("true");
+  expect(todayBtn().textContent).toContain("Back to today");
+  // Clicking the quick button jumps directly back to today.
+  await act(async () => todayBtn().dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+  expect(todayBtn().getAttribute("data-away")).toBe("false");
+  expect(host.querySelector('[data-calendar-today="true"]')).not.toBeNull();
+});
+
 const option = (id: string, label: string, extra: Record<string, unknown> = {}) => ({
   id,
   label,
