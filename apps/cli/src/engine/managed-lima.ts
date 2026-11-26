@@ -64,12 +64,70 @@ ${argsXml}
 `;
 };
 
+const limaDockerProvisionScript = `#!/bin/sh
+set -eu
+if [ -x /usr/bin/docker ] && /usr/bin/docker compose version >/dev/null 2>&1; then
+  systemctl enable --now docker.service
+  exit 0
+fi
+export DEBIAN_FRONTEND=noninteractive
+install_docker() {
+  apt-get update -qq
+  apt-get install -y -qq --no-install-recommends ca-certificates docker.io docker-compose-v2
+}
+cp /etc/apt/sources.list /etc/apt/sources.list.orig
+if command -v curl >/dev/null 2>&1; then
+  arch="$(dpkg --print-architecture)"
+  if [ "$arch" = "arm64" ]; then
+    orig_host="ports.ubuntu.com"
+    repo_path="ubuntu-ports"
+  else
+    orig_host="archive.ubuntu.com"
+    repo_path="ubuntu"
+  fi
+  best_mirror=""
+  best_ms=999999
+  for host in "$orig_host" mirrors.aliyun.com mirrors.tuna.tsinghua.edu.cn mirrors.ustc.edu.cn; do
+    t="$(curl -fsS -o /dev/null --connect-timeout 2 --max-time 3 -w '%{time_total}' "http://\${host}/\${repo_path}/dists/jammy-updates/Release" 2>/dev/null || true)"
+    if [ -n "$t" ]; then
+      ms="$(awk "BEGIN { printf \\"%d\\", ($t * 1000) }")"
+      if [ "$ms" -lt "$best_ms" ]; then
+        best_ms="$ms"
+        best_mirror="$host"
+      fi
+    fi
+  done
+  if [ -n "$best_mirror" ] && [ "$best_mirror" != "$orig_host" ]; then
+    sed -i "s|https\\?://[^/]*/\${repo_path}|http://\${best_mirror}/\${repo_path}|g" /etc/apt/sources.list
+  fi
+fi
+if ! install_docker; then
+  cp /etc/apt/sources.list.orig /etc/apt/sources.list
+  install_docker
+fi
+systemctl enable --now docker.service
+`;
+
+const limaDockerProbeScript = `#!/bin/sh
+set -eu
+/usr/bin/sudo -n /usr/bin/docker --host=unix:///var/run/docker.sock info >/dev/null 2>&1
+/usr/bin/sudo -n /usr/bin/docker --host=unix:///var/run/docker.sock compose version >/dev/null 2>&1
+`;
+
 export const limaConfiguration = (directory: string, image: string, architecture: string, hostMemory: number, apiPort: number) => ({
   vmType: "vz", arch: architecture === "arm64" ? "aarch64" : "x86_64", mountType: "virtiofs",
   memory: `${Math.floor(Math.min(8 * 1024, Math.max(4 * 1024, hostMemory / 2 / 1024 ** 2)))}MiB`,
   images: [{ location: image, arch: architecture === "arm64" ? "aarch64" : "x86_64" }],
   mounts: [{ location: directory, mountPoint: directory, writable: false }],
   containerd: { system: false, user: false },
+  provision: [{ mode: "system", script: limaDockerProvisionScript }],
+  probes: [
+    {
+      description: "dockerd and docker compose to be running",
+      script: limaDockerProbeScript,
+      hint: "Inspect /var/log/cloud-init-output.log inside the managed VM if Docker failed to install.",
+    },
+  ],
   portForwards: [
     { guestIP: "127.0.0.1", guestPort: apiPort, hostIP: "127.0.0.1", hostPort: apiPort },
     { guestIP: "127.0.0.1", guestPortRange: [VIEWER_PORT_START, VIEWER_PORT_END], hostIP: "127.0.0.1", hostPortRange: [VIEWER_PORT_START, VIEWER_PORT_END] },
@@ -219,8 +277,8 @@ export class ManagedLimaEngine extends ManagedEngine {
     }
     try {
       const text = readFileSync(yamlPath, "utf8");
-      const memMatch = /^memory:\s*["']?([^"'\r\n#]+)["']?/m.exec(text);
-      const cpuMatch = /^cpus:\s*(\d+)/m.exec(text);
+      const memMatch = /(?:^|[{\s,])"?memory"?\s*:\s*["']?([^"',}\r\n#]+)["']?/m.exec(text);
+      const cpuMatch = /(?:^|[{\s,])"?cpus"?\s*:\s*(\d+)/m.exec(text);
       const memoryBytes = memMatch ? parseMemoryBytes(memMatch[1]!.trim()) : this.memoryBytes();
       const cpuCores = cpuMatch ? Number(cpuMatch[1]) : this.cpuCores();
       return {

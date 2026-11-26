@@ -99,4 +99,18 @@ describe("status and health reports", () => {
       f.cleanup();
     }
   });
+
+  test("treats running computer-memory-init helper as ready rather than an active setup job", async () => {
+    const f = statusFixture("healthy");
+    try {
+      const report = await collectStatus(f.paths, f.runner);
+      report.services = [
+        ...(report.services ?? []),
+        { Service: "computer-memory-init", State: "running", Health: "" },
+      ];
+      expect(statusState(report)).toBe("RUNNING");
+    } finally {
+      f.cleanup();
+    }
+  });
 });

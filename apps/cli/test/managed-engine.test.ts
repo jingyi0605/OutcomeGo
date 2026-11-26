@@ -37,6 +37,17 @@ test("Lima uses native virtualization, read-only mounts and a loopback allowlist
     { guestIP: "127.0.0.1", guestPortRange: [6200, 6299], hostIP: "127.0.0.1", hostPortRange: [6200, 6299] },
     { guestPortRange: [1, 65535], ignore: true },
   ]);
+  expect(config.provision).toEqual([
+    expect.objectContaining({
+      mode: "system",
+      script: expect.stringContaining("docker.io docker-compose-v2"),
+    }),
+  ]);
+  expect(config.probes).toEqual([
+    expect.objectContaining({
+      script: expect.stringContaining("/usr/bin/docker --host=unix:///var/run/docker.sock info"),
+    }),
+  ]);
   expect(limaConfiguration("/home", "/image", "x64", 6 * 1024 ** 3, 8787).memory).toBe("4096MiB");
 });
 
@@ -380,4 +391,33 @@ test("Lima restores the saved instance and runtime together and can retry restor
     expect(readFileSync(bin, "utf8")).toBe("old");
     expect(readFileSync(join(backup, "failed-lima", "outcomego-engine", "diffdisk"), "utf8")).toBe("new state");
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("Lima reads memory and CPU from both JSON/flow-style and block YAML lima.yaml", () => {
+  const directory = mkdtempSync(join(tmpdir(), "outcomego-lima-resources-"));
+  try {
+    const paths = installationPaths(directory);
+    const yamlPath = join(directory, "engine", "lima", "outcomego-engine", "lima.yaml");
+    mkdirSync(join(directory, "engine", "lima", "outcomego-engine"), { recursive: true });
+    const engine = new ManagedLimaEngine({
+      paths,
+      runner: { run: () => commandResult() },
+      architecture: "arm64",
+      release: "23.0.0",
+    });
+
+    writeFileSync(yamlPath, '{"vmType": "vz", "memory": "6144MiB", cpus: 6}');
+    expect(engine.readLimaResources()).toEqual({
+      memoryBytes: 6144 * 1024 ** 2,
+      cpuCores: 6,
+    });
+
+    writeFileSync(yamlPath, "vmType: vz\nmemory: \"8GiB\"\ncpus: 4\n");
+    expect(engine.readLimaResources()).toEqual({
+      memoryBytes: 8 * 1024 ** 3,
+      cpuCores: 4,
+    });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

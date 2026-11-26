@@ -41,7 +41,18 @@ const sha256 = async (path: string) => {
   return hash.digest("hex");
 };
 
+const cacheDirectory = process.env.OUTCOMEGO_MACOS_ENGINE_CACHE_DIR?.trim();
+
 const downloadVerified = async (url: string, expected: string, destination: string) => {
+  if (cacheDirectory) {
+    const cached = join(resolve(cacheDirectory), new URL(url).pathname.split("/").pop() ?? "");
+    try {
+      if (await sha256(cached) === expected) {
+        await cp(cached, destination);
+        return;
+      }
+    } catch {}
+  }
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Could not download ${url} (HTTP ${response.status})`);
   await Bun.write(destination, await response.arrayBuffer());

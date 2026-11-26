@@ -26,7 +26,8 @@ export interface StatusReport {
 }
 
 export const isSetupJob = (service: ServiceState): boolean =>
-  service.Service === "migrate" || service.Service.endsWith("-init");
+  service.Service === "migrate" ||
+  (service.Service.endsWith("-init") && service.Service !== "computer-memory-init");
 
 const failed = (service: ServiceState): boolean =>
   ["restarting", "dead", "paused", "removing"].includes(service.State) ||
