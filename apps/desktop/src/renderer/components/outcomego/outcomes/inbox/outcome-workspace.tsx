@@ -9,6 +9,7 @@ import { OutcomeInbox } from "./outcome-inbox";
 import { useI18n } from "../../../../lib/i18n";
 import { OutcomeList } from "../outcome-list";
 import { OutcomeDashboard } from "../dashboard/outcome-dashboard";
+import { GoalGuide } from "../showcase/goal-guide";
 import GoIntakeDialog from "./go-intake-dialog";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { NewOutcomeForm } from "../thread/new-outcome-form";
@@ -194,6 +195,8 @@ export default function OutcomeWorkspace({
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
+          {/* Outside the page content, whose button styles would redraw the carousel's controls. */}
+          {tab === "overview" && <GoalGuide />}
           <div className="outcome-page-content space-y-5">
             {tab === "overview" && (
               <OutcomeDashboard

@@ -1,0 +1,691 @@
+/* The posters on the goal management entry page (goal-guide.tsx, goal-showcase-scenes.tsx). The room,
+   the glass and the carousel are shared (setup/local-deploy-showcase.css); this file holds the card
+   they sit in, a words-beside-picture layout that leaves room for instructions, and the pictures. */
+
+/* ─── The card on the page ─────────────────────────────────────────────────────────── */
+
+.goal-guide {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 18px 36px 0;
+  container: goal-guide / inline-size;
+}
+.goal-guide + .outcome-page-content {
+  padding-top: 22px;
+}
+.goal-guide-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.goal-guide-bar h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.goal-guide-bar button {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  padding: 4px 9px;
+  color: var(--foreground-secondary);
+  font-size: 12px;
+}
+.goal-guide-bar button:hover {
+  background: var(--hover);
+  color: var(--foreground);
+}
+.goal-guide-bar button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+/* The roles, along the top of the posters. */
+.goal-guide-roles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.goal-guide-roles > span {
+  margin-right: 4px;
+  color: var(--foreground-secondary);
+  font-size: 12px;
+}
+.goal-guide-roles button {
+  min-height: 28px;
+  border: 0.5px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 12px;
+  color: var(--foreground-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+.goal-guide-roles button:hover {
+  background: var(--hover);
+  color: var(--foreground);
+}
+.goal-guide-roles button[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--foreground);
+  color: var(--background);
+}
+.goal-guide-roles button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+/* Another role fades in. Nothing holds the last frame, which would cut the glass off from the room. */
+.goal-guide-stage > .poster-showcase {
+  animation: setup-fade-in 360ms ease-out backwards;
+}
+.goal-guide-stage {
+  position: relative;
+  height: 380px;
+  margin-top: 10px;
+  overflow: clip;
+  border: 0.5px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(135deg, #eff2fd, #e8ecfd);
+  isolation: isolate;
+}
+:root[data-theme="dark"] .goal-guide-stage {
+  background: linear-gradient(135deg, #0a0d1c, #10152c);
+}
+@container goal-guide (max-width: 700px) {
+  .goal-guide-stage {
+    height: 580px;
+  }
+}
+
+/* ─── Frame: words on the left, the picture on the right ───────────────────────────── */
+
+.goal-showcase .showcase-poster {
+  grid-template: "copy scene" minmax(0, 1fr) / minmax(0, 5fr) minmax(0, 6fr);
+  gap: clamp(12px, 2cqw, 32px);
+  padding: 18px clamp(18px, 2.8cqw, 42px);
+}
+.goal-showcase .showcase-scene {
+  grid-area: scene;
+}
+.goal-showcase .showcase-copy {
+  grid-area: copy;
+  align-self: center;
+  /* The controls sit under the words. */
+  padding-bottom: 48px;
+  text-align: left;
+}
+.goal-showcase .showcase-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: color-mix(in srgb, var(--accent) 62%, var(--ink));
+  font-size: 12px;
+  font-weight: 600;
+}
+.goal-showcase .showcase-copy h2 {
+  font-size: clamp(20px, 2.6cqw, 28px);
+  line-height: 1.28;
+}
+/* Instructions stay readable however short the card is. */
+.goal-showcase .showcase-copy p {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.goal-showcase .showcase-copy ul {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0 0;
+  padding: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  list-style: none;
+}
+.goal-showcase .showcase-copy li {
+  position: relative;
+  padding-left: 16px;
+}
+.goal-showcase .showcase-copy li::before {
+  position: absolute;
+  top: 0.48em;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+.goal-showcase .showcase-nav {
+  bottom: 12px;
+  left: clamp(8px, calc(2.8cqw - 8px), 34px);
+  gap: 4px;
+  transform: none;
+}
+/* Instructions are paged through by hand too, so the arrows are always there. */
+.goal-showcase .showcase-arrow {
+  opacity: 1;
+}
+/* A shorter slide than the deployment posters': the words are right beside the picture. */
+.goal-showcase .showcase-poster[data-state="entering"] > .showcase-scene {
+  animation-name: goal-showcase-in;
+}
+.goal-showcase .showcase-poster[data-state="leaving"] > .showcase-scene {
+  animation-name: goal-showcase-out;
+}
+@keyframes goal-showcase-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--shift) * 16cqw)) scale(0.9);
+  }
+}
+@keyframes goal-showcase-out {
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--shift) * -10cqw)) scale(0.9);
+  }
+}
+@container showcase (max-width: 628px) {
+  .goal-showcase .showcase-poster {
+    grid-template: "scene" minmax(0, 1fr) "copy" auto / minmax(0, 1fr);
+  }
+  .goal-showcase .showcase-nav {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+/* ─── 1 · What a goal is ───────────────────────────────────────────────────────────── */
+
+.gs-path path {
+  fill: none;
+  stroke-linecap: round;
+}
+.gs-path .gs-track {
+  stroke: var(--line);
+  stroke-dasharray: 2 9;
+  stroke-width: 3;
+}
+.gs-path .gs-flow {
+  stroke: var(--accent);
+  stroke-dasharray: 1;
+  stroke-dashoffset: calc(1 - var(--reach));
+  stroke-width: 5;
+  transition: stroke-dashoffset 700ms ease-out;
+}
+.gs-station {
+  position: absolute;
+  top: 136px;
+  display: grid;
+  width: 160px;
+  margin-left: -80px;
+  justify-items: center;
+  gap: 16px;
+  font-size: 22px;
+  opacity: 0.4;
+  transform: translateY(8px) scale(0.92);
+  transition:
+    opacity 420ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.gs-station[data-on] {
+  opacity: 1;
+  transform: none;
+}
+/* Solid enough that the path behind doesn't cross what stands on it. */
+.gs-station > .gs-orb.vg {
+  position: relative;
+  display: grid;
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, #ffffff, #e9edfe);
+  color: #6f7cf2;
+  place-items: center;
+}
+:root[data-theme="dark"] .gs-station > .gs-orb.vg {
+  background: linear-gradient(150deg, #3a438c, #262c63);
+  color: #dfe4ff;
+}
+.gs-orb .vg-robot {
+  position: static;
+}
+.gs-yours {
+  top: 54px;
+  font-size: 18px;
+}
+.gs-result {
+  top: 346px;
+  left: 360px;
+  font-size: 20px;
+}
+.gs-result .vg-tick {
+  width: 24px;
+  height: 24px;
+  color: var(--accent);
+}
+
+/* ─── 2 · Go ───────────────────────────────────────────────────────────────────────── */
+
+.gs-input.vg {
+  top: 30px;
+  left: 90px;
+  width: 540px;
+  height: 206px;
+  padding: 30px 32px;
+}
+/* The line appears as if typed. */
+.gs-input p {
+  margin: 0;
+  clip-path: inset(0 100% 0 0);
+  font-size: 25px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: clip-path 700ms steps(20);
+}
+.gs-input p[data-on] {
+  clip-path: inset(0);
+}
+.gs-chips {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
+.gs-chips > span {
+  display: inline-flex;
+  height: 40px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 0 15px;
+  background: var(--fill);
+  font-size: 17px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 360ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.gs-chips > span[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.gs-chips .vg-robot {
+  position: static;
+  filter: none;
+}
+.gs-go {
+  position: absolute;
+  right: 26px;
+  bottom: 22px;
+  display: inline-flex;
+  height: 48px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 30px;
+  background: var(--fill);
+  font-size: 20px;
+  font-weight: 700;
+  transition:
+    background 300ms ease,
+    color 300ms ease,
+    scale 200ms ease;
+}
+.gs-go[data-ready] {
+  background: linear-gradient(120deg, #7180f6, #9a86f2);
+  box-shadow: 0 14px 26px -10px rgb(112 122 255 / 90%);
+  color: #fff;
+}
+.gs-go[data-press] {
+  scale: 0.9;
+}
+:is(.gs-go, .gs-buttons) .vg-tick {
+  width: 0;
+  height: 20px;
+  transition: width 300ms ease;
+}
+.gs-go[data-sent] .vg-tick,
+.gs-plan[data-approved] .gs-buttons .vg-tick {
+  width: 20px;
+}
+.gs-fan path {
+  fill: none;
+  stroke: var(--line);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  stroke-width: 1.8;
+  opacity: 0;
+  transition:
+    opacity 200ms ease,
+    stroke-dashoffset 520ms ease-out;
+}
+.gs-fan path[data-on] {
+  stroke-dashoffset: 0;
+  opacity: 1;
+}
+.gs-fan path[data-lit] {
+  stroke: var(--accent);
+  stroke-width: 3.2;
+}
+.gs-kind.vg-capsule {
+  top: 322px;
+  width: 124px;
+  justify-content: center;
+  padding: 13px 0;
+  font-size: 19px;
+  transition-delay: calc(var(--i) * 80ms);
+}
+.gs-kind.vg-capsule[data-lit] {
+  background: linear-gradient(120deg, #7180f6, #9a86f2);
+  box-shadow: 0 14px 26px -10px rgb(112 122 255 / 90%);
+  color: #fff;
+  transition-delay: 0ms;
+}
+
+/* ─── 3 · The plan ─────────────────────────────────────────────────────────────────── */
+
+.gs-plan.vg {
+  top: 12px;
+  left: 120px;
+  width: 450px;
+  height: 346px;
+  padding: 28px 32px;
+}
+.gs-plan > strong,
+.gs-review > strong {
+  display: block;
+  font-size: 25px;
+}
+.gs-plan ul {
+  display: grid;
+  gap: 15px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.gs-plan li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 19px;
+  opacity: 0;
+  transform: translateX(-16px);
+  transition:
+    opacity 360ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.gs-plan li[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.gs-plan li > i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+.gs-buttons {
+  position: absolute;
+  top: 234px;
+  right: 32px;
+  left: 32px;
+  display: flex;
+  gap: 14px;
+}
+.gs-buttons > span {
+  display: inline-flex;
+  flex: 1;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: var(--fill);
+  font-size: 18px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    opacity 300ms ease,
+    scale 200ms ease;
+}
+.gs-buttons > span[data-primary] {
+  background: linear-gradient(120deg, #7180f6, #9a86f2);
+  box-shadow: 0 14px 26px -10px rgb(112 122 255 / 90%);
+  color: #fff;
+}
+.gs-buttons > span[data-press] {
+  scale: 0.93;
+}
+.gs-plan[data-approved] .gs-buttons > span:not([data-primary]) {
+  opacity: 0.4;
+}
+.gs-progress {
+  position: absolute;
+  right: 32px;
+  bottom: 28px;
+  left: 32px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--fill);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.gs-progress[data-on] {
+  opacity: 1;
+}
+.gs-progress > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--lilac), var(--accent));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1600ms ease-out;
+}
+.gs-progress[data-on] > i {
+  transform: scaleX(0.72);
+}
+/* The owner's finger, on its way to the button. */
+.gs-touch {
+  position: absolute;
+  z-index: 2;
+  top: 272px;
+  left: 245px;
+  width: 46px;
+  height: 46px;
+  margin: -23px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 50%);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 10px 20px -6px rgb(var(--glow-ink) / 60%);
+  opacity: 0;
+  transform: translate(120px, 80px);
+  transition:
+    opacity 280ms ease,
+    scale 200ms ease,
+    transform 650ms var(--spring-gentle);
+}
+.gs-touch[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.gs-touch[data-press] {
+  scale: 0.7;
+}
+.gs-worker {
+  position: absolute;
+  top: 236px;
+  left: 592px;
+  width: 96px;
+  height: 96px;
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 360ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.gs-worker[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.gs-started {
+  top: 378px;
+  left: 345px;
+  font-size: 19px;
+}
+
+/* ─── 4 · What waits for you ───────────────────────────────────────────────────────── */
+
+.gs-ask.vg {
+  left: 20px;
+  display: grid;
+  width: 284px;
+  height: 108px;
+  align-content: center;
+  gap: 10px;
+  border-radius: 28px;
+  padding: 0 22px;
+  opacity: 0;
+  transform: translateX(-36px);
+  transition:
+    opacity 360ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.gs-ask.vg[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.gs-ask > strong {
+  font-size: 19px;
+}
+.gs-ask > em {
+  justify-self: start;
+  border-radius: 999px;
+  padding: 5px 15px;
+  background: var(--fill);
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 650;
+  transition:
+    background 300ms ease,
+    color 300ms ease;
+}
+.gs-ask[data-lit] > em {
+  background: linear-gradient(120deg, #7180f6, #9a86f2);
+  color: #fff;
+}
+.gs-review.vg {
+  top: 30px;
+  left: 330px;
+  width: 370px;
+  height: 382px;
+  padding: 28px 24px;
+  opacity: 0;
+  transform: translateX(36px);
+  transition:
+    opacity 360ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.gs-review.vg[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.gs-review ul {
+  display: grid;
+  gap: 20px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.gs-review li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  font-size: 18px;
+}
+.gs-review li > span {
+  display: grid;
+  grid-row: span 2;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--fill);
+  color: #fff;
+  place-items: center;
+  transition: background 300ms ease;
+}
+.gs-review li[data-met] > span {
+  background: linear-gradient(120deg, #7180f6, #9a86f2);
+}
+.gs-review li .vg-tick {
+  width: 22px;
+  height: 22px;
+}
+.gs-review li > small {
+  color: var(--muted);
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 300ms ease 200ms;
+}
+.gs-review li[data-met] > small {
+  opacity: 1;
+}
+.gs-accepted {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  left: 24px;
+  display: flex;
+  height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #7180f6, #9a86f2);
+  box-shadow: 0 14px 26px -10px rgb(112 122 255 / 90%);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 300ms ease-out,
+    transform var(--spring-bouncy-duration) var(--spring-bouncy);
+}
+.gs-accepted[data-on] {
+  opacity: 1;
+  transform: none;
+}
+.gs-accepted .vg-tick {
+  width: 24px;
+  height: 24px;
+}
+
+/* Less motion: pages fade, as the deployment posters' do (their stylesheet quiets the pictures). */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes goal-showcase-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes goal-showcase-out {
+    to {
+      opacity: 0;
+    }
+  }
+}

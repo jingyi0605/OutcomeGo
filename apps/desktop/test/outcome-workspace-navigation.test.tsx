@@ -161,6 +161,8 @@ beforeAll(async () => {
     MutationObserver: dom.window.MutationObserver,
     // The idea editor's @-picker measures rows; linkedom has no layout, so observe nothing.
     ResizeObserver: class { observe() {} unobserve() {} disconnect() {} },
+    // The guide's robots pause out of view; linkedom has no viewport either.
+    IntersectionObserver: class { observe() {} unobserve() {} disconnect() {} },
     getComputedStyle: dom.window.getComputedStyle,
     NodeFilter: { SHOW_ELEMENT: 1, FILTER_ACCEPT: 1, FILTER_SKIP: 3 },
     HTMLInputElement: dom.window.HTMLInputElement,
@@ -283,6 +285,13 @@ async function input(
   });
 }
 const page = () => <Workspace target={{}} bots={bots} onClose={() => {}} />;
+
+test("the guide sits on the Dashboard, the entry page, and nowhere else", async () => {
+  await mount(page());
+  expect(host.querySelector(".goal-guide")).not.toBeNull();
+  await showAllGoals();
+  expect(host.querySelector(".goal-guide")).toBeNull();
+});
 
 test("sidebar navigation exposes a selected page and stays usable when compact", async () => {
   let opened = 0;
