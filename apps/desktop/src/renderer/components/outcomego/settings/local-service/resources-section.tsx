@@ -390,7 +390,7 @@ export function ResourcesSection({
     ? ([
         {
           id: "light" as const,
-          label: "Light",
+          label: "Light preset",
           icon: <Feather size={13} />,
           summary: `${formatMemoryGib(presets.light.computerMemory)} · ${presets.light.computerCpu ?? hostCores}${t("C")}`,
         },

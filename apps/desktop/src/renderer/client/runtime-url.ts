@@ -19,17 +19,24 @@ export function resolveApiBase(pageUrl: string, configured?: string): string {
 
 export function resolveConfiguredApiBase(
   pageUrl: string,
-  storage: StorageReader,
+  storage: StorageReader | undefined,
   environmentConfigured?: string
 ): string {
   try {
-    const persisted = storage.getItem(CONFIGURED_API_BASE_KEY)?.trim();
+    const persisted = storage?.getItem(CONFIGURED_API_BASE_KEY)?.trim();
     if (persisted) return resolveApiBase(pageUrl, persisted);
   } catch {
     // A corrupt or unavailable preference must not prevent the desktop from launching.
   }
   return resolveApiBase(pageUrl, environmentConfigured);
 }
+
+export const resolveRendererApiBase = () =>
+  resolveConfiguredApiBase(
+    globalThis.window?.location?.href ?? "",
+    globalThis.localStorage,
+    import.meta.env?.VITE_OUTCOMEGO_API_URL
+  );
 
 export function saveConfiguredApiBase(storage: StorageWriter, value: string): string {
   const normalized = normalizeBaseUrl(value);

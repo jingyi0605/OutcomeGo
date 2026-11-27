@@ -6,13 +6,9 @@ import {
 } from "@outcomego/client-core";
 import { recordPerformance } from "../lib/performance";
 import { expireAuthToken, getAuthToken } from "./auth";
-import { resolveConfiguredApiBase } from "./runtime-url";
+import { resolveRendererApiBase } from "./runtime-url";
 
-export const API_BASE = resolveConfiguredApiBase(
-  window.location.href,
-  localStorage,
-  import.meta.env.VITE_OUTCOMEGO_API_URL
-);
+export const API_BASE = resolveRendererApiBase();
 
 const instrumentedFetch: OutcomeGoFetch = async (input, init) => {
   const startedAt = performance.now();

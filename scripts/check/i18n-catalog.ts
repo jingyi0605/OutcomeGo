@@ -14,7 +14,16 @@ const ts = (tsModule as unknown as { default?: typeof tsModule }).default ?? tsM
 const root = resolve(import.meta.dir, "../..");
 const rendererDir = resolve(root, "apps/desktop/src/renderer");
 const catalogFile = resolve(rendererDir, "lib/i18n-catalog.ts");
-const localServiceCatalogFile = resolve(rendererDir, "lib/local-service-catalog.ts");
+const catalogSources = [
+  ["i18n-catalog", "sourceTranslations"],
+  ["local-service-catalog", "localServiceTranslations"],
+  ["goal-guide-catalog", "goalGuideTranslations"],
+  ["goal-showcase-catalog", "goalShowcaseTranslations"],
+  ["goal-showcase-roles-catalog", "goalRoleTranslations"],
+  ["local-deploy-showcase-catalog", "localDeployShowcaseTranslations"],
+  ["outcome-go-guide-catalog", "outcomeGoGuideTranslations"],
+  ["poster-showcase-catalog", "posterShowcaseTranslations"],
+] as const;
 
 const readSource = async (path: string) =>
   ts.createSourceFile(
@@ -28,9 +37,9 @@ const readSource = async (path: string) =>
 const collectFiles = async (dir: string): Promise<string[]> =>
   (await Array.fromAsync(new Bun.Glob("**/*.{ts,tsx}").scan({ cwd: dir, absolute: true }))).sort();
 
-const catalogEntries = async (path: string, name: string): Promise<Map<string, string>> => {
+const catalogEntries = async (path: string, name: string) => {
   const file = await readSource(path);
-  let entries: Map<string, string> | undefined;
+  let entries: Array<readonly [string, string]> | undefined;
   const visit = (node: ts.Node): void => {
     if (
       ts.isVariableDeclaration(node) &&
@@ -39,26 +48,26 @@ const catalogEntries = async (path: string, name: string): Promise<Map<string, s
       node.initializer &&
       ts.isObjectLiteralExpression(node.initializer)
     ) {
-      entries = new Map(
-        node.initializer.properties.map((property) => {
-          if (!ts.isPropertyAssignment(property)) {
-            throw new Error(`Unsupported catalog entry in ${path}: ${property.getText()}`);
-          }
-          const name = property.name;
-          const key = ts.isIdentifier(name) ? name.text : name.text;
-          const value = property.initializer;
-          if (!ts.isStringLiteral(value) && !ts.isNoSubstitutionTemplateLiteral(value)) {
-            throw new Error(`Catalog value for ${JSON.stringify(key)} must be a string literal`);
-          }
-          return [key, value.text] as const;
-        })
-      );
+      entries = node.initializer.properties.map((property) => {
+        if (
+          !ts.isPropertyAssignment(property) ||
+          (!ts.isIdentifier(property.name) && !ts.isStringLiteral(property.name))
+        ) {
+          throw new Error(`Unsupported catalog entry in ${path}: ${property.getText()}`);
+        }
+        const key = property.name.text;
+        const value = property.initializer;
+        if (!ts.isStringLiteral(value) && !ts.isNoSubstitutionTemplateLiteral(value)) {
+          throw new Error(`Catalog value for ${JSON.stringify(key)} must be a string literal`);
+        }
+        return [key, value.text] as const;
+      });
       return;
     }
     ts.forEachChild(node, visit);
   };
   visit(file);
-  if (!entries || entries.size === 0)
+  if (!entries || entries.length === 0)
     throw new Error(`No catalog entries found in ${path}`);
   return entries;
 };
@@ -96,12 +105,15 @@ const usedKeys = async (): Promise<Map<string, string[]>> => {
   return used;
 };
 
-const mainCatalog = await catalogEntries(catalogFile, "sourceTranslations");
-const localCatalog = await catalogEntries(localServiceCatalogFile, "localServiceTranslations");
-const catalog = new Map([...mainCatalog, ...localCatalog]);
+const entries = (
+  await Promise.all(
+    catalogSources.map(([file, name]) => catalogEntries(resolve(rendererDir, `lib/${file}.ts`), name))
+  )
+).flat();
+const catalog = new Map(entries);
 const used = await usedKeys();
 
-const keys = [...mainCatalog.keys(), ...localCatalog.keys()];
+const keys = entries.map(([key]) => key);
 const duplicates = [...new Set(keys.filter((key, index) => keys.indexOf(key) !== index))];
 const missing = [...used.keys()].filter((key) => !catalog.has(key)).sort();
 const unused = keys.filter((key) => !used.has(key)).sort();

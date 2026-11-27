@@ -185,6 +185,7 @@ const unexpected = async (): Promise<never> => {
 };
 const client: OutcomeClient = {
   get: async () => outcomeFixture,
+  intake: unexpected,
   create: unexpected,
   update: unexpected,
   act: unexpected,

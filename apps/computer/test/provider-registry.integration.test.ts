@@ -211,6 +211,7 @@ test("OpenRouter: discover a new namespaced model, select, restart and infer wit
       "claude-code",
       "openai",
       "openai-codex",
+      "opencode",
       "openrouter",
     ]);
     expect(catalog.providers.find((p: { id: string }) => p.id === "openrouter")).toMatchObject({
