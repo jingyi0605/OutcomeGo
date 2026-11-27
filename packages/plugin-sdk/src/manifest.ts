@@ -368,6 +368,9 @@ export function parsePluginDefinition(value: unknown): PluginDefinition {
           events.intervalSeconds > 3600)
       )
         throw new Error("Event poll interval must be 30 to 3600 seconds");
+      if (events.longPoll !== undefined && (typeof events.longPoll !== "boolean" ||
+        (events.longPoll && (connector.transport !== "stdio" || events.intervalSeconds !== undefined))))
+        throw new Error("Long polling requires a packaged (stdio) connector without an event poll interval");
     }
     if (connector.drafts !== undefined) {
       const drafts = objectValue(connector.drafts) as Partial<PluginDraftSending>;

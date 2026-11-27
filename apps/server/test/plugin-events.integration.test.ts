@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { createPrismaClient } from "@outcomego/db";
 import { AgentDataStore, AgentMessaging, RoutineService } from "@outcomego/messaging";
@@ -531,6 +532,54 @@ test("plugin events are stamped with the host's plugin and account and get a nam
   for (const id of [undefined, "", "   ", 5, "x".repeat(151)])
     expect(() => hostFields({ id, kind: "k", text: "" }, "plugin", CONNECTION_ID, identity)).toThrow("1 to 150");
   expect(() => hostFields({ id: "x".repeat(150), kind: "k", text: "" }, "plugin", CONNECTION_ID, identity)).not.toThrow();
+  const whatsapp = hostFields({ id: "message-hash", kind: "message.received", text: "hi", accountKey: "spoof" }, "plugin", CONNECTION_ID, { pluginKey: "whatsapp", alias: "work" });
+  expect(whatsapp).toMatchObject({ accountKey: createHash("sha256").update(CONNECTION_ID).digest("hex").slice(0, 24) });
+  expect(whatsapp.accountKey).not.toBe("spoof");
+});
+
+test("packaged long-poll event sources wait for arrivals, dispatch them, and commit the cursor", async () => {
+  const connection = remoteRow({
+    transport: "stdio", endpoint: null, authType: "none", connectorKey: "whatsapp",
+    eventsPolledAt: null,
+    installation: { pluginKey: "whatsapp", status: "installed", manifest: {
+      key: "whatsapp", name: "WhatsApp", skills: [], connections: [
+        { key: "whatsapp", transport: "stdio", events: { pollTool: "whatsapp_poll_events", source: "plugin", longPoll: true } },
+      ],
+    } },
+  }) as Record<string, any>;
+  let cursor: unknown = null;
+  let polledAt: Date | null = null;
+  const prisma = {
+    pluginConnection: {
+      findMany: async () => [{ ...connection, eventCursor: cursor, eventsPolledAt: polledAt }],
+      findFirst: async ({ where }: { where: { eventsPolledAt: Date } }) =>
+        polledAt?.getTime() === where.eventsPolledAt.getTime() ? { id: CONNECTION_ID } : null,
+      updateMany: async ({ where, data }: { where: { id: string; eventsPolledAt?: Date | null }; data: Record<string, unknown> }) => {
+        if (where.id !== CONNECTION_ID || ("eventsPolledAt" in where &&
+          (where.eventsPolledAt === null ? polledAt !== null : polledAt?.getTime() !== where.eventsPolledAt?.getTime()))) return { count: 0 };
+        if (data.eventsPolledAt instanceof Date) polledAt = data.eventsPolledAt;
+        if ("eventCursor" in data) cursor = data.eventCursor;
+        return { count: 1 };
+      },
+    },
+  };
+  const calls: Array<Record<string, unknown>> = [];
+  const delivered: Array<Record<string, unknown>> = [];
+  const poller = new PluginEventPoller(prisma as never, async (_connection, _tool, args, signal) => {
+    calls.push(args);
+    if (calls.length === 1) return text({ events: [{ id: "wa-message-1", kind: "message.received", text: "hello", resourceId: "123@g.us" }], cursor: 1 });
+    return new Promise((_, reject) => signal!.addEventListener("abort", () => reject(new Error("cancelled")), { once: true }));
+  }, async (event) => { delivered.push(event as never); });
+  poller.start();
+  await poller.pollDue();
+  const deadline = Date.now() + 2_000;
+  while (!delivered.length && Date.now() < deadline) await Bun.sleep(5);
+  expect(delivered).toHaveLength(1);
+  expect(delivered[0]).toMatchObject({ kind: "message.received", plugin: "whatsapp", accountKey: createHash("sha256").update(CONNECTION_ID).digest("hex").slice(0, 24) });
+  expect(calls[0]).toMatchObject({ cursor: null, waitSeconds: 20 });
+  while (cursor === null && Date.now() < deadline) await Bun.sleep(5);
+  expect(cursor).toBe(1);
+  await poller.stop();
 });
 
 test("a remote plugin source is polled with a deadline and dispatches stamped events, dropping bad ones", async () => {

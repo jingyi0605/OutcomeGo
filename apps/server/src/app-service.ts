@@ -365,7 +365,7 @@ export class AppService {
     );
     this.pluginEvents = new PluginEventPoller(
       this.prisma,
-      (connection, toolName, args) => this.plugins.callHostTool(connection, toolName, args),
+      (connection, toolName, args, signal) => this.plugins.callHostTool(connection, toolName, args, signal),
       (event) => this.routines.dispatchEventToAll(event)
     );
     // External chat services (specs/009). Providers only supply a connector; none of this knows a platform.

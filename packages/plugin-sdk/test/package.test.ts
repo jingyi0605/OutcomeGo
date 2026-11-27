@@ -202,6 +202,11 @@ describe("portable plugin packages", () => {
     expect(() => withEvents(remote, { pollTool: "poll", source: "plugin", intervalSeconds: 29 })).toThrow(
       "Event poll interval must be 30 to 3600 seconds"
     );
+    expect(withEvents(local, { pollTool: "wait_events", source: "plugin", longPoll: true }).connections[0]!.events).toEqual({
+      pollTool: "wait_events", source: "plugin", longPoll: true,
+    });
+    expect(() => withEvents(remote, { pollTool: "wait_events", source: "plugin", longPoll: true })).toThrow("Long polling requires a packaged");
+    expect(() => withEvents(local, { pollTool: "wait_events", source: "plugin", longPoll: true, intervalSeconds: 60 })).toThrow("Long polling requires a packaged");
     expect(() => withEvents(local, { pollTool: "poll", source: "fax" })).toThrow(
       "Unknown event source: fax"
     );

@@ -65,6 +65,8 @@ export interface PluginEventPolling {
   source: PluginEventSource;
   /** Seconds between polls. Defaults to 60; at least 30 and at most 3600. */
   intervalSeconds?: number;
+  /** Packaged connectors can wait for an event, returning early when one arrives. */
+  longPoll?: boolean;
 }
 /** Packaged connectors only. A reviewed draft card (DraftExternalMessage) for this
  * platform is verified and, after the user presses Send, sent through this host-only
