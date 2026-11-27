@@ -1,5 +1,14 @@
 @import "tailwindcss" source(".");
 
+/* Vendored geometric sans used by the sidebar Outcome / Go brand lockup. */
+@font-face {
+  font-family: "Plex Sans";
+  src: url("./fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Keep native disclosure markers, spacing and typography intact. */
 details.animated-disclosure::details-content {
   interpolate-size: allow-keywords;
@@ -1372,6 +1381,39 @@ textarea,
 
 :root[data-theme="dark"] .sidebar-toolbar-button:hover {
   background: var(--hover);
+}
+
+.outcome-brand-wordmark {
+  font-family: "Plex Sans", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--foreground);
+  user-select: none;
+}
+
+.outcome-brand-go-button {
+  --go-start: #4338ca;
+  --go-end: #08768c;
+  color: var(--go-end);
+}
+
+:root[data-theme="dark"] .outcome-brand-go-button {
+  --go-start: #a5b4fc;
+  --go-end: #67e8f9;
+}
+
+.outcome-brand-go-text {
+  background-image: linear-gradient(115deg, var(--go-start), var(--go-end));
+  background-clip: text;
+  color: transparent;
+}
+
+@media (forced-colors: active) {
+  .outcome-brand-go-button,
+  .outcome-brand-go-text {
+    background-image: none;
+    color: ButtonText;
+  }
 }
 
 /* Reserve the 8px scrollbar even for short lists. Together with 4px right

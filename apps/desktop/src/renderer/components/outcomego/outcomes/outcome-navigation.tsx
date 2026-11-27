@@ -1,10 +1,11 @@
-import { CalendarDays, Lightbulb, Target } from "lucide-react";
+import { ArrowUpRight, CalendarDays } from "lucide-react";
+import appIcon from "../../../assets/outcomego-icon.png?url";
 import { cn } from "../../../lib/cn";
 import { useI18n } from "../../../lib/i18n";
 import type { OutcomeActionCounts } from "../../../hooks/use-outcome-action-counts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 
-/** Shared by both row buttons so background, hover and focus behave identically. */
+/** Shared by row buttons so background, hover and focus behave identically. */
 const rowButtonClass = (active: boolean) =>
   cn(
     "electron-no-drag rounded-lg outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
@@ -34,7 +35,9 @@ function OutcomeBadges({
     <span
       className={cn(
         "pointer-events-none flex shrink-0 items-center",
-        compact ? "absolute right-1 top-1 flex-col items-end gap-0.5" : "ml-auto gap-1"
+        compact
+          ? "absolute right-0 top-1 flex-col items-end gap-0.5"
+          : "gap-1 @max-[230px]:flex-col @max-[230px]:items-end @max-[230px]:gap-0.5"
       )}
     >
       {entries.map((entry) => (
@@ -44,7 +47,7 @@ function OutcomeBadges({
           title={`${entry.label}: ${entry.count}`}
           className={cn(
             "inline-flex min-w-4 items-center justify-center rounded-full px-1 font-semibold leading-none tabular-nums text-white",
-            compact ? "h-[14px] text-[9px]" : "h-4 text-[10px]",
+            compact ? "h-3.5 text-[9px]" : "h-4 text-[10px] @max-[230px]:h-3.5 @max-[230px]:text-[9px]",
             entry.tone
           )}
         >
@@ -70,7 +73,7 @@ export function OutcomeNavigation({
   onOpenCalendar?: () => void;
   /** Goals waiting for the owner's approval or acceptance, shown as colored count badges. */
   badges?: OutcomeActionCounts;
-  /** Expanded sidebar only: shows a square quick-capture button beside the Outcomes entry. */
+  /** Expanded sidebar only: shows the artistic "Go" quick-capture button beside "Outcome". */
   onNewIdea?: () => void;
   /** True while the quick-capture window is open, so its button shows the same selected state as the entry. */
   ideaActive?: boolean;
@@ -84,7 +87,7 @@ export function OutcomeNavigation({
   ]
     .filter(Boolean)
     .join(", ");
-  const button = (
+  const outcomeButton = (
     <button
       type="button"
       aria-label={label}
@@ -92,34 +95,56 @@ export function OutcomeNavigation({
       onClick={onOpen}
       className={cn(
         rowButtonClass(active),
-        "relative flex items-center text-left",
-        // The expanded icon starts at the same x as the search field's magnifier (8px inside a 12px gutter).
-        compact ? "mx-auto mb-2 size-12 justify-center" : "h-9 min-w-0 flex-1 gap-2 px-2"
+        "relative inline-flex items-center text-left transition-[background-color,transform] duration-150 active:scale-[0.98]",
+        compact
+          ? "mx-auto mb-2 size-12 justify-center"
+          : "h-9 shrink-0 gap-1.5 pl-2 pr-0.5 @max-[230px]:gap-1 @max-[230px]:pl-1"
       )}
     >
-      <Target
-        aria-hidden="true"
-        className={cn("shrink-0", compact ? "size-[17px]" : "size-[14px]")}
-        strokeWidth={1.6}
+      <img
+        src={appIcon}
+        alt=""
+        className={cn(
+          "size-[21px] shrink-0 rounded-md shadow-sm",
+          compact && (badges.approval > 0 || badges.review > 0) && "-translate-x-2"
+        )}
       />
-      {!compact && <span className="text-[13px] font-medium">{t("Outcomes")}</span>}
+      {!compact && <span className="outcome-brand-wordmark text-[16.5px]">Outcome</span>}
       <OutcomeBadges counts={badges} compact={compact} />
     </button>
   );
+
   if (compact)
     return (
       <div className="flex flex-col items-center gap-1">
         <Tooltip>
-          <TooltipTrigger asChild>{button}</TooltipTrigger>
+          <TooltipTrigger asChild>{outcomeButton}</TooltipTrigger>
           <TooltipContent side="right">{t("Outcomes")}</TooltipContent>
         </Tooltip>
-        {onOpenCalendar && <Tooltip><TooltipTrigger asChild><button type="button" aria-label={t("Calendar")} onClick={onOpenCalendar} className={cn(rowButtonClass(false), "mx-auto grid size-12 place-items-center")}><CalendarDays aria-hidden="true" className="size-[17px]" strokeWidth={1.6} /></button></TooltipTrigger><TooltipContent side="right">{t("Calendar")}</TooltipContent></Tooltip>}
+        {onOpenCalendar && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("Calendar")}
+                onClick={onOpenCalendar}
+                className={cn(rowButtonClass(false), "mx-auto grid size-12 place-items-center")}
+              >
+                <CalendarDays aria-hidden="true" className="size-[17px]" strokeWidth={1.6} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t("Calendar")}</TooltipContent>
+          </Tooltip>
+        )}
       </div>
     );
+
   return (
-    <div className="mb-2 flex items-center gap-1">
-      {button}
-      {onOpenCalendar && <Tooltip><TooltipTrigger asChild><button type="button" aria-label={t("Calendar")} onClick={onOpenCalendar} className={cn(rowButtonClass(false), "grid size-9 shrink-0 place-items-center")}><CalendarDays aria-hidden="true" className="size-[14px]" strokeWidth={1.6} /></button></TooltipTrigger><TooltipContent side="bottom">{t("Calendar")}</TooltipContent></Tooltip>}
+    <div className="@container mb-2 flex items-center gap-0.5">
+      <Tooltip>
+        <TooltipTrigger asChild>{outcomeButton}</TooltipTrigger>
+        <TooltipContent side="bottom">{t("Outcomes")}</TooltipContent>
+      </Tooltip>
       {showIdea && (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -128,12 +153,38 @@ export function OutcomeNavigation({
               aria-label={t("Go")}
               aria-pressed={ideaActive}
               onClick={onNewIdea}
-              className={cn(rowButtonClass(ideaActive), "grid size-9 shrink-0 place-items-center")}
+              className={cn(
+                rowButtonClass(ideaActive),
+                "outcome-brand-go-button inline-flex h-9 min-w-9 shrink-0 items-center gap-px pl-0.5 pr-1.5 @max-[230px]:pr-0.5"
+              )}
             >
-              <Lightbulb aria-hidden="true" className="size-[14px]" strokeWidth={1.6} />
+              <span className="outcome-brand-wordmark outcome-brand-go-text text-[18px]">Go</span>
+              <ArrowUpRight
+                aria-hidden="true"
+                className="size-2.5 -translate-y-[3px] shrink-0"
+                strokeWidth={2}
+              />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom">{t("Go")}</TooltipContent>
+        </Tooltip>
+      )}
+      {onOpenCalendar && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label={t("Calendar")}
+              onClick={onOpenCalendar}
+              className={cn(
+                rowButtonClass(false),
+                "ml-auto grid size-9 shrink-0 place-items-center"
+              )}
+            >
+              <CalendarDays aria-hidden="true" className="size-[15px]" strokeWidth={1.6} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">{t("Calendar")}</TooltipContent>
         </Tooltip>
       )}
     </div>

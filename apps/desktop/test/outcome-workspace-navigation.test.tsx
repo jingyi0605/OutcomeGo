@@ -299,11 +299,12 @@ test("sidebar navigation exposes a selected page and stays usable when compact",
   expect(host.querySelector('button[aria-current="page"]')?.getAttribute("aria-label")).toBe(
     "Outcomes"
   );
-  await click("Outcomes");
+  await click("Outcome");
   expect(opened).toBe(1);
   await render(<OutcomeNavigation compact active={false} onOpen={() => opened++} />);
   const compact = host.querySelector('button[aria-label="Outcomes"]')!;
   expect(compact.hasAttribute("aria-current")).toBe(false);
+  expect(compact.querySelector('img[alt=""]')?.getAttribute("src")).toEndWith("outcomego-icon.png");
   await act(async () => {
     compact.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
@@ -326,27 +327,78 @@ test("navigation shows a colored count badge for each status that needs the owne
   expect(host.querySelector("[data-outcome-badge]")).toBeNull();
 });
 
-test("Go capture is a separate square button beside the Outcomes entry", async () => {
+test("the brand icon and Go wordmark stay in separate buttons with Calendar at far right", async () => {
   let ideas = 0;
   let opened = 0;
-  await mount(<OutcomeNavigation active={false} onOpen={() => opened++} onNewIdea={() => ideas++} />);
-  const open = host.querySelector('button[aria-label="Outcomes"]')!;
-  const idea = host.querySelector('button[aria-label="Go"]')!;
+  let calendars = 0;
+  await mount(
+    <OutcomeNavigation
+      active={false}
+      onOpen={() => opened++}
+      onNewIdea={() => ideas++}
+      onOpenCalendar={() => calendars++}
+    />
+  );
+  const buttons = [...host.querySelectorAll("button")];
+  expect(buttons).toHaveLength(3);
+  const [open, idea, calendar] = buttons as [HTMLButtonElement, HTMLButtonElement, HTMLButtonElement];
+  expect(open.getAttribute("aria-label")).toBe("Outcomes");
+  expect(idea.getAttribute("aria-label")).toBe("Go");
+  expect(calendar.getAttribute("aria-label")).toBe("Calendar");
+  expect(open.textContent).toBe("Outcome");
+  expect(open.querySelector('img[alt=""]')?.getAttribute("src")).toEndWith("outcomego-icon.png");
+  expect(idea.textContent).toBe("Go");
+  expect(idea.querySelector(".outcome-brand-go-text")?.textContent).toBe("Go");
+  expect(idea.querySelector('svg.lucide-arrow-up-right[aria-hidden="true"]')).not.toBeNull();
   expect(open.contains(idea)).toBe(false);
   expect(idea.parentElement).toBe(open.parentElement);
-  expect(idea.className).toContain("size-9");
+  expect(calendar.parentElement).toBe(open.parentElement);
   expect(open.className).toContain("h-9");
+  expect(idea.className).toContain("h-9");
+  expect(idea.className).toContain("outcome-brand-go-button");
+  expect(calendar.className).toContain("ml-auto");
   await act(async () => {
     idea.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    calendar.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
-  expect([ideas, opened]).toEqual([1, 0]);
+  expect([ideas, opened, calendars]).toEqual([1, 0, 1]);
   expect(idea.className).not.toContain("bg-selected");
-  await render(<OutcomeNavigation active onOpen={() => {}} onNewIdea={() => {}} ideaActive />);
-  const selectedIdea = host.querySelector('button[aria-label="Go"]')!;
+  await render(
+    <OutcomeNavigation
+      active
+      onOpen={() => {}}
+      onNewIdea={() => {}}
+      onOpenCalendar={() => {}}
+      ideaActive
+    />
+  );
   const selectedOpen = host.querySelector('button[aria-label="Outcomes"]')!;
+  const selectedIdea = host.querySelector('button[aria-label="Go"]')!;
   for (const el of [selectedIdea, selectedOpen]) {
     expect(el.className).toContain("bg-selected");
     expect(el.className).toContain("rounded-lg");
+  }
+
+  // Even under Chinese locale, the visible brand wordmark remains English "Outcome" and "Go".
+  try {
+    await act(async () => {
+      window.dispatchEvent(new dom.window.CustomEvent("outcomego-locale-change", { detail: "zh-CN" }));
+    });
+    await render(
+      <OutcomeNavigation
+        active={false}
+        onOpen={() => {}}
+        onNewIdea={() => {}}
+        onOpenCalendar={() => {}}
+      />
+    );
+    const zhButtons = [...host.querySelectorAll("button")];
+    expect(zhButtons[0]?.textContent).toBe("Outcome");
+    expect(zhButtons[1]?.textContent).toBe("Go");
+  } finally {
+    await act(async () => {
+      window.dispatchEvent(new dom.window.CustomEvent("outcomego-locale-change", { detail: "en" }));
+    });
   }
 });
 
