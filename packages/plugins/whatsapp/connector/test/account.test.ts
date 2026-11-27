@@ -2,6 +2,7 @@ import { afterEach, expect, spyOn, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { WhatsAppAccount } from "../account";
+import { WhatsAppInboundEvents } from "../inbound-events";
 import { prepareStore, settings, type Event, type Running } from "../process";
 
 const cleanup: Array<() => Promise<unknown>> = [];
@@ -31,13 +32,14 @@ export class FakeProcess {
   };
 }
 
-export async function fixture(authenticated = false, readOnly = false) {
+export async function fixture(authenticated = false, readOnly = false, withIncomingEvents = false) {
   // Keep the Unix socket path below platform limits, including on macOS.
   const home = await mkdtemp("/tmp/wa-"); cleanup.push(() => rm(home, { recursive: true, force: true }));
   const configuration = settings({ OPENTEAM_PLUGIN_ACCOUNT_ID: "account", WHATSAPP_READ_ONLY: String(readOnly), WHATSAPP_MEDIA_ROOT: home }, home);
   await prepareStore(configuration);
   const process = new FakeProcess(); process.authenticated = authenticated;
-  const account = new WhatsAppAccount(process, configuration); cleanup.push(() => account.close());
+  const inboundEvents = withIncomingEvents ? new WhatsAppInboundEvents(configuration.store) : undefined;
+  const account = new WhatsAppAccount(process, configuration, inboundEvents); cleanup.push(() => account.close());
   return { account, process, configuration };
 }
 async function ready(f: Awaited<ReturnType<typeof fixture>>) {
@@ -46,6 +48,19 @@ async function ready(f: Awaited<ReturnType<typeof fixture>>) {
   cleanup.push(async () => { socket.stop(true); });
   f.process.follows.at(-1)!.emit({ event: "connected" });
 }
+
+test("live sync enables the signed inbound webhook and exposes its account-scoped subscription key", async () => {
+  const f = await fixture(true, false, true);
+  await f.account.initialize();
+  const args = f.process.follows[0]!.args;
+  expect(args).toContain("--webhook");
+  expect(args[args.indexOf("--webhook") + 1]).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/incoming$/);
+  expect(args).toContain("--webhook-allow-private");
+  expect(args.slice(args.indexOf("--webhook-events"), args.indexOf("--webhook-events") + 2)).toEqual(["--webhook-events", "message"]);
+  expect(args[args.indexOf("--webhook-secret") + 1]).toMatch(/^[a-f0-9]{64}$/);
+  const status = await f.account.status();
+  expect(status).toMatchObject({ subscription_account_key: f.configuration.accountKey, incoming_message_events: true });
+});
 
 test("new accounts expose pairing state without pairing or sending automatically", async () => {
   const f = await fixture(); await f.account.initialize();

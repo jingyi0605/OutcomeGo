@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "key": "whatsapp",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "name": "WhatsApp",
-  "description": "Link your WhatsApp account to search conversations, read history, send messages and attachments, and manage chats.",
+  "description": "Watch incoming WhatsApp messages, search conversations, read history, send messages and attachments, and manage chats.",
   "publisher": "OpenTeam",
   "category": "Inbox & Collaboration",
   "featured": false,
@@ -42,6 +42,11 @@
         ]
       },
       "persistentState": true,
+      "events": {
+        "pollTool": "whatsapp_poll_events",
+        "source": "plugin",
+        "longPoll": true
+      },
       "deviceLink": {
         "startTool": "whatsapp_start_link",
         "finishTool": "whatsapp_finish_link",
@@ -55,7 +60,7 @@
   "skills": [
     {
       "name": "whatsapp",
-      "description": "Search and read WhatsApp conversations, resolve contacts, send messages and attachments, reply, react, or change chat state through the connected account's tools.",
+      "description": "Watch incoming WhatsApp messages, read conversations, resolve contacts, send messages and attachments, and manage chats.",
       "path": "skills/whatsapp"
     },
     {

@@ -8,6 +8,8 @@ test("WhatsApp exports below the package limit with both binaries and skills, wi
   const plugin = pluginCatalog.find((entry) => entry.key === "whatsapp")!;
   expect(plugin).toBeDefined();
   expect(plugin.skills.map((skill) => skill.name)).toEqual(["whatsapp", "whatsapp-setup"]);
+  expect(plugin.connections[0]!.events).toEqual({ pollTool: "whatsapp_poll_events", source: "plugin", longPoll: true });
+  expect(plugin.files?.["connector/server.mjs"]).toContain("x-wacli-signature");
   expect(plugin.files?.["connector/server.mjs"]).toContain("openteam-whatsapp");
   expect(plugin.binaryFiles?.["connector/bin/linux-x64.br"]).toBeDefined();
   expect(plugin.binaryFiles?.["connector/bin/linux-arm64.br"]).toBeDefined();

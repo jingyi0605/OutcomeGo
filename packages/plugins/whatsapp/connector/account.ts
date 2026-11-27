@@ -4,6 +4,7 @@ import { lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { createConnection } from "node:net";
 import type { Event, Execute, Running, Settings } from "./process";
+import type { WhatsAppInboundEvents } from "./inbound-events";
 
 type Process = { execute: Execute; follow: (args: string[], onEvent: (event: Event) => void) => Running; close?: () => Promise<void>; resetRevokedSession?: () => Promise<void> };
 type Pairing = { kind: "qr" | "phone"; code: string; expiresAt: number; generatedAt: number; generation: number; rescanRequired: boolean };
@@ -44,7 +45,7 @@ export class WhatsAppAccount {
     this.diagnostics.push({ event, at: new Date().toISOString(), ...(code ? { code } : {}) });
     if (this.diagnostics.length > 40) this.diagnostics.shift();
   }
-  constructor(readonly process: Process, readonly settings: Settings) {}
+  constructor(readonly process: Process, readonly settings: Settings, readonly inboundEvents?: WhatsAppInboundEvents) {}
 
   private exclusive<T>(run: () => Promise<T>): Promise<T> {
     const next = this.tail.then(() => {
@@ -145,7 +146,7 @@ export class WhatsAppAccount {
     // then launch sync --follow so sends share its WhatsApp connection.
     const args = mode === "auth"
       ? ["auth", "--idle-exit", "3s", ...(phone ? ["--phone", phone] : [])]
-      : ["sync", "--follow", "--max-reconnect", "0", "--presence-mode", "quiet", "--stale-threshold", "90s"];
+      : ["sync", "--follow", "--max-reconnect", "0", "--presence-mode", "quiet", "--stale-threshold", "90s", ...(this.inboundEvents?.syncArgs ?? [])];
     const running = this.process.follow(args, (event) => {
       // Shutdown can emit a final error or connection event after stop() has
       // detached this process. It must not overwrite a newer pairing attempt.
@@ -207,7 +208,8 @@ export class WhatsAppAccount {
     let doctor: unknown;
     // A new store has no message DB until auth initializes it.
     if (authenticated) doctor = (await this.process.execute(["doctor"], true)).data;
-    return { account_id: this.settings.accountId, authenticated, linked_jid: auth.data?.linked_jid ?? null,
+    return { account_id: this.settings.accountId, subscription_account_key: this.settings.accountKey,
+      incoming_message_events: !!this.inboundEvents, authenticated, linked_jid: auth.data?.linked_jid ?? null,
       connection_state: this.connection, sync_running: !!this.running && this.mode === "sync",
       pairing_running: !!this.running && this.mode === "auth",
       pairing_available: !!this.pairing && this.pairing.expiresAt > Date.now(),
@@ -396,5 +398,9 @@ export class WhatsAppAccount {
       } catch (error) { this.connection = "stopped"; throw error; }
     });
   }
-  async close() { this.closed = true; await this.stop(); await this.process.close?.(); }
+  async close() {
+    this.closed = true;
+    try { await this.stop(); await this.process.close?.(); }
+    finally { await this.inboundEvents?.close(); }
+  }
 }

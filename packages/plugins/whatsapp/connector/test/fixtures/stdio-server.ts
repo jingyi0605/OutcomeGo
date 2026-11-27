@@ -1,4 +1,5 @@
 import { WhatsAppAccount } from "../../account";
+import { WhatsAppInboundEvents } from "../../inbound-events";
 import { prepareStore, settings, type Event, type Running } from "../../process";
 import { serveWhatsApp } from "../../server";
 
@@ -21,7 +22,7 @@ const account = new WhatsAppAccount({
     queueMicrotask(() => emit({ event: "qr_code", data: { code: "synthetic-stdio-pairing-challenge" } }));
     return { done, stop: async () => { finish(0); await done; } };
   },
-}, configuration);
+}, configuration, new WhatsAppInboundEvents(configuration.store));
 process.once("SIGTERM", () => { void account.close().then(() => process.exit(0)); });
 await account.initialize();
 await serveWhatsApp(account);
