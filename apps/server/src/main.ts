@@ -22,12 +22,10 @@ import { eventRoutes } from "./routes/event";
 import { pluginMutationRoutes } from "./routes/plugin-mutation";
 import { pluginQueryRoutes } from "./routes/plugin-query";
 import { createActivityRoutes } from "./routes/activity";
-import { createTodoRoutes } from "./routes/todos";
 import { createScheduleRoutes } from "./routes/schedule";
 import { calendarFeedResponse, createCalendarFeedRoutes } from "./routes/calendar-feed";
 import { createExternalCalendarRoutes } from "./routes/external-calendar";
 import { outcomeRoutes } from "./routes/outcome";
-import { exploreRoutes } from "./routes/explore";
 import { outcomeInboxRoutes } from "./routes/outcome-inbox";
 import { routineRoutes } from "./routes/routine";
 import { humanWorkRoutes } from "./routes/human-work";
@@ -371,12 +369,10 @@ const server = Bun.serve<VncConnection | NetworkConnection | VoiceConnectionData
         botRoutes,
         routineRoutes,
         outcomeRoutes,
-        createActivityRoutes(app.activity, app.ownerTodos),
-        createTodoRoutes(app.ownerTodos),
-        createScheduleRoutes(app.schedule, app.ownerTodos),
+        createActivityRoutes(app.activity, app.outcomes),
+        createScheduleRoutes(app.schedule, app.outcomes),
         createCalendarFeedRoutes(app.calendarFeeds),
-        createExternalCalendarRoutes(app.externalCalendar, app.ownerTodos),
-        (context: RouteContext) => exploreRoutes(context, app.explore),
+        createExternalCalendarRoutes(app.externalCalendar, app.outcomes),
         outcomeInboxRoutes,
         channelRoutes,
         conversationRoutes,

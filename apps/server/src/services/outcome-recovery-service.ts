@@ -80,9 +80,9 @@ export class OutcomeRecoveryService {
     }));
 
   metrics = (outcomeId: string) => serviceEffect(() => this.prisma.$transaction(async (tx: Tx): Promise<OutcomeMetrics> => {
-    const outcome = await tx.outcome.findUnique({ where: { id: outcomeId }, select: { id: true, createdAt: true, acceptedAt: true, cancelledAt: true, planningDraft: { select: { createdAt: true } } } });
+    const outcome = await tx.outcome.findUnique({ where: { id: outcomeId }, select: { createdAt: true, acceptedAt: true, cancelledAt: true } });
     if (!outcome) throw new ApiError(404, "outcome_not_found", "Outcome not found");
-    const [revisions, items, decisions, reviews, receipts, notifications, attention, reviewRequests] = await Promise.all([
+    const [revisions, items, decisions, reviews, receipts, notifications, attention, reviewRequests, firstPlan] = await Promise.all([
       tx.outcomeContractRevision.findMany({ where: { outcomeId }, orderBy: { revision: "asc" }, select: { id: true, revision: true, approvedAt: true } }),
       tx.outcomeWorkItem.findMany({ where: { outcomeId, executorType: "agent" }, select: { startedAt: true, retryCount: true, recoveryCount: true } }),
       tx.outcomeDecision.findMany({ where: { outcomeId }, select: { id: true, resolvedAt: true } }),
@@ -91,6 +91,7 @@ export class OutcomeRecoveryService {
       tx.channelNotification.findMany({ where: { kind: "outcome", payload: { path: ["outcomeId"], equals: outcomeId } }, select: { key: true, payload: true, createdAt: true } }),
       tx.idempotencyRecord.findMany({ where: { scope: `outcome-attention:${outcomeId}`, status: "completed" }, select: { response: true } }),
       tx.idempotencyRecord.count({ where: { scope: `outcome-review:${outcomeId}`, status: "completed" } }),
+      tx.outcomeThreadTurn.findFirst({ where: { thread: { outcomeId, role: "planner" }, purpose: "plan", OR: [{ planMode: "contract_plan" }, { planMode: null }] }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
     ]);
     const latest = new Map<string, typeof reviews[number]>();
     for (const review of reviews) latest.set(review.criterionId, review);
@@ -112,7 +113,7 @@ export class OutcomeRecoveryService {
     });
     const firstRun = items.flatMap(item => item.startedAt ? [item.startedAt] : []).sort((a, b) => a.getTime() - b.getTime())[0];
     return {
-      outcomeId, planningStartedAt: iso(outcome.planningDraft?.createdAt ?? outcome.createdAt), approvalAt: iso(revisions.find(revision => revision.approvedAt)?.approvedAt),
+      outcomeId, planningStartedAt: iso(firstPlan?.createdAt ?? outcome.createdAt), approvalAt: iso(revisions.find(revision => revision.approvedAt)?.approvedAt),
       firstRunAt: iso(firstRun), acceptedAt: iso(outcome.acceptedAt),
       humanInterventionCount: approvedRevisionCount + decisions.filter(decision => decision.resolvedAt).length + reviewCount + receipts.length,
       decisionCount: decisions.length, reviewCount,

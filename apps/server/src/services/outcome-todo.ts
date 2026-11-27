@@ -1,10 +1,10 @@
 import { ApiError } from "@outcomego/contracts";
-import type { TodoAutoAcceptRuleView } from "@outcomego/contracts/todo";
+import type { OutcomeAutoAcceptRuleView } from "@outcomego/contracts/outcomes";
 import type { Prisma } from "@outcomego/db";
 import { readUserTimeZone, todoLocalDay } from "@outcomego/messaging";
 
-type RuleRow = Prisma.TodoAutoAcceptRuleGetPayload<{}>;
-export function autoAcceptRuleView(row: RuleRow): TodoAutoAcceptRuleView {
+type RuleRow = Prisma.OutcomeAutoAcceptRuleGetPayload<{}>;
+export function autoAcceptRuleView(row: RuleRow): OutcomeAutoAcceptRuleView {
   const { ownerId, createdAt, updatedAt, lastMatchedAt, ...fields } = row;
   return { ...fields, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString(), lastMatchedAt: lastMatchedAt?.toISOString() ?? null };
 }
@@ -19,7 +19,7 @@ export async function lockTodoRules(tx: Prisma.TransactionClient, ownerId: strin
 
 export async function matchTodoRule(tx: Prisma.TransactionClient, ownerId: string,
   context: { botId: string; routineId: string | null; sourceKind: string }, cap: unknown, now: Date) {
-  const rule = await tx.todoAutoAcceptRule.findFirst({ where: {
+  const rule = await tx.outcomeAutoAcceptRule.findFirst({ where: {
     ownerId, enabled: true,
     AND: [
       { OR: [{ routineId: { not: null } }, { botId: { not: null } }] },
@@ -32,7 +32,7 @@ export async function matchTodoRule(tx: Prisma.TransactionClient, ownerId: strin
   const { id, name, routineId, botId } = rule;
   if (typeof cap === "number") {
     const { start, end } = await todoLocalDay(tx, now, await readUserTimeZone(tx));
-    const hits = await tx.ownerTodoItem.count({ where: { ownerId, autoAcceptRuleId: id, createdAt: { gte: start, lt: end } } });
+    const hits = await tx.outcome.count({ where: { ownerId, kind: "todo", kindMeta: { path: ["autoAcceptRuleId"], equals: id }, createdAt: { gte: start, lt: end } } });
     if (hits >= cap) return { id, name, routineId, botId, limited: true };
   }
   return { id, name, routineId, botId, limited: false };

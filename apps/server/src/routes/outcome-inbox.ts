@@ -1,27 +1,21 @@
-import type { ActorRef } from "@outcomego/messaging";
 import { ApiError } from "@outcomego/contracts";
 import { parseOutcomeInboxQuery, ResolveDecisionInput, WithdrawDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { DecisionService } from "../services/decision-service";
 import { OutcomeInboxService } from "../services/outcome-inbox-service";
 import { json, parseBody } from "../http";
 import { run, type RouteContext } from "./context";
+import { outcomeOwner, requireOutcomeOwner } from "./outcome-owner";
 
 export const createOutcomeInboxRoutes = (decisions: DecisionService, inbox: OutcomeInboxService) => async (context: RouteContext): Promise<Response | undefined> => {
-  const { request, path, authMode, authenticatedSessionId, url } = context;
+  const { request, path, url } = context;
   const list = path === "/api/outcome-inbox";
   const scoped = path.match(/^\/api\/outcomes\/([^/]+)\/inbox$/);
   const match = path.match(/^\/api\/decisions\/([^/]+)(?:\/(resolve|withdraw))?$/);
   if (!list && !scoped && !match) return undefined;
-  if (authMode === "required" && !authenticatedSessionId) throw new ApiError(401, "unauthorized", "Sign in to OutcomeGo to continue");
+  const { ownerId, actor } = await outcomeOwner(context);
   for (const id of [scoped?.[1], match?.[1]]) if (id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new ApiError(400, "invalid_request", "Expected a UUID");
-  // Authentication has already established the deployment's single owner; no body actor is accepted.
-  let actor: ActorRef = "owner:local";
-  if (authenticatedSessionId) {
-    const session = await context.app.prisma.session.findUnique({ where: { id: authenticatedSessionId }, select: { userId: true, expiresAt: true } });
-    if (!session || session.expiresAt <= new Date()) throw new ApiError(401, "unauthorized", "Sign in to OutcomeGo to continue");
-    actor = `user:${session.userId}`;
-  }
   if ((list || scoped) && request.method === "GET") {
+    if (scoped?.[1]) await requireOutcomeOwner(context, scoped[1], ownerId);
     let query;
     try { query = parseOutcomeInboxQuery(url.searchParams); } catch { throw new ApiError(400, "invalid_outcome_inbox_query", "The inbox query or cursor is invalid"); }
     return json(await run(inbox.list(query, scoped?.[1])));

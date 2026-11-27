@@ -87,6 +87,36 @@ async function request(h: Fixture, options: RequestOptions = {}) {
 const ids = (response: { items: Array<{ id: string }> }) => response.items.map((item) => item.id).sort();
 
 describe.skipIf(!url)("the owner's activity list (specs/004.10 task 4.1)", () => {
+  test("owner-scopes Outcome-backed activity rows", async () => {
+    const t = await setup();
+    const ownerId = "activity-owner";
+    await t.h.db.outcome.update({ where: { id: t.h.outcome.id }, data: { ownerId } });
+    const own = await t.h.db.outcome.create({
+      data: { ownerId, kind: "scheduled_once", title: "Owner schedule", botId: t.h.bot.id, status: "scheduled", scheduledAt: minutes(30) },
+    });
+    const foreign = await t.h.db.outcome.create({
+      data: { ownerId: "other-owner", kind: "scheduled_once", title: "Foreign schedule", botId: t.h.bot.id, status: "scheduled", scheduledAt: minutes(45) },
+    });
+
+    const response = await t.service.list({ ownerId, botId: t.h.bot.id });
+
+    expect(response.upcoming?.map((item) => item.id)).toEqual([`scheduled_once:${own.id}`]);
+    expect(JSON.stringify(response)).not.toContain(foreign.title);
+  });
+
+  test("upcoming one-off execution links to its Outcome, not a Routine", async () => {
+    const { h, service } = await setup();
+    const scheduledAt = minutes(30);
+    const outcome = await h.db.outcome.create({ data: {
+      title: "One-off reminder", botId: h.bot.id, kind: "scheduled_once", status: "preparing", scheduledAt,
+    } });
+    const response = await service.list({ botId: h.bot.id });
+    expect(response.upcoming).toEqual([expect.objectContaining({
+      id: `scheduled_once:${outcome.id}`, type: "scheduled_once", title: "One-off reminder", state: "preparing",
+      runAt: scheduledAt.toISOString(), link: { type: "outcome", id: outcome.id },
+    })]);
+  });
+
   for (const [name, summary, content] of [
     ["first bot", "Comparing the two options", "Please compare the two options and tell me which is cheaper"],
     ["second bot", "Collecting the numbers", "Gather the figures for the quarter and keep going until they add up"],
@@ -415,7 +445,7 @@ describe.skipIf(!url)("goal tasks in the activity list", () => {
 
   test("a goal a bot registered for itself has no task, so it is not activity", async () => {
     const t = await setup();
-    await t.h.db.outcome.update({ where: { id: t.h.outcome.id }, data: { trackingMode: "tracked" } });
+    await t.h.db.outcome.update({ where: { id: t.h.outcome.id }, data: { kind: "tracked", status: "running" } });
     expect(ids(await t.service.list({ botId: t.h.bot.id }))).toEqual([]);
   });
 

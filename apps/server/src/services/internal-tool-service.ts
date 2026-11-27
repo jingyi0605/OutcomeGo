@@ -42,14 +42,13 @@ import type { ComputerNetworkPolicyService } from "./computer-network-policy-ser
 import type { ExternalDeliveryService } from "./external-messaging/delivery";
 import { processEnvironment } from "./process-secrets";
 import { bitwardenInstanceEnvironment, jsonObject } from "./plugin/values";
+import { outcomeResearchScope, researchTurnSelect } from "./plugin/research";
 import { toJson } from "./service-utils";
 import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
 import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
 import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
 import { isGroupTaskTool } from "@outcomego/contracts/group-tasks";
-import { isTodoTool } from "@outcomego/contracts/todo";
-import { OwnerTodoService } from "./owner-todo-service";
 import type { GroupTaskTools } from "./group-task-tools";
 import type { OutcomeChatTools } from "./outcome-chat-tools";
 import { isOutcomeThreadTool, type OutcomeThreadTools } from "./outcome-thread-tools";
@@ -80,6 +79,9 @@ import type { UserLocationService } from "./user-location";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const isBackgroundOrigin = (origin: string) => origin === "routine" || origin === "outcome" || origin === "outcome_thread";
+const researchTools = new Set([
+  "ReadTranscript", "RecallMemory", "ReadAgentActivity", "ListSections", "SearchPlugins", "GetPlugin", "GetMcpServerStatus", "RefreshToolCatalog", "PluginCall",
+]);
 const bitwardenCandidate = (
   value: unknown
 ): { connectionId: string; itemId: string; title: string; hostname: string } => {
@@ -133,8 +135,6 @@ export class InternalToolService {
     private readonly goalThreadTools?: OutcomeThreadTools,
     private readonly groupTaskTools?: GroupTaskTools,
     private readonly replyPreviews?: ReplyPreviews,
-    private readonly ownerTodos = new OwnerTodoService(prisma),
-    private readonly authMode: "required" | "disabled" = "required",
   ) {}
 
   /**
@@ -173,6 +173,7 @@ export class InternalToolService {
             select: { id: true, attempts: true, payload: true },
             take: 1,
           },
+          outcomeThreadTurn: { select: researchTurnSelect },
         },
       });
       if (
@@ -185,6 +186,10 @@ export class InternalToolService {
       ) {
         throw new ApiError(409, "tool_context_invalid", "Dynamic tool context is not active");
       }
+      const research = outcomeResearchScope(run);
+      if (research && !isOutcomeThreadTool(request.tool) && !researchTools.has(request.tool) &&
+        !(request.tool === "UpdateMemory" && research.planMode === "contract_plan"))
+        throw new ApiError(403, "readonly_action_forbidden", `${request.tool} is unavailable in a read-only research turn`);
       if ((OUTCOME_THREAD_TOOL_NAMES as readonly string[]).includes(request.tool)) {
         if (run.origin !== "outcome" || !run.outcomeWorkItemId)
           throw new ApiError(400, "outcome_thread_required", "This tool requires an Outcome sub-thread");
@@ -212,9 +217,6 @@ export class InternalToolService {
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
       const backgroundRun = isBackgroundOrigin(run.origin);
-      if (isTodoTool(request.tool)) {
-        return this.ownerTodos.executeTool({ runId: run.id, botId: run.botId, authMode: this.authMode }, request.tool, request.arguments);
-      }
       if (request.tool === REPLY_PREVIEW_CONTROL) {
         const input = request.arguments as { attempt?: unknown; callId?: unknown; content?: unknown } | null;
         const inbox = run.inboxEvents[0];
@@ -283,7 +285,12 @@ export class InternalToolService {
         return this.userLocations.readForTool();
       }
       // Private supervisor operation, never registered in any model catalog.
-      if (request.tool === "RefreshToolCatalog") return {namespaces:await this.plugins.dynamicNamespaces(childIdentity?.parentBotId ?? request.botId)};
+      if (request.tool === "RefreshToolCatalog") {
+        const namespaces = await this.plugins.dynamicNamespaces(childIdentity?.parentBotId ?? request.botId);
+        return { namespaces: research ? namespaces.map(({ fileTransfers: _fileTransfers, ...namespace }) => ({
+          ...namespace, tools: namespace.tools.filter((tool) => tool.readOnly === true),
+        })) : namespaces };
+      }
       if (request.tool === "ReadProcessSecrets") return { environment: await processEnvironment(this.prisma, request.botId) };
       const bitwardenCallerAllowed = !childIdentity || childIdentity.subagentType === "computerUse";
       // An Outcome turn has an owner to ask through a step approval; a routine run has nobody to answer.
@@ -758,10 +765,14 @@ export class InternalToolService {
       if (childIdentity && parentOnlyTools.has(request.tool)) {
         throw new ApiError(403, "subagent_tool_forbidden", "This tool is parent-agent only");
       }
-      if (request.tool === "ReadTranscript") return readTranscript(this.prisma, context, request.arguments);
-      if (request.tool === "ReadAgentActivity") return readAgentActivity(this.prisma, { botId: childIdentity?.parentBotId ?? request.botId }, request.arguments);
+      if (request.tool === "ReadTranscript") {
+        return readTranscript(this.prisma, { ...context, researchScope: research ?? undefined }, request.arguments);
+      }
+      if (request.tool === "ReadAgentActivity") return readAgentActivity(this.prisma, {
+        botId: childIdentity?.parentBotId ?? request.botId, allowedPeerBotId: research ? research.borrowedBotId : undefined,
+      }, request.arguments);
       if (request.tool === "RecallMemory") {
-        return this.messaging.agentData.recallMemory(request.botId, request.arguments, run.channelId);
+        return this.messaging.agentData.recallMemory(request.botId, request.arguments, run.channelId, research?.borrowedBotId);
       }
       if (request.tool === "CreateBotShareJson") {
         if (!this.richMessages) throw new Error("Review service unavailable");
@@ -854,6 +865,7 @@ export class InternalToolService {
           callId: request.callId,
           toolName: input.toolName,
           arguments: input.arguments ?? {},
+          ...(research ? { research } : {}),
         }, signal));
       }
       if (isStateTool(request.tool)) {

@@ -51,6 +51,38 @@ describe("activity routes", () => {
     expect(got).toEqual({});
   });
 
+  test("passes the authenticated owner to activity-backed reads", async () => {
+    let listQuery: ActivityQuery | undefined;
+    let needsMeOwner: string | undefined;
+    let detailOwner: string | undefined;
+    const detail = { requestRunId: id, evidence: [], toolError: null };
+    const route = createActivityRoutes(service({
+      list: async (query: ActivityQuery) => ((listQuery = query), { items: [], truncated: false }),
+      needsMe: async (_now: Date | undefined, ownerId?: string) => ((needsMeOwner = ownerId), { items: [] }),
+      requestDetail: async (_id: string, _now: Date | undefined, ownerId?: string) => ((detailOwner = ownerId), detail),
+    }), {
+      ownerForSession: async (_mode, sessionId) => {
+        expect(sessionId).toBe("session-a");
+        return "owner-a";
+      },
+      attention: async () => [],
+      digest: async () => null,
+    });
+    const ownerContext = (path: string) => ({
+      ...context(path),
+      authMode: "required" as const,
+      authenticatedSessionId: "session-a",
+    });
+
+    await route(ownerContext(`/api/activity?botId=${id}`));
+    await route(ownerContext("/api/needs-me"));
+    await route(ownerContext(`/api/activity/requests/${id}`));
+
+    expect(listQuery).toEqual({ botId: id, ownerId: "owner-a" });
+    expect(needsMeOwner).toBe("owner-a");
+    expect(detailOwner).toBe("owner-a");
+  });
+
   test("a bot ID that is not an ID, or a window outside what the policy itself allows, is refused", async () => {
     const route = createActivityRoutes(service());
     for (const query of [

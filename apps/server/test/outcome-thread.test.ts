@@ -17,7 +17,7 @@ function fixture(options: { status?: string; enabled?: boolean } = {}) {
   const recomputed: string[] = [];
   let thread: Row | null = null;
   const threads: Row[] = [];
-  const outcome: Row = { id: "o1", botId: "bot-1", title: "T", status: options.status ?? "pending_approval" };
+  const outcome: Row = { id: "o1", botId: "bot-1", ownerId: "local", kind: "standard", revision: 1, title: "T", status: options.status ?? "pending_approval" };
   const tx: Row = {
     $executeRaw: async () => 0,
     idempotencyRecord: {
@@ -26,8 +26,7 @@ function fixture(options: { status?: string; enabled?: boolean } = {}) {
     },
     featureSettings: { findUnique: async () => ({ outcomesEnabled: options.enabled ?? true }) },
     outcome: { findUnique: async () => outcome },
-    bot: { findUnique: async ({ where }: Row) => (where.id === "bot-1" ? { id: "bot-1", status: "active" } : null) },
-    exploreIdea: { findUnique: async () => null, update: async () => ({}) },
+    bot: { findUnique: async ({ where }: Row) => (where.id === "bot-1" ? { id: "bot-1", status: "active", conversation: { id: "conversation-1" } } : null) },
     channel: { findFirst: async () => ({ id: "dm-1" }) },
     outcomeThread: {
       upsert: async ({ create }: Row) => {
@@ -41,6 +40,7 @@ function fixture(options: { status?: string; enabled?: boolean } = {}) {
       update: async ({ where, data }: Row) => Object.assign(threads.find((row) => row.id === where.id)!, data),
     },
     outcomeThreadTurn: {
+      findFirst: async () => null,
       create: async ({ data }: Row) => {
         const row = { id: `turn-${turns.length + 1}`, status: "queued", reply: null, error: null, runId: null, createdAt: new Date(), updatedAt: new Date(), ...data };
         turns.push(row);
@@ -65,11 +65,7 @@ function fixture(options: { status?: string; enabled?: boolean } = {}) {
       return { run: { id: `run-${wakes.length}` } };
     },
   };
-  const outcomes = {
-    createPlanningOutcome: async (_tx: Row, input: Row) => ((outcome.title = input.title), outcome.id),
-    getInTransaction: async () => ({ ...outcome }),
-  };
-  const service = new OutcomeThreadService(prisma as never, messaging as never, outcomes as never, async (_tx, id) => void recomputed.push(id));
+  const service = new OutcomeThreadService(prisma as never, messaging as never, async (_tx, id) => void recomputed.push(id));
   return { service, turns, wakes, events, recomputed, outcome };
 }
 const send = (text: string, key = "request-key-1") => ({ text, clientRequestId: key });
@@ -109,19 +105,19 @@ test("a finished goal takes no more messages, and nothing happens while goal man
   }
   const off = fixture({ enabled: false });
   await expect(off.service.send("o1", send("hello"), OWNER)).rejects.toMatchObject({ code: "outcomes_disabled" });
-  await expect(off.service.create({ text: "x", botId: "bot-1", clientRequestId: "create-key-1" }, OWNER)).rejects.toMatchObject({ code: "outcomes_disabled" });
+  await expect(off.service.plan("o1", { prompt: "x", clientRequestId: "plan-key-1" }, OWNER)).rejects.toMatchObject({ code: "outcomes_disabled" });
   expect(off.wakes).toHaveLength(0);
 });
 
-test("a new goal is planning right away: one goal, one thread, one turn, a placeholder title", async () => {
-  const f = fixture({ status: "planning" });
+test("an existing draft starts one contract planning turn without rewriting the goal", async () => {
+  const f = fixture({ status: "draft" });
   const text = "帮我做一个个人记账小工具，拍照识别金额与分类\n要能导出 CSV";
-  const created = await f.service.create({ text, botId: "bot-1", clientRequestId: "create-key-2" }, OWNER);
-  expect(created.turn.purpose).toBe("plan");
-  expect(created.turn.trigger).toBe(text);
-  expect(f.outcome.title).toBe("帮我做一个个人记账小工具，拍照识别金额与分类");
+  const created = await f.service.plan("o1", { prompt: text, clientRequestId: "plan-key-2" }, OWNER);
+  expect(created).toMatchObject({ purpose: "plan", planMode: "contract_plan", trigger: text });
+  expect(f.outcome.title).toBe("T");
   expect(f.wakes[0]!.content).toBe(text);
-  await expect(f.service.create({ text: "x", botId: "missing", clientRequestId: "create-key-3" }, OWNER)).rejects.toMatchObject({ code: "bot_not_runnable" });
+  f.outcome.botId = "missing";
+  await expect(f.service.plan("o1", { clientRequestId: "plan-key-3" }, OWNER)).rejects.toMatchObject({ code: "planner_unavailable" });
 });
 
 // --- tools -----------------------------------------------------------------------------------------------
@@ -131,9 +127,8 @@ function tools(options: { triggerBy?: string; botId?: string; enabled?: boolean;
   const outcomes = {
     saveAgentContract: (id: string, input: unknown, actor: string) => (calls.push(["save", { id, input, actor }]), Effect.succeed({ id, currentRevisionView: { status: "pending_approval" } })),
     cancel: (id: string, input: unknown, actor: string) => (calls.push(["cancel", { id, input, actor }]), Effect.succeed({ id, status: "cancelled" })),
-    get: () => Effect.succeed({}),
+    get: () => Effect.succeed({ currentRevisionView: { id: "revision-1" } }),
   };
-  const read = { execute: async (request: Row) => (calls.push(["read", request.tool]), { ok: true, outcome: { currentRevisionView: { id: "revision-1" } } }) };
   const prisma = {
     featureSettings: { findUnique: async () => ({ outcomesEnabled: options.enabled ?? true }) },
     outcomeDecision: { findMany: async ({ where }: Row) => {
@@ -143,7 +138,7 @@ function tools(options: { triggerBy?: string; botId?: string; enabled?: boolean;
     outcomeThreadTurn: {
       findUnique: async ({ where }: Row) =>
         where.runId === "run-1"
-          ? { purpose: options.purpose ?? "owner_message", triggerBy: options.triggerBy ?? OWNER, thread: { outcomeId: GOAL, botId: options.botId ?? "bot-1" } }
+          ? { purpose: options.purpose ?? "owner_message", triggerBy: options.triggerBy ?? OWNER, thread: { outcomeId: GOAL, botId: options.botId ?? "bot-1", outcome: { ownerId: "local" } } }
           : null,
     },
   };
@@ -156,7 +151,6 @@ function tools(options: { triggerBy?: string; botId?: string; enabled?: boolean;
   const service = new OutcomeThreadTools(
     prisma as never,
     outcomes as never,
-    read as never,
     undefined,
     undefined,
     reviews as never
@@ -282,24 +276,24 @@ test("there is no way to approve, accept or leave the goal's thread, and outside
 test("purpose whitelist enforces planner vs reviewer tool boundaries", async () => {
   const reviewTurn = tools({ purpose: "review" });
   await expect(reviewTurn.call("GetOutcome", { outcomeId: GOAL })).resolves.toMatchObject({
-    ok: true, decisionRecords: [{ id: "decision-1", completedSummary: "Saved receipt", status: "open" }],
+    outcome: { currentRevisionView: { id: "revision-1" } }, decisionRecords: [{ id: "decision-1", completedSummary: "Saved receipt", status: "open" }],
   });
   for (const forbidden of ["SaveOutcomeContract", "SavePlan", "CancelOutcome", "ReviewTaskResult", "ListOutcomes"]) {
     await expect(reviewTurn.call(forbidden, {})).rejects.toMatchObject({ code: "outcome_thread_tool_forbidden" });
   }
 
   const taskReviewTurn = tools({ purpose: "review_task" });
-  await expect(taskReviewTurn.call("GetOutcome", { outcomeId: GOAL })).resolves.toMatchObject({ ok: true });
+  await expect(taskReviewTurn.call("GetOutcome", { outcomeId: GOAL })).resolves.toMatchObject({ outcome: { currentRevisionView: { id: "revision-1" } } });
   for (const forbidden of ["SaveOutcomeContract", "SavePlan", "SubmitPrereview", "CancelOutcome", "ListOutcomes"]) {
     await expect(taskReviewTurn.call(forbidden, {})).rejects.toMatchObject({ code: "outcome_thread_tool_forbidden" });
   }
 });
 
-test("create routes planner thread to configured plannerBotId while keeping main outcome.botId, and list exposes planner and reviewer turns", async () => {
+test("Plan routes to the configured planner without changing outcome.botId; list exposes both roles", async () => {
   const threads: Row[] = [];
   const turns: Row[] = [];
   const wakes: Row[] = [];
-  let createdOutcome: Row | null = null;
+  const createdOutcome = { id: "o-planned", botId: "bot-main", ownerId: "local", kind: "standard", revision: 1, status: "draft", title: "Quarterly records" };
   const tx: Row = {
     $executeRaw: async () => 0,
     idempotencyRecord: { findUnique: async () => null, create: async () => ({}) },
@@ -319,7 +313,6 @@ test("create routes planner thread to configured plannerBotId while keeping main
         return null;
       },
     },
-    exploreIdea: { findUnique: async () => null, update: async () => ({}) },
     channel: { findFirst: async ({ where }: Row) => ({ id: `dm-${where.members.some.botId}` }) },
     outcomeThread: {
       upsert: async ({ where, create }: Row) => {
@@ -331,6 +324,7 @@ test("create routes planner thread to configured plannerBotId while keeping main
       },
     },
     outcomeThreadTurn: {
+      findFirst: async () => null,
       create: async ({ data }: Row) => {
         const row = { id: `turn-${turns.length + 1}`, status: "queued", reply: null, error: null, runId: null, createdAt: new Date(), updatedAt: new Date(), ...data };
         turns.push(row);
@@ -354,19 +348,12 @@ test("create routes planner thread to configured plannerBotId while keeping main
       return { run: { id: `run-${wakes.length}` } };
     },
   };
-  const outcomes = {
-    createPlanningOutcome: async (_tx: Row, input: Row) => {
-      createdOutcome = { id: "o-planned", botId: input.botId, title: input.title, status: "planning" };
-      return "o-planned";
-    },
-    getInTransaction: async () => createdOutcome,
-  };
-  const service = new OutcomeThreadService(prisma as never, messaging as never, outcomes as never, async () => "planning");
-  const created = await service.create({ text: "整理季度资料", botId: "bot-main", clientRequestId: "plan-key-1" }, OWNER);
+  const service = new OutcomeThreadService(prisma as never, messaging as never, async () => "planning");
+  const created = await service.plan(createdOutcome.id, { prompt: "整理季度资料", clientRequestId: "plan-key-1" }, OWNER);
 
-  expect((createdOutcome as Row | null)?.botId).toBe("bot-main");
+  expect(createdOutcome.botId).toBe("bot-main");
   expect(wakes[0]?.botId).toBe("bot-planner");
-  expect(created.turn.model).toEqual({ providerId: "openai-codex", modelId: "gpt-5.4", reasoning: "high" });
+  expect(created.model).toEqual({ providerId: "openai-codex", modelId: "gpt-5.4", reasoning: "high" });
 
   threads.push({ id: "thread-reviewer", outcomeId: "o-planned", role: "reviewer", botId: "bot-reviewer" });
   turns.push({

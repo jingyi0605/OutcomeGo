@@ -18,8 +18,8 @@ import {
   type RenameChannelInput,
   type SendMessageInput,
 } from "@outcomego/contracts";
-import { OUTCOME_THREAD_TEXT_CHARS, type CreateOutcomeThreadInput, type OutcomeThreadTurnView } from "@outcomego/contracts/outcome-thread";
-import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
+import { OUTCOME_THREAD_TEXT_CHARS, type OutcomeThreadTurnView } from "@outcomego/contracts/outcome-thread";
+import { type CreateOutcomeInput, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import { COMPUTER_API_PATHS } from "@outcomego/contracts/service-protocol";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import {
@@ -28,6 +28,7 @@ import {
   type AssetStore,
   PRIORITY,
   lockAgentLifecycle,
+  postOutcomeUpdateCard,
 } from "@outcomego/messaging";
 import { cancelSkippedBootstrap } from "./channel/delivery";
 import { renameDirectChannel } from "./channel/direct-profile";
@@ -63,7 +64,7 @@ const recoveryShaped = (run: { origin: string; inboxEvents: Array<{ payload: unk
 
 export type CreateGoalThreadInTransaction = (
   tx: Prisma.TransactionClient,
-  input: CreateOutcomeThreadInput & { titleText?: string },
+  input: { outcome: CreateOutcomeInput; prompt: string },
   actor: ActorRef
 ) => Promise<{ outcome: OutcomeDetail; turn: OutcomeThreadTurnView }>;
 
@@ -331,17 +332,23 @@ export class ChannelService {
               : []),
           ];
           const plannerText = plannerParts.join("\n").slice(0, OUTCOME_THREAD_TEXT_CHARS);
+          const subject = titleText.trim().split(/\r?\n/, 1)[0]!;
           const created = await this.createGoalThreadInTransaction(
             tx,
             {
-              text: plannerText,
-              titleText: titleText.slice(0, OUTCOME_THREAD_TEXT_CHARS),
-              botId: conversation.botId,
-              postToChat: true,
-              clientRequestId: input.clientId,
+              prompt: plannerText,
+              outcome: {
+                kind: "standard", title: subject.length > 60 ? `${subject.slice(0, 57)}…` : subject,
+                description: titleText.slice(0, OUTCOME_THREAD_TEXT_CHARS), botId: conversation.botId,
+                attachments: input.attachments, clientRequestId: input.clientId,
+              },
             },
             actor
           );
+          await postOutcomeUpdateCard(tx, {
+            channelId: channel.id, outcomeId: created.outcome.id, factKey: `created:${created.outcome.id}`,
+            contractRevision: 0, type: "outcome.created",
+          });
           const goalRun = created.turn.runId
             ? await tx.run.findUnique({ where: { id: created.turn.runId } })
             : null;

@@ -21,7 +21,6 @@ import {
 } from "@outcomego/contracts/task-overview";
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import { INDEPENDENT_RUN_ORIGINS, OPEN_REQUEST_WORKER_STATUSES, readFeatureSettings } from "@outcomego/messaging";
-import { listDatedRoutineSchedules } from "./dated-routine-schedule";
 
 /** What the runtime keeps in `Run.requestProgress`: written by the bot, bounded by its tool. */
 interface StoredProgress {
@@ -39,6 +38,8 @@ interface StoredProgress {
 export interface ActivityQuery {
   /** Only this bot's work. Without it, every bot of the owner. */
   botId?: string;
+  /** The authenticated owner. This is applied to Outcome-backed activity sources. */
+  ownerId?: string;
   /** Also what is hidden by default: finished work older than the "recently completed" window. */
   includeAll?: boolean;
   /** Overrides the policy's "recently completed" window, in hours. */
@@ -102,32 +103,19 @@ export class ActivityService {
 
   private async upcoming(query: ActivityQuery): Promise<NonNullable<ActivityResponse["upcoming"]>> {
     const take = ACTIVITY_LIST_LIMIT + 1;
-    const [rows, dated] = await Promise.all([
-      this.prisma.routine.findMany({
-        where: { scheduleKind: "once", onceAt: { not: null }, onceStartedAt: null, enabled: true, deletedAt: null,
-          ...(query.botId ? { botId: query.botId } : {}), bot: { status: "active" } },
-        orderBy: [{ onceAt: "asc" }, { id: "asc" }], take,
-        select: { id: true, botId: true, name: true, onceAt: true, revision: true, updatedAt: true,
-          executions: { where: { status: { in: ["queued", "running"] } }, select: { kind: true, status: true, routineRevision: { select: { revision: true } } } },
-        },
-      }),
-      listDatedRoutineSchedules(this.prisma, { botId: query.botId, take }),
-    ]);
-    const items = rows.map((row) => {
-      const active = row.executions.filter((execution) => execution.routineRevision.revision === row.revision);
-      const state: ActivityItem["state"] = active.some((execution) => execution.kind === "scheduled") ? "waiting"
-        : active.some((execution) => execution.kind === "preparation" && execution.status === "running") ? "preparing" : "scheduled";
-      return { ...row, state, runAt: row.onceAt! };
+    const rows = await this.prisma.outcome.findMany({
+      where: { kind: "scheduled_once", status: { in: ["scheduled", "preparing"] }, scheduledAt: { not: null },
+        ownerId: query.ownerId ?? "local", botId: query.botId, bot: { status: "active" } },
+      orderBy: [{ scheduledAt: "asc" }, { id: "asc" }], take,
+      select: { id: true, botId: true, title: true, status: true, scheduledAt: true, updatedAt: true },
     });
-    return [...items, ...dated.map((row) => ({ ...row, state: "scheduled" as const }))]
-      .sort((left, right) => left.runAt.getTime() - right.runAt.getTime() || left.id.localeCompare(right.id))
-      .slice(0, take)
-      .map((row) => {
-        const runAt = row.runAt.toISOString();
-        return { id: `routine:${row.id}`, type: "routine", botId: row.botId!, title: row.name, state: row.state, runAt,
-          reason: null, doing: null, progress: null, lastActivityAt: row.updatedAt.toISOString(), nextCheckAt: runAt,
-          needsOwner: false, link: { type: "routine", id: row.id } };
-      });
+    return rows.map((row) => {
+      const runAt = row.scheduledAt!.toISOString();
+      return { id: `scheduled_once:${row.id}`, type: "scheduled_once", botId: row.botId!, title: row.title,
+        state: row.status === "preparing" ? "preparing" : "scheduled", runAt,
+        reason: null, doing: null, progress: null, lastActivityAt: row.updatedAt.toISOString(), nextCheckAt: runAt,
+        needsOwner: false, link: { type: "outcome", id: row.id } };
+    });
   }
 
   /**
@@ -135,7 +123,7 @@ export class ActivityService {
    * same rows the activity list marks `needsOwner`, so the two cannot disagree. Derived on every read and stored nowhere:
    * once the request moves on, it is simply no longer here.
    */
-  async needsMe(now = new Date()): Promise<NeedsMeResponse> {
+  async needsMe(now = new Date(), _ownerId?: string): Promise<NeedsMeResponse> {
     const { checkOverdueMinutes } = await this.policy();
     // Only a blocked or a waiting request can need the owner; the rest are left in the database.
     const rows = await this.prisma.run.findMany({
@@ -162,7 +150,7 @@ export class ActivityService {
   }
 
   /** One request with what the list leaves out (evidence, the tool's error). Null when it is not a tracked request. */
-  async requestDetail(requestRunId: string, now = new Date()): Promise<RequestProgressDetailView | null> {
+  async requestDetail(requestRunId: string, now = new Date(), _ownerId?: string): Promise<RequestProgressDetailView | null> {
     const row = await this.prisma.run.findFirst({
       where: {
         id: requestRunId,
@@ -241,14 +229,13 @@ export class ActivityService {
       where: {
         enabled: true,
         deletedAt: null,
-        OR: [{ scheduleKind: { not: "once" } }, { onceStartedAt: { not: null } }],
         ...(query.botId ? { AND: { OR: [{ botId: query.botId }, { executorBotId: query.botId }] } } : {}),
       },
       orderBy: { updatedAt: "desc" },
       take: ROUTINE_SCAN_LIMIT,
       select: {
         id: true, name: true, botId: true, executorBotId: true, channelId: true, nextRunAt: true, pausedAt: true, updatedAt: true,
-        executions: { where: { kind: { not: "preparation" } }, orderBy: { createdAt: "desc" }, take: 1, select: { status: true, error: true, skipReason: true, updatedAt: true } },
+        executions: { orderBy: { createdAt: "desc" }, take: 1, select: { status: true, error: true, skipReason: true, updatedAt: true } },
       },
     });
     return routines.flatMap((routine): ActivityItem[] => {
@@ -288,7 +275,7 @@ export class ActivityService {
       where: {
         executorType: "agent",
         ...(query.botId ? { botId: query.botId } : {}),
-        outcome: { cancelledAt: null, acceptedAt: null },
+        outcome: { ownerId: query.ownerId ?? "local", cancelledAt: null, acceptedAt: null },
         OR: [{ status: "running" }, { status: "queued", scheduledAt: { gt: now } }],
       },
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],

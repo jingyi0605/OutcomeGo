@@ -5,6 +5,7 @@ import { toJson } from "../service-utils";
 import { loadConnectionNamespaces } from "./namespaces";
 import type { PluginTransport } from "./transport";
 import { isUnknownPluginOutcome } from "./invocation-outcomes";
+import { assertReadonlyConnectorTool, type OutcomeResearchScope } from "./research";
 import {
   definitionFromManifest,
   toolSnapshot,
@@ -26,6 +27,7 @@ export class PluginInvocations {
       arguments: unknown;
       /** Server-side callers only: a host-only tool, absent from the Bot-visible snapshot. */
       hostTool?: boolean;
+      research?: OutcomeResearchScope;
     },
     signal?: AbortSignal
   ): Promise<unknown> => {
@@ -57,6 +59,11 @@ export class PluginInvocations {
     const connector = definitionFromManifest(connection.installation.manifest)?.connections.find(
       (c) => c.key === connection.connectorKey
     );
+    if (request.research) {
+      if (request.hostTool || connectorHostTools(connector).includes(request.toolName))
+        throw new ApiError(403, "readonly_mcp_tool_required", "Research turns can call only Bot-visible read-only connector tools");
+      assertReadonlyConnectorTool(connection, request.toolName);
+    }
     if (
       connector?.deviceLink &&
       Object.entries(connector.deviceLink).some(
@@ -116,7 +123,7 @@ export class PluginInvocations {
           `Plugin call is already ${previous.status}`
         );
       }
-      await tx.pluginInvocation.create({
+      const invocation = await tx.pluginInvocation.create({
         data: {
           callId: request.callId,
           connectionId: request.connectionId,
@@ -126,6 +133,12 @@ export class PluginInvocations {
           arguments: toJson(request.arguments),
         },
       });
+      if (request.research) await tx.pluginActivity.create({ data: {
+        installationId: connection.installationId, connectionId: connection.id, botId: request.botId,
+        kind: "research_readonly.tool_authorized", summary: `Authorized read-only ${request.toolName}`,
+        metadata: toJson({ invocationId: invocation.id, runId: request.runId, toolName: request.toolName, accessMode: "research_readonly",
+          ...request.research, sourceBotId: request.research.borrowedBotId ?? request.botId }),
+      } });
       return { completed: false as const };
     });
     if (prepared.completed) return prepared.result;

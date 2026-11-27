@@ -1,14 +1,14 @@
 import { ApiError } from "@outcomego/contracts";
 import { json } from "../http";
 import type { ExternalCalendarService } from "../services/external-calendar-service";
-import type { OwnerTodoService } from "../services/owner-todo-service";
+import type { OutcomeService } from "../services/outcome-service";
 import type { RouteContext } from "./context";
 
 const uuid = /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i;
 
 export const createExternalCalendarRoutes = (
   external: ExternalCalendarService,
-  owners: Pick<OwnerTodoService, "ownerForSession">,
+  owners: Pick<OutcomeService, "ownerForSession">,
 ) => async (context: RouteContext): Promise<Response | undefined> => {
   const { path, request, url, authMode, authenticatedSessionId } = context;
   if (!path.startsWith("/api/schedule/external")) return undefined;

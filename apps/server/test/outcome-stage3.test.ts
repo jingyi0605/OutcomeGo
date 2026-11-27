@@ -42,7 +42,6 @@ function makeStage3Harness(initialPlan: Row | null, revisionStatus = "pending_ap
 
   const outcome: Row = {
     id: OUTCOME_ID,
-    sourceExploreId: null,
     title: "Multi-bot Outcome",
     status: revisionStatus === "approved" ? "running" : "pending_approval",
     botId: BOT_A,
@@ -52,7 +51,7 @@ function makeStage3Harness(initialPlan: Row | null, revisionStatus = "pending_ap
     updatedAt: new Date(),
     acceptedAt: null,
     cancelledAt: null,
-    trackingMode: "standard",
+    kind: "standard",
     autoClosedAt: null,
     closeSummary: null,
     currentRevisionId: REV_ID,

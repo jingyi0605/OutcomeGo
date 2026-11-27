@@ -59,6 +59,7 @@ const toolDefinition = (candidate: {
     description: candidate.description ?? "",
     inputSchema: candidate.inputSchema ?? { type: "object" },
     risk: destructive ? "destructive" : readOnly ? "read" : "write",
+    ...(candidate.annotations ? { annotations: candidate.annotations } : {}),
   };
 };
 
@@ -84,7 +85,8 @@ export class McpHttpClientManager {
           (tool) => { const parsed = ToolSchema.safeParse(tool); return parsed.success ? parsed.data : undefined; },
           (name) => console.warn(`[mcp:${connectionId}] Left out an MCP tool whose definition is invalid: ${name}`)
         ))
-      ).map(toolDefinition);
+      ).filter((tool) => tool._meta?.["outcomego/hostOnly"] !== true && tool._meta?.["openteam/hostOnly"] !== true)
+        .map(toolDefinition);
     } catch (error) {
       await this.discardExpiredSession(connectionId, managed, error);
       throw error;

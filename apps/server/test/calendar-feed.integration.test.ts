@@ -30,7 +30,7 @@ async function setup() {
     return route({ path: url.pathname, url, request, authenticatedSessionId: sessionId, authMode: "required" } as RouteContext);
   };
   cleanups.push(fixture.cleanup, async () => {
-    await db.ownerTodoItem.deleteMany({ where: { ownerId: { in: [ownerId, otherId] } } });
+    await db.outcome.deleteMany({ where: { ownerId: { in: [ownerId, otherId] } } });
     await db.user.deleteMany({ where: { id: { in: [ownerId, otherId] } } });
   });
   return { ...fixture, ownerId, otherId, feeds, call, schedule };
@@ -92,9 +92,66 @@ describe.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("calendar feed", () =>
       ["Too early", "2026-02-05T23:59:59Z", ownerId], ["Too late", "2026-09-05T00:00:00Z", ownerId],
       ["Different owner", "2026-03-08T15:00:00Z", otherId],
     ] as const) {
-      await db.ownerTodoItem.create({ data: { ownerId: owner, title, note: "private note", createdBy: owner, createdVia: "owner_ui", scheduledAt: new Date(timestamp) } });
+      await db.outcome.create({
+        data: {
+          ownerId: owner,
+          kind: "todo",
+          title,
+          description: "private note",
+          executor: "owner",
+          status: "open",
+          createdBy: owner,
+          scheduledAt: new Date(timestamp),
+        },
+      });
     }
-    const { url } = await feeds.create(ownerId, { name: "Fixture", kinds: ["todo"], includeLinks: false }, "https://calendar.example.test");
+    await db.outcome.create({
+      data: {
+        ownerId,
+        kind: "note",
+        title: "Timed note",
+        status: "active",
+        description: "private note",
+        scheduledAt: new Date("2026-03-10T09:00:00Z"),
+      },
+    });
+    await db.outcome.create({
+      data: {
+        ownerId,
+        kind: "note",
+        title: "Archived note",
+        status: "archived",
+        description: "private note",
+        scheduledAt: new Date("2026-03-10T10:00:00Z"),
+      },
+    });
+    await db.outcome.create({
+      data: {
+        ownerId,
+        kind: "note",
+        title: "Due note",
+        status: "active",
+        dueAt: new Date("2026-03-11T09:00:00Z"),
+      },
+    });
+    await db.outcome.create({
+      data: {
+        ownerId,
+        kind: "note",
+        title: "Cancelled note",
+        status: "cancelled",
+        scheduledAt: new Date("2026-03-10T11:00:00Z"),
+      },
+    });
+    await db.outcome.create({
+      data: {
+        ownerId,
+        kind: "note",
+        title: "Untimed note",
+        status: "active",
+      },
+    });
+    const { url } = await feeds.create(ownerId, { name: "Fixture", kinds: ["todo", "note"], includeLinks: false }, "https://calendar.example.test");
     const path = new URL(url).pathname;
     const methodResponse = await calendarFeedResponse(feeds, new Request(url, { method: "HEAD" }), path, now);
     expect(methodResponse?.status).toBe(405);
@@ -103,7 +160,10 @@ describe.skipIf(!process.env.OUTCOMEGO_TEST_DATABASE_URL)("calendar feed", () =>
     const text = await response?.text();
     expect(text).toContain("SUMMARY:First");
     expect(text).toContain("SUMMARY:Last");
+    expect(text).toContain("SUMMARY:Timed note");
+    expect(text).toContain("SUMMARY:Due note");
     expect(text).not.toMatch(/Too early|Too late|Different owner|private note|DESCRIPTION:|URL:/);
+    expect(text).not.toMatch(/SUMMARY:(Archived|Cancelled|Untimed) note/);
 
     const log = spyOn(console, "error").mockImplementation(() => undefined);
     const failure = spyOn(schedule, "collect").mockRejectedValueOnce(new Error(url));

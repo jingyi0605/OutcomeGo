@@ -141,7 +141,7 @@ export class HumanWorkService implements HumanActionPort {
     if (!revision || revision.revision !== input.expectedContractRevision)
       throw error("review_revision_conflict", "The Contract revision has changed");
     await assertHumanRevisionActive(tx, { outcomeId: outcome.id, contractRevisionId: revision.id }, requester?.id ?? null);
-    if (revision.status !== "approved" || ["cancelled", "accepted"].includes(outcome.status))
+    if (!outcome.botId || revision.status !== "approved" || ["cancelled", "accepted"].includes(outcome.status))
       throw error("human_work_item_not_active", "Human work requires an active approved Contract", { currentStatus: outcome.status });
     if (!requester || requester.outcomeId !== outcome.id || requester.contractRevisionId !== revision.id || requester.executorType !== "agent")
       throw error("human_work_item_not_active", "The requesting Agent WorkItem does not belong to this Contract");

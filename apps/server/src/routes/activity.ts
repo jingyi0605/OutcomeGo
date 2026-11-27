@@ -2,7 +2,7 @@ import { ApiError } from "@outcomego/contracts";
 import { TASK_POLICY_FIELDS } from "@outcomego/contracts/task-policy";
 import { json } from "../http";
 import type { ActivityQuery, ActivityService } from "../services/activity-service";
-import type { OwnerTodoService } from "../services/owner-todo-service";
+import type { OutcomeService } from "../services/outcome-service";
 import { run, type RouteContext } from "./context";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,16 +38,16 @@ function parseActivityQuery(params: URLSearchParams): ActivityQuery {
  * established the deployment's single owner; no body and no bot credential is accepted here, and nothing in this file is
  * reachable from a bot tool.
  */
-export const createActivityRoutes = (activity: ActivityService, todos?: Pick<OwnerTodoService, "ownerForSession" | "attention" | "digest">) => async (context: RouteContext): Promise<Response | undefined> => {
+export const createActivityRoutes = (activity: ActivityService, todos?: Pick<OutcomeService, "ownerForSession" | "attention" | "digest">) => async (context: RouteContext): Promise<Response | undefined> => {
   const { request, path, authMode, authenticatedSessionId, url } = context;
   const list = path === "/api/activity";
   const detail = path.match(/^\/api\/activity\/requests\/([^/]+)$/);
   const needsMe = path === "/api/needs-me";
   if ((!list && !detail && !needsMe) || request.method !== "GET") return undefined;
   if (authMode === "required" && !authenticatedSessionId) throw new ApiError(401, "unauthorized", "Sign in to OutcomeGo to continue");
+  const ownerId = await todos?.ownerForSession(authMode, authenticatedSessionId);
   if (needsMe) {
-    const ownerId = await todos?.ownerForSession(authMode, authenticatedSessionId);
-    const response = await activity.needsMe();
+    const response = await activity.needsMe(undefined, ownerId ?? undefined);
     if (ownerId && todos) {
       const [attention, digest] = await Promise.allSettled([todos.attention(ownerId), todos.digest(ownerId)]);
       if (attention.status === "fulfilled") response.todos = attention.value;
@@ -57,10 +57,10 @@ export const createActivityRoutes = (activity: ActivityService, todos?: Pick<Own
     }
     return json(response, 200, { "cache-control": "no-store" });
   }
-  if (list) return json(await activity.list(parseActivityQuery(url.searchParams)), 200, { "cache-control": "no-store" });
+  if (list) return json(await activity.list({ ...parseActivityQuery(url.searchParams), ...(ownerId ? { ownerId } : {}) }), 200, { "cache-control": "no-store" });
   const requestRunId = detail![1]!;
   if (!UUID.test(requestRunId)) throw badRequest("Expected a UUID");
-  const view = await activity.requestDetail(requestRunId);
+  const view = await activity.requestDetail(requestRunId, undefined, ownerId ?? undefined);
   if (!view) throw new ApiError(404, "request_not_found", "No tracked request has this ID");
   return json(view, 200, { "cache-control": "no-store" });
 };

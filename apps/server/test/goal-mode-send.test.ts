@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { Effect } from "effect";
 import { Schema } from "effect";
 import { SendMessageInput } from "@outcomego/contracts";
-import { ChannelService } from "../src/services/channel-service";
+import { ChannelService, type CreateGoalThreadInTransaction } from "../src/services/channel-service";
 
 describe("goal mode direct message delivery", () => {
   const baseSetup = (options: {
@@ -14,7 +14,7 @@ describe("goal mode direct message delivery", () => {
     const channelId = "channel-direct";
     const clientId = "goal-mode-nonce-1";
     const createdMessages: Array<{ content: string; metadata: Record<string, unknown> }> = [];
-    const createdGoals: Array<{ text: string; titleText?: string; botId: string; postToChat?: boolean; clientRequestId: string }> = [];
+    const createdGoals: Array<Parameters<CreateGoalThreadInTransaction>[1]> = [];
     let acceptedNormalWakes = 0;
 
     const tx = {
@@ -40,6 +40,7 @@ describe("goal mode direct message delivery", () => {
       },
       channelMessage: {
         findFirst: async () => options.replyTo ?? null,
+        findUnique: async () => null,
         create: async ({ data }: { data: { content: string; metadata: Record<string, unknown> } }) => {
           createdMessages.push(data);
           return {
@@ -60,6 +61,7 @@ describe("goal mode direct message delivery", () => {
       run: {
         findUnique: async ({ where }: { where: { id: string } }) => ({ id: where.id }),
       },
+      outcome: { findUnique: async () => ({ title: "Fictional goal", status: "planning" }) },
       session: {
         findUnique: async () => ({ userId: "user-1", expiresAt: new Date(Date.now() + 60_000) }),
       },
@@ -119,15 +121,16 @@ describe("goal mode direct message delivery", () => {
       )
     );
 
-    expect(f.createdMessages).toHaveLength(1);
+    expect(f.createdMessages).toHaveLength(2);
     expect(f.createdMessages[0]!.metadata.goalMode).toBe(true);
+    expect(f.createdMessages[1]!.metadata.outcomeCard).toMatchObject({ outcomeId: "outcome-1" });
     expect(f.createdGoals).toEqual([
       {
-        text: "每周五自动汇总科技新闻",
-        titleText: "每周五自动汇总科技新闻",
-        botId: "bot-1",
-        postToChat: true,
-        clientRequestId: f.clientId,
+        prompt: "每周五自动汇总科技新闻",
+        outcome: {
+          kind: "standard", title: "每周五自动汇总科技新闻", description: "每周五自动汇总科技新闻",
+          botId: "bot-1", clientRequestId: f.clientId,
+        },
       },
     ]);
     expect(f.getAcceptedNormalWakes()).toBe(0);

@@ -21,10 +21,15 @@ export function outcomeFixture() {
     },
     async create(approved = true) {
       const bot = await this.bot();
-      const plan = await prisma.outcomePlanningDraft.create({ data: { botId: bot.id, sourceText: "Compare backups", snapshot: fixtureSnapshot, expiresAt: new Date(Date.now() + 60_000) } });
-      let outcome = await Effect.runPromise(outcomes.createFromDraft({ planId: plan.id, ...fixtureSelections, title: "Backup comparison", clientRequestId: requestId() }, "owner:local"));
+      let outcome = await Effect.runPromise(outcomes.createFromContract({
+        title: "Backup comparison",
+        goal: fixtureSnapshot.goal.options.map(({ text }) => text),
+        acceptance: fixtureSnapshot.acceptance.options.map(({ text, required }) => ({ statement: text, required })),
+        boundaries: { included: fixtureSnapshot.boundaries.options.map(({ text }) => text), excluded: [] },
+        clientRequestId: requestId(),
+      }, bot.id, "owner:local"));
       if (approved) outcome = await Effect.runPromise(outcomes.approve(outcome.id, 1, { expectedRevision: 1, confirmationText: "I confirm", clientRequestId: requestId() }, "owner:local"));
-      return { bot, plan, outcome };
+      return { bot, outcome };
     },
     async completed() {
       const result = await this.create();

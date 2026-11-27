@@ -20,7 +20,7 @@ export class KnowledgeScopeService implements KnowledgeScopeResolver {
       where: { id: scope.outcomeId },
       include: { currentRevision: true, bot: { select: { status: true } } },
     });
-    if (!outcome || outcome.bot.status === "archived" || scope.projectScope !== `bot:${outcome.botId}`)
+    if (!outcome?.bot || outcome.bot.status === "archived" || scope.projectScope !== `bot:${outcome.botId}`)
       throw new KnowledgeError("knowledge_source_forbidden", "The source does not belong to this Outcome's Bot");
     if (outcome.currentRevision?.revision !== scope.contractRevision) {
       const historical = this.allowHistoricalRevision && await this.prisma.outcomeContractRevision.findFirst({

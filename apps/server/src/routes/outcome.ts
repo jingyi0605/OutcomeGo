@@ -1,65 +1,93 @@
 import { ApiError } from "@outcomego/contracts";
 import {
-  AdoptPrereviewInput, CreateOutcomePlanInput, CreateOutcomeInput, CreateContractRevisionInput, ApproveContractRevisionInput,
+  AdoptPrereviewInput, CreateContractRevisionInput, ApproveContractRevisionInput,
   CancelOutcomeInput, DecideOutcomeAcceptanceInput, SubmitOutcomeReviewInput, OutcomeReworkInput, StartOutcomeRunInput, decodeOutcomeCursor, parseListOutcomesQuery,
   SetOutcomeDueInput, SetWorkItemScheduleInput,
+  ActOnOutcomeInput, ConvertOutcomeInput, CreateOutcomeAutoAcceptRuleInput, CreateOutcomeInput,
+  OutcomeIntakeInput, UpdateOutcomeAutoAcceptRuleInput, UpdateOutcomeInput,
 } from "@outcomego/contracts/outcomes";
-import { CreateOutcomeThreadInput, RequestOutcomeInspectionInput, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
+import { RequestOutcomePlanInput, SendOutcomeThreadMessageInput } from "@outcomego/contracts/outcome-thread";
 import { OutcomeAttentionInput, ReconcileOutcomeInput } from "@outcomego/contracts/outcome-runtime";
-import { outcomeDispatchEnabled, type ActorRef } from "@outcomego/messaging";
+import { outcomeDispatchEnabled } from "@outcomego/messaging";
 import { json, parseBody } from "../http";
 import { mapOutcomeError } from "../services/outcome-write";
 import { run, type RouteContext } from "./context";
+import { outcomeOwner, requireOutcomeOwner } from "./outcome-owner";
 export function requireOutcomeDispatch(): void {
   if (!outcomeDispatchEnabled())
     throw new ApiError(503, "outcome_dispatch_disabled", "New Outcome execution is temporarily disabled", { retryable: true });
-}
-export async function outcomeActor(context: RouteContext): Promise<ActorRef> {
-  // The shared main request gate has already authenticated the request.
-  if (!context.authenticatedSessionId) return "owner:local";
-  const session = await context.app.prisma.session.findUnique({ where: { id: context.authenticatedSessionId }, select: { userId: true, expiresAt: true } });
-  if (!session || session.expiresAt <= new Date()) throw new ApiError(401, "unauthorized", "Sign in to OutcomeGo to continue");
-  return `user:${session.userId}`;
 }
 export async function outcomeRoutes(context: RouteContext): Promise<Response | undefined> {
   const { path, request, app, url } = context;
   if (!/^\/api\/outcomes(?:\/|$)/.test(path)) return;
   try {
-    const actor = await outcomeActor(context);
-    if (path === "/api/outcomes/threads" && request.method === "POST") {
-      requireOutcomeDispatch();
-      return json(await app.outcomeThreads.create(await parseBody(request, CreateOutcomeThreadInput), actor), 202);
-    }
+    const { ownerId, actor } = await outcomeOwner(context);
     const workThreads = path.match(/^\/api\/outcomes\/work-threads\/([\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12})$/i);
     if (workThreads && request.method === "GET") {
       return json(await run(app.outcomes.listWorkThreads(
         workThreads[1]!, url.searchParams.get("archived") === "true",
-        decodeOutcomeCursor(url.searchParams.get("cursor")),
+        decodeOutcomeCursor(url.searchParams.get("cursor")), undefined, ownerId,
       )), 200, { "cache-control": "no-store" });
     }
     if (path === "/api/outcomes") {
-      if (request.method === "GET") return json(await run(app.outcomes.list(parseListOutcomesQuery(url.searchParams))));
+      if (request.method === "GET") return json(await run(app.outcomes.list(parseListOutcomesQuery(url.searchParams), actor)), 200, { "cache-control": "no-store" });
+      if (request.method === "POST") {
+        const input = await parseBody(request, CreateOutcomeInput);
+        if (input.kind === "standard" && input.autoPlan !== false) requireOutcomeDispatch();
+        const result = await run(app.outcomes.create(input, actor));
+        return json(result, result.turn ? 202 : 201);
+      }
     }
-    const match = path.match(/^\/api\/outcomes\/([\da-f-]{36})(.*)$/i);
+    if (path === "/api/outcomes/intake" && request.method === "POST")
+      return json(await run(app.outcomes.createIntake(await parseBody(request, OutcomeIntakeInput), actor)), 202);
+    const rule = path.match(/^\/api\/outcomes\/auto-accept-rules(?:\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}))?$/i);
+    if (rule) {
+      const ruleId = rule[1];
+      if (!ruleId && request.method === "GET") return json(await app.outcomes.listAutoAcceptRules(ownerId), 200, { "cache-control": "no-store" });
+      if (!ruleId && request.method === "POST") return json(await app.outcomes.createAutoAcceptRule(ownerId, await parseBody(request, CreateOutcomeAutoAcceptRuleInput)), 201);
+      if (ruleId && request.method === "PATCH") return json(await app.outcomes.updateAutoAcceptRule(ownerId, ruleId, await parseBody(request, UpdateOutcomeAutoAcceptRuleInput)));
+      if (ruleId && request.method === "DELETE") {
+        await app.outcomes.deleteAutoAcceptRule(ownerId, ruleId);
+        return new Response(null, { status: 204 });
+      }
+      return undefined;
+    }
+    const match = path.match(/^\/api\/outcomes\/([\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12})(\/.*)?$/i);
     if (!match) return;
     const id = match[1]!, tail = match[2];
-    if (!tail && request.method === "GET") return json(await run(app.outcomes.get(id)));
-    if (tail === "/thread" && request.method === "GET") return json(await app.outcomeThreads.list(id), 200, { "cache-control": "no-store" });
+    if (!tail && request.method === "GET") return json(await run(app.outcomes.get(id, actor)), 200, { "cache-control": "no-store" });
+    if (tail === "/attachments" && request.method === "GET") {
+      const { attachments } = await run(app.outcomes.get(id, actor));
+      return json({ attachments }, 200, { "cache-control": "no-store" });
+    }
+    if (!tail && request.method === "PATCH") return json(await run(app.outcomes.update(id, await parseBody(request, UpdateOutcomeInput), actor)));
+    if (tail === "/convert" && request.method === "POST") {
+      const input = await parseBody(request, ConvertOutcomeInput);
+      await requireOutcomeOwner(context, id, ownerId);
+      if (input.targetKind === "standard" && input.autoPlan !== false) requireOutcomeDispatch();
+      const result = await run(app.outcomes.convert(id, input, actor));
+      return json(result, result.turn ? 202 : 200);
+    }
+    if (tail === "/actions" && request.method === "POST")
+      return json(await run(app.outcomes.act(id, await parseBody(request, ActOnOutcomeInput), actor)));
+    if (tail === "/plan" && request.method === "POST") {
+      await requireOutcomeOwner(context, id, ownerId);
+      requireOutcomeDispatch();
+      return json(await app.outcomeThreads.plan(id, await parseBody(request, RequestOutcomePlanInput), actor), 202);
+    }
+    if (tail === "/inbox" || tail === "/work-items" || tail?.startsWith("/knowledge/")) return undefined;
+    await requireOutcomeOwner(context, id, ownerId);
+    if (tail === "/thread" && request.method === "GET") {
+      await requireOutcomeOwner(context, id, ownerId);
+      return json(await app.outcomeThreads.list(id), 200, { "cache-control": "no-store" });
+    }
     if (tail === "/thread/messages" && request.method === "POST") {
+      await requireOutcomeOwner(context, id, ownerId);
       requireOutcomeDispatch();
       return json(await app.outcomeThreads.send(id, await parseBody(request, SendOutcomeThreadMessageInput), actor), 202);
     }
-    if (tail === "/inspection" && request.method === "POST") {
-      requireOutcomeDispatch();
-      return json(await app.outcomeThreads.inspect(id, null, await parseBody(request, RequestOutcomeInspectionInput), actor), 202);
-    }
-    const inspectionTask = tail?.match(/^\/work-items\/([\da-f-]{36})\/inspection$/i);
-    if (inspectionTask && request.method === "POST") {
-      requireOutcomeDispatch();
-      return json(await app.outcomeThreads.inspect(id, inspectionTask[1]!, await parseBody(request, RequestOutcomeInspectionInput), actor), 202);
-    }
     if (tail === "/brief" && request.method === "GET")
-      return json(await app.outcomeBriefs.get(await run(app.outcomes.get(id))));
+      return json(await app.outcomeBriefs.get(await run(app.outcomes.get(id, actor))));
     if (tail === "/recovery" && request.method === "GET") return json(await run(app.outcomeRecovery.get(id)));
     if (tail === "/reconcile" && request.method === "POST")
       return json(await run(app.outcomeRecovery.reconcile(id, await parseBody(request, ReconcileOutcomeInput), actor)));
@@ -70,7 +98,7 @@ export async function outcomeRoutes(context: RouteContext): Promise<Response | u
     if (revisionRead && request.method === "GET") return json(await run(app.outcomes.getRevision(id, Number(revisionRead[1]))));
     const summaryRead = tail?.match(/^\/revisions\/([1-9]\d*)\/results-summary$/);
     if (summaryRead && request.method === "GET") {
-      const outcome = await run(app.outcomes.get(id));
+      const outcome = await run(app.outcomes.get(id, actor));
       const number = Number(summaryRead[1]);
       const revision = outcome.currentRevisionView?.revision === number
         ? outcome.currentRevisionView

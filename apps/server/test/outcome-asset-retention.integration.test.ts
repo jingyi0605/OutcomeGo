@@ -60,13 +60,11 @@ describe.skipIf(!url)("durable Outcome asset retention", () => {
       await Promise.all(names.filter(name => name !== "recent").flatMap(name =>
         [".blob", ".json"].map(extension => utimes(join(root, `${refs[name].assetId}${extension}`), old, old))
       ));
-      let planningPrunes = 0;
       // Exercise the actual maintenance method without constructing or starting application services.
       const app = Object.assign(Object.create(AppService.prototype), {
-        prisma, assets, outcomePlanning: { pruneExpired: async () => { planningPrunes += 1; } },
+        prisma, assets,
       }) as { pruneUnreferencedAssets(): Promise<void> };
       await app.pruneUnreferencedAssets();
-      expect(planningPrunes).toBe(1);
       for (const name of names.filter(name => name !== "orphan" && name !== "malformed")) {
         expect(await assets.metadata(refs[name].assetId)).toMatchObject({ assetId: refs[name].assetId });
       }
@@ -111,7 +109,7 @@ describe.skipIf(!url)("durable Outcome asset retention", () => {
         return realPrune(...args);
       };
       const app = Object.assign(Object.create(AppService.prototype), {
-        prisma, assets: f.assets, outcomePlanning: { pruneExpired: async () => {} },
+        prisma, assets: f.assets,
       }) as { pruneUnreferencedAssets(): Promise<void> };
       const pruning = app.pruneUnreferencedAssets();
       await snapshot;
@@ -167,7 +165,7 @@ describe.skipIf(!url)("durable Outcome asset retention", () => {
         }));
       };
       const app = Object.assign(Object.create(AppService.prototype), {
-        prisma, assets: f.assets, outcomePlanning: { pruneExpired: async () => {} },
+        prisma, assets: f.assets,
       }) as { pruneUnreferencedAssets(): Promise<void> };
       const pruning = app.pruneUnreferencedAssets();
       await removing;

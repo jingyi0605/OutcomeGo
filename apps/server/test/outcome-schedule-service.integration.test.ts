@@ -60,6 +60,7 @@ describe.skipIf(!url)("owner changes a task's schedule (specs/004.10 task 2.6)",
     expect(saved.dueAt!.toISOString()).toBe(new Date(dueAt).toISOString());
     expect(saved.estimateMinutes).toBe(45);
     expect(detail.workItems.find((entry) => entry.id === item.id)).toMatchObject({ estimateMinutes: 45 });
+    expect(detail.revision).toBe(t.h.outcome.revision + 1);
     const [event] = await t.events();
     expect(event!.payload).toMatchObject({ payload: { target: "work_item", workItemId: item.id, source: "owner", previous: { scheduledAt: previous, dueAt: null, estimateMinutes: null }, estimateMinutes: 45 } });
     const after = await t.h.db.outcomeContractRevision.findUniqueOrThrow({ where: { id: t.h.revision.id } });
@@ -308,6 +309,7 @@ describe.skipIf(!url)("owner sets the goal's deadline (specs/004.10 task 2.6)", 
     const first = at(2000);
     const detail = await due(t, first);
     expect(detail.dueAt).toBe(new Date(first).toISOString());
+    expect(detail.revision).toBe(t.h.outcome.revision + 1);
     const second = at(3000);
     await due(t, second);
     await due(t, null);
@@ -341,7 +343,7 @@ describe.skipIf(!url)("owner sets the goal's deadline (specs/004.10 task 2.6)", 
 
   test("a goal a bot registered for itself can have a deadline too", async () => {
     const t = await setup();
-    await t.h.db.outcome.update({ where: { id: t.h.outcome.id }, data: { trackingMode: "tracked" } });
+    await t.h.db.outcome.update({ where: { id: t.h.outcome.id }, data: { kind: "tracked", status: "running" } });
     await due(t, at(2000));
     expect((await t.h.db.outcome.findUniqueOrThrow({ where: { id: t.h.outcome.id } })).dueAt).not.toBeNull();
   });

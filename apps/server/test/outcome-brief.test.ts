@@ -8,11 +8,23 @@ import { Effect } from "effect";
 const outcome: OutcomeDetail = {
   id: "00000000-0000-4000-8000-000000000001",
   title: "Clean storage",
+  revision: 1,
+  currentRevision: 1,
   status: "pending_approval",
+  kind: "standard",
+  kindMeta: {},
   botId: "bot",
+  parentOutcomeId: null,
+  attachments: [],
+  tags: [],
+  urgency: "normal",
+  executor: "bot",
+  scheduledAt: null,
+  dueAt: null,
+  followUpAt: null,
+  snoozeUntil: null,
   description:
     "Storage is almost full. Confirm the backup first. Measure usage. Deletion could lose data.",
-  currentRevision: 1,
   currentRevisionView: {
     id: "revision-1",
     revision: 1,
@@ -31,9 +43,17 @@ const outcome: OutcomeDetail = {
     createdAt: "2026-11-18T00:00:00Z",
   },
   resumeStatus: null,
+  sourceRef: null,
+  prepareAt: null,
+  prepareInstruction: null,
+  dedupeKey: null,
+  createdBy: "owner:local",
   createdAt: "2026-11-18T00:00:00Z",
   updatedAt: "2026-11-18T00:00:00Z",
   acceptedAt: null,
+  cancelledAt: null,
+  autoClosedAt: null,
+  closeSummary: null,
   revisions: [],
   workItems: [],
   outputs: [],
@@ -152,7 +172,10 @@ test("brief HTTP reads use the authenticated Outcome path and cannot approve or 
       generations++;
       return { text: JSON.stringify(generated) };
     }),
-    prisma: { session: { findUnique: async () => null } },
+    prisma: {
+      session: { findUnique: async () => null },
+      outcome: { findFirst: async () => ({ id: outcome.id }) },
+    },
   };
   const path = `/api/outcomes/${outcome.id}/brief`;
   const call = (method: string, session: string | null = null) =>
@@ -161,7 +184,7 @@ test("brief HTTP reads use the authenticated Outcome path and cannot approve or 
       path,
       url: new URL(`http://localhost${path}`),
       request: new Request(`http://localhost${path}`, { method }),
-      authMode: "disabled",
+      authMode: session ? "session" : "disabled",
       authenticatedSessionId: session,
     } as unknown as import("../src/routes/context").RouteContext);
   const response = await call("GET");

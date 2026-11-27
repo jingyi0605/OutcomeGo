@@ -1,7 +1,7 @@
 import { ApiError } from "@outcomego/contracts";
 import { TIME_ITEM_KINDS, type ScheduleQuery, type TimeItemKind } from "@outcomego/contracts/task-overview";
 import { json } from "../http";
-import type { OwnerTodoService } from "../services/owner-todo-service";
+import type { OutcomeService } from "../services/outcome-service";
 import type { ScheduleService } from "../services/schedule-service";
 import type { RouteContext } from "./context";
 
@@ -27,7 +27,7 @@ function parseQuery(params: URLSearchParams): ScheduleQuery {
   };
 }
 
-export const createScheduleRoutes = (schedule: ScheduleService, owners: Pick<OwnerTodoService, "ownerForSession">) =>
+export const createScheduleRoutes = (schedule: ScheduleService, owners: Pick<OutcomeService, "ownerForSession">) =>
   async (context: RouteContext): Promise<Response | undefined> => {
     if (context.path !== "/api/schedule" || context.request.method !== "GET") return undefined;
     const ownerId = await owners.ownerForSession(context.authMode, context.authenticatedSessionId);

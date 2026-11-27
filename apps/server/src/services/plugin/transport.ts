@@ -14,6 +14,7 @@ import {
 import { toJson } from "../service-utils";
 import { PLUGIN_UNSAVED_UNKNOWN_OUTCOME } from "./invocation-outcomes";
 import { assertConnectedPublicationAllowed } from "./connected-publication";
+import { assertReadonlyConnectorTool, outcomeResearchScope, researchTurnSelect } from "./research";
 import {
   bitwardenInstanceEnvironment,
   boundPluginResult,
@@ -50,7 +51,9 @@ export class PluginTransport {
   async executeInvocation(callId: string, signal?: AbortSignal): Promise<unknown> {
     const invocation = await this.prisma.pluginInvocation.findUnique({
       where: { callId },
-      include: { connection: true },
+      include: { connection: true, run: { select: {
+        origin: true, botId: true, status: true, outcomeThreadId: true, outcomeThreadTurn: { select: researchTurnSelect },
+      } } },
     });
     if (!invocation)
       throw new ApiError(404, "plugin_invocation_not_found", "Plugin call not found");
@@ -83,6 +86,14 @@ export class PluginTransport {
       const tool = toolSnapshot(current.toolSnapshot).find(
         (candidate) => candidate.name === invocation.toolName
       );
+      const research = invocation.run ? outcomeResearchScope(invocation.run) : null;
+      if (research) {
+        if (invocation.run?.botId !== invocation.botId)
+          throw new ApiError(409, "tool_context_invalid", "The persisted Outcome turn is not active");
+        if (hostTools.includes(invocation.toolName))
+          throw new ApiError(403, "readonly_mcp_tool_required", "Research turns can call only Bot-visible read-only connector tools");
+        assertReadonlyConnectorTool(current, invocation.toolName);
+      }
       if (!tool && !hostTools.includes(invocation.toolName))
         throw new ApiError(404, "plugin_tool_not_found", "The tool is no longer available");
       const connected = invocation.callId.startsWith("connected-channel:");
@@ -445,7 +456,10 @@ export class PluginTransport {
   /** Host-only tools (for example an event poll) are callable by the server, never listed for Bots. */
   private stdioTools(value: unknown): PluginToolDefinition[] {
     return (Array.isArray(value) ? value : [])
-      .filter((candidate) => jsonObject(jsonObject(candidate)._meta)[HOST_ONLY_TOOL_META] !== true)
+      .filter((candidate) => {
+        const meta = jsonObject(jsonObject(candidate)._meta);
+        return meta[HOST_ONLY_TOOL_META] !== true && meta["openteam/hostOnly"] !== true;
+      })
       .map((candidate) => {
         const tool = jsonObject(candidate);
         if (typeof tool.name !== "string") throw new Error("MCP tool is missing a name");
@@ -457,6 +471,7 @@ export class PluginTransport {
           description: typeof tool.description === "string" ? tool.description : "",
           inputSchema: jsonObject(tool.inputSchema),
           risk: destructive ? "destructive" : readOnly ? "read" : "write",
+          ...(Object.keys(annotations).length ? { annotations } : {}),
         };
       });
   }

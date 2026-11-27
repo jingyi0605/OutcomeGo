@@ -19,13 +19,19 @@ test("acceptance route rejects blank feedback and accepts a whole-result decisio
   const url = new URL(`http://localhost/api/outcomes/${id}/acceptance`);
   const received: unknown[] = [];
   const run = (input: object) => outcomeRoutes({
-    app: { outcomeReviews: { decide: (id: string, input: unknown, actor: string) => {
-      received.push({ id, input, actor });
-      return Effect.succeed({ id });
-    } } } as unknown as RouteContext["app"],
+    app: {
+      prisma: { outcome: { findFirst: async ({ where }: { where: { id: string; ownerId: string } }) =>
+        where.id === id && where.ownerId === "local" ? { id } : null } },
+      outcomeReviews: { decide: (id: string, input: unknown, actor: string) => {
+        received.push({ id, input, actor });
+        return Effect.succeed({ id });
+      } },
+    } as unknown as RouteContext["app"],
     path: url.pathname,
     request: new Request(url, { method: "POST", body: JSON.stringify(input) }),
     url,
+    authMode: "disabled",
+    authenticatedSessionId: null,
   } as RouteContext);
   const base = { expectedRevision: 1, clientRequestId: "request-123" };
   await expect(run({ ...base, decision: "reject", reason: "  " })).rejects.toThrow();

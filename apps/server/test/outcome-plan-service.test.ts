@@ -270,7 +270,6 @@ test("OutcomeThreadTools rejects SavePlan missing nature with offending task key
   const tools = new OutcomeThreadTools(
     threadPrisma as never,
     {} as never,
-    undefined,
     f.service
   );
   await expect(

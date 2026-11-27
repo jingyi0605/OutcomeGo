@@ -66,26 +66,30 @@ describe.skipIf(!url)("Cross-phase Outcome compatibility and failure boundaries"
     });
   }
 
-  test("planning inference failure keeps one readable draft and no execution side effects", async () => {
-    const { OutcomePlanningService } = await import("../src/services/outcome-planning-service");
+  test("planner enqueue failure keeps one readable intake note and no execution side effects", async () => {
+    const { OutcomeService } = await import("../src/services/outcome-service");
     const m = await modules();
     const f = await m.recoveryFixture();
     const key = crypto.randomUUID();
     try {
       let calls = 0;
-      const planning = new OutcomePlanningService(f.db, async () => { calls++; throw new Error(canary); });
-      const input = { sourceText: "Fictional plan", context: { botId: f.bot.id }, clientRequestId: key };
-      const first = await m.Effect.runPromise(m.Effect.either(planning.create(input)));
-      const retry = await m.Effect.runPromise(m.Effect.either(planning.create(input)));
-      expect(first._tag).toBe("Left"); expect(retry._tag).toBe("Left"); expect(calls).toBe(1);
-      const drafts = await f.db.outcomePlanningDraft.findMany({ where: { botId: f.bot.id } });
-      expect(drafts).toHaveLength(1); expect(drafts[0]!.status).toBe("failed");
-      expect(JSON.stringify(drafts[0]!.error)).not.toContain(canary);
+      const service = new OutcomeService(f.db, f.messaging, undefined, undefined, undefined, {
+        enqueuePlan: async () => { calls++; throw new Error(canary); },
+      });
+      const input = { text: "Fictional plan", botId: f.bot.id, clientRequestId: key };
+      const first = await m.Effect.runPromise(service.createIntake(input, actor));
+      const retry = await m.Effect.runPromise(service.createIntake(input, actor));
+      expect(first).toMatchObject({ turn: null, outcome: {
+        kind: "note", status: "active", description: input.text, kindMeta: { triageStatus: "failed" },
+      } });
+      expect(retry).toEqual(first);
+      expect(calls).toBe(1);
+      expect(JSON.stringify(first)).not.toContain(canary);
       expect(await f.db.run.count({ where: { outcomeWorkItemId: f.item.id } })).toBe(0);
-      expect(await f.db.outcome.count({ where: { botId: f.bot.id } })).toBe(1);
+      expect(await f.db.outcome.count({ where: { botId: f.bot.id, kind: "note" } })).toBe(1);
       expect(await f.foreground()).toEqual(f.foregroundBefore);
     } finally {
-      await f.db.idempotencyRecord.deleteMany({ where: { scope: "outcome-plan", key } });
+      await f.db.idempotencyRecord.deleteMany({ where: { scope: { startsWith: "outcome-intake:" }, key } });
       await f.cleanup();
     }
   });

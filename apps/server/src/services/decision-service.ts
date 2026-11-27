@@ -149,8 +149,8 @@ export class DecisionService {
     }
     if (!row.workItemId) {
       // A tracked task has no work item to resume: record the choice and return it to the Bot through GetOutcome.
-      const outcome = await tx.outcome.findUniqueOrThrow({ where: { id: row.outcomeId }, select: { trackingMode: true } });
-      if (outcome.trackingMode === "tracked" && effect === "plan_only") {
+      const outcome = await tx.outcome.findUniqueOrThrow({ where: { id: row.outcomeId }, select: { kind: true } });
+      if (outcome.kind === "tracked" && effect === "plan_only") {
         await recomputeOutcomeStatus(tx, row.outcomeId, actor);
         return { status: "recorded", workItemIds: [] };
       }

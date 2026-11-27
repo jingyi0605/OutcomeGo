@@ -161,30 +161,6 @@ test.skipIf(!databaseUrl)(
         });
       }
 
-      const runAt = new Date(Date.now() + 3_600_000).toISOString();
-      const created = await request("POST", `/api/bots/${botId}/routines`, {
-        name: "Prepare before a meeting", prompt: "Remind me of the meeting", enabled: true,
-        trigger: { type: "once", runAt },
-      });
-      expect(created.status).toBe(201);
-      const { id: onceId, revision } = await created.json() as { id: string; revision: number };
-      const target = `/api/routines/${onceId}/prepare`;
-      const original = await app.prisma.routine.findUniqueOrThrow({ where: { id: onceId } });
-      expect((await request("POST", target, {})).status).toBe(400);
-      expect((await request("POST", target, { expectedRevision: revision + 1 })).status).toBe(409);
-      const accepted = await request("POST", target, { expectedRevision: revision });
-      expect(accepted.status).toBe(202);
-      const receipt = await accepted.json();
-      expect(receipt).toMatchObject({ routineId: onceId, revision, kind: "preparation", status: "queued" });
-      const history = await request("GET", `/api/routines/${onceId}/executions`, {});
-      expect(await history.json()).toEqual([{ ...(receipt as object), result: { summary: null, delivered: false } }]);
-      expect(await app.prisma.routine.findUniqueOrThrow({ where: { id: onceId } })).toEqual(original);
-      const goals = await request("GET", "/api/outcomes/scheduled-goals", {});
-      expect(await goals.json()).toContainEqual(expect.objectContaining({ id: onceId, runAt, state: "scheduled" }));
-      const goalPath = `/api/outcomes/scheduled-goals/${onceId}`;
-      expect(await (await request("GET", goalPath, {})).json()).toMatchObject({ id: onceId, executions: [{ kind: "preparation", status: "queued" }] });
-      expect((await request("DELETE", `/api/routines/${onceId}`, { expectedRevision: revision })).status).toBe(200);
-      expect(await (await request("GET", goalPath, {})).json()).toMatchObject({ id: onceId, state: "cancelled", executions: [{ kind: "preparation" }] });
     } finally {
       await app.prisma.channel.deleteMany({ where: { id: { in: [groupId, channelId] } } });
       await app.prisma.bot.deleteMany({ where: { id: botId } });

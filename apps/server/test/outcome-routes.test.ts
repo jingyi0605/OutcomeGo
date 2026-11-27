@@ -1,10 +1,8 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { Effect } from "effect";
 import { outcomeRoutes } from "../src/routes/outcome";
 import { errorResponse } from "../src/http";
 import { OutcomeReviewService } from "../src/services/outcome-review-service";
-import { OutcomeThreadService } from "../src/services/outcome-thread-service";
 import type { AgentMessaging } from "@outcomego/messaging";
 import type { RouteContext } from "../src/routes/context";
 import { outcomeFixture, testDatabaseUrl, requestId } from "./fixtures/outcome-fixture";
@@ -24,7 +22,7 @@ test("main registers Outcome behind the existing authentication middleware", () 
 describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
   const f = outcomeFixture();
   const reviews = new OutcomeReviewService(f.prisma, {} as AgentMessaging, async () => { throw new Error("offline"); });
-  const app = { prisma: f.prisma, outcomes: f.outcomes, outcomeThreads: {} as OutcomeThreadService, outcomeReviews: reviews, outcomeSchedule: undefined as unknown as OutcomeScheduleService };
+  const app = { prisma: f.prisma, outcomes: f.outcomes, outcomeThreads: {}, outcomeReviews: reviews, outcomeSchedule: undefined as unknown as OutcomeScheduleService };
   afterAll(() => f.close());
   async function call(path: string, method = "GET", body?: unknown, authMode: "required" | "disabled" = "disabled", sessionId: string | null = null) {
     const url = new URL(`http://localhost/api/v0${path}`);
@@ -32,39 +30,21 @@ describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
     try { return (await outcomeRoutes({ app, request, url, path: url.pathname.replace("/api/v0", "/api"), authMode, authenticatedSessionId: sessionId } as unknown as RouteContext))!; }
     catch (error) { return errorResponse(error); }
   }
-  test("goal thread creation, contract approval, and reads preserve the owner and response shapes", async () => {
+  test("Go intake persists a note before asynchronous triage and reads through unified routes", async () => {
     const fixture = await outcomeThreadFixture();
-    const original = app.outcomeThreads;
     const previous = await fixture.db.featureSettings.findUnique({ where: { id: "global" } });
     const input = { text: "  Compare backups\nCompare costs  ", botId: fixture.bot.id, clientRequestId: requestId() };
-    app.outcomeThreads = new OutcomeThreadService(fixture.db, fixture.messaging, f.outcomes);
     try {
       await fixture.db.featureSettings.upsert({
         where: { id: "global" },
         create: { id: "global", outcomesEnabled: true },
         update: { outcomesEnabled: true },
       });
-      const created = await call("/outcomes/threads", "POST", input);
+      const created = await call("/outcomes/intake", "POST", input);
       expect(created.status).toBe(202);
-      const { outcome, turn } = await created.json() as { outcome: { id: string }; turn: { id: string } };
-      expect(turn).toMatchObject({ trigger: input.text, purpose: "plan", status: "queued" });
-      expect(await (await call(`/outcomes/${outcome.id}/thread`)).json()).toMatchObject({ turns: [turn] });
-      expect(await (await call("/outcomes/threads", "POST", input)).json()).toMatchObject({ outcome: { id: outcome.id }, turn });
-      const revision = await Effect.runPromise(f.outcomes.saveAgentContract(outcome.id, {
-        title: "Comparison",
-        goal: ["Compare backups"],
-        acceptance: [{ statement: "Compare costs", required: true }],
-        boundaries: { included: [], excluded: [] },
-        clientRequestId: requestId(),
-      }, `bot:${fixture.bot.id}`));
-      expect(revision.currentRevisionView).toMatchObject({ revision: 1, status: "pending_approval" });
-      // Approval waits for the planner turn to end, so settle it before the owner approves.
-      await fixture.db.outcomeThreadTurn.updateMany({ where: { thread: { outcomeId: outcome.id }, status: { in: ["queued", "running"] } }, data: { status: "completed" } });
-      await fixture.db.$transaction((tx) => f.outcomes.recomputeStatus(tx, outcome.id, "system:test"));
-      const approve ={ expectedRevision: 1, confirmationText: "I confirm", actorRef: "bot:forged", approvedBy: "forged", clientRequestId: requestId() };
-      const approved = await call(`/outcomes/${outcome.id}/revisions/1/approve`, "POST", approve);
-      expect(approved.status).toBe(200);
-      expect(await approved.json()).toMatchObject({ currentRevisionView: { approvedBy: "owner:local" } });
+      const { outcome, turn } = await created.json() as { outcome: { id: string; kind: string; status: string }; turn: unknown };
+      expect(outcome).toMatchObject({ kind: "note", status: "active" });
+      expect(turn).toBeNull();
       const list = await (await call("/outcomes?limit=1")).json();
       expect(list).toHaveProperty("items");
       expect(list).toHaveProperty("nextCursor");
@@ -72,10 +52,9 @@ describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
       expect(detail).toHaveProperty("evidence");
       expect(detail).toHaveProperty("reviews");
     } finally {
-      app.outcomeThreads = original;
       if (previous) await fixture.db.featureSettings.update({ where: { id: "global" }, data: { outcomesEnabled: previous.outcomesEnabled } });
       else await fixture.db.featureSettings.deleteMany({ where: { id: "global" } });
-      await fixture.db.idempotencyRecord.deleteMany({ where: { scope: "outcome-thread-create", key: input.clientRequestId } });
+      await fixture.db.idempotencyRecord.deleteMany({ where: { scope: { startsWith: "outcome-intake:" }, key: input.clientRequestId } });
       await fixture.cleanup();
     }
   });
@@ -85,13 +64,14 @@ describe.skipIf(!testDatabaseUrl)("Outcome HTTP routes", () => {
     expect(await missing.json()).toMatchObject({ error: { code: "outcome_not_found", details: { retryable: false } } });
     const invalid = await call("/outcomes?status=fabricated"); expect(invalid.status).toBe(400);
     expect(await invalid.json()).toMatchObject({ error: { code: "invalid_outcome_query" } });
-    expect((await call("/outcomes/threads", "POST", { text: "" })).status).toBe(400);
+    expect((await call("/outcomes/intake", "POST", { text: "" })).status).toBe(400);
   });
   test("session actors come from persisted authentication, ignoring forged reviewer fields", async () => {
     const userId = `user-${crypto.randomUUID()}`, sessionId = `session-${crypto.randomUUID()}`;
     await f.prisma.user.create({ data: { id: userId, name: "Test owner", email: `${userId}@example.test`, sessions: { create: { id: sessionId, token: crypto.randomUUID(), expiresAt: new Date(Date.now() + 60_000) } } } });
     try {
       const x = await f.completed();
+      await f.prisma.outcome.update({ where: { id: x.outcome.id }, data: { ownerId: userId } });
       const response = await call(`/outcomes/${x.outcome.id}/reviews`, "POST", { expectedRevision: 1, results: [{ criterionId: x.required.id, result: "PASS", evidenceIds: [], comment: "Checked", userConfirmed: true, reviewedBy: "bot:forged" }], actorRef: "owner:forged", clientRequestId: requestId() }, "required", sessionId);
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({ reviews: [{ reviewedBy: `user:${userId}` }] });

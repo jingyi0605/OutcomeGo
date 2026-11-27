@@ -2,18 +2,16 @@ import { OutcomeService } from "./services/outcome-service";
 import { ReplyPreviews } from "./services/reply-previews";
 import { lockAssetReferences, referencedAssetIdsSql } from "./services/asset-retention";
 import { withdrawSupersededDecisions } from "./services/decision-lifecycle";
-import { OutcomePlanningService } from "./services/outcome-planning-service";
+import { OutcomeClassificationService } from "./services/outcome-classification";
 import { OutcomeThreadService } from "./services/outcome-thread-service";
 import { OutcomePlanService } from "./services/outcome-plan-service";
 import { ActivityService } from "./services/activity-service";
 import { ScheduleService } from "./services/schedule-service";
 import { CalendarFeedService } from "./services/calendar-feed-service";
 import { ExternalCalendarService } from "./services/external-calendar-service";
-import { OwnerTodoService } from "./services/owner-todo-service";
 import { OutcomeScheduleService } from "./services/outcome-schedule-service";
 import { OutcomeTaskReviewService } from "./services/outcome-task-review-service";
 import { OutcomeThreadTools } from "./services/outcome-thread-tools";
-import { ExploreService } from "./services/explore-service";
 import { OutcomeRecoveryService } from "./services/outcome-recovery-service";
 import { DecisionService } from "./services/decision-service";
 import { createOutcomeDecisionTool } from "./services/outcome-decision-tool";
@@ -122,7 +120,6 @@ export class AppService {
   readonly agentData: AgentDataStore;
   readonly messaging: AgentMessaging;
   readonly outcomes: OutcomeService;
-  readonly outcomePlanning: OutcomePlanningService;
   readonly outcomeThreads: OutcomeThreadService;
   readonly outcomePlans: OutcomePlanService;
   readonly outcomeSchedule: OutcomeScheduleService;
@@ -130,10 +127,8 @@ export class AppService {
   readonly schedule: ScheduleService;
   readonly calendarFeeds: CalendarFeedService;
   readonly externalCalendar: ExternalCalendarService;
-  readonly ownerTodos: OwnerTodoService;
   readonly outcomeTaskReviews: OutcomeTaskReviewService;
   readonly outcomeBriefs: OutcomeBriefService;
-  readonly explore: ExploreService;
   readonly outcomeRecovery: OutcomeRecoveryService;
   readonly outcomeDecisions: DecisionService;
   readonly knowledge: HumanKnowledgeService;
@@ -270,15 +265,11 @@ export class AppService {
     );
     const inferOutcome = outcomeInference(this.agentData, (path, init) => this.computerJson(path, init));
     this.outcomeBriefs = new OutcomeBriefService(inferOutcome, prismaOutcomeBriefStore(this.prisma));
-    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions, (outcome) =>
-      this.outcomeBriefs.warm(outcome)
+    this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging);
+    this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions,
+      (outcome) => this.outcomeBriefs.warm(outcome),
+      { enqueuePlan: (id, input, actor) => this.outcomeThreads.plan(id, input, actor) }
     );
-    // Planning is the goal's own bot's work (specs/004.8). This retired service keeps only the cleanup of old
-    // planning drafts, and can no longer reach a model.
-    this.outcomePlanning = new OutcomePlanningService(this.prisma, async () => {
-      throw new Error("Goal planning is done by the goal's own bot in its thread");
-    });
-    this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging, this.outcomes);
     this.channels = new ChannelService(
       this.prisma,
       this.messaging,
@@ -287,7 +278,13 @@ export class AppService {
       this.agentData,
       this.assets,
       this.userLocations,
-      (tx, input, actor) => this.outcomeThreads.createInTransaction(tx, input, actor)
+      async (tx, input, actor) => {
+        const outcome = await this.outcomes.createInTransaction(tx, input.outcome, actor);
+        const turn = await this.outcomeThreads.planInTransaction(tx, outcome.id, {
+          mode: "contract_plan", prompt: input.prompt, expectedRevision: outcome.revision, clientRequestId: input.outcome.clientRequestId,
+        }, actor);
+        return { outcome, turn };
+      }
     );
     this.plugins = new PluginService(
       this.prisma,
@@ -313,9 +310,7 @@ export class AppService {
     this.activity = new ActivityService(this.prisma);
     this.schedule = new ScheduleService(this.prisma);
     this.calendarFeeds = new CalendarFeedService(this.prisma, this.schedule);
-    this.ownerTodos = new OwnerTodoService(this.prisma);
     this.outcomeTaskReviews = new OutcomeTaskReviewService(this.prisma, this.outcomes, this.messaging);
-    this.explore = new ExploreService(this.prisma, this.outcomePlanning);
     this.outcomeRecovery = new OutcomeRecoveryService(this.prisma, this.messaging);
     const humanServices = createHumanWorkServices(this.prisma, this.messaging, this.agentData, this.assets);
     this.knowledge = humanServices.knowledge;
@@ -414,12 +409,8 @@ export class AppService {
     );
     const outcomeChatTools = new OutcomeChatTools(
       this.outcomes,
-      new OutcomeInboxService(this.prisma),
-      this.explore,
       new OutcomeChatCards(this.prisma, this.messaging),
-      this.outcomeDecisions,
       this.outcomeThreads,
-      this.prisma
     );
     this.internalTools = new InternalToolService(
       this.prisma,
@@ -447,15 +438,13 @@ export class AppService {
       new OutcomeThreadTools(
         this.prisma,
         this.outcomes,
-        outcomeChatTools,
         this.outcomePlans,
         this.outcomeTaskReviews,
-        this.outcomeReviews
+        this.outcomeReviews,
+        new OutcomeClassificationService(this.prisma, this.outcomes, (id, input, actor) => this.outcomeThreads.plan(id, input, actor))
       ),
       new GroupTaskTools(this.groupTasks),
-      this.replyPreviews,
-      this.ownerTodos,
-      authMode
+      this.replyPreviews
     );
     this.boss.on("error", (error) => console.error("pg-boss", error));
 
@@ -605,7 +594,6 @@ export class AppService {
     });
 
   private async pruneUnreferencedAssets(): Promise<void> {
-    await this.outcomePlanning.pruneExpired().catch(error => console.error("outcome plan cleanup", error));
     // Keep candidate extraction in PostgreSQL, including durable receipt history
     // and knowledge snapshots whose attachments no longer occur in a message.
     const candidates = await this.prisma.$queryRaw<Array<{ assetId: string | null }>>(Prisma.sql`
@@ -705,10 +693,6 @@ export class AppService {
       this.routines.detailOwner(await this.routines.owner(routineId), routineId)
     );
 
-  listScheduledGoals = () => serviceEffect(() => this.routines.listScheduledGoals());
-
-  scheduledGoal = (id: string) => serviceEffect(() => this.routines.scheduledGoal(id));
-
   private validateRoutineWebhookInput = (trigger: unknown): void => {
     if (containsWebhookTrigger(trigger)) {
       this.automationWebhooks.validateRoutineWebhookConfiguration();
@@ -804,11 +788,6 @@ export class AppService {
   runRoutineNow = (routineId: string, clientId: string) =>
     serviceEffect(async () =>
       this.routines.runNowOwner(await this.routines.owner(routineId), routineId, clientId)
-    );
-
-  prepareRoutine = (routineId: string, clientId: string, expectedRevision: number) =>
-    serviceEffect(async () =>
-      this.routines.prepareOwner(await this.routines.owner(routineId), routineId, clientId, expectedRevision)
     );
 
   routineExecutions = (routineId: string, limit: number) =>

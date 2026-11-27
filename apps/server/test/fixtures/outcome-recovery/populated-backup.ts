@@ -2,10 +2,13 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createPrismaClient, type PrismaClient } from "@outcomego/db";
+import { AgentDataStore, AgentMessaging, settleOutcomeThreadTurn, startOutcomeThreadTurn, type ToolContext } from "@outcomego/messaging";
+import type { ClassifyOutcomeInput, SaveOutcomeContractInput, SavePlanAdviceInput } from "@outcomego/contracts/outcome-thread";
 import { Effect } from "effect";
-import { ExploreService } from "../../../src/services/explore-service";
-import { OutcomePlanningService } from "../../../src/services/outcome-planning-service";
+import { OutcomeClassificationService } from "../../../src/services/outcome-classification";
 import { OutcomeService } from "../../../src/services/outcome-service";
+import { OutcomeThreadService } from "../../../src/services/outcome-thread-service";
+import { OutcomeThreadTools } from "../../../src/services/outcome-thread-tools";
 import { createOutcomegoBackup, validateOutcomegoBackup } from "../../../../../scripts/migration/validate-outcomego-backup";
 import { disposableDatabaseUrl } from "../../../../../scripts/outcome-recovery/report";
 
@@ -13,7 +16,8 @@ const actor = "owner:local" as const;
 const requestId = () => `populated-backup:${crypto.randomUUID()}`;
 const sourceFiles = [
   "packages/db/prisma/schema.prisma", "packages/db/prisma/sql/raw-schema.sql",
-  "apps/server/src/services/outcome-planning-service.ts", "apps/server/src/services/explore-service.ts",
+  "apps/server/src/services/outcome-classification.ts", "apps/server/src/services/outcome-thread-service.ts",
+  "apps/server/src/services/outcome-thread-tools.ts", "packages/messaging/src/outcome-threads.ts",
   "apps/server/src/services/outcome-service.ts", "scripts/migration/backup-schema.ts",
   "scripts/migration/validate-outcomego-backup.ts", "apps/server/test/fixtures/outcome-recovery/populated-backup.ts",
   "scripts/test-outcome-populated-backup.ts",
@@ -102,81 +106,110 @@ export function compareSnapshots(before: DatabaseSnapshot, after: DatabaseSnapsh
   return [...names].filter(name => canonicalJson(before.tables[name] ?? null) !== canonicalJson(after.tables[name] ?? null));
 }
 
-async function seedPlanningAndExplore(db: PrismaClient) {
-  let inferenceCalls = 0;
-  const planning = new OutcomePlanningService(db, async () => {
-    inferenceCalls++;
-    return { text: JSON.stringify({
-      goal: [{ text: "Compare fictional backup alternatives — 数据保留" }],
-      acceptance: [{ text: "Keep every linked identity and source digest", required: true }],
-      boundaries: [{ text: "Disposable local data only", kind: "included" }],
-      questions: [],
-    }) };
-  });
-  const explore = new ExploreService(db, planning), outcomes = new OutcomeService(db);
+function backupServices(client: PrismaClient, output: string) {
+  const store = new AgentDataStore(client, { root: resolve(output, "agent-data"), workspaceRoot: output });
+  const messaging = new AgentMessaging(client, { send: async () => "fixture-wake" } as never, store);
+  const threads = new OutcomeThreadService(client, messaging);
+  const enqueuePlan = threads.plan.bind(threads);
+  const outcomes = new OutcomeService(client, messaging, undefined, undefined, undefined, { enqueuePlan });
+  const classification = new OutcomeClassificationService(client, outcomes, enqueuePlan);
+  const tools = new OutcomeThreadTools(client, outcomes, undefined, undefined, undefined, classification);
+  return { messaging, threads, outcomes, tools };
+}
+
+async function seedUnifiedPlanning(db: PrismaClient, output: string) {
+  const { messaging, threads, outcomes, tools } = backupServices(db, output);
+  await db.featureSettings.create({ data: { id: "global", outcomesEnabled: true } });
   const bot = await db.bot.create({ data: {
-    name: "Fictional populated backup fixture", status: "active", defaultDirectory: "/tmp",
+    name: "Fictional populated backup fixture", status: "active", defaultDirectory: output,
     conversation: { create: {} },
+  }, include: { conversation: true } });
+  const channel = await db.channel.create({ data: {
+    kind: "bot_dm", name: "Fictional backup", directKey: `bot:${bot.id}`,
+    members: { create: { botId: bot.id, ordinal: 0 } },
   } });
-  const createPlan = (sourceText: string) => planning.create({
-    sourceText, context: { botId: bot.id }, clientRequestId: requestId(),
+  const context = (runId: string, tool: string): ToolContext => ({
+    runId, botId: bot.id, channelId: channel.id, conversationId: bot.conversation!.id, deliveryId: null,
+    origin: "outcome_thread", callId: tool, replyToMessageId: null, isFork: false,
   });
-  const ready = await Effect.runPromise(createPlan("Fictional ready planning draft"));
-  const consumed = await Effect.runPromise(createPlan("Fictional approved source delivery"));
-  const deliveryInput = (planId: string, title: string) => ({
-    planId, title, clientRequestId: requestId(),
-    goal: { selectedOptionIds: ["goal-1"], customEntries: [] },
-    acceptance: { selectedOptionIds: ["acceptance-1"], customEntries: [] },
-    boundaries: { selectedOptionIds: ["boundaries-1"], customEntries: [] },
-  });
-  const sourceInput = deliveryInput(consumed.planId, "Fictional source Outcome");
-  const source = await Effect.runPromise(outcomes.createFromDraft(sourceInput, actor));
-  const approval = { expectedRevision: 1, confirmationText: "Confirm fictional local contract", clientRequestId: requestId() };
-  await Effect.runPromise(outcomes.approve(source.id, 1, approval, actor));
-  const references = [{
-    sourceRef: "fixture:populated-backup/source", sourceType: "fixture" as const,
-    title: "Fictional source record", version: sha256("fictional immutable source bytes"),
-  }];
-  const createIdea = (title: string) => explore.create({
-    title, note: "Fictional investigation — 保留原文与来源", sourceOutcomeId: source.id,
-    sourceReferences: references, budget: { timeLimitMinutes: 12, costLimit: null },
-    clientRequestId: requestId(),
-  }, actor);
-  const draft = await Effect.runPromise(createIdea("Unconverted draft idea"));
-  const proposed = await Effect.runPromise(createIdea("Unconverted proposed idea"));
-  const proposalInput = { clientRequestId: requestId() };
-  const proposal = await Effect.runPromise(explore.propose(proposed.id, proposalInput, actor));
-  const converted = await Effect.runPromise(createIdea("Converted idea"));
-  const convertedProposal = await Effect.runPromise(explore.propose(converted.id, { clientRequestId: requestId() }, actor));
-  const convertedInput = deliveryInput(convertedProposal.plan.planId, "Independent converted Outcome");
-  const convertedOutcome = await Effect.runPromise(outcomes.createFromDraft(convertedInput, actor));
-  const ids = {
-    botId: bot.id, readyPlanId: ready.planId, consumedPlanId: consumed.planId,
-    proposedPlanId: proposal.plan.planId, convertedPlanId: convertedProposal.plan.planId,
-    draftIdeaId: draft.id, proposedIdeaId: proposed.id, convertedIdeaId: converted.id,
-    sourceOutcomeId: source.id, convertedOutcomeId: convertedOutcome.id,
+  const invoke = (target: OutcomeThreadTools, runId: string, tool: string, args: unknown) => {
+    const toolContext = context(runId, tool);
+    return target.execute({ ...toolContext, tool, arguments: args }, toolContext);
   };
+  const start = (runId: string) => db.$transaction(async tx => {
+    await tx.run.update({ where: { id: runId }, data: { status: "running", startedAt: new Date() } });
+    await startOutcomeThreadTurn(tx, runId);
+  });
+  const settle = (runId: string) => db.$transaction(async tx => {
+    await tx.run.update({ where: { id: runId }, data: { status: "completed", completedAt: new Date() } });
+    await tx.inboxEvent.updateMany({ where: { runId }, data: { status: "completed", completedAt: new Date() } });
+    await settleOutcomeThreadTurn(tx, runId, messaging);
+  });
+  const intakeInput = { text: "Fictional backup alternatives — 数据保留\nKeep the original note and derive the follow-ups.", botId: bot.id, clientRequestId: requestId() };
+  const source = await Effect.runPromise(outcomes.createIntake(intakeInput, actor));
+  const triage = source.turn;
+  if (!triage?.runId) throw new Error("populated_backup_missing_triage_run");
+  const classification: ClassifyOutcomeInput = {
+    strategy: "split_from_note", summary: "Keep the original note and separate the review from the research idea.",
+    memoryFacts: ["Fictional source retained for backup comparison"],
+    children: [
+      { kind: "standard", title: "Fictional backup review" },
+      { kind: "explore_idea", title: "Fictional investigation — 保留原文与来源", budget: { timeLimitMinutes: 12, costLimit: null } },
+      { kind: "todo", title: "Record the restore test result" },
+    ], clientRequestId: requestId(),
+  };
+  await start(triage.runId);
+  await invoke(tools, triage.runId, "ClassifyOutcome", classification);
+  await settle(triage.runId);
+  const children = await db.outcome.findMany({ where: { parentOutcomeId: source.outcome.id }, select: { id: true, kind: true, revision: true } });
+  const standard = children.find(child => child.kind === "standard");
+  const idea = children.find(child => child.kind === "explore_idea");
+  const todo = children.find(child => child.kind === "todo");
+  if (!standard || !idea || !todo) throw new Error("populated_backup_missing_children");
+  const planInput = { mode: "contract_plan" as const, expectedRevision: standard.revision, clientRequestId: requestId() };
+  const plan = await threads.plan(standard.id, planInput, actor);
+  if (!plan.runId) throw new Error("populated_backup_missing_contract_plan_run");
+  const contract: SaveOutcomeContractInput = {
+    title: "Fictional backup review", goal: ["Compare two backup options"],
+    acceptance: [{ statement: "Keep the source reference and stable identities", required: true }],
+    boundaries: { included: ["Disposable local data"], excluded: ["Production data"] }, clientRequestId: requestId(),
+  };
+  await start(plan.runId);
+  await invoke(tools, plan.runId, "SaveOutcomeContract", contract);
+  await settle(plan.runId);
+  const approval = { expectedRevision: 1, confirmationText: "Confirm fictional local contract", clientRequestId: requestId() };
+  await Effect.runPromise(outcomes.approve(standard.id, 1, approval, actor));
+  const adviceInput = { mode: "advice" as const, expectedRevision: idea.revision, clientRequestId: requestId() };
+  const adviceTurn = await threads.plan(idea.id, adviceInput, actor);
+  if (!adviceTurn.runId) throw new Error("populated_backup_missing_advice_run");
+  const advice: SavePlanAdviceInput = {
+    summary: "Investigate the fictional source", facts: [{ statement: "Source bytes match", source: sha256("fictional immutable source bytes") }],
+    gaps: ["No recovery time measurement"], recommendations: [{ action: "Measure a restore", needsOwnerConfirm: true }], clientRequestId: requestId(),
+  };
+  await start(adviceTurn.runId);
+  await invoke(tools, adviceTurn.runId, "SavePlanAdvice", advice);
+  await settle(adviceTurn.runId);
+  const ids = {
+    botId: bot.id, sourceOutcomeId: source.outcome.id, standardOutcomeId: standard.id, ideaOutcomeId: idea.id, todoOutcomeId: todo.id,
+    triageTurnId: triage.id, contractTurnId: plan.id, adviceTurnId: adviceTurn.id,
+  };
+  const outcomeIds = [ids.sourceOutcomeId, standard.id, idea.id, todo.id];
   async function read(client: PrismaClient) {
-    const service = new OutcomeService(client);
-    const restoredPlanning = new OutcomePlanningService(client, async () => { throw new Error("unexpected_replay_inference"); });
-    const restoredExplore = new ExploreService(client, restoredPlanning);
+    const restored = backupServices(client, output);
     return {
-      plans: await Promise.all([ids.readyPlanId, ids.consumedPlanId, ids.proposedPlanId, ids.convertedPlanId]
-        .map(id => Effect.runPromise(restoredPlanning.get(id)))),
-      ideas: await Promise.all([ids.draftIdeaId, ids.proposedIdeaId, ids.convertedIdeaId]
-        .map(id => Effect.runPromise(restoredExplore.get(id)))),
-      outcomes: await Promise.all([ids.sourceOutcomeId, ids.convertedOutcomeId]
-        .map(id => Effect.runPromise(service.get(id)))),
+      threads: await Promise.all(outcomeIds.map(id => restored.threads.list(id))),
+      outcomes: await Promise.all(outcomeIds.map(id => Effect.runPromise(restored.outcomes.get(id)))),
     };
   }
-  return { ids, inferenceCalls, read, async replay(client: PrismaClient) {
-    const service = new OutcomeService(client);
-    const restoredPlanning = new OutcomePlanningService(client, async () => { throw new Error("unexpected_replay_inference"); });
-    const restoredExplore = new ExploreService(client, restoredPlanning);
-    await Effect.runPromise(service.createFromDraft(sourceInput, actor));
-    await Effect.runPromise(service.approve(source.id, 1, approval, actor));
-    await Effect.runPromise(restoredExplore.propose(proposed.id, proposalInput, actor));
-    await Effect.runPromise(service.createFromDraft(convertedInput, actor));
+  return { ids, read, async replay(client: PrismaClient) {
+    const restored = backupServices(client, output);
+    await Effect.runPromise(restored.outcomes.createIntake(intakeInput, actor));
+    await invoke(restored.tools, triage.runId!, "ClassifyOutcome", classification);
+    await restored.threads.plan(standard.id, planInput, actor);
+    await invoke(restored.tools, plan.runId!, "SaveOutcomeContract", contract);
+    await Effect.runPromise(restored.outcomes.approve(standard.id, 1, approval, actor));
+    await restored.threads.plan(idea.id, adviceInput, actor);
+    await invoke(restored.tools, adviceTurn.runId!, "SavePlanAdvice", advice);
   } };
 }
 
@@ -196,7 +229,7 @@ export async function runPopulatedBackup(options: ReturnType<typeof backupOption
     await Promise.all(sourceFiles.map(async path => [path, sha256(await readFile(path))])));
   const sourceHashesBefore = await readSourceHashes();
   await mkdir(output, { recursive: true });
-  const dumpPath = resolve(output, "planning-explore.dump");
+  const dumpPath = resolve(output, "unified-outcomes.dump");
   if (await Bun.file(dumpPath).exists()) throw new Error("backup_output_already_exists");
   const bindings = JSON.parse(await command(["docker", "inspect", "--format",
     "{{json .NetworkSettings.Ports}}", container])) as Record<string, Array<{ HostIp: string; HostPort: string }> | null>;
@@ -207,10 +240,9 @@ export async function runPopulatedBackup(options: ReturnType<typeof backupOption
   const sourceDb = createPrismaClient(source.toString());
   let restoredDb: PrismaClient | undefined;
   try {
-    if ((await sourceDb.bot.count()) || (await sourceDb.outcomePlanningDraft.count()) ||
-      (await sourceDb.exploreIdea.count()) || (await sourceDb.outcome.count()))
+    if ((await sourceDb.bot.count()) || (await sourceDb.outcome.count()))
       throw new Error("populated_backup_requires_fresh_fixture_database");
-    const fixture = await seedPlanningAndExplore(sourceDb);
+    const fixture = await seedUnifiedPlanning(sourceDb, output);
     const views = await fixture.read(sourceDb), before = await databaseSnapshot(sourceDb);
     await command(["docker", "exec", container, "pg_dump", "-U", user, "-d", sourceDatabase,
       "--format=custom", "--no-owner", "--no-acl"], dumpPath);
@@ -231,6 +263,8 @@ export async function runPopulatedBackup(options: ReturnType<typeof backupOption
     const afterReplay = await databaseSnapshot(restoredDb);
     const sourceAfter = await databaseSnapshot(sourceDb);
     const sourceHashesAfter = await readSourceHashes();
+    const [source, standard, idea, todo] = restoredViews.outcomes;
+    const [triage, contract, advice] = restoredViews.threads.map(thread => thread.turns[0]);
     const checks = ([
       ["all_physical_tables_full_rows_and_primary_identities_match", compareSnapshots(before, after).length === 0],
       ["portable_backup_content_hash_and_all_references_match", before.portableDataSha256 === after.portableDataSha256],
@@ -238,16 +272,15 @@ export async function runPopulatedBackup(options: ReturnType<typeof backupOption
         before.foreignKeys.every(fk => fk.validated) && canonicalJson(before.foreignKeys) === canonicalJson(after.foreignKeys)],
       ["schema_fingerprint_marker_preserved", !!before.schemaMarker && before.schemaMarker === after.schemaMarker],
       ["service_views_preserve_full_content_and_links", canonicalJson(views) === canonicalJson(restoredViews)],
-      ["ready_and_consumed_planning_preserved", restoredViews.plans.map(plan => plan.status).join(",") === "ready,consumed,ready,consumed"],
-      ["draft_proposed_converted_explore_preserved", restoredViews.ideas.map(idea => idea.status).join(",") === "draft,proposed_for_delivery,converted"],
-      ["conversion_bidirectional_links_preserved", restoredViews.ideas[2]?.proposedOutcomeId === fixture.ids.convertedOutcomeId &&
-        restoredViews.outcomes[1]?.sourceExploreId === fixture.ids.convertedIdeaId &&
-        restoredViews.ideas.every(idea => idea.sourceOutcomeId === fixture.ids.sourceOutcomeId)],
-      ["explore_source_reference_digest_preserved", restoredViews.ideas.every(idea =>
-        idea.sourceReferences[0]?.version === sha256("fictional immutable source bytes"))],
-      ["approved_source_and_unapproved_independent_conversion_preserved",
-        restoredViews.outcomes[0]?.currentRevisionView?.status === "approved" &&
-        restoredViews.outcomes[1]?.currentRevisionView?.status === "pending_approval"],
+      ["completed_unified_planning_turns_preserved", triage?.planMode === "triage" && triage.status === "completed" &&
+        contract?.planMode === "contract_plan" && contract.status === "completed" && advice?.planMode === "advice" && advice.status === "completed"],
+      ["intake_source_and_children_preserved", source?.kind === "note" && source.status === "active" && source.description.includes("Keep the original note") &&
+        triage?.planMode === "triage" && triage.result?.sourceOutcomeId === source.id &&
+        [standard, idea, todo].every(child => child?.parentOutcomeId === source.id && triage.result?.createdChildren.some(entry => entry.outcomeId === child.id))],
+      ["structured_advice_and_source_digest_preserved", advice?.planMode === "advice" &&
+        advice.result?.facts[0]?.source === sha256("fictional immutable source bytes")],
+      ["approved_contract_unconverted_idea_and_open_todo_preserved", standard?.kind === "standard" &&
+        standard.currentRevisionView?.status === "approved" && idea?.kind === "explore_idea" && idea.status === "draft" && todo?.kind === "todo" && todo.status === "open"],
       ["idempotent_service_replay_makes_no_second_facts", canonicalJson(after) === canonicalJson(afterReplay)],
       ["source_database_unchanged_by_restore_and_replay", canonicalJson(before) === canonicalJson(sourceAfter)],
       ["source_dump_bytes_unchanged", sha256(await readFile(dumpPath)) === dumpSha256],
@@ -255,7 +288,7 @@ export async function runPopulatedBackup(options: ReturnType<typeof backupOption
     ] satisfies Array<[string, boolean]>).map(([name, passed]) => ({ name, passed }));
     const report = {
       status: checks.every(check => check.passed) ? "PASS" : "FAIL", checks,
-      execution: "actual-local-postgres-dump-restore", fixtureIds: fixture.ids, inferenceCalls: fixture.inferenceCalls,
+      execution: "actual-local-postgres-dump-restore", fixtureIds: fixture.ids,
       sourceDatabase, restoredDatabase, container, sourceHead: await command(["git", "rev-parse", "HEAD"]),
       dump: { path: dumpPath, bytes: (await stat(dumpPath)).size, sha256: dumpSha256 },
       sourceHashesBefore, sourceHashesAfter, before, after, afterReplay,

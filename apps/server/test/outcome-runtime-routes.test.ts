@@ -2,9 +2,8 @@ import { afterEach, expect, test } from "bun:test";
 import { Effect } from "effect";
 import { errorResponse } from "../src/http";
 import { outcomeRoutes } from "../src/routes/outcome";
-import { exploreRoutes } from "../src/routes/explore";
+import { routineRoutes } from "../src/routes/routine";
 import type { RouteContext } from "../src/routes/context";
-import type { ExploreService } from "../src/services/explore-service";
 
 const id = "00000000-0000-0000-0000-000000000001";
 const originalFlag = process.env.OUTCOMEGO_OUTCOMES_ENABLED;
@@ -18,8 +17,9 @@ const method = (name: string) => (...args: unknown[]) => {
   return Effect.succeed({ method: name });
 };
 const app = {
+  prisma: { outcome: { findFirst: async () => ({ id }) } },
   outcomes: { get: method("detail"), cancel: method("cancel"), startRun: method("start") },
-  outcomePlanning: { create: method("plan") },
+  outcomeThreads: { plan: method("plan") },
   outcomeReviews: { submit: method("review") },
   outcomeRecovery: {
     get: method("recovery"), reconcile: method("reconcile"),
@@ -33,9 +33,7 @@ async function call(path: string, input?: unknown) {
   });
   const context = { app, path, request, url, authMode: "disabled", authenticatedSessionId: null } as unknown as RouteContext;
   try {
-    return (await outcomeRoutes(context) ?? await exploreRoutes(context, {
-      propose: method("propose"), get: method("idea"),
-    } as unknown as ExploreService))!;
+    return await routineRoutes(context) ?? await outcomeRoutes(context) ?? new Response(null, { status: 404 });
   } catch (error) { return errorResponse(error); }
 }
 
@@ -62,7 +60,7 @@ test("runtime queries and mutations dispatch parsed inputs with the authenticate
 test("the rollback switch blocks only new goal-thread turns and run dispatch", async () => {
   process.env.OUTCOMEGO_OUTCOMES_ENABLED = "FALSE";
   calls.length = 0;
-  for (const path of ["/api/outcomes/threads", `/api/outcomes/${id}/thread/messages`, `/api/outcomes/${id}/runs`]) {
+  for (const path of [`/api/outcomes/${id}/plan`, `/api/outcomes/${id}/thread/messages`, `/api/outcomes/${id}/runs`]) {
     const response = await call(path, {});
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ error: { code: "outcome_dispatch_disabled", details: { retryable: true } } });
@@ -71,7 +69,6 @@ test("the rollback switch blocks only new goal-thread turns and run dispatch", a
   expect((await call(`/api/outcomes/${id}`)).status).toBe(200);
   expect((await call(`/api/outcomes/${id}/recovery`)).status).toBe(200);
   expect((await call(`/api/outcomes/${id}/metrics`)).status).toBe(200);
-  expect((await call(`/api/explore/${id}`)).status).toBe(200);
   expect((await call(`/api/outcomes/${id}/cancel`, { clientRequestId: "cancel-test" })).status).toBe(200);
   expect((await call(`/api/outcomes/${id}/reconcile`, { clientRequestId: "reconcile-test" })).status).toBe(200);
   expect((await call(`/api/outcomes/${id}/reviews`, {
@@ -79,5 +76,13 @@ test("the rollback switch blocks only new goal-thread turns and run dispatch", a
     results: [{ criterionId: id, result: "UNVERIFIED", evidenceIds: [], comment: "Awaiting evidence" }],
     clientRequestId: "review-test",
   })).status).toBe(200);
-  expect(calls.map(call => call[0])).toEqual(["detail", "recovery", "metrics", "idea", "cancel", "reconcile", "review"]);
+  expect(calls.map(call => call[0])).toEqual(["detail", "recovery", "metrics", "cancel", "reconcile", "review"]);
+});
+
+test("retired route families fall through to the application 404", async () => {
+  for (const path of ["/api/outcomes/scheduled-goals", `/api/outcomes/scheduled-goals/${id}`, "/api/outcomes/threads", "/api/outcomes/plans",
+    `/api/routines/${id}/prepare`]) {
+    expect((await call(path)).status).toBe(404);
+    expect((await call(path, {})).status).toBe(404);
+  }
 });

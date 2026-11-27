@@ -1,4 +1,5 @@
 import { ApiError, type DynamicToolCallRequest } from "@outcomego/contracts";
+import { outcomeDeepLink } from "@outcomego/contracts/app-deep-links";
 import {
   decodeOutcomeThreadInput,
   goalThreadToolsForPurpose,
@@ -6,15 +7,17 @@ import {
   type OutcomeThreadPurpose,
   type OutcomeThreadToolName,
 } from "@outcomego/contracts/outcome-thread";
-import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
+import { decodeOutcomeCursor, OUTCOME_LIMITS, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import type { PrismaClient } from "@outcomego/db";
 import { outcomeReviewDecisionFilter, readOutcomesEnabled, type ToolContext } from "@outcomego/messaging";
 import { Cause, Effect, Exit } from "effect";
-import type { OutcomeChatTools } from "./outcome-chat-tools";
+import type { OutcomeClassificationService } from "./outcome-classification";
 import type { OutcomePlanService } from "./outcome-plan-service";
 import type { OutcomeReviewService } from "./outcome-review-service";
 import type { OutcomeService } from "./outcome-service";
 import type { OutcomeTaskReviewService } from "./outcome-task-review-service";
+import { assertOutcomeRevision } from "./outcome-lifecycle";
+import { lockOutcome, outcomeWrite } from "./outcome-write";
 
 export const isOutcomeThreadTool = (name: string): name is OutcomeThreadToolName =>
   (OUTCOME_GOAL_THREAD_TOOL_NAMES as readonly string[]).includes(name);
@@ -67,11 +70,11 @@ const inspectSavePlanPreDecodeError = (args: unknown): ApiError | null => {
 export class OutcomeThreadTools {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly outcomes: Pick<OutcomeService, "saveAgentContract" | "cancel" | "get">,
-    private readonly readTools?: Pick<OutcomeChatTools, "execute">,
+    private readonly outcomes: Pick<OutcomeService, "saveAgentContract" | "cancel" | "get" | "getRevision" | "list" | "transcript">,
     private readonly plans?: Pick<OutcomePlanService, "savePlan">,
     private readonly taskReviews?: Pick<OutcomeTaskReviewService, "submitPrereview" | "reviewTaskResult">,
-    private readonly reviews?: Pick<OutcomeReviewService, "decide">
+    private readonly reviews?: Pick<OutcomeReviewService, "decide">,
+    private readonly classifications?: Pick<OutcomeClassificationService, "classify">
   ) {}
 
   execute = async (
@@ -85,12 +88,12 @@ export class OutcomeThreadTools {
       throw new ApiError(403, "outcomes_disabled", "Goal management is turned off. The user can enable it in Settings → General");
     const turn = await this.prisma.outcomeThreadTurn.findUnique({
       where: { runId: context.runId },
-      include: { thread: { select: { outcomeId: true, botId: true } } },
+      include: { thread: { select: { outcomeId: true, botId: true, outcome: { select: { ownerId: true } } } } },
     });
     if (!turn || turn.thread.botId !== context.botId)
       throw new ApiError(403, "outcome_thread_required", "This tool belongs to a goal's own thread");
     const purpose = (turn.purpose ?? "owner_message") as OutcomeThreadPurpose;
-    if (!goalThreadToolsForPurpose(purpose).includes(request.tool))
+    if (!goalThreadToolsForPurpose(purpose, turn.planMode).includes(request.tool))
       throw new ApiError(403, "outcome_thread_tool_forbidden", `${request.tool} is not available in ${purpose} turns`);
     const outcomeId = turn.thread.outcomeId;
     const actor = `bot:${context.botId}` as const;
@@ -102,6 +105,25 @@ export class OutcomeThreadTools {
       }
     };
     switch (request.tool) {
+      case "ClassifyOutcome": {
+        if (!this.classifications) throw new ApiError(503, "outcome_triage_unavailable", "Outcome classification is not available");
+        return this.classifications.classify({ runId: context.runId, botId: context.botId }, decode("ClassifyOutcome"));
+      }
+      case "SavePlanAdvice": {
+        const { clientRequestId, ...fields } = decode("SavePlanAdvice");
+        return outcomeWrite(this.prisma, `outcome-plan-advice:${turn.id}:${outcomeId}`, clientRequestId, fields, async (tx) => {
+          const outcome = await lockOutcome(tx, outcomeId);
+          const current = await tx.outcomeThreadTurn.findUnique({ where: { runId: context.runId }, include: { run: true } });
+          if (!current || current.id !== turn.id || current.status !== "running" || current.run?.status !== "running" ||
+              current.run.botId !== context.botId || current.run.requestStoppedAt)
+            throw new ApiError(403, "outcome_thread_required", "An active planner turn is required to save advice");
+          assertOutcomeRevision(outcome, current.outcomeRevision ?? undefined);
+          const advice = { schemaVersion: 1 as const, ...fields };
+          await tx.outcomeThreadTurn.update({ where: { id: turn.id }, data: { result: advice } });
+          await tx.event.create({ data: { topic: "goal.updated", entityId: outcomeId, payload: { outcomeId } } });
+          return advice;
+        });
+      }
       case "SaveOutcomeContract": {
         const outcome = await run(this.outcomes.saveAgentContract(outcomeId, decode("SaveOutcomeContract"), actor), signal);
         return { outcome, approvalRequired: outcome.currentRevisionView?.status === "pending_approval", nextStep: nextStep(outcome) };
@@ -211,10 +233,12 @@ export class OutcomeThreadTools {
         const input = decode("GetOutcome");
         if (input.outcomeId !== outcomeId)
           throw new ApiError(403, "outcome_thread_scope", "A goal's thread can only read its own goal in detail");
-        if (!this.readTools) throw new ApiError(503, "outcome_chat_unavailable", "Reading goals is not available");
-        const result = await this.readTools.execute(request, context, signal);
-        if (purpose !== "review" && purpose !== "inspection") return result;
-        const detail = result as { outcome: OutcomeDetail };
+        const outcome = await run(this.outcomes.get(outcomeId, actor, { ownerId: turn.thread.outcome.ownerId }), signal);
+        const detail = { outcome, url: outcomeDeepLink(outcomeId),
+          ...(input.revision ? { revision: await run(this.outcomes.getRevision(outcomeId, input.revision), signal) } : {}),
+          ...(input.workItemId ? { transcript: await run(this.outcomes.transcript(outcomeId, input.workItemId, input), signal) } : {}),
+        };
+        if (purpose !== "review") return detail;
         const revision = detail.outcome.currentRevisionView;
         const decisionRecords = revision ? await this.prisma.outcomeDecision.findMany({
           where: { outcomeId, contractRevisionId: revision.id, ...outcomeReviewDecisionFilter },
@@ -225,8 +249,9 @@ export class OutcomeThreadTools {
         return { ...detail, decisionRecords };
       }
       case "ListOutcomes": {
-        if (!this.readTools) throw new ApiError(503, "outcome_chat_unavailable", "Reading goals is not available");
-        return this.readTools.execute(request, context, signal);
+        const { cursor, limit = OUTCOME_LIMITS.listPageSize, kinds = [], statuses = [], ...filters } = decode("ListOutcomes");
+        return run(this.outcomes.list({ ...filters, kinds, statuses, limit, cursor: decodeOutcomeCursor(cursor ?? null) }, actor,
+          { ownerId: turn.thread.outcome.ownerId }), signal);
       }
     }
   };

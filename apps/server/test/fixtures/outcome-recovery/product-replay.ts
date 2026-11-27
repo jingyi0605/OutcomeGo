@@ -8,20 +8,23 @@ import { Client } from "pg";
 import { ApiError } from "@outcomego/contracts";
 import { createPrismaClient } from "@outcomego/db";
 import {
-  AgentDataStore, AgentMessaging, AssetStore, settleOutcomeWorkItem,
+  AgentDataStore, AgentMessaging, AssetStore, settleOutcomeThreadTurn, settleOutcomeWorkItem,
 } from "@outcomego/messaging";
 import { WakeWorker } from "../../../../worker/src/worker";
 import { Projection } from "../../../../worker/src/projection";
-import { OutcomePlanningService } from "../../../src/services/outcome-planning-service";
+import { OutcomeClassificationService } from "../../../src/services/outcome-classification";
 import { OutcomeService } from "../../../src/services/outcome-service";
+import { OutcomeThreadService } from "../../../src/services/outcome-thread-service";
+import { OutcomeThreadTools } from "../../../src/services/outcome-thread-tools";
 import { OutcomeReviewService } from "../../../src/services/outcome-review-service";
 import { OutcomeEvidenceConsumer } from "../../../src/services/outcome-evidence-consumer";
 import { EventWakeup } from "../../../src/event-wakeup";
 import { createHumanWorkServices } from "../../../src/services/human-work-factory";
 import { knowledgeDigest } from "../../../src/services/knowledge-provider";
 import type { OutcomeInference } from "../../../src/services/outcome-inference";
-import type { OutcomeDetail, PlanningDraftView } from "@outcomego/contracts/outcomes";
-import type { HumanActionResult } from "@outcomego/messaging";
+import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
+import type { ClassifyOutcomeInput, SaveOutcomeContractInput } from "@outcomego/contracts/outcome-thread";
+import type { HumanActionResult, ToolContext } from "@outcomego/messaging";
 import { disposableDatabaseUrl } from "../../../../../scripts/outcome-recovery/report";
 
 export type ProductReplayScenario = "research" | "human";
@@ -43,13 +46,10 @@ interface ResearchFixture {
     goal: Array<{ text: string }>;
     acceptance: Array<{ text: string; required: boolean }>;
     boundaries: Array<{ text: string; kind: string }>;
-    questions: string[];
   };
   selections: {
     title: string;
-    goal: { selectedOptionIds: string[]; customEntries: string[] };
-    acceptance: { selectedOptionIds: string[]; customEntries: string[] };
-    boundaries: { selectedOptionIds: string[]; customEntries: string[] };
+    goal: { selectedOptionIds: string[] };
   };
 }
 interface HumanFixture {
@@ -156,20 +156,18 @@ async function replayInDatabase(
   const boss = new PgBoss({ connectionString: databaseUrl, supervise: false, schedule: false });
   const messaging = new AgentMessaging(db, boss, store, assets);
   const humanServices = createHumanWorkServices(db, messaging, store, assets);
-  const outcomes = new OutcomeService(db, messaging);
+  const threads = new OutcomeThreadService(db, messaging);
+  const enqueuePlan = threads.plan.bind(threads);
+  const outcomes = new OutcomeService(db, messaging, undefined, undefined, undefined, { enqueuePlan });
+  const classification = new OutcomeClassificationService(db, outcomes, enqueuePlan);
+  const tools = new OutcomeThreadTools(db, outcomes, undefined, undefined, undefined, classification);
   const infer: OutcomeInference = async input => {
     record("controlled-inference", { kind: input.kind }, { adapter: "fixture", network: false });
-    if (input.kind === "planning") return { text: JSON.stringify(scenario === "research" ? research.fakeInferenceResponse : {
-      goal: [{ text: human.outcome.title }],
-      acceptance: human.outcome.criteria.map(criterion => ({ text: criterion.statement, required: true })),
-      boundaries: [{ text: "Production systems and real customer data", kind: "excluded" }], questions: [],
-    }) };
     const { criteria } = JSON.parse(input.prompt) as { criteria: Array<{ id: string }> };
     return { text: JSON.stringify({ results: criteria.map(criterion => ({
       criterionId: criterion.id, suggestion: "unclear", reason: "Controlled local prereview; owner verification is required",
     })) }) };
   };
-  const planning = new OutcomePlanningService(db, infer);
   const reviews = new OutcomeReviewService(db, messaging, infer, undefined, humanServices.humanReceipts);
   const consumer = new OutcomeEvidenceConsumer(db, reviews, new EventWakeup(databaseUrl));
   // Use the existing worker's production claim, as in outcome-thread.integration.test.ts.
@@ -180,10 +178,9 @@ async function replayInDatabase(
   let botId: string | undefined;
   let channelId: string | undefined;
   let outcomeId: string | undefined;
-  let plan: PlanningDraftView | undefined;
   let sourceReference: { id: string; digest?: string; version: string } | undefined;
   const contexts: Claim[] = [];
-  const finish = async (claim: Claim, text: string) => {
+  const completeRun = async (claim: Claim, text: string) => {
     const turnId = key(`computer:${claim.runId}`);
     await projection.apply(claim.runId, claim.conversationId, botId!, {
       type: "item.completed", turnId,
@@ -195,6 +192,9 @@ async function replayInDatabase(
     // These are the worker's transport receipt/lease cleanup, not business state.
     await db.inboxEvent.updateMany({ where: { runId: claim.runId }, data: { status: "completed", completedAt: new Date() } });
     await db.botRunLease.deleteMany({ where: { runId: claim.runId } });
+  };
+  const finish = async (claim: Claim, text: string) => {
+    await completeRun(claim, text);
     await db.$transaction(tx => settleOutcomeWorkItem(tx, claim.runId, { messaging, workspaceRoot: root }));
     record("controlled-computer-completion", { runId: claim.runId, adapter: "Projection.apply" }, {
       run: await db.run.findUniqueOrThrow({ where: { id: claim.runId }, select: { id: true, status: true } }),
@@ -204,6 +204,7 @@ async function replayInDatabase(
   try {
     await boss.start();
     await boss.createQueue("bot-wake");
+    await db.featureSettings.create({ data: { id: "global", outcomesEnabled: true } });
     const bot = await db.bot.create({ data: {
       name: "Fictional local product replay", defaultDirectory: root, status: "active", conversation: { create: {} },
     } });
@@ -213,25 +214,57 @@ async function replayInDatabase(
       members: { create: { botId: bot.id, ordinal: 0 } },
     } });
     channelId = channel.id;
-    const planRequest = {
-      sourceText: scenario === "research" ? research.planningRequest.sourceText : human.outcome.title,
-      context: { botId: bot.id }, clientRequestId: key("plan"),
+    const intakeInput = { text: scenario === "research" ? research.planningRequest.sourceText : human.outcome.title,
+      botId: bot.id, clientRequestId: key("intake") };
+    const intake = await execute(outcomes.createIntake(intakeInput, actor));
+    outcomeId = intake.outcome.id;
+    record("outcomes.createIntake", intakeInput, intake);
+    check("intake_persists_note_before_triage", intake.outcome.kind === "note" && Boolean(intake.turn?.runId));
+    const invoke = (claim: Claim, tool: string, args: unknown) => {
+      const context: ToolContext = { runId: claim.runId, botId: bot.id, conversationId: claim.conversationId,
+        channelId: channel.id, origin: "outcome_thread", deliveryId: null, callId: key(tool), replyToMessageId: null, isFork: false };
+      return tools.execute({ ...context, tool, arguments: args }, context);
     };
-    plan = await execute(planning.create(planRequest));
-    record("planning.create", planRequest, plan);
-    check("planning_same_key_returns_same_draft", isDeepStrictEqual(await execute(planning.create(planRequest)), plan));
-    const all = (options: Array<{ id: string }>) => ({ selectedOptionIds: options.map(option => option.id), customEntries: [] });
-    const create = {
-      planId: plan.planId, clientRequestId: key("create"),
-      title: scenario === "research" ? research.selections.title : human.outcome.title,
-      goal: scenario === "research" ? research.selections.goal : all(plan.goal.options),
-      acceptance: scenario === "research" ? research.selections.acceptance : all(plan.acceptance.options),
-      boundaries: scenario === "research" ? research.selections.boundaries : all(plan.boundaries.options),
+    const title = scenario === "research" ? research.selections.title : human.outcome.title;
+    const classify: ClassifyOutcomeInput = { strategy: "single_convert", outcome: { kind: "standard", title },
+      summary: "Route this fictional request to contract planning", clientRequestId: key("classify") };
+    const triage = await worker.claim(bot.id);
+    if (!triage || triage.runId !== intake.turn?.runId) throw new Error("product_replay_triage_claim_missing");
+    const classified = await invoke(triage, "ClassifyOutcome", classify);
+    record("ClassifyOutcome", classify, classified);
+    await completeRun(triage, classify.summary);
+    await db.$transaction(tx => settleOutcomeThreadTurn(tx, triage.runId, messaging));
+    const standard = await execute(outcomes.get(outcomeId));
+    check("triage_converts_in_place", standard.id === outcomeId && standard.kind === "standard" && standard.title === title);
+    check("intake_same_key_returns_original_receipt", isDeepStrictEqual(await execute(outcomes.createIntake(intakeInput, actor)), intake));
+    check("triage_replays_without_a_second_outcome", isDeepStrictEqual(await invoke(triage, "ClassifyOutcome", classify), classified) && await db.outcome.count() === 1);
+    const queuedPlan = (await threads.list(outcomeId)).turns.find(turn => turn.planMode === "contract_plan");
+    const planRequest = { mode: "contract_plan" as const, expectedRevision: standard.revision, clientRequestId: key("plan") };
+    const plan = await threads.plan(outcomeId, planRequest, actor);
+    record("outcomeThreads.plan", planRequest, plan);
+    check("contract_plan_reuses_the_turn_enqueued_by_triage", queuedPlan?.id === plan.id);
+    const planner = await worker.claim(bot.id);
+    if (!planner || planner.runId !== plan.runId) throw new Error("product_replay_contract_plan_claim_missing");
+    const researchContract = research.fakeInferenceResponse;
+    const contract: SaveOutcomeContractInput = {
+      title, clientRequestId: key("save-contract"),
+      goal: scenario === "research" ? researchContract.goal.filter((_, index) => research.selections.goal.selectedOptionIds.includes(`goal-${index + 1}`)).map(goal => goal.text) : [title],
+      acceptance: scenario === "research" ? researchContract.acceptance.map(({ text, required }) => ({ statement: text, required }))
+        : human.outcome.criteria.map(({ statement }) => ({ statement, required: true })),
+      boundaries: scenario === "research" ? {
+        included: researchContract.boundaries.filter(boundary => boundary.kind === "included").map(boundary => boundary.text),
+        excluded: researchContract.boundaries.filter(boundary => boundary.kind === "excluded").map(boundary => boundary.text),
+      } : { included: [], excluded: ["Production systems and real customer data"] },
     };
-    const created = await execute(outcomes.createFromDraft(create, actor));
-    outcomeId = created.id;
-    record("outcomes.createFromDraft", create, created);
-    check("create_same_key_returns_same_outcome", (await execute(outcomes.createFromDraft(create, actor))).id === outcomeId);
+    const saved = await invoke(planner, "SaveOutcomeContract", contract);
+    record("SaveOutcomeContract", contract, saved);
+    await completeRun(planner, "Contract is ready for the owner's approval.");
+    await db.$transaction(tx => settleOutcomeThreadTurn(tx, planner.runId, messaging));
+    check("plan_and_contract_replay_preserve_single_turn_and_revision",
+      (await threads.plan(outcomeId, planRequest, actor)).id === plan.id &&
+      isDeepStrictEqual(await invoke(planner, "SaveOutcomeContract", contract), saved) &&
+      await db.outcomeContractRevision.count({ where: { outcomeId } }) === 1 &&
+      (await threads.list(outcomeId)).turns.filter(turn => turn.planMode === "contract_plan").length === 1);
     const approve = { expectedRevision: 1, confirmationText: "Owner confirms this fictional local Contract", clientRequestId: key("approve") };
     const approved = await execute(outcomes.approve(outcomeId, 1, approve, actor));
     record("outcomes.approve", approve, approved);
@@ -405,7 +438,7 @@ async function replayInDatabase(
       realBotReplay: "PENDING", nativeUIReplay: "PENDING",
       fixture: scenario === "research" ? research.fixtureId : "human-task-fixture",
       runKey, checks, requests,
-      ids: { botId: bot.id, channelId: channel.id, planId: plan.planId, outcomeId,
+      ids: { botId: bot.id, channelId: channel.id, triageTurnId: intake.turn!.id, planTurnId: plan.id, outcomeId,
         revisionId: detail.currentRevisionView!.id, workItemId: item.id, rootRunId: claimed.runId,
         contextSessionId: claimed.contextSessionId, mainRunId: main.run.id,
         ...(humanWorkItemId ? { humanWorkItemId } : {}) },

@@ -114,7 +114,7 @@ function makeReviewHarness(options: {
     acceptedAt: null as Date | null,
     cancelledAt: null as Date | null,
     currentRevisionId: REV_ID,
-    trackingMode: "standard",
+    kind: "standard",
   };
   const tx: Row = {
     $executeRaw: async () => 0,

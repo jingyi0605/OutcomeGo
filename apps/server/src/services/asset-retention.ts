@@ -45,6 +45,11 @@ export const referencedAssetIdsSql = Prisma.sql`
     ) AS candidate
     WHERE jsonb_typeof(candidate) = 'string'
     UNION ALL
+    SELECT candidate #>> '{}' AS "assetId"
+    FROM "outcomego_outcome" AS outcome
+    CROSS JOIN LATERAL jsonb_path_query(outcome.attachments, '$[*].assetId'::jsonpath) AS candidate
+    WHERE jsonb_typeof(candidate) = 'string'
+    UNION ALL
     SELECT right(reference, 64) AS "assetId"
     FROM durable_references
     WHERE reference ~ '^(asset:|file:[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}:[0-9]+:asset:)[a-f0-9]{64}$'
