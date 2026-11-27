@@ -1,35 +1,35 @@
 BEGIN;
 
+ALTER TYPE "outcomego_outcome_status" ADD VALUE IF NOT EXISTS 'scheduled';
+ALTER TYPE "outcomego_outcome_status" ADD VALUE IF NOT EXISTS 'preparing';
+ALTER TYPE "outcomego_outcome_status" ADD VALUE IF NOT EXISTS 'suggested';
+ALTER TYPE "outcomego_outcome_status" ADD VALUE IF NOT EXISTS 'open';
+ALTER TYPE "outcomego_outcome_status" ADD VALUE IF NOT EXISTS 'waiting';
+ALTER TYPE "outcomego_outcome_status" ADD VALUE IF NOT EXISTS 'exploring';
+ALTER TYPE "outcomego_outcome_status" ADD VALUE IF NOT EXISTS 'active';
+ALTER TYPE "outcomego_outcome_status" ADD VALUE IF NOT EXISTS 'archived';
+ALTER TYPE "outcomego_outcome_thread_turn_status" ADD VALUE IF NOT EXISTS 'cancelled';
+
+COMMIT;
+BEGIN;
+
 CREATE TYPE "outcomego_outcome_kind" AS ENUM ('standard', 'tracked', 'scheduled_once', 'todo', 'explore_idea', 'note');
 CREATE TYPE "outcomego_outcome_urgency" AS ENUM ('low', 'normal', 'high');
 CREATE TYPE "outcomego_outcome_executor" AS ENUM ('owner', 'bot');
 CREATE TYPE "outcomego_outcome_plan_mode" AS ENUM ('triage', 'advice', 'contract_plan');
 
-ALTER TYPE "outcomego_outcome_status" ADD VALUE 'scheduled';
-ALTER TYPE "outcomego_outcome_status" ADD VALUE 'preparing';
-ALTER TYPE "outcomego_outcome_status" ADD VALUE 'suggested';
-ALTER TYPE "outcomego_outcome_status" ADD VALUE 'open';
-ALTER TYPE "outcomego_outcome_status" ADD VALUE 'waiting';
-ALTER TYPE "outcomego_outcome_status" ADD VALUE 'exploring';
-ALTER TYPE "outcomego_outcome_status" ADD VALUE 'active';
-ALTER TYPE "outcomego_outcome_status" ADD VALUE 'archived';
-ALTER TYPE "outcomego_outcome_thread_turn_status" ADD VALUE 'cancelled';
-
-COMMIT;
-BEGIN;
-
 CREATE TEMP TABLE retired_outcome_routine_ids ON COMMIT DROP AS
 SELECT id FROM "outcomego_routine"
-WHERE "scheduleKind" = 'once'
+WHERE "scheduleKind"::text = 'once'
    OR ("scheduleKind" = 'cron' AND trigger->>'type' = 'cron'
        AND "cronExpression" ~ '^[[:space:]]*[0-9]+[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+[0-9]+[[:space:]]+[*][[:space:]]*$');
 
 DELETE FROM "outcomego_routine_execution"
-WHERE "kind" = 'preparation'
+WHERE "kind"::text = 'preparation'
    OR "routineId" IN (SELECT id FROM retired_outcome_routine_ids)
-   OR "routineRevisionId" IN (SELECT id FROM "outcomego_routine_revision" WHERE "scheduleKind" = 'once');
+   OR "routineRevisionId" IN (SELECT id FROM "outcomego_routine_revision" WHERE "scheduleKind"::text = 'once');
 
-DELETE FROM "outcomego_routine_revision" WHERE "scheduleKind" = 'once';
+DELETE FROM "outcomego_routine_revision" WHERE "scheduleKind"::text = 'once';
 DELETE FROM "outcomego_routine" WHERE id IN (SELECT id FROM retired_outcome_routine_ids);
 
 CREATE TYPE "outcomego_routine_schedule_kind_new" AS ENUM ('cron', 'interval', 'event');
@@ -43,11 +43,12 @@ ALTER TABLE "outcomego_routine_execution" ALTER COLUMN "kind" TYPE "outcomego_ro
 DROP TYPE "outcomego_routine_execution_kind";
 ALTER TYPE "outcomego_routine_execution_kind_new" RENAME TO "outcomego_routine_execution_kind";
 
-ALTER TABLE "outcomego_routine" DROP COLUMN "onceAt", DROP COLUMN "onceStartedAt";
-ALTER TABLE "outcomego_routine_revision" DROP COLUMN "onceTrigger";
+ALTER TABLE "outcomego_routine" DROP COLUMN IF EXISTS "onceAt", DROP COLUMN IF EXISTS "onceStartedAt";
+ALTER TABLE "outcomego_routine_revision" DROP COLUMN IF EXISTS "onceTrigger";
 
-ALTER TABLE "outcomego_outcome" DROP COLUMN "inspectionRevisionId",
+ALTER TABLE "outcomego_outcome" DROP COLUMN IF EXISTS "inspectionRevisionId",
     DROP COLUMN "planningDraftId",
+    ADD COLUMN IF NOT EXISTS "dueAt" TIMESTAMP(3),
     ADD COLUMN "attachments" JSONB NOT NULL DEFAULT '[]',
     ADD COLUMN "createdBy" TEXT NOT NULL DEFAULT 'owner:local',
     ADD COLUMN "dedupeKey" TEXT,
@@ -67,6 +68,9 @@ ALTER TABLE "outcomego_outcome" DROP COLUMN "inspectionRevisionId",
     ADD COLUMN "urgency" "outcomego_outcome_urgency" NOT NULL DEFAULT 'normal',
     ALTER COLUMN "botId" DROP NOT NULL;
 
+DO $$
+BEGIN
+IF to_regclass('"outcomego_owner_todo_item"') IS NOT NULL THEN
 INSERT INTO "outcomego_outcome" (
   "id", "ownerId", "kind", "botId", "parentOutcomeId", "title", "description",
   "sourceRef", "revision", "scheduledAt", "followUpAt", "snoozeUntil",
@@ -125,6 +129,8 @@ SELECT
   todo."urgency"::text::"outcomego_outcome_urgency"
 FROM "outcomego_owner_todo_item" todo
 ON CONFLICT ("id") DO NOTHING;
+END IF;
+END $$;
 
 INSERT INTO "outcomego_outcome" (
   "id", "ownerId", "kind", "botId", "parentOutcomeId", "title", "description",
@@ -182,7 +188,7 @@ WHERE proposed."id" = idea."proposedOutcomeId"
 
 UPDATE "outcomego_outcome" SET "kind" = 'tracked' WHERE "trackingMode" = 'tracked';
 ALTER TABLE "outcomego_outcome" DROP COLUMN "trackingMode", DROP COLUMN "sourceExploreId";
-ALTER TABLE "outcomego_outcome_work_item" DROP COLUMN "inspectionRevisionId";
+ALTER TABLE "outcomego_outcome_work_item" DROP COLUMN IF EXISTS "inspectionRevisionId";
 
 ALTER TABLE "outcomego_outcome_thread_turn" ADD COLUMN "outcomeRevision" INTEGER,
     ADD COLUMN "planMode" "outcomego_outcome_plan_mode",
@@ -190,29 +196,29 @@ ALTER TABLE "outcomego_outcome_thread_turn" ADD COLUMN "outcomeRevision" INTEGER
 UPDATE "outcomego_outcome_thread_turn"
 SET "planMode" = 'advice', "purpose" = 'plan',
     "status" = CASE WHEN "status" IN ('queued', 'running') THEN 'failed' ELSE "status" END
-WHERE "purpose" = 'inspection';
+WHERE "purpose"::text = 'inspection';
 
 CREATE TYPE "outcomego_outcome_thread_turn_purpose_new" AS ENUM ('plan', 'owner_message', 'replan', 'review', 'review_task');
 ALTER TABLE "outcomego_outcome_thread_turn" ALTER COLUMN "purpose" TYPE "outcomego_outcome_thread_turn_purpose_new" USING "purpose"::text::"outcomego_outcome_thread_turn_purpose_new";
 DROP TYPE "outcomego_outcome_thread_turn_purpose";
 ALTER TYPE "outcomego_outcome_thread_turn_purpose_new" RENAME TO "outcomego_outcome_thread_turn_purpose";
 
-DROP TABLE "outcomego_owner_todo_item";
+DROP TABLE IF EXISTS "outcomego_owner_todo_item";
 DROP TABLE "outcomego_explore_idea";
 DROP TABLE "outcomego_outcome_planning_draft";
-DROP TYPE "outcomego_owner_todo_status";
-DROP TYPE "outcomego_owner_todo_executor";
-DROP TYPE "outcomego_owner_todo_created_via";
-DROP TYPE "outcomego_owner_todo_accepted_by";
-DROP TYPE "outcomego_owner_todo_urgency";
-DROP TYPE "outcomego_owner_todo_dismiss_reason";
+DROP TYPE IF EXISTS "outcomego_owner_todo_status";
+DROP TYPE IF EXISTS "outcomego_owner_todo_executor";
+DROP TYPE IF EXISTS "outcomego_owner_todo_created_via";
+DROP TYPE IF EXISTS "outcomego_owner_todo_accepted_by";
+DROP TYPE IF EXISTS "outcomego_owner_todo_urgency";
+DROP TYPE IF EXISTS "outcomego_owner_todo_dismiss_reason";
 DROP TYPE "outcomego_explore_idea_status";
 DROP TYPE "outcomego_outcome_planning_draft_status";
 DROP TYPE "outcomego_outcome_tracking_mode";
 
-ALTER TABLE "outcomego_todo_auto_accept_rule" RENAME TO "outcomego_outcome_auto_accept_rule";
-ALTER TABLE "outcomego_outcome_auto_accept_rule" RENAME CONSTRAINT "outcomego_todo_auto_accept_rule_pkey" TO "outcomego_outcome_auto_accept_rule_pkey";
-ALTER INDEX "outcomego_todo_auto_accept_owner_enabled_idx" RENAME TO "outcomego_outcome_auto_accept_owner_enabled_idx";
+ALTER TABLE IF EXISTS "outcomego_todo_auto_accept_rule" RENAME TO "outcomego_outcome_auto_accept_rule";
+ALTER TABLE IF EXISTS "outcomego_outcome_auto_accept_rule" RENAME CONSTRAINT "outcomego_todo_auto_accept_rule_pkey" TO "outcomego_outcome_auto_accept_rule_pkey";
+ALTER INDEX IF EXISTS "outcomego_todo_auto_accept_owner_enabled_idx" RENAME TO "outcomego_outcome_auto_accept_owner_enabled_idx";
 
 ALTER TABLE "outcomego_memory_fact" ADD COLUMN "sourceOutcomeId" UUID;
 ALTER TABLE "outcomego_run" ADD COLUMN "outcomeId" UUID;
