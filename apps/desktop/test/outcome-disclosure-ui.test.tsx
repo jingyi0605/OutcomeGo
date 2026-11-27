@@ -185,9 +185,10 @@ const unexpected = async (): Promise<never> => {
 };
 const client: OutcomeClient = {
   get: async () => outcomeFixture,
-  plan: unexpected,
-  getPlan: unexpected,
   create: unexpected,
+  update: unexpected,
+  act: unexpected,
+  convert: unexpected,
   list: unexpected,
   revise: unexpected,
   approve: unexpected,
@@ -877,8 +878,8 @@ test("a mismatched server summary never displays another goal or revision", asyn
 
 const turn = (overrides: Partial<OutcomeThreadTurnView> = {}): OutcomeThreadTurnView => ({
   id: "turn-1", purpose: "owner_message", trigger: "words", status: "queued", reply: null, error: null, runId: null,
-  createdAt: "now", updatedAt: "now", ...overrides,
-});
+  planMode: null, outcomeRevision: null, createdAt: "now", updatedAt: "now", ...overrides,
+} as OutcomeThreadTurnView);
 /** Stands in for the server's goal thread: it keeps what the owner sent until the test answers. */
 function threadServer() {
   const turns: OutcomeThreadTurnView[] = [];
@@ -1905,6 +1906,8 @@ test("review_pending sends approval feedback directly to the planner thread, sho
       sentMessages.push(input);
       const turn: OutcomeThreadTurnView = {
         id: `turn-${turns.length + 1}`,
+        planMode: null,
+        outcomeRevision: null,
         purpose: "owner_message",
         trigger: input.text,
         status: "running",

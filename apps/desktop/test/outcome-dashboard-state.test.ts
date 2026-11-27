@@ -16,7 +16,19 @@ import {
 } from "../src/renderer/components/outcomego/outcomes/dashboard/dashboard-state";
 import { decisionFixture, inboxFixture } from "./outcome-client-fixtures";
 
-const goal = (id: string, status: OutcomeSummary["status"], updatedAt: string): OutcomeSummary => ({
+const goal = (id: string, status: Extract<OutcomeSummary, { kind: "standard" }>["status"], updatedAt: string): OutcomeSummary => ({
+  kind: "standard",
+  kindMeta: {},
+  revision: 1,
+  parentOutcomeId: null,
+  attachments: [],
+  tags: [],
+  urgency: "normal",
+  executor: "bot",
+  dueAt: null,
+  scheduledAt: null,
+  followUpAt: null,
+  snoozeUntil: null,
   id,
   title: id,
   status,

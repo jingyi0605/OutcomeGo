@@ -2,17 +2,19 @@ export interface QuickIdeaBot {
   id: string;
   name: string;
 }
+
 export interface QuickIdeaDraft {
   title: string;
   note: string;
   botId: string | null;
 }
+
 const MAX_TITLE = 200;
 const MENTION = /(^|\s)@([\p{L}\p{N}:._-]+)/gu;
 const handleFor = (name: string) => name.trim().replace(/\s+/g, "").toLocaleLowerCase("en-US");
 
 /**
- * Turns the single free-text box into an idea. The first `@Bot` mention picks the execution Bot and
+ * Turns the single free-text box into a draft. The first `@Bot` mention picks the execution Bot and
  * is removed from the text; without one the main Bot (the first in the list) is used.
  */
 export function quickIdeaDraft(text: string, bots: readonly QuickIdeaBot[]): QuickIdeaDraft | null {

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, Clock3, Plus, Target } from "lucide-react";
 import type { BotView } from "@outcomego/contracts";
-import { OUTCOME_STATUSES, type OutcomeStatus } from "@outcomego/contracts/outcome-view";
+import type { OutcomeStatus } from "@outcomego/contracts/outcome-view";
 import type { OutcomeListPage } from "@outcomego/contracts/outcomes";
 import { api } from "../../../client/outcomego-api";
 import { useI18n } from "../../../lib/i18n";
 import { subscribeOutcomeListRefresh } from "../../../lib/outcome-events";
+import { GOAL_OUTCOME_KINDS, GOAL_OUTCOME_STATUSES } from "../../../lib/outcome-kinds";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../../ui/dialog";
 import { Switch } from "../../ui/switch";
 import { OutcomeButton, OutcomeEmptyState } from "./outcome-ui";
@@ -15,7 +16,7 @@ import { OutcomeRouteView, type OutcomeDetailRoute } from "./inbox/outcome-route
 import "./outcome-ui.css";
 
 const FINISHED_GOAL_STATUSES: ReadonlySet<OutcomeStatus> = new Set(["accepted", "cancelled"]);
-const OPEN_GOAL_STATUSES = OUTCOME_STATUSES.filter((status) => !FINISHED_GOAL_STATUSES.has(status));
+const OPEN_GOAL_STATUSES = GOAL_OUTCOME_STATUSES.filter((status) => !FINISHED_GOAL_STATUSES.has(status));
 
 export default function ChatGoals({
   bot,
@@ -50,8 +51,8 @@ export default function ChatGoals({
   useEffect(() => {
     if (!listing) return;
     let active = true;
-    const query = new URLSearchParams({ botId: bot.id });
-    if (!showCompleted) query.set("status", OPEN_GOAL_STATUSES.join(","));
+    const query = new URLSearchParams({ botId: bot.id, kinds: GOAL_OUTCOME_KINDS.join(",") });
+    if (!showCompleted) query.set("statuses", OPEN_GOAL_STATUSES.join(","));
     if (cursor) query.set("cursor", cursor);
     setError(false);
     void api.outcomes.list(query.toString()).then(
@@ -206,7 +207,7 @@ export default function ChatGoals({
             <>
               <OutcomeButton variant="ghost" onClick={back}>{t("Back to all goals")}</OutcomeButton>
               {creating ? (
-                <NewOutcomeForm client={api.outcomes} bots={[bot]} botId={bot.id} postToChat onCreated={onClose} />
+                <NewOutcomeForm client={api.outcomes} bots={[bot]} botId={bot.id} onCreated={onClose} />
               ) : (
                 route && <OutcomeRouteView route={route} bots={bots} onOpen={setRoute} />
               )}

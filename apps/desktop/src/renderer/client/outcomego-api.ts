@@ -5,7 +5,6 @@ import type { AttentionSample } from "../lib/outcome-attention";
 import { createHumanMaterialApi } from "../components/outcomego/outcomes/human-work/human-api";
 import type { OutcomeNotificationPayload } from "@outcomego/contracts/notification-content";
 import type { RecoveryState } from "../components/outcomego/outcomes/inbox/recovery-diagnostics";
-import { createExploreApi } from "../components/outcomego/outcomes/explore/explore-api";
 import { createOutcomeGoClient } from "@outcomego/client-core";
 import { authHeaders, getDesktopMachineId } from "./auth";
 import { API_BASE, desktopTransportOptions } from "./http";
@@ -69,7 +68,6 @@ export const api = {
   },
   outcomeInbox: createInboxApi(request),
   humanMaterials: createHumanMaterialApi(request),
-  explore: createExploreApi(request),
   outcomeNotificationState: () => request<{ outcomeNotifications?: OutcomeNotificationPayload[] }>("/api/notification-state"),
   outcomeRecovery: (id: string) => request<RecoveryState>(`/api/outcomes/${encodeURIComponent(id)}/recovery`),
   reconcileOutcome: (id: string, clientRequestId: string) => request<RecoveryState>(

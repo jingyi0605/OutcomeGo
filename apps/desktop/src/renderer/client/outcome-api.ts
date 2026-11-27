@@ -1,9 +1,12 @@
 import type { ActivityResponse, NeedsMeResponse, ScheduleQuery, ScheduleResponse } from "@outcomego/contracts/task-overview";
-import { createTodoApi, type TodoClient } from "./todo-api";
 import type {
-  PlanningDraftView,
-  CreateOutcomePlanInput,
+  ActOnOutcomeInput,
+  ConvertOutcomeInput,
+  CreateOutcomeAutoAcceptRuleInput,
   CreateOutcomeInput,
+  OutcomeAutoAcceptRuleView,
+  UpdateOutcomeAutoAcceptRuleInput,
+  UpdateOutcomeInput,
   CreateContractRevisionInput,
   ApproveContractRevisionInput,
   AdoptPrereviewInput,
@@ -21,20 +24,42 @@ import type {
   SetOutcomeDueInput,
   SetWorkItemScheduleInput,
 } from "@outcomego/contracts/outcomes";
+import type { OutcomeIntakeInput } from "@outcomego/contracts";
 
 import type {
-  CreateOutcomeThreadInput,
   OutcomeThreadTurnView,
   OutcomeThreadView,
+  RequestOutcomePlanInput,
   SendOutcomeThreadMessageInput,
 } from "@outcomego/contracts/outcome-thread";
 
+/** A new or converted Outcome, with the planning turn it queued, if any. */
+export interface OutcomePlanned {
+  outcome: OutcomeDetail;
+  turn: OutcomeThreadTurnView | null;
+}
+
+export interface OutcomeAutoAcceptRulesClient {
+  list(): Promise<{ rules: OutcomeAutoAcceptRuleView[] }>;
+  create(input: CreateOutcomeAutoAcceptRuleInput): Promise<OutcomeAutoAcceptRuleView>;
+  update(id: string, input: UpdateOutcomeAutoAcceptRuleInput): Promise<OutcomeAutoAcceptRuleView>;
+  remove(id: string): Promise<void>;
+}
+
 export interface OutcomeClient {
-  plan(input: CreateOutcomePlanInput): Promise<PlanningDraftView>;
-  getPlan(id: string): Promise<PlanningDraftView>;
-  create(input: CreateOutcomeInput): Promise<OutcomeDetail>;
+  /** A new Outcome of any kind; a standard goal is also handed to its planner. */
+  create(input: CreateOutcomeInput): Promise<OutcomePlanned>;
+  /** Captures owner text and attachments as a source note before asynchronous triage. */
+  intake(input: OutcomeIntakeInput): Promise<OutcomePlanned>;
   list(query?: string): Promise<OutcomeListPage>;
   get(id: string): Promise<OutcomeDetail>;
+  update(id: string, input: UpdateOutcomeInput): Promise<OutcomeDetail>;
+  act(id: string, input: ActOnOutcomeInput): Promise<OutcomeDetail>;
+  /** Changes the kind in place: the Outcome keeps its identity and history. */
+  convert(id: string, input: ConvertOutcomeInput): Promise<OutcomePlanned>;
+  /** Queues run advice or a contract plan; the answer arrives in the Outcome's thread. */
+  plan?(id: string, input: RequestOutcomePlanInput): Promise<OutcomeThreadTurnView>;
+  autoAcceptRules?: OutcomeAutoAcceptRulesClient;
   brief?(id: string): Promise<OutcomeBrief>;
   resultSummary?(id: string, revision: number): Promise<OutcomeResultSummary | null>;
   getRevision?(id: string, revision: number): Promise<ContractRevisionView>;
@@ -43,8 +68,6 @@ export interface OutcomeClient {
   thread?(id: string): Promise<OutcomeThreadView>;
   /** The owner's words, delivered to the bot as written; the server answers at once. */
   sendThreadMessage?(id: string, input: SendOutcomeThreadMessageInput): Promise<OutcomeThreadTurnView>;
-  /** A new goal in the owner's own words, planned by the chosen bot. */
-  createThread?(input: CreateOutcomeThreadInput): Promise<{ outcome: OutcomeDetail; turn: OutcomeThreadTurnView }>;
   approve(
     id: string,
     revision: number,
@@ -61,43 +84,50 @@ export interface OutcomeClient {
   setWorkItemSchedule?(id: string, workItemId: string, input: SetWorkItemScheduleInput): Promise<OutcomeDetail>;
   /** The owner sets or clears the goal's due date (specs/004.10). */
   setDue?(id: string, input: SetOutcomeDueInput): Promise<OutcomeDetail>;
-  inspect?(id: string, input: { clientRequestId: string }): Promise<OutcomeThreadTurnView>;
-  inspectWorkItem?(id: string, workItemId: string, input: { clientRequestId: string }): Promise<OutcomeThreadTurnView>;
   /** What every bot is doing (specs/004.10). Absent on a server that has no such call. */
   activity?(query?: { botId?: string; includeAll?: boolean; recentHours?: number }): Promise<ActivityResponse>;
   /** The requests that wait on the owner (specs/004.10). Absent on a server that has no such call. */
   needsMe?(): Promise<NeedsMeResponse>;
-  todos?: TodoClient;
   workThreads?(botId: string, query: { archived?: boolean; cursor?: string; signal?: AbortSignal }): Promise<OutcomeWorkThreadPage>;
   transcript(id: string, itemId: string, query?: { before?: number }): Promise<unknown>;
 }
 
 export interface ScheduleClient {
   list(query: ScheduleQuery): Promise<ScheduleResponse>;
-  rescheduleTodo(id: string, field: "scheduledAt" | "dueAt", value: string): Promise<unknown>;
+  /** Moves a to-do or a scheduled goal to a new time. */
+  rescheduleOutcome(id: string, field: "scheduledAt" | "dueAt", value: string): Promise<unknown>;
 }
 
 export function createOutcomeApi(
   request: <T>(path: string, init?: RequestInit) => Promise<T>
 ): OutcomeClient {
   const outcomePath = (id: string) => `/api/outcomes/${encodeURIComponent(id)}`;
+  const rulesPath = "/api/outcomes/auto-accept-rules";
   const outcomePost = <T>(path: string, input: unknown) =>
     request<T>(path, { method: "POST", body: JSON.stringify(input) });
   const outcomePut = <T>(path: string, input: unknown) =>
     request<T>(path, { method: "PUT", body: JSON.stringify(input) });
   return {
-    plan: (input) => outcomePost("/api/outcomes/plans", input),
-    getPlan: (id) => request(`/api/outcomes/plans/${encodeURIComponent(id)}`),
     create: (input) => outcomePost("/api/outcomes", input),
+    intake: (input) => outcomePost("/api/outcomes/intake", input),
     list: (query = "") => request(`/api/outcomes${query ? `?${query}` : ""}`),
     get: (id) => request(outcomePath(id)),
+    update: (id, input) => request(outcomePath(id), { method: "PATCH", body: JSON.stringify(input) }),
+    act: (id, input) => outcomePost(`${outcomePath(id)}/actions`, input),
+    convert: (id, input) => outcomePost(`${outcomePath(id)}/convert`, input),
+    plan: (id, input) => outcomePost(`${outcomePath(id)}/plan`, input),
+    autoAcceptRules: {
+      list: () => request(rulesPath),
+      create: (input) => outcomePost(rulesPath, input),
+      update: (id, input) => request(`${rulesPath}/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) }),
+      remove: (id) => request(`${rulesPath}/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    },
     brief: (id) => request(`${outcomePath(id)}/brief`),
     resultSummary: (id, revision) => request(`${outcomePath(id)}/revisions/${revision}/results-summary`),
     getRevision: (id, revision) => request(`${outcomePath(id)}/revisions/${revision}`),
     revise: (id, input) => outcomePost(`${outcomePath(id)}/revisions`, input),
     thread: (id) => request(`${outcomePath(id)}/thread`),
     sendThreadMessage: (id, input) => outcomePost(`${outcomePath(id)}/thread/messages`, input),
-    createThread: (input) => outcomePost("/api/outcomes/threads", input),
     approve: (id, revision, input) =>
       outcomePost(`${outcomePath(id)}/revisions/${revision}/approve`, input),
     start: (id, input) => outcomePost(`${outcomePath(id)}/runs`, input),
@@ -110,10 +140,7 @@ export function createOutcomeApi(
     setWorkItemSchedule: (id, workItemId, input) =>
       outcomePut(`${outcomePath(id)}/work-items/${encodeURIComponent(workItemId)}/schedule`, input),
     setDue: (id, input) => outcomePut(`${outcomePath(id)}/due`, input),
-    inspect: (id, input) => outcomePost(`${outcomePath(id)}/inspection`, input),
-    inspectWorkItem: (id, workItemId, input) => outcomePost(`${outcomePath(id)}/work-items/${encodeURIComponent(workItemId)}/inspection`, input),
     needsMe: () => request("/api/needs-me"),
-    todos: createTodoApi(request),
     activity: (query = {}) => {
       const params = new URLSearchParams();
       if (query.botId) params.set("botId", query.botId);
@@ -145,11 +172,12 @@ export function createScheduleApi(request: <T>(path: string, init?: RequestInit)
       if (query.mine) params.set("mine", "true");
       return request<ScheduleResponse>(`/api/schedule?${params}`);
     },
-    rescheduleTodo: async (id, field, value) => {
-      const current = await request<{ revision: number }>(`/api/todos/${encodeURIComponent(id)}`);
-      return request(`/api/todos/${encodeURIComponent(id)}`, {
+    rescheduleOutcome: async (id, field, value) => {
+      const path = `/api/outcomes/${encodeURIComponent(id)}`;
+      const current = await request<{ revision: number }>(path);
+      return request(path, {
         method: "PATCH",
-        body: JSON.stringify({ revision: current.revision, [field]: value }),
+        body: JSON.stringify({ expectedRevision: current.revision, clientRequestId: crypto.randomUUID(), [field]: value }),
       });
     },
   };

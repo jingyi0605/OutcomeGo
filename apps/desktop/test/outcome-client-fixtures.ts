@@ -1,6 +1,6 @@
 import type { DecisionResolution, DecisionView, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { HumanWorkItemDetail } from "@outcomego/contracts/human-work";
-import type { ExploreIdeaView } from "@outcomego/contracts/explore";
+import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 
 export const fixtureIds = {
   outcome: "10000000-0000-4000-8000-000000000001",
@@ -46,10 +46,13 @@ export const humanFixture: HumanWorkItemDetail = {
   },
   receipts: [],
 };
-export const exploreFixture: ExploreIdeaView = {
-  id: "80000000-0000-4000-8000-000000000001", botId: fixtureIds.bot, title: "Explore fixture inspection improvements",
-  note: "An idea for a later, separately approved task.", status: "draft", sourceOutcomeId: fixtureIds.outcome,
-  sourceReferences: [{ sourceRef: "fixture:procedure", title: "Procedure", sourceType: "fixture", version: "v1" }],
-  budget: { timeLimitMinutes: 20, costLimit: null }, planningDraftId: null, proposedOutcomeId: null,
-  createdAt: "2026-11-17T00:00:00.000Z", updatedAt: "2026-11-17T00:00:00.000Z", discardedAt: null,
+export const exploreFixture: Extract<OutcomeDetail, { kind: "explore_idea" }> = {
+  id: "80000000-0000-4000-8000-000000000001", kind: "explore_idea", botId: fixtureIds.bot, title: "Explore fixture inspection improvements",
+  description: "An idea for a later, separately approved task.", status: "draft", parentOutcomeId: fixtureIds.outcome,
+  sourceRef: [{ sourceRef: "fixture:procedure", title: "Procedure", sourceType: "fixture", version: "v1" }],
+  kindMeta: { budget: { timeLimitMinutes: 20, costLimit: null } }, revision: 1, currentRevision: null,
+  attachments: [], tags: [], urgency: "normal", executor: "bot", dueAt: null, scheduledAt: null, followUpAt: null, snoozeUntil: null,
+  resumeStatus: null, prepareAt: null, prepareInstruction: null, dedupeKey: null, createdBy: "owner:local",
+  createdAt: "2026-11-17T00:00:00.000Z", updatedAt: "2026-11-17T00:00:00.000Z", acceptedAt: null, cancelledAt: null,
+  autoClosedAt: null, closeSummary: null, currentRevisionView: null, revisions: [], workItems: [], outputs: [], evidence: [], reviews: [],
 };

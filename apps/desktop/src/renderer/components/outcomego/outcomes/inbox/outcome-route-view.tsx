@@ -89,6 +89,7 @@ export function OutcomeRouteView({
       onHuman={(id) => onOpen({ kind: "human", id })}
       onDecision={(id) => onOpen({ kind: "decision", id })}
       onReceipt={(revision) => review(route.id, revision)}
+      onSelectOutcome={(id) => onOpen({ kind: "outcome", id })}
       onClose={onClose}
       onSubmitted={onSubmitted}
       onReady={onReady}
@@ -108,6 +109,7 @@ function OutcomeWithActions({
   onHuman,
   onDecision,
   onReceipt,
+  onSelectOutcome,
   onClose,
   onSubmitted,
   onReady,
@@ -123,6 +125,7 @@ function OutcomeWithActions({
   onHuman: (id: string) => void;
   onDecision: (id: string) => void;
   onReceipt: (revision: number) => void;
+  onSelectOutcome: (id: string) => void;
   onClose?: () => void;
   onSubmitted?: () => void;
   onReady?: () => void;
@@ -197,6 +200,7 @@ function OutcomeWithActions({
           useCache={useCache}
           inChat={inChat}
           onOpenDetails={onOpenDetails}
+          onSelectOutcome={onSelectOutcome}
           actionItems={actionItems}
           actionsError={error}
           actionsLoading={loading && !loadedOnceRef.current}

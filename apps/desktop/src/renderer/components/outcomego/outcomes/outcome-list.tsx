@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { OUTCOME_STATUSES, type OutcomeStatus } from "@outcomego/contracts/outcome-view";
+import type { OutcomeStatus } from "@outcomego/contracts/outcome-view";
 import type { OutcomeListPage } from "@outcomego/contracts/outcomes";
 import type { OutcomeClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";
+import { ALL_OUTCOME_STATUSES, OUTCOME_KIND_FILTERS, type OutcomeKindFilter } from "../../../lib/outcome-kinds";
 import { ChevronRight, Plus, Target } from "lucide-react";
 import { OutcomeButton, OutcomeEmptyState, OutcomeRefresh } from "./outcome-ui";
 import type { OutcomeExecutionBot } from "./outcome-execution-card";
-import { ScheduledRoutineGoals } from "./scheduled-routine-goals";
 
 export const outcomeStatusLabels: Record<OutcomeStatus, string> = {
   draft: "Draft",
@@ -21,6 +21,14 @@ export const outcomeStatusLabels: Record<OutcomeStatus, string> = {
   paused: "Paused",
   failed: "Failed",
   cancelled: "Cancelled",
+  scheduled: "Scheduled",
+  preparing: "Preparing",
+  suggested: "Suggested",
+  open: "Open",
+  waiting: "Waiting",
+  exploring: "Exploring",
+  active: "Active",
+  archived: "Archived",
 };
 
 export function OutcomeList({
@@ -28,20 +36,18 @@ export function OutcomeList({
   bots,
   onSelect,
   onCreate,
-  onOpenScheduledGoal,
   refreshVersion = 0,
 }: {
   client: OutcomeClient;
   bots: OutcomeExecutionBot[];
   onSelect: (id: string) => void;
   onCreate: () => void;
-  onOpenScheduledGoal?: (id: string) => void;
   refreshVersion?: number;
 }) {
   const { t } = useI18n();
   const [page, setPage] = useState<OutcomeListPage | null>(null);
   const [status, setStatus] = useState<OutcomeStatus | "all">("all");
-  const [trackedOnly, setTrackedOnly] = useState(false);
+  const [kind, setKind] = useState<OutcomeKindFilter>("all");
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
   const generation = useRef(0);
@@ -50,8 +56,8 @@ export function OutcomeList({
     setBusy(true);
     setError(false);
     const query = new URLSearchParams();
-    if (status !== "all") query.set("status", status);
-    if (trackedOnly) query.set("trackingMode", "tracked");
+    if (kind !== "all") query.set("kinds", kind);
+    if (status !== "all") query.set("statuses", status);
     if (cursor) query.set("cursor", cursor);
     try {
       const result = await client.list(query.toString());
@@ -87,11 +93,20 @@ export function OutcomeList({
       window.removeEventListener("focus", refresh);
       window.clearInterval(interval);
     };
-  }, [client, status, trackedOnly]);
+  }, [client, status, kind]);
   useEffect(() => {
     if (refreshVersion > 0) void load();
   }, [refreshVersion]);
-  const items = trackedOnly ? page?.items.filter((outcome) => outcome.trackingMode === "tracked") : page?.items;
+  const items = page?.items;
+  const kindLabels: Record<OutcomeKindFilter, string> = {
+    all: "All types",
+    standard: "Goals",
+    tracked: "Bot-registered",
+    scheduled_once: "Scheduled",
+    todo: "To-dos",
+    explore_idea: "Ideas",
+    note: "Notes",
+  };
   return (
     <section aria-label={t("All goals")} aria-busy={busy}>
       <div className="outcome-toolbar">
@@ -109,16 +124,16 @@ export function OutcomeList({
             onChange={(event) => setStatus(event.target.value as typeof status)}
           >
             <option value="all">{t("All statuses")}</option>
-            {OUTCOME_STATUSES.map((value) => (
+            {ALL_OUTCOME_STATUSES.map((value) => (
               <option key={value} value={value}>
                 {t(outcomeStatusLabels[value])}
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-1.5 text-xs">
-            <input type="checkbox" checked={trackedOnly} onChange={(event) => setTrackedOnly(event.target.checked)} />
-            {t("Bot-registered only")}
-          </label>
+          <label className="sr-only" htmlFor="outcome-kind-filter">{t("Outcome type")}</label>
+          <select id="outcome-kind-filter" className="outcome-control" value={kind} onChange={(event) => setKind(event.target.value as OutcomeKindFilter)}>
+            {OUTCOME_KIND_FILTERS.map((value) => <option key={value} value={value}>{t(kindLabels[value])}</option>)}
+          </select>
           <OutcomeRefresh busy={busy} onRefresh={() => void load()} />
         </div>
       </div>
@@ -135,27 +150,24 @@ export function OutcomeList({
           {t("Loading goals…")}
         </p>
       )}
-      {items?.length === 0 && !page?.nextCursor && (trackedOnly ? (
-        <p role="status" className="outcome-empty">{t("No matching bot-registered goals.")}</p>
-      ) : (
+      {items?.length === 0 && !page?.nextCursor && (
         <OutcomeEmptyState
           icon={Target}
-          title={status === "all" ? "No goals yet." : "No goals with this status."}
+          title={status === "all" ? "No Outcomes yet." : "No Outcomes with this status."}
           description={
             status === "all"
-              ? "Turn a task into a clear goal. Plan it with your Bot and follow its progress here."
+              ? "Send anything through Go, then follow its progress here."
               : "Choose another status to see your other goals."
           }
         >
           {status === "all" && (
             <OutcomeButton onClick={onCreate}>
               <Plus className="size-3.5" />
-              {t("New Outcome")}
+              {t("Go")}
             </OutcomeButton>
           )}
         </OutcomeEmptyState>
-      ))}
-      {!trackedOnly && onOpenScheduledGoal && <ScheduledRoutineGoals bots={bots} onOpen={onOpenScheduledGoal} refreshVersion={refreshVersion} />}
+      )}
       <ul className={items?.length ? "outcome-rows" : undefined}>
         {items?.map((outcome) => (
           <li key={outcome.id}>
@@ -166,9 +178,13 @@ export function OutcomeList({
               <span className="min-w-0 flex-1">
                 <span className="outcome-row-title">{outcome.title}</span>
                 <span className="outcome-row-meta">
-                  {bots.find((bot) => bot.id === outcome.botId)?.name ?? t("Bot")} · {t("Revision")}{" "}
-                  {outcome.currentRevision ?? "—"} · {new Date(outcome.updatedAt).toLocaleString()}
-                  {outcome.trackingMode === "tracked" && <> · {t("Bot-registered")}</>}
+                  {t(kindLabels[outcome.kind])} · {bots.find((bot) => bot.id === outcome.botId)?.name ?? t("Bot")} ·{" "}
+                  {outcome.kind === "scheduled_once" ? (
+                    <>{t("Scheduled time")} <time dateTime={outcome.scheduledAt}>{new Date(outcome.scheduledAt).toLocaleString()}</time></>
+                  ) : (
+                    <>{t("Revision")} {outcome.currentRevision ?? "—"} · {new Date(outcome.updatedAt).toLocaleString()}</>
+                  )}
+                  {outcome.kind === "tracked" && <> · {t("Bot-registered")}</>}
                 </span>
               </span>
               <span className="outcome-status" data-outcome-status={outcome.status}>

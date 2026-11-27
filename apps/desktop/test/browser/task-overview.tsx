@@ -45,7 +45,7 @@ const second = task(2, {
   runSegments: [{ id: "run-c", status: "running", startedAt: at(-200), completedAt: null }],
 });
 const human = task(3, { executorType: "human", kind: "human_action", status: "ready", scheduledAt: at(36), dueAt: at(120) });
-const record: Detail = {
+const record: Extract<Detail, { kind: "standard" }> = {
   ...outcomeFixture, title: "Fixture Alpha", description: "", status: "running", currentRevisionView: null,
   dueAt: at(220), outputs: [], evidence: [], reviews: [], revisions: [],
   workItems: [first, second, task(4, { dependsOn: [second.id] }), human, task(5, {

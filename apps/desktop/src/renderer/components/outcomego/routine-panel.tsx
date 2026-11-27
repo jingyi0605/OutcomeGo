@@ -1,5 +1,4 @@
 import { isWindowVisible } from "../../lib/window-visibility";
-import { isOnceTrigger, type OnceRoutineTrigger } from "@outcomego/contracts";
 import type { RoutineWebhookView } from "@outcomego/contracts/automation-webhooks";
 import {
   routineExecutionStatusPresentation,
@@ -40,7 +39,6 @@ import {
   routineEventListeners,
   routineHasWebhookTrigger,
   routineIsRunning,
-  routineLocalDateTime,
   routinePresentationValue,
   routineScheduleDrafts,
   routineScheduleValue,
@@ -801,15 +799,13 @@ function RunHistory({
         const running = isTransientRoutineExecutionStatus(execution.status);
         return (
           <li
-            aria-label={execution.kind === "preparation" ? t("Preparation") : execution.kind === "test" ? t("Manual run") : t("Scheduled run")}
+            aria-label={execution.kind === "test" ? t("Manual run") : t("Scheduled run")}
             className="py-1 text-[12px]"
             data-routine-execution-status={execution.status}
             key={execution.id}
           >
             <div className="flex min-h-7 items-center gap-2">
-            <span className="min-w-0 flex-1 truncate">
-              {execution.kind === "preparation" && `${t("Preparation")} · `}{formatRoutineExecutionTime(execution)}
-            </span>
+            <span className="min-w-0 flex-1 truncate">{formatRoutineExecutionTime(execution)}</span>
             <span
               aria-label={executionStatus(execution)}
               className={cn(
@@ -854,7 +850,6 @@ interface RoutineDraft {
   enabled: boolean;
   webhook: boolean;
   schedules: Array<{ id: string; schedule: RoutineScheduleDraft }>;
-  once?: { runAt: string; prepareAt: string };
 }
 
 interface RoutineSaveContext {
@@ -941,42 +936,10 @@ const draftFromRoutine = (routine: RoutineView): RoutineDraft => ({
   enabled: routine.enabled,
   webhook: routineHasWebhookTrigger(routine.trigger),
   schedules: routineScheduleDrafts(routine).map(scheduleDraftItem),
-  ...(isOnceTrigger(routine.trigger) ? { once: {
-    runAt: routineLocalDateTime(routine.trigger.runAt),
-    prepareAt: routine.trigger.preparation ? routineLocalDateTime(routine.trigger.preparation.at) : "",
-  } } : {}),
 });
-
-function onceScheduleChange(draft: RoutineDraft, original: OnceRoutineTrigger): OnceRoutineTrigger | undefined {
-  if (!draft.once) return;
-  const { runAt, prepareAt } = draft.once;
-  const previousPrep = original.preparation;
-  const previousPrepareAt = previousPrep ? routineLocalDateTime(previousPrep.at) : "";
-  const previousRunAt = routineLocalDateTime(original.runAt);
-  if (runAt === previousRunAt && prepareAt === previousPrepareAt) return;
-  return {
-    type: "once",
-    runAt: runAt === previousRunAt ? original.runAt : new Date(runAt).toISOString(),
-    ...(previousPrep && prepareAt ? { preparation: {
-      ...previousPrep, at: prepareAt === previousPrepareAt ? previousPrep.at : new Date(prepareAt).toISOString(),
-    } } : {}),
-  };
-}
-
-function onceDraftValid(draft: RoutineDraft, routine: RoutineView): boolean {
-  if (!draft.once || !isOnceTrigger(routine.trigger)) return false;
-  const { runAt, prepareAt } = draft.once;
-  const original = routine.trigger;
-  if (runAt === routineLocalDateTime(original.runAt) &&
-      prepareAt === (original.preparation ? routineLocalDateTime(original.preparation.at) : "")) return true;
-  const runTime = new Date(runAt).getTime();
-  const prepTime = new Date(prepareAt).getTime();
-  return !routine.onceStartedAt && runTime > Date.now() && (!prepareAt || prepTime < runTime);
-}
 
 const draftValid = (draft: RoutineDraft, routine: RoutineView | null = null) => {
   if (!draft.name.trim() || !draft.prompt.trim()) return false;
-  if (routine?.scheduleKind === "once") return onceDraftValid(draft, routine);
   const schedules = draft.schedules.map(({ schedule }) => schedule);
   if (
     routine &&
@@ -1166,13 +1129,15 @@ export function RoutineEditor({
     try {
       const presentation = routinePresentationValue(schedules, value.webhook);
       const current = context.routine;
-      const update = (base: RoutineView) => {
-        const onceTrigger = isOnceTrigger(base.trigger) ? onceScheduleChange(value, base.trigger) : undefined;
-        return api.updateRoutine(base.id, {
-          ...routineUpdateInput(base, { name: value.name, prompt: value.prompt, schedules }, context.draft.enabled),
-          ...(onceTrigger ? { trigger: onceTrigger } : {}),
-        });
-      };
+      const update = (base: RoutineView) =>
+        api.updateRoutine(
+          base.id,
+          routineUpdateInput(
+            base,
+            { name: value.name, prompt: value.prompt, schedules },
+            context.draft.enabled
+          )
+        );
       let saved: RoutineView;
       if (!current) {
         const input = {
@@ -1301,7 +1266,6 @@ export function RoutineEditor({
             latest.revision >= context.routine.revision &&
             (latest.revision > context.routine.revision ||
               latest.enabled !== context.routine.enabled ||
-              latest.onceStartedAt !== context.routine.onceStartedAt ||
               latest.validationError !== context.routine.validationError)
           ) {
             const refreshed = draftFromRoutine(latest);
@@ -1341,7 +1305,6 @@ export function RoutineEditor({
     ? routineIsRunning({ ...routine, latestExecution: executions[0] ?? routine.latestExecution })
     : false;
   const valid = draftValid(draft, routine);
-  const single = isOnceTrigger(routine?.trigger) ? routine.trigger : null;
 
   const toggleActive = (enabled: boolean) => {
     const context = contextRef.current;
@@ -1474,7 +1437,7 @@ export function RoutineEditor({
             aria-label={t("Active")}
             checked={draft.enabled}
             className="h-4 w-7 data-[state=checked]:bg-[#070707] [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-3 dark:data-[state=checked]:bg-[#626262]"
-            disabled={toggleSaving || Boolean(routine?.onceStartedAt)}
+            disabled={toggleSaving}
             onCheckedChange={toggleActive}
           />
           <span className="text-[13px]">{t("Active")}</span>
@@ -1487,7 +1450,7 @@ export function RoutineEditor({
           >
             {t("Delete")}
           </Button>
-          {!single && <Button
+          <Button
             className={cn(
               "h-8 rounded-[8px] px-2 text-[12px] font-normal transition-[width,background-color,color]",
               running ? "w-[84px]" : "w-[62px]"
@@ -1504,7 +1467,7 @@ export function RoutineEditor({
             }}
           >
             {running ? t("Running…") : t("Test run")}
-          </Button>}
+          </Button>
         </div>
       </div>
 
@@ -1545,24 +1508,7 @@ export function RoutineEditor({
           <Label className="pl-2 text-[12px] font-normal text-muted-foreground">
             {t("When to run")}
           </Label>
-          {single && draft.once ? (
-            <div className="grid gap-2 rounded-[10px] border border-[#dedede] p-3 dark:border-[#343434]">
-              <Label htmlFor="routine-once-time">{t("Scheduled time")}</Label>
-              <Input id="routine-once-time" type="datetime-local" className={fieldClass}
-                disabled={Boolean(routine?.onceStartedAt)} value={draft.once.runAt}
-                onChange={(event) => draft.once && queue({ ...draft, once: { ...draft.once, runAt: event.target.value } })} />
-              {single.preparation && <>
-                <Label htmlFor="routine-once-prep">{t("Preparation time")}</Label>
-                <Input id="routine-once-prep" type="datetime-local" className={fieldClass}
-                  disabled={Boolean(routine?.onceStartedAt)} value={draft.once.prepareAt}
-                  onChange={(event) => draft.once && queue({ ...draft, once: { ...draft.once, prepareAt: event.target.value } })} />
-                <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground">{single.preparation.instruction}</p>
-              </>}
-              {routine && !onceDraftValid(draft, routine) && (
-                <p role="status" className="text-xs text-destructive">{t("Choose a future time, with preparation before the scheduled run.")}</p>
-              )}
-            </div>
-          ) : <div className="rounded-[10px] border border-[#dedede] dark:border-[#343434]">
+          <div className="rounded-[10px] border border-[#dedede] dark:border-[#343434]">
             <ul aria-label={t("Triggers")}>
               {draft.webhook && (
                 <WebhookTriggerCard
@@ -1641,7 +1587,7 @@ export function RoutineEditor({
               </div>
               );
             })()}
-          </div>}
+          </div>
         </div>
 
         {webhook ? (

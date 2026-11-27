@@ -15,6 +15,7 @@ import {
   Repeat,
   RotateCcw,
   SlidersHorizontal,
+  StickyNote,
   Target,
   type LucideIcon,
 } from "lucide-react";
@@ -60,6 +61,7 @@ const kindLabels: Record<TimeItemKind, string> = {
   follow_up: "Follow-ups",
   routine_run: "Routines",
   scheduled_once: "Upcoming work",
+  note: "Notes",
   external_event: "External calendar",
 };
 
@@ -71,10 +73,11 @@ const kindIcons: Record<TimeItemKind, LucideIcon> = {
   follow_up: BellRing,
   routine_run: Repeat,
   scheduled_once: Clock,
+  note: StickyNote,
   external_event: Calendar,
 };
 
-const DONE_STATES = new Set(["completed", "cancelled", "skipped"]);
+const DONE_STATES = new Set(["completed", "accepted", "cancelled", "skipped"]);
 const EXTERNAL_STORAGE_KEY = "outcomego.goal-calendar";
 
 function browserTimeZone(): string {
@@ -103,7 +106,6 @@ export type CalendarPageProps = {
   onOpenOutcome: (outcomeId: string) => void;
   onOpenChannel?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId?: string) => void;
-  onOpenScheduledGoal?: (id: string) => void;
 };
 
 function dateText(
@@ -918,7 +920,6 @@ export function CalendarPage({
   onOpenOutcome,
   onOpenChannel,
   onOpenRoutine,
-  onOpenScheduledGoal,
 }: CalendarPageProps) {
   const { t, locale } = useI18n();
   const [timeZone, setTimeZone] = useState(browserTimeZone);
@@ -1099,14 +1100,11 @@ export function CalendarPage({
   }, [jumpToToday]);
 
   const openItem = (item: TimeItem) => {
-    if (item.kind === "scheduled_once" && item.link.type === "routine") {
-      onOpenScheduledGoal?.(item.link.id);
-      return;
-    }
-    if (item.outcomeId) onOpenOutcome(item.outcomeId);
+    // To-dos are handled on the dashboard, which an empty ID opens.
+    if (item.kind === "todo" || (item.kind === "follow_up" && item.link.type === "outcome")) onOpenOutcome("");
+    else if (item.outcomeId) onOpenOutcome(item.outcomeId);
     else if (item.link.type === "channel") onOpenChannel?.(item.link.id);
     else if (item.link.type === "routine") onOpenRoutine?.(item.link.id, item.botId);
-    else if (item.link.type === "todo") onOpenOutcome("");
   };
 
   const reschedule = async (targetDate: string) => {
@@ -1131,8 +1129,8 @@ export function CalendarPage({
           dueAt: dragged.allDay ? value : undefined,
           clientRequestId: crypto.randomUUID(),
         });
-      } else if (dragged.kind === "todo") {
-        await api.schedule.rescheduleTodo(
+      } else if (dragged.kind === "todo" || dragged.kind === "scheduled_once") {
+        await api.schedule.rescheduleOutcome(
           dragged.link.id,
           dragged.allDay ? "dueAt" : "scheduledAt",
           value

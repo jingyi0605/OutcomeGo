@@ -1,15 +1,27 @@
-import { TodoAutoAcceptRuleCreate, type TodoAutoAcceptRuleView } from "@outcomego/contracts/todo";
+import type { CreateOutcomeAutoAcceptRuleInput, OutcomeAutoAcceptRuleView } from "@outcomego/contracts/outcomes";
 import { useEffect, useState, type FormEvent } from "react";
-import type { TodoAutoAcceptRulesClient } from "../../../client/todo-api";
+import type { OutcomeAutoAcceptRulesClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";
 import { SettingsGroup, settingsInput, settingsSecondaryButton } from "./ui";
 
 type Draft = { name: string; routineId: string; botId: string; sourceKind: string };
 const blank: Draft = { name: "", routineId: "", botId: "", sourceKind: "" };
+const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+
+/** The rule to save, or null when it has no usable name or is bound to neither a routine nor a bot. */
+function ruleInput(draft: Draft): CreateOutcomeAutoAcceptRuleInput | null {
+  const name = draft.name.trim();
+  const routineId = draft.routineId.trim() || null;
+  const botId = draft.botId.trim() || null;
+  const sourceKind = draft.sourceKind.trim() || null;
+  const bound = (routineId || botId) && [routineId, botId].every((id) => !id || UUID.test(id));
+  if (!name || name.length > 80 || !bound || (sourceKind?.length ?? 0) > 40) return null;
+  return { name, routineId, botId, sourceKind };
+}
 
 function RuleForm({ rule, onSave, onCancel, saving }: {
-  rule: TodoAutoAcceptRuleView | null;
-  onSave: (input: TodoAutoAcceptRuleCreate) => void;
+  rule: OutcomeAutoAcceptRuleView | null;
+  onSave: (input: CreateOutcomeAutoAcceptRuleInput) => void;
   onCancel: () => void;
   saving: boolean;
 }) {
@@ -21,12 +33,9 @@ function RuleForm({ rule, onSave, onCancel, saving }: {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
-    const input = TodoAutoAcceptRuleCreate.safeParse({
-      name: draft.name, routineId: draft.routineId.trim() || null, botId: draft.botId.trim() || null,
-      sourceKind: draft.sourceKind.trim() || null,
-    });
-    setInvalid(!input.success);
-    if (input.success) onSave(input.data);
+    const input = ruleInput(draft);
+    setInvalid(!input);
+    if (input) onSave(input);
   }
   const field = (key: keyof Draft, label: string) => (
     <label className="grid gap-1 text-xs text-foreground-secondary">
@@ -50,11 +59,11 @@ function RuleForm({ rule, onSave, onCancel, saving }: {
   );
 }
 
-export function TodoAutoAcceptRules({ client, disabled = false }: { client: TodoAutoAcceptRulesClient; disabled?: boolean }) {
+export function TodoAutoAcceptRules({ client, disabled = false }: { client: OutcomeAutoAcceptRulesClient; disabled?: boolean }) {
   const { t, locale } = useI18n();
-  const [rules, setRules] = useState<TodoAutoAcceptRuleView[] | null>(null);
+  const [rules, setRules] = useState<OutcomeAutoAcceptRuleView[] | null>(null);
   const [version, setVersion] = useState(0);
-  const [editor, setEditor] = useState<TodoAutoAcceptRuleView | "new" | null>(null);
+  const [editor, setEditor] = useState<OutcomeAutoAcceptRuleView | "new" | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,11 +92,11 @@ export function TodoAutoAcceptRules({ client, disabled = false }: { client: Todo
       setSaving(false);
     }
   };
-  const merge = (rule: TodoAutoAcceptRuleView) => setRules((previous) =>
+  const merge = (rule: OutcomeAutoAcceptRuleView) => setRules((previous) =>
     previous?.some((item) => item.id === rule.id)
       ? previous.map((item) => item.id === rule.id ? rule : item)
       : [...(previous ?? []), rule]);
-  const saveRule = (input: TodoAutoAcceptRuleCreate) => void write(async () => {
+  const saveRule = (input: CreateOutcomeAutoAcceptRuleInput) => void write(async () => {
     if (!editor) return;
     const saved = editor === "new" ? await client.create(input) : await client.update(editor.id, input);
     merge(saved);

@@ -143,8 +143,8 @@ const SearchDialog = lazy(() =>
   }))
 );
 const AboutPanel = lazy(() => import("./components/outcomego/settings/about"));
-const QuickIdeaDialog = lazy(
-  () => import("./components/outcomego/outcomes/explore/quick-idea-dialog")
+const GoIntakeDialog = lazy(
+  () => import("./components/outcomego/outcomes/inbox/go-intake-dialog")
 );
 const OutcomeWorkThread = lazy(() =>
   import("./components/outcomego/outcomes/outcome-execution-card").then((module) => ({ default: module.OutcomeExecutionDialog }))
@@ -398,7 +398,6 @@ export default function App() {
   });
   const appReady = Boolean(snapshot);
   const { outcomesEnabled, loaded: featureSettingsLoaded } = useFeatureSettings();
-  useOutcomeThreadNotices();
   const outcomeBadges = useOutcomeActionCounts(outcomesEnabled);
   // The floating Bot capsule shows the same unread messages and waiting goals, per Bot.
   useBotDockSync(snapshot, outcomeBadges.approvalByBot, outcomesEnabled, outcomeBadges);
@@ -441,6 +440,10 @@ export default function App() {
     };
   }, []);
   const [requestedOutcomeTarget, setOutcomeTarget] = useState<DesktopOutcomeTarget | null>(null);
+  const openOutcomeById = useCallback((outcomeId: string) => {
+    setOutcomeTarget({ outcomeId });
+  }, []);
+  useOutcomeThreadNotices(outcomesEnabled ? openOutcomeById : undefined);
   // Goal management is opt-in: while it is off no goal view can be shown, however it was requested.
   const outcomeTarget = outcomesEnabled ? requestedOutcomeTarget : null;
   const [requestedWorkThread, setWorkThread] = useState<OutcomeWorkThreadView | null>(null);
@@ -1645,10 +1648,11 @@ export default function App() {
           )}
           {outcomesEnabled && quickIdeaOpen && (
             <Suspense fallback={null}>
-              <QuickIdeaDialog
+              <GoIntakeDialog
                 open
                 onOpenChange={setQuickIdeaOpen}
                 bots={snapshot.bots.filter((bot) => bot.status === "active")}
+                onOpenOutcome={openOutcomeById}
               />
             </Suspense>
           )}

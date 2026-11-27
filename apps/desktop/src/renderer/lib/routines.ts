@@ -89,7 +89,7 @@ export const routineEventListeners = (trigger: unknown): Array<Record<string, un
   if (record.type === "group") {
     return (Array.isArray(record.listeners) ? record.listeners : []).flatMap(routineEventListeners);
   }
-  return typeof record.type === "string" && !["cron", "once"].includes(record.type) ? [record] : [];
+  return typeof record.type === "string" && record.type !== "cron" ? [record] : [];
 };
 
 /** Describes one event listener (email, Slack, GitHub, webhook, ...) for list and detail rows. */
@@ -394,7 +394,6 @@ export const routineTriggerValue = (
 };
 
 export const routineScheduleDrafts = (routine: RoutineView): RoutineScheduleDraft[] => {
-  if (routine.scheduleKind === "once") return [];
   if (routine.scheduleKind === "event" && routine.schedules.length === 0) return [];
   const presented = routinePresentationDrafts(routine.triggerPresentation);
   if (presented && presentationMatchesRoutine(presented, routine)) {

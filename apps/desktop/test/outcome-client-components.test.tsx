@@ -28,12 +28,12 @@ if (!windowDescriptor) {
 }
 const [
   { DecisionCardView }, { OutcomeInbox }, { HumanAction },
-  { ExploreIdeaDetails }, { RecoveryDiagnostics }, { ReviewPanel },
+  { OutcomeEvolutionPanel, OutcomeRelationsPanel, NotePanel, TodoDetailPanel }, { RecoveryDiagnostics }, { ReviewPanel },
 ] = await Promise.all([
   import("../src/renderer/components/outcomego/outcomes/inbox/decision-card"),
   import("../src/renderer/components/outcomego/outcomes/inbox/outcome-inbox"),
   import("../src/renderer/components/outcomego/outcomes/human-work/human-action"),
-  import("../src/renderer/components/outcomego/outcomes/explore/explore-panel"),
+  import("../src/renderer/components/outcomego/outcomes/detail/outcome-kind-panels"),
   import("../src/renderer/components/outcomego/outcomes/inbox/recovery-diagnostics"),
   import("../src/renderer/components/outcomego/outcomes/detail/review-panel"),
 ]).finally(() => {
@@ -144,29 +144,98 @@ test("paused human action restores saved summary and shows metadata without read
   expect(html).toContain('<fieldset disabled=""');
   expect(html).not.toContain("Full fixture source body");
 });
-test("converted and discarded Explore ideas preserve provenance and have no mutating controls", () => {
-  for (const status of ["converted", "discarded"] as const) {
-    const html = render(
-      createElement(ExploreIdeaDetails, {
-        idea: {
-          ...exploreFixture,
-          status,
-          proposedOutcomeId: status === "converted" ? fixtureIds.outcome : null,
-        },
-        busy: false,
-        bots: [],
-        botId: "",
-        onBot() {},
-        onPropose() {},
-        onDiscard() {},
-        onOutcome() {},
-      })
-    );
-    expect(html).toContain("read-only");
-    expect(html).toContain("fixture:procedure");
-    expect(html).not.toContain("Discard idea");
-    expect(html).not.toContain("<fieldset");
-  }
+test("cancelled ideas render no evolution controls while active ones expose full in-place conversion targets", () => {
+  const cancelledHtml = render(
+    createElement(OutcomeEvolutionPanel, {
+      outcome: { ...exploreFixture, status: "cancelled" },
+      client: {} as OutcomeClient,
+      bots: [{ id: fixtureIds.bot, name: "Bot" }],
+      busy: false,
+      onConverted() {},
+    })
+  );
+  expect(cancelledHtml).toBe("");
+
+  const activeHtml = render(
+    createElement(OutcomeEvolutionPanel, {
+      outcome: exploreFixture,
+      client: {} as OutcomeClient,
+      bots: [{ id: fixtureIds.bot, name: "Bot" }],
+      busy: false,
+      onConverted() {},
+    })
+  );
+  expect(activeHtml).toContain("Goal");
+  expect(activeHtml).toContain("To-do");
+  expect(activeHtml).toContain("Note");
+});
+
+test("unified detail panels render split children, parent source note, failed triage retry, note calendar/archive, and todo actions", () => {
+  const noteOutcome = {
+    ...exploreFixture,
+    kind: "note" as const,
+    status: "active" as const,
+    tags: ["research"],
+    kindMeta: { createdVia: "owner_go_inbox" as const, triageStatus: "failed" as const, syncToMemory: true },
+    children: [{
+      id: fixtureIds.outcome,
+      ownerId: "owner:local",
+      kind: "todo" as const,
+      status: "open" as const,
+      botId: null,
+      parentOutcomeId: exploreFixture.id,
+      title: "Follow up with vendor",
+      tags: [],
+      urgency: "normal" as const,
+      revision: 1,
+      dueAt: null,
+      scheduledAt: null,
+      prepareAt: null,
+      followUpAt: null,
+      snoozeUntil: null,
+      executor: "owner" as const,
+      currentRevision: null,
+      autoClosedAt: null,
+      closeSummary: null,
+      createdAt: exploreFixture.createdAt,
+      updatedAt: exploreFixture.updatedAt,
+    }],
+  };
+  const relationsHtml = render(
+    createElement(OutcomeRelationsPanel, {
+      outcome: { ...noteOutcome, parentOutcomeId: fixtureIds.outcome },
+      onSelectOutcome() {},
+    })
+  );
+  expect(relationsHtml).toContain("View source note");
+  expect(relationsHtml).toContain("Follow up with vendor");
+
+  const noteHtml = render(
+    createElement(NotePanel, {
+      outcome: noteOutcome,
+      client: { plan: async () => ({}) } as unknown as OutcomeClient,
+      busy: false,
+      onSaved() {},
+    })
+  );
+  expect(noteHtml).toContain("Retry sorting");
+  expect(noteHtml).toContain("Calendar time (optional)");
+  expect(noteHtml).toContain("Archive note");
+  expect(noteHtml).toContain("Cancel note");
+
+  const todoHtml = render(
+    createElement(TodoDetailPanel, {
+      outcome: { ...exploreFixture, kind: "todo", status: "open", kindMeta: {} },
+      client: {} as OutcomeClient,
+      bots: [{ id: fixtureIds.bot, name: "Bot" }],
+      busy: false,
+      onUpdated() {},
+    })
+  );
+  expect(todoHtml).toContain("Complete");
+  expect(todoHtml).toContain("Snooze");
+  expect(todoHtml).toContain("Hand to the bot");
+  expect(todoHtml).toContain("Dismiss");
 });
 test("unknown recovery reasons remain visible alongside explicit reconciliation and no forced success", () => {
   const html = render(

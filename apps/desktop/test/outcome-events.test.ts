@@ -5,10 +5,12 @@ import {
   refreshOutcomeViews,
   subscribeOutcomeListRefresh,
   subscribeOutcomeRefresh,
+  subscribeOutcomeTriageEvents,
+  type OutcomeTriageEvent,
 } from "../src/renderer/lib/outcome-events";
 
-const event = (topic: string, entityId: string | null): ProductEvent => ({
-  sequence: "1", topic, entityId, payload: {}, createdAt: "2026-11-18T00:00:00Z",
+const event = (topic: string, entityId: string | null, payload: Record<string, unknown> = {}): ProductEvent => ({
+  sequence: "1", topic, entityId, payload, createdAt: "2026-11-18T00:00:00Z",
 });
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const cleanups: Array<() => void> = [];
@@ -29,8 +31,8 @@ test("progress reports refresh the matching goal immediately", () => {
 });
 
 // Specs/004.10 task 3.2: the client stream carries no `outcome.*` topics, so a schedule change (the owner's, or a bot
-// deferring its own task) reaches an open goal through this dedicated goal signal.
-test("a schedule change refreshes the matching open goal once per burst, and not another goal or the list", async () => {
+// deferring its own task) reaches the open goal and aggregate calendar/list views through this dedicated goal signal.
+test("a schedule change refreshes the matching open goal and aggregate views once per burst", async () => {
   const a = watch("a");
   const b = watch("b");
   let listReloads = 0;
@@ -38,7 +40,7 @@ test("a schedule change refreshes the matching open goal once per burst, and not
   for (let i = 0; i < 3; i++) refreshOutcomeViews(event("goal.schedule.changed", "a"));
   expect(a()).toBe(0);
   await wait(OUTCOME_REFRESH_DEBOUNCE_MS + 80);
-  expect([a(), b(), listReloads]).toEqual([1, 0, 0]);
+  expect([a(), b(), listReloads]).toEqual([1, 0, 1]);
 });
 
 test("thread completion, work item, status and decision events refresh the open goal once per burst", async () => {
@@ -80,4 +82,45 @@ test("goal status changes and reconnects refresh aggregate views, other topics d
   expect(count).toBe(1);
   refreshOutcomeViews();
   expect(count).toBe(2);
+});
+
+test("goal.updated refreshes views and emits triage completion and failure notices", async () => {
+  const a = watch("note-1");
+  let listReloads = 0;
+  const notices: OutcomeTriageEvent[] = [];
+  cleanups.push(subscribeOutcomeListRefresh(() => listReloads++));
+  cleanups.push(subscribeOutcomeTriageEvents((notice) => notices.push(notice)));
+
+  refreshOutcomeViews(
+    event("goal.updated", "note-1", {
+      outcomeId: "note-1",
+      triageStatus: "completed",
+      triageSummary: "Split into 2 tasks",
+      sourceKind: "note",
+      createdChildren: [{ outcomeId: "child-1", kind: "todo", title: "Call vendor" }],
+    })
+  );
+  refreshOutcomeViews(
+    event("goal.updated", "note-2", {
+      outcomeId: "note-2",
+      triageStatus: "failed",
+      triageError: "planner_unavailable",
+    })
+  );
+  await wait(OUTCOME_REFRESH_DEBOUNCE_MS + 80);
+  expect([a(), listReloads]).toEqual([1, 1]);
+  expect(notices).toEqual([
+    {
+      outcomeId: "note-1",
+      triageStatus: "completed",
+      triageSummary: "Split into 2 tasks",
+      sourceKind: "note",
+      createdChildren: [{ outcomeId: "child-1", kind: "todo", title: "Call vendor" }],
+    },
+    {
+      outcomeId: "note-2",
+      triageStatus: "failed",
+      triageError: "planner_unavailable",
+    },
+  ]);
 });

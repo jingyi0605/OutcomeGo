@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TASK_POLICY_FIELDS } from "@outcomego/contracts/task-policy";
-import type { TodoAutoAcceptRulesClient } from "../src/renderer/client/todo-api";
+import type { OutcomeAutoAcceptRulesClient } from "../src/renderer/client/outcome-api";
 
 // Specs/004.10 task 2.9, requirements E1-E3. The api module is replaced so no request leaves the test.
 mock.module("../src/renderer/client/outcomego-api", () => ({
@@ -19,7 +19,7 @@ const features = (overrides: Partial<Features> = {}): Features => ({
   environmentNote: null, taskPolicy: {}, updatedAt: null, loaded: true, failed: false, update: async () => undefined as never, retry: () => undefined,
   ...overrides,
 });
-const render = (value: Features, autoAcceptRules?: TodoAutoAcceptRulesClient) => renderToStaticMarkup(createElement(I18nProvider, { children: createElement(GoalsSettingsView, { features: value, autoAcceptRules }) }));
+const render = (value: Features, autoAcceptRules?: OutcomeAutoAcceptRulesClient) => renderToStaticMarkup(createElement(I18nProvider, { children: createElement(GoalsSettingsView, { features: value, autoAcceptRules }) }));
 const schedule = TASK_POLICY_FIELDS.filter((entry) => entry.group === "schedule");
 const activityFields = TASK_POLICY_FIELDS.filter((entry) => entry.group === "activity");
 
@@ -35,7 +35,7 @@ describe("goal management page", () => {
   });
 
   test("the auto-accept rules group follows its settings anchor and the goal management switch", () => {
-    const rules: TodoAutoAcceptRulesClient = {
+    const rules: OutcomeAutoAcceptRulesClient = {
       list: async () => ({ rules: [] }),
       create: async () => { throw new Error("unexpected write"); },
       update: async () => { throw new Error("unexpected write"); },

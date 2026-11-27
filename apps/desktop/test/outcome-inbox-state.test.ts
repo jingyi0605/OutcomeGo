@@ -6,7 +6,6 @@ import {
 } from "../src/renderer/components/outcomego/outcomes/inbox/decision-state";
 import { createInboxApi } from "../src/renderer/components/outcomego/outcomes/inbox/inbox-api";
 import { createHumanMaterialApi } from "../src/renderer/components/outcomego/outcomes/human-work/human-api";
-import { createExploreApi } from "../src/renderer/components/outcomego/outcomes/explore/explore-api";
 import {
   uploadReceiptAssets,
   type ReceiptAsset,
@@ -161,12 +160,10 @@ test("Inbox and material adapters encode cursors/identities and keep business mu
   };
   const client = createInboxApi(request);
   const material = createHumanMaterialApi(request);
-  const explore = createExploreApi(request);
   await client.list({ status: "completed", category: "completed", cursor: "a+/=&b" });
   await client.decision("a/b");
   await client.startHuman("a/b", { expectedContractRevision: 2, clientRequestId: "start:test" });
   await material.search(fixtureIds.outcome, "fixture");
-  await explore.list("a+/=&b");
   expect(calls[0]?.path).toBe(
     "/api/outcome-inbox?status=completed&category=completed&cursor=a%2B%2F%3D%26b"
   );
@@ -176,7 +173,6 @@ test("Inbox and material adapters encode cursors/identities and keep business mu
     clientRequestId: "start:test",
   });
   expect(JSON.parse(calls[3]?.init?.body as string)).toEqual({ text: "fixture", limit: 20 });
-  expect(calls[4]?.path).toBe("/api/explore?cursor=a%2B%2F%3D%26b");
 });
 test("asset upload failure retains successful refs and retries only the failed attachment", async () => {
   const assets: ReceiptAsset[] = ["first.txt", "second.txt"].map((name, index) => ({

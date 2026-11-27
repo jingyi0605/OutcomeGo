@@ -12,11 +12,12 @@ import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-view";
 import type { OutcomeInboxCategory, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
-import type { ActivityItem, NeedsMeItem } from "@outcomego/contracts/task-overview";
-import type { TodoAction, TodoActionInput, TodoAttentionItem, TodoDigest, TodoItemView } from "@outcomego/contracts/todo";
+import type { ActivityItem, NeedsMeItem, OutcomeTodoAttentionItem, OutcomeTodoDigest } from "@outcomego/contracts/task-overview";
+import type { OutcomeDetail } from "@outcomego/contracts/outcomes";
 import type { OutcomeClient } from "../../../../client/outcome-api";
 import { subscribeOutcomeListRefresh } from "../../../../lib/outcome-events";
 import { useI18n } from "../../../../lib/i18n";
+import { GOAL_OUTCOME_KINDS } from "../../../../lib/outcome-kinds";
 import type { InboxClient } from "../inbox/inbox-api";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { OutcomeButton, OutcomeRefresh } from "../outcome-ui";
@@ -38,7 +39,8 @@ import { ActivitySection } from "./activity-section";
 import { mergeInProgressItems, styleForActivity } from "./activity-state";
 import { GoalFocusDetail, type GoalFocusClient } from "./goal-focus";
 import { QuickDecision } from "./quick-decision";
-import { TodoRow, todoAttentionLabels } from "./todo-panel";
+import { actOnTodoItem, TodoRow, todoAttentionLabels, updateTodoFollowUp, type TodoActionRequest } from "./todo-panel";
+import { isTodoOutcome, todoSchedule, type TodoOutcome } from "./todo-state";
 
 interface Loaded {
   outcomes: OutcomeSummary[];
@@ -49,8 +51,8 @@ interface Loaded {
   upcoming: NonNullable<import("@outcomego/contracts/task-overview").ActivityResponse["upcoming"]>;
   /** Requests waiting on the owner. Empty when this server has no such call or it failed: the steps still show. */
   requests: NeedsMeItem[];
-  todos: TodoAttentionItem[];
-  todoDigest: TodoDigest | null;
+  todos: OutcomeTodoAttentionItem[];
+  todoDigest: OutcomeTodoDigest | null;
 }
 
 // The initial values come from the policy metadata, never from a number written here.
@@ -63,7 +65,7 @@ const categoryIcons: Record<OutcomeInboxCategory, LucideIcon> = {
   completed: CheckCheck,
 };
 
-function TodoDigestCard({ digest }: { digest: TodoDigest }) {
+function TodoDigestCard({ digest }: { digest: OutcomeTodoDigest }) {
   const { t } = useI18n();
   return (
     <aside aria-label={t("To-do morning summary")} className="outcome-dash-focus">
@@ -72,7 +74,7 @@ function TodoDigestCard({ digest }: { digest: TodoDigest }) {
         {Object.entries(todoAttentionLabels).map(([key, label]) => (
           <div key={key}>
             <dt>{t(label)}</dt>
-            <dd>{digest.counts[key as keyof TodoDigest["counts"]]}</dd>
+            <dd>{digest.counts[key as keyof OutcomeTodoDigest["counts"]]}</dd>
           </div>
         ))}
       </dl>
@@ -266,11 +268,10 @@ export function OutcomeDashboard({
   onCreateIdea,
   onOpenChannel,
   onOpenRoutine,
-  onOpenScheduledGoal,
   activityPolicy,
   refreshVersion = 0,
 }: {
-  outcomes: Pick<OutcomeClient, "list" | "activity" | "needsMe" | "todos" | "createThread"> & GoalFocusClient;
+  outcomes: Pick<OutcomeClient, "list" | "activity" | "needsMe" | "act" | "update" | "convert"> & GoalFocusClient;
   inbox: Pick<InboxClient, "list" | "decision" | "resolve">;
   bots: readonly OutcomeExecutionBot[];
   onSelectOutcome: (id: string) => void;
@@ -282,7 +283,6 @@ export function OutcomeDashboard({
   /** Opens a channel's conversation: where a request or a channel routine leads. Without it those rows are text only. */
   onOpenChannel?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId: string) => void;
-  onOpenScheduledGoal?: (id: string) => void;
   /** The owner's choices for the activity area; each falls back to the policy's initial value. */
   activityPolicy?: { cardMaxItems?: number | undefined };
   refreshVersion?: number;
@@ -304,7 +304,7 @@ export function OutcomeDashboard({
     setError(false);
     try {
       const [goals, steps, activity, needsMe] = await Promise.all([
-        outcomes.list(new URLSearchParams({ limit: String(OUTCOME_LIMITS.listPageSizeMax) }).toString()),
+        outcomes.list(new URLSearchParams({ kinds: GOAL_OUTCOME_KINDS.join(","), limit: String(OUTCOME_LIMITS.listPageSizeMax) }).toString()),
         // An older server without the Inbox still gets a working dashboard, just without steps.
         inbox.list({ status: "pending" }).catch(() => ({ items: [], nextCursor: null })),
         // A server without the activity endpoint, or one that fails, simply leaves bot activity out; goals still show.
@@ -356,14 +356,14 @@ export function OutcomeDashboard({
   const attentionCount = data ? `${formatCount(entries.length)}${data.moreSteps ? "+" : ""}` : "–";
   const value = (count: number) => (data ? formatCount(count) : "–");
   const open = (row: AttentionRow) => (row.step ? onSelectStep(row.step) : onSelectOutcome(row.outcomeId));
-  async function mutateTodo(write: () => Promise<TodoItemView>) {
+  async function mutateTodo(write: () => Promise<OutcomeDetail>) {
     if (todoActing) return false;
     setTodoActing(true);
     setTodoError(false);
     try {
       const updated = await write();
-      if (updated.status === "done" || updated.status === "dismissed" || updated.displayState === "snoozed") {
-        setData((current) => current && { ...current, todos: current.todos.filter((entry) => entry.todo.id !== updated.id) });
+      if (!isTodoOutcome(updated) || updated.status === "accepted" || updated.status === "cancelled" || todoSchedule(updated).displayState === "snoozed") {
+        setData((current) => current && { ...current, todos: current.todos.filter((entry) => entry.outcome.id !== updated.id) });
       }
       void load();
       return true;
@@ -375,9 +375,8 @@ export function OutcomeDashboard({
       setTodoActing(false);
     }
   }
-  const actOnTodo = (item: TodoItemView, action: TodoAction, input?: Omit<TodoActionInput, "revision">) =>
-    outcomes.todos ? mutateTodo(() => outcomes.todos!.act(item.id, action, { revision: item.revision, ...input })) : Promise.resolve(false);
-  const todoHandoff = outcomes.todos && { bots, client: outcomes.todos, goals: outcomes, onOpenChannel, onSelectOutcome };
+  const actOnTodo = (item: TodoOutcome, request: TodoActionRequest) => mutateTodo(() => actOnTodoItem(outcomes, item, request));
+  const todoHandoff = { bots, client: outcomes, change: mutateTodo, onSelectOutcome };
   const canOpenActivity = (item: ActivityItem) =>
     item.link.type === "outcome" || (item.link.type === "channel" && onOpenChannel !== undefined) ||
       (item.link.type === "routine" && onOpenRoutine !== undefined);
@@ -422,7 +421,7 @@ export function OutcomeDashboard({
         <div className="outcome-toolbar-controls">
           <OutcomeButton onClick={onCreateIdea}>
             <Lightbulb aria-hidden="true" className="size-3.5" />
-            {t("Capture an idea")}
+            {t("Go")}
           </OutcomeButton>
           <OutcomeRefresh busy={busy} onRefresh={() => void load()} />
         </div>
@@ -479,10 +478,9 @@ export function OutcomeDashboard({
                   onOpen={() => onOpenChannel?.(entry.item.link.id)}
                 />
               ) : entry.kind === "todo" ? (
-                <TodoRow key={entry.key} item={entry.item.todo} attention={entry.item.attention}
-                  disabled={todoActing || !outcomes.todos} act={actOnTodo}
-                  handoff={todoHandoff && { ...todoHandoff, change: mutateTodo }}
-                  update={outcomes.todos && ((item, input) => mutateTodo(() => outcomes.todos!.update(item.id, input)))} />
+                isTodoOutcome(entry.item.outcome) && <TodoRow key={entry.key} item={entry.item.outcome} attention={entry.item.attention}
+                  disabled={todoActing} act={actOnTodo} handoff={todoHandoff}
+                  update={(item, followUpAt) => mutateTodo(() => updateTodoFollowUp(outcomes, item, followUpAt))} />
               ) : (
                 <li key={entry.key}>
                   <button
@@ -532,7 +530,7 @@ export function OutcomeDashboard({
           <ul className="outcome-rows">
             {data.upcoming.map((item) => (
               <li key={item.id}>
-                <button type="button" className="outcome-row" disabled={!onOpenScheduledGoal} onClick={() => onOpenScheduledGoal?.(item.link.id)}>
+                <button type="button" className="outcome-row" onClick={() => onSelectOutcome(item.link.id)}>
                   <span className="min-w-0 flex-1">
                     <span className="outcome-row-title">{item.title}</span>
                     <span className="outcome-row-meta">{bots.find((bot) => bot.id === item.botId)?.name ?? t("Bot")} · <time dateTime={item.runAt}>{new Date(item.runAt).toLocaleString()}</time> · {t(styleForActivity(item.state).label)}</span>

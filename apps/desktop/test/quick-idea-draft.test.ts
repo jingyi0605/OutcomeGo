@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { quickIdeaDraft } from "../src/renderer/components/outcomego/outcomes/explore/explore-state";
+import { quickIdeaDraft } from "../src/renderer/components/outcomego/outcomes/inbox/go-intake-draft";
 
 const bots = [
   { id: "main", name: "研发" },

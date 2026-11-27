@@ -1,6 +1,6 @@
 import { TASK_POLICY_FIELDS, type TaskPolicyField } from "@outcomego/contracts/task-policy";
 import { useState, type ReactNode } from "react";
-import type { TodoAutoAcceptRulesClient } from "../../../client/todo-api";
+import type { OutcomeAutoAcceptRulesClient } from "../../../client/outcome-api";
 import type { useFeatureSettings } from "../../../hooks/use-feature-settings";
 import { useI18n } from "../../../lib/i18n";
 import { policyCopy, policyOptionLabel } from "./goal-policy-copy";
@@ -20,7 +20,7 @@ type PolicyEntry = (typeof TASK_POLICY_FIELDS)[number];
  * and a new policy key shows up here by being added to the metadata and the catalog. Groups whose feature does not
  * exist yet are not drawn, so there are no empty shells.
  */
-export function GoalsSettingsView({ features, autoAcceptRules }: { features: Features; autoAcceptRules?: TodoAutoAcceptRulesClient }) {
+export function GoalsSettingsView({ features, autoAcceptRules }: { features: Features; autoAcceptRules?: OutcomeAutoAcceptRulesClient }) {
   const { t } = useI18n();
   const groups = visibleGoalSettingsGroups().filter((group) => group.id !== "goal-auto-accept" || autoAcceptRules);
   const off = features.loaded && !features.outcomesEnabled;

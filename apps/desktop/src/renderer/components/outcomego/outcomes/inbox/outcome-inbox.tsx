@@ -4,13 +4,12 @@ import type {
   OutcomeInboxItemView,
   OutcomeInboxPage,
 } from "@outcomego/contracts/outcome-inbox";
-import type { TodoClient } from "../../../../client/todo-api";
 import type { InboxClient } from "./inbox-api";
 import { responseStatus } from "./decision-state";
 import { useI18n } from "../../../../lib/i18n";
 import { CheckCheck, ChevronRight, Inbox } from "lucide-react";
-import type { TodoHandoffActions } from "../dashboard/todo-handoff";
-import { TodoPanel } from "../dashboard/todo-panel";
+import { TodoPanel, type TodoHandoffActions } from "../dashboard/todo-panel";
+import type { TodoClient } from "../dashboard/todo-state";
 import { OutcomeButton, OutcomeEmptyState, OutcomeRefresh } from "../outcome-ui";
 
 export const inboxCategoryLabels: Record<OutcomeInboxCategory, string> = {
@@ -34,7 +33,7 @@ export function OutcomeInbox({
 }: {
   client: InboxClient;
   todos?: TodoClient;
-  todoHandoff?: Omit<TodoHandoffActions, "change">;
+  todoHandoff?: Omit<TodoHandoffActions, "change" | "client">;
   onSelect: (item: OutcomeInboxItemView) => void;
   refreshVersion?: number;
   initialPage?: OutcomeInboxPage;

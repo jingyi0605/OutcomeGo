@@ -59,7 +59,8 @@ describe("Outcome approval components and request IDs", () => {
     await client.get("o1");
     await client.transcript("o1", "work/1");
     await client.sendThreadMessage!("o/1", { text: "取消目标", clientRequestId: "message:retry-key" });
-    await client.createThread!({ text: "做一个记账工具", botId: "bot-1", clientRequestId: "create:retry-key" });
+    const goal = { kind: "standard" as const, title: "做一个记账工具", description: "做一个记账工具", botId: "bot-1", clientRequestId: "create:retry-key" };
+    await client.create(goal);
     await client.thread!("o/1");
     expect(calls[0]).toEqual({
       path: "/api/outcomes/o%2F1/revisions/2/approve",
@@ -73,7 +74,7 @@ describe("Outcome approval components and request IDs", () => {
     expect(calls[3]?.path).toBe("/api/outcomes/o1/work-items/work%2F1/transcript");
     // The owner's words travel as written, with no wrapper.
     expect(calls[4]).toEqual({ path: "/api/outcomes/o%2F1/thread/messages", body: { text: "取消目标", clientRequestId: "message:retry-key" } });
-    expect(calls[5]?.path).toBe("/api/outcomes/threads");
+    expect(calls[5]).toEqual({ path: "/api/outcomes", body: goal });
     expect(calls[6]?.path).toBe("/api/outcomes/o%2F1/thread");
   });
 });

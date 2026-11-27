@@ -4,10 +4,10 @@ import { act, type ReactNode } from "react";
 import type { Root } from "react-dom/client";
 import { OutcomeGoClientError } from "@outcomego/client-core";
 import type { OutcomeDetail, OutcomeListPage } from "@outcomego/contracts/outcomes";
-import type { RoutineExecutionView, RoutineView, ScheduledGoalDetail, ScheduledGoalSummary, UpdateRoutineInput } from "@outcomego/contracts";
 import { createOutcomeApi } from "../src/renderer/client/outcome-api";
 import { I18nProvider } from "../src/renderer/lib/i18n";
 import type { ActivityResponse, ScheduleQuery, ScheduleResponse } from "@outcomego/contracts/task-overview";
+import type { OutcomeThreadView } from "@outcomego/contracts/outcome-thread";
 let TooltipProvider: typeof import("../src/renderer/components/ui/tooltip").TooltipProvider;
 let OutcomeNavigation: typeof import("../src/renderer/components/outcomego/outcomes/outcome-navigation").OutcomeNavigation;
 let OutcomeList: typeof import("../src/renderer/components/outcomego/outcomes/outcome-list").OutcomeList;
@@ -30,27 +30,23 @@ const bots = [
 let current: OutcomeDetail;
 let list: (query: string) => Promise<OutcomeListPage>;
 let activity: ActivityResponse | undefined;
+let thread: OutcomeThreadView;
+/** Answers the lifecycle and plan writes of the scheduled-goal tests. */
+let write: ((path: string, body: Record<string, unknown>) => unknown) | undefined;
+const goalKinds = "kinds=standard%2Ctracked%2Cscheduled_once";
 const outcomes = createOutcomeApi(async <T,>(path: string, init?: RequestInit): Promise<T> => {
   const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
   calls.push({ path, body });
-  if (path.startsWith("/api/todos?")) throw new OutcomeGoClientError("Not found", "not_found", 404);
   if (path.startsWith("/api/activity")) {
     return (activity ?? current) as T;
   }
+  if (path.startsWith("/api/outcomes?kinds=explore_idea")) return { items: [exploreFixture], nextCursor: null } as T;
   if (path.startsWith("/api/outcomes?") || (path === "/api/outcomes" && !body))
     return (await list(path.split("?")[1] ?? "")) as T;
-  if (path.endsWith("/thread")) return { threadId: null, turns: [] } as T;
-  if (path === "/api/outcomes/threads")
-    return { outcome: { ...current, status: "planning" }, turn: { id: "turn-1", purpose: "plan", trigger: body.text, status: "queued", reply: null, error: null, runId: null, createdAt: "now", updatedAt: "now" } } as T;
-  if (path === "/api/outcomes" && body) {
-    current = { ...current, title: body.title, status: "pending_approval" };
-    current.currentRevisionView = {
-      ...current.currentRevisionView!,
-      status: "pending_approval",
-      approvedAt: null,
-    };
-    return current as T;
-  }
+  if (write && (body || init?.method === "PATCH")) return write(path, body) as T;
+  if (path.endsWith("/thread")) return thread as T;
+  if (path === "/api/outcomes" && body)
+    return { outcome: { ...current, title: body.title, status: "planning" }, turn: null } as T;
   if (path.endsWith("/approve")) {
     current = {
       ...current,
@@ -60,24 +56,18 @@ const outcomes = createOutcomeApi(async <T,>(path: string, init?: RequestInit): 
         status: "approved",
         approvedAt: planFixture.generatedAt,
       },
-    };
+    } as OutcomeDetail;
   }
   if (path.endsWith("/runs"))
     current = {
       ...current,
       status: "running",
       workItems: structuredClone(outcomeFixture.workItems),
-    };
+    } as OutcomeDetail;
   return current as T;
 });
 const api = {
   outcomes,
-  scheduledGoals: async (): Promise<ScheduledGoalSummary[]> => [],
-  scheduledGoal: async (_id: string): Promise<ScheduledGoalDetail> => { throw new Error("No scheduled goal fixture"); },
-  prepareRoutine: async (_id: string, _revision: number, _clientId: string): Promise<RoutineExecutionView> => { throw new Error("No advice fixture"); },
-  setRoutineEnabled: async (_routine: RoutineView, _enabled: boolean): Promise<RoutineView> => { throw new Error("No lifecycle fixture"); },
-  deleteRoutine: async (_routine: RoutineView): Promise<void> => { throw new Error("No lifecycle fixture"); },
-  updateRoutine: async (_id: string, _input: UpdateRoutineInput): Promise<RoutineView> => { throw new Error("No lifecycle fixture"); },
   schedule: { list: async (_query: ScheduleQuery): Promise<ScheduleResponse> => ({ items: [], truncated: false }) },
   userTimeZone: async () => ({ timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
   outcomeInbox: {
@@ -89,10 +79,6 @@ const api = {
     },
     humanItems: async () => [],
     forOutcome: async () => ({ items: [], nextCursor: null }),
-  },
-  explore: {
-    list: async () => ({ items: [exploreFixture], nextCursor: null }),
-    get: async () => exploreFixture,
   },
   // The workspace reads the owner's policy for the activity area; an empty answer means every initial value.
   featureSettings: async () => ({}),
@@ -198,6 +184,8 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   activity = undefined;
+  write = undefined;
+  thread = { threadId: null, turns: [] };
   calls.length = 0;
   readCalls.length = 0;
   resolveCalls.length = 0;
@@ -329,12 +317,12 @@ test("navigation shows a colored count badge for each status that needs the owne
   expect(host.querySelector("[data-outcome-badge]")).toBeNull();
 });
 
-test("quick idea capture is a separate square button beside the Outcomes entry", async () => {
+test("Go capture is a separate square button beside the Outcomes entry", async () => {
   let ideas = 0;
   let opened = 0;
   await mount(<OutcomeNavigation active={false} onOpen={() => opened++} onNewIdea={() => ideas++} />);
   const open = host.querySelector('button[aria-label="Outcomes"]')!;
-  const idea = host.querySelector('button[aria-label="Capture an idea"]')!;
+  const idea = host.querySelector('button[aria-label="Go"]')!;
   expect(open.contains(idea)).toBe(false);
   expect(idea.parentElement).toBe(open.parentElement);
   expect(idea.className).toContain("size-9");
@@ -345,7 +333,7 @@ test("quick idea capture is a separate square button beside the Outcomes entry",
   expect([ideas, opened]).toEqual([1, 0]);
   expect(idea.className).not.toContain("bg-selected");
   await render(<OutcomeNavigation active onOpen={() => {}} onNewIdea={() => {}} ideaActive />);
-  const selectedIdea = host.querySelector('button[aria-label="Capture an idea"]')!;
+  const selectedIdea = host.querySelector('button[aria-label="Go"]')!;
   const selectedOpen = host.querySelector('button[aria-label="Outcomes"]')!;
   for (const el of [selectedIdea, selectedOpen]) {
     expect(el.className).toContain("bg-selected");
@@ -362,126 +350,118 @@ test("calendar navigation opens a separate calendar action", async () => {
   expect(opened).toBe(1);
 });
 
+/** The detail view is two lazy imports deep; the first load takes longer than a few ticks. */
+async function waitForDetail() {
+  for (let attempt = 0; attempt < 100 && !document.querySelector('article[aria-label="Scheduled goal details"]'); attempt++)
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+}
+
+function scheduledGoalFixture(id: string, title: string, scheduledAt: string): Extract<OutcomeDetail, { kind: "scheduled_once" }> {
+  return {
+    ...structuredClone(outcomeFixture), id, kind: "scheduled_once", title, status: "scheduled", botId: bots[0]!.id,
+    scheduledAt, description: "Check the saved notes", currentRevision: null, currentRevisionView: null, revisions: [],
+    workItems: [], outputs: [], evidence: [], reviews: [], kindMeta: {},
+  };
+}
+
 test("dashboard and calendar open the scheduled goal inside goal management", async () => {
   const { CalendarPage } = await import("../src/renderer/components/outcomego/outcomes/calendar/calendar-page");
   const runAt = new Date().toISOString();
   const botId = bots[0]!.id;
-  const routineId = "once-routine";
+  const goalId = "once-goal";
   const title = "Review fixture notes";
-  const link = { type: "routine", id: routineId } as const;
-  activity = { items: [], truncated: false, upcoming: [{ id: `routine:${routineId}`, type: "routine", botId, title, state: "preparing", runAt,
+  const link = { type: "outcome", id: goalId } as const;
+  current = scheduledGoalFixture(goalId, title, runAt);
+  activity = { items: [], truncated: false, upcoming: [{ id: `scheduled_once:${goalId}`, type: "scheduled_once", botId, title, state: "preparing", runAt,
     reason: null, doing: null, progress: null, lastActivityAt: runAt, nextCheckAt: runAt, needsOwner: false, link }] };
-  const opened: string[] = [];
-  const originalDetail = api.scheduledGoal;
   const openRoutine = () => { throw new Error("Scheduled goals must stay in goal management"); };
-  api.scheduledGoal = async (id) => {
-    opened.push(id);
-    return scheduledGoalFixture(id, title, runAt);
-  };
   await mount(<Workspace target={{}} bots={bots} onClose={() => {}} onOpenRoutine={openRoutine} />);
   const upcoming = host.querySelector('section[aria-label="Upcoming work"]');
   expect(upcoming?.querySelectorAll("button")).toHaveLength(1);
   const row = upcoming!.querySelector("button")!;
   expect(row.textContent).toContain("Preparing");
   await act(async () => row.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+  await waitForDetail();
   expect(document.querySelector('article[aria-label="Scheduled goal details"]')?.textContent).toContain(title);
   const original = api.schedule.list;
   const queries: ScheduleQuery[] = [];
   api.schedule.list = async (query) => {
     queries.push(query);
-    return { truncated: false, items: [{ id: `scheduled_once:${routineId}`, title, kind: "scheduled_once", botId,
+    return { truncated: false, items: [{ id: `scheduled_once:${goalId}`, title, kind: "scheduled_once", botId, outcomeId: goalId,
       start: runAt, end: null, allDay: false, timeBasis: "scheduled", state: "preparing", overdue: false,
-      owner: "bot", link, editable: false, updatedAt: runAt }] };
+      owner: "bot", link, editable: true, updatedAt: runAt }] };
   };
   try {
     const { useState } = await import("react");
     function CalendarHost() {
-      const [scheduledGoalId, setScheduledGoalId] = useState<string>();
-      return scheduledGoalId
-        ? <Workspace target={{ scheduledGoalId }} bots={bots} onClose={() => {}} />
-        : <CalendarPage bots={bots} onClose={() => {}} onOpenOutcome={() => {}} onOpenRoutine={openRoutine} onOpenScheduledGoal={setScheduledGoalId} />;
+      const [outcomeId, setOutcomeId] = useState<string>();
+      return outcomeId
+        ? <Workspace target={{ outcomeId }} bots={bots} onClose={() => {}} />
+        : <CalendarPage bots={bots} onClose={() => {}} onOpenOutcome={setOutcomeId} onOpenRoutine={openRoutine} />;
     }
     await render(<CalendarHost />);
     expect(queries[0]?.kinds).toContain("scheduled_once");
-    const cells = host.querySelectorAll(`[data-calendar-item="scheduled_once:${routineId}"]`);
+    const cells = host.querySelectorAll(`[data-calendar-item="scheduled_once:${goalId}"]`);
     expect(cells).toHaveLength(1);
     expect(cells[0]?.textContent).toContain("Preparing");
     await act(async () => cells[0]!.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
+    await waitForDetail();
     expect(document.querySelector('article[aria-label="Scheduled goal details"]')?.textContent).toContain(title);
-    expect(opened).toEqual([routineId, routineId]);
+    expect(calls.some((call) => call.path === `/api/outcomes/${goalId}`)).toBe(true);
   } finally {
     api.schedule.list = original;
-    api.scheduledGoal = originalDetail;
   }
 });
 
-function scheduledGoalFixture(id: string, name: string, runAt: string): ScheduledGoalDetail {
-  const botId = bots[0]!.id;
-  return {
-    id, name, botId, runAt, state: "scheduled", executions: [],
-    routine: {
-      id, name, botId, revision: 1, ownerId: botId, ownerKind: "bot", channelId: null, folder: "fixture",
-      prompt: "Check the saved notes", schedule: "", schedules: [], scheduleKind: "once", cronExpression: null,
-      intervalSeconds: null, timezone: "UTC", timezoneMode: "pinned", enabled: true, nextRunAt: runAt,
-      lastRunAt: null, createdAt: runAt, updatedAt: runAt, latestExecution: null, trigger: { type: "once", runAt },
-      triggerPresentation: null,
-    },
-  };
-}
-
 test("all goals manages scheduled work and displays the planner's saved advice", async () => {
-  const original = { ...api };
   const runAt = new Date(Date.now() + 3_600_000).toISOString();
   let goal = scheduledGoalFixture("test-scheduled-goal", "Consult the customer", runAt);
-  const adviceCalls: unknown[][] = [];
-  const writeCalls: unknown[][] = [];
-  api.scheduledGoals = async () => [goal];
-  api.scheduledGoal = async () => structuredClone(goal);
-  api.prepareRoutine = async (id, revision, clientId) => {
-    adviceCalls.push([id, revision, clientId]);
-    if (adviceCalls.length === 1) throw new Error("Connection interrupted");
-    const queued: RoutineExecutionView = {
-      id: "preparation", routineId: id, runId: "planner-run", revision, kind: "preparation", status: "queued",
-      scheduledFor: runAt, enqueuedAt: runAt, startedAt: null, completedAt: null, skipReason: null, error: null, createdAt: runAt,
-    };
-    goal = { ...goal, executions: [queued] };
-    return queued;
+  current = goal;
+  list = async () => ({ items: [goal], nextCursor: null });
+  const writes: Array<{ path: string; body: Record<string, unknown> }> = [];
+  const save = (next: typeof goal) => { goal = next; current = next; return next; };
+  const turn = (status: "queued" | "completed") => ({
+    id: "advice-turn", purpose: "plan" as const, planMode: "advice" as const, trigger: "Research", status, reply: null, error: null,
+    runId: null, outcomeRevision: goal.revision, createdAt: runAt, updatedAt: runAt,
+    result: status === "completed"
+      ? { schemaVersion: 1 as const, summary: "Confirm the revised delivery date.", facts: [], gaps: [], recommendations: [] }
+      : null,
+  });
+  write = (path, body) => {
+    writes.push({ path, body });
+    if (path.endsWith("/plan")) {
+      if (writes.length === 1) throw new Error("Connection interrupted");
+      thread = { threadId: "thread", turns: [turn("queued")] };
+      return thread.turns[0];
+    }
+    const status = body.action === "pause" ? "paused" : body.action === "resume" ? "scheduled" : "cancelled";
+    return save({ ...goal, status, revision: goal.revision + 1 });
   };
-  api.setRoutineEnabled = async (routine, enabled) => {
-    writeCalls.push(["enable", routine.revision, enabled]);
-    goal = { ...goal, state: enabled ? "scheduled" : "paused", routine: { ...routine, enabled, revision: routine.revision + 1 } };
-    return goal.routine;
-  };
-  api.deleteRoutine = async (routine) => {
-    writeCalls.push(["cancel", routine.revision]);
-    goal = { ...goal, state: "cancelled", routine: { ...routine, revision: routine.revision + 1, enabled: false } };
-  };
-  try {
-    await mount(<Workspace target={{}} bots={bots} onClose={() => {}} />);
-    await showAllGoals();
-    const list = host.querySelector('section[aria-label="Scheduled goals"]');
-    expect(list).toBeTruthy();
-    await act(async () => list!.querySelector("button")!.click());
-    const detail = () => document.querySelector('article[aria-label="Scheduled goal details"]')!;
-    await click("Generate run advice", detail());
-    expect(detail().textContent).toContain("Connection interrupted");
-    await click("Generate run advice", detail());
-    expect(adviceCalls).toEqual([[goal.id, 1, expect.any(String)], adviceCalls[0]]);
-    expect(detail().textContent).toContain("Advice queued…");
-    goal = { ...goal, executions: [{ ...goal.executions[0]!, status: "completed", result: { summary: "Confirm the revised delivery date.", delivered: false } }] };
-    await act(async () => detail().querySelector<HTMLButtonElement>('button[aria-label="Refresh from server"]')!.click());
-    expect(detail().querySelector('section[aria-label="Run advice"]')?.textContent).toContain("Confirm the revised delivery date.");
-    await click("Pause", detail());
-    await click("Resume", detail());
-    await click("Cancel scheduled goal", detail());
-    expect(writeCalls).toEqual([["enable", 1, false], ["enable", 2, true]]);
-    await click("Confirm cancellation", detail());
-    expect(writeCalls.at(-1)).toEqual(["cancel", 3]);
-    expect(detail().textContent).toContain("Cancelled");
-    expect(detail().querySelector('section[aria-label="Run history"]')?.textContent).toContain("Confirm the revised delivery date.");
-  } finally {
-    Object.assign(api, original);
-  }
+  await mount(<Workspace target={{}} bots={bots} onClose={() => {}} />);
+  await showAllGoals();
+  expect(host.querySelector(".outcome-row")?.textContent).toContain("Scheduled time");
+  await openFirstGoal();
+  const detail = () => document.querySelector('article[aria-label="Scheduled goal details"]')!;
+  await click("Generate run advice", detail());
+  expect(detail().textContent).toContain("Connection interrupted");
+  await click("Generate run advice", detail());
+  expect(writes[0]).toEqual({ path: "/api/outcomes/test-scheduled-goal/plan", body: { mode: "advice", expectedRevision: 1, clientRequestId: expect.any(String) } });
+  expect(writes[1]).toEqual(writes[0]!);
+  expect(detail().textContent).toContain("Advice queued…");
+  thread = { threadId: "thread", turns: [turn("completed")] };
+  const { handleOutcomeThreadEvent, OUTCOME_THREAD_TOPIC } = await import("../src/renderer/lib/outcome-thread");
+  await act(async () => handleOutcomeThreadEvent({ topic: OUTCOME_THREAD_TOPIC, entityId: goal.id, payload: { outcomeId: goal.id, status: "completed" } } as never));
+  expect(detail().querySelector('section[aria-label="Run advice"]')?.textContent).toContain("Confirm the revised delivery date.");
+  await click("Pause", detail());
+  await click("Resume", detail());
+  await click("Cancel scheduled goal", detail());
+  const actions = () => writes.slice(2).map(({ body }) => [body.action, body.expectedRevision]);
+  expect(actions()).toEqual([["pause", 1], ["resume", 2]]);
+  await click("Confirm cancellation", detail());
+  expect(actions().at(-1)).toEqual(["cancel", 3]);
+  expect(detail().textContent).toContain("Cancelled");
 });
 
 test("the calendar retries without the one-time source on a legacy server", async () => {
@@ -707,10 +687,10 @@ test("dashboard section links switch to the full lists and unified In progress l
   expect(host.querySelectorAll(".outcome-row").length).toBe(7);
 });
 
-test("dashboard capture-an-idea button opens the quick idea dialog", async () => {
+test("dashboard Go button opens the intake dialog", async () => {
   await mount(page());
-  await click("Capture an idea", host);
-  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("Capture an idea");
+  await click("Go", host);
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("Whatever is on your mind");
 });
 
 test("workspace opens a full page with all goals, Bot names and execution statuses", async () => {
@@ -754,7 +734,7 @@ test("goal rows open goal details without exposing execution transcript controls
 test("all-goals status filtering queries the server and discards an obsolete response", async () => {
   let resolve!: (value: OutcomeListPage) => void;
   list = async (query) =>
-    query
+    new URLSearchParams(query).has("statuses")
       ? {
           items: [{ ...outcomeFixture, title: "Only paused goal", status: "paused" }],
           nextCursor: null,
@@ -766,7 +746,7 @@ test("all-goals status filtering queries the server and discards an obsolete res
     <OutcomeList client={outcomes} bots={bots} onSelect={() => {}} onCreate={() => {}} />
   );
   await input(host.querySelector("select")!, "paused");
-  expect(calls.some((call) => call.path === "/api/outcomes?status=paused")).toBe(true);
+  expect(calls.some((call) => call.path === "/api/outcomes?statuses=paused")).toBe(true);
   expect(host.textContent).toContain("Only paused goal");
   await act(async () => {
     resolve({ items: [{ ...outcomeFixture, title: "Obsolete goal" }], nextCursor: null });
@@ -776,45 +756,37 @@ test("all-goals status filtering queries the server and discards an obsolete res
 });
 
 test("the goal list marks bot-registered rows and filters them without losing the status filter", async () => {
-  const tracked = { ...outcomeFixture, title: "Alpha goal", trackingMode: "tracked" } as const;
-  const standard = { ...outcomeFixture, id: "standard", title: "Beta goal", trackingMode: "standard" } as const;
-  const legacy = { ...outcomeFixture, id: "legacy", title: "Legacy goal", trackingMode: undefined };
+  const tracked = { ...outcomeFixture, title: "Alpha goal", kind: "tracked", status: "running" } as const;
+  const standard = { ...outcomeFixture, id: "standard", title: "Beta goal" } as const;
   list = async (query) => ({
-    items: query.includes("trackingMode=tracked") ? [tracked] : [tracked, standard, legacy],
+    items: new URLSearchParams(query).get("kinds") === "tracked" ? [tracked] : [tracked, standard],
     nextCursor: null,
   });
   await mount(<OutcomeList client={outcomes} bots={bots} onSelect={() => {}} onCreate={() => {}} />);
   const rows = [...host.querySelectorAll(".outcome-row")];
-  expect(rows.map((row) => row.textContent?.includes("Bot-registered"))).toEqual([true, false, false]);
+  expect(rows.map((row) => row.textContent?.includes("Bot-registered"))).toEqual([true, false]);
   await input(host.querySelector("select")!, "approved");
-  const trackedOnly = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-  const toggle = async (checked: boolean) => {
-    trackedOnly.checked = checked;
-    await act(async () => {
-      trackedOnly.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-    });
-  };
-  await toggle(true);
-  expect(calls.at(-1)!.path).toBe("/api/outcomes?status=approved&trackingMode=tracked");
+  const kindFilter = host.querySelector<HTMLSelectElement>('#outcome-kind-filter')!;
+  await input(kindFilter, "tracked");
+  expect(calls.at(-1)!.path).toBe("/api/outcomes?kinds=tracked&statuses=approved");
   expect(host.querySelectorAll(".outcome-row")).toHaveLength(1);
   expect(host.textContent).toContain("Alpha goal");
   expect(host.textContent).not.toContain("Beta goal");
-  list = async () => ({ items: [legacy], nextCursor: null });
+  list = async () => ({ items: [standard], nextCursor: null });
   await act(async () => {
     host.querySelector('button[aria-label="Refresh from server"]')!
       .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
-  expect(host.textContent).not.toContain("Legacy goal");
-  expect(host.textContent).toContain("No matching bot-registered goals.");
-  list = async () => ({ items: [tracked, standard, legacy], nextCursor: null });
-  await toggle(false);
-  expect(calls.at(-1)!.path).toBe("/api/outcomes?status=approved");
-  expect(host.querySelectorAll(".outcome-row")).toHaveLength(3);
+  expect(host.textContent).toContain("Beta goal");
+  list = async () => ({ items: [tracked, standard], nextCursor: null });
+  await input(kindFilter, "all");
+  expect(calls.at(-1)!.path).toBe("/api/outcomes?statuses=approved");
+  expect(host.querySelectorAll(".outcome-row")).toHaveLength(2);
 });
 
 test("goal pagination retains existing goals, deduplicates overlap and passes the cursor", async () => {
   list = async (query) =>
-    query
+    new URLSearchParams(query).has("cursor")
       ? {
           items: [
             { ...outcomeFixture },
@@ -863,59 +835,52 @@ test("goal list errors offer a working retry and empty goals offer creation", as
   expect(host.querySelector('[role="alert"]')?.textContent).toContain("Could not load goals");
   list = async () => ({ items: [], nextCursor: null });
   await click("Retry");
-  expect(host.textContent).toContain("No goals yet.");
-  await click("New Outcome");
+  expect(host.textContent).toContain("No Outcomes yet.");
+  await click("Go");
   expect(created).toBe(true);
 });
 
-test("attention and Explore are separate full-page sections and can return to all goals", async () => {
+test("attention and all goals sections navigate cleanly without a separate Explore tab, and Ideas filter works in All goals", async () => {
   await mount(page());
-  await click("Needs attention", host.querySelector('nav[aria-label="Outcome sections"]')!);
+  const nav = host.querySelector('nav[aria-label="Outcome sections"]')!;
+  expect(nav.textContent).not.toContain("Explore ideas");
+  await click("Needs attention", nav);
   expect(host.textContent).toContain(inboxFixture.title);
   expect(host.textContent).toContain(inboxFixture.next);
-  await click("Explore ideas", host.querySelector('nav[aria-label="Outcome sections"]')!);
-  expect(host.textContent).toContain(exploreFixture.title);
-  await click("New idea");
-  // Recording an idea is one free-text box plus a save button, nothing else to fill in.
-  expect(host.querySelector("[data-placeholder]")?.getAttribute("data-placeholder")).toContain("@");
-  expect(host.querySelectorAll("input, select, textarea")).toHaveLength(0);
-  expect(host.textContent).toContain("Save idea");
-  await click("All goals", host.querySelector('nav[aria-label="Outcome sections"]')!);
+  await click("All goals", nav);
   expect(host.textContent).toContain("Backup comparison");
+  await input(host.querySelector("#outcome-kind-filter")!, "explore_idea");
+  expect(host.textContent).toContain(exploreFixture.title);
   expect(host.querySelector('[role="dialog"]')).toBeNull();
 });
 
-test("a new goal is handed to the chosen Bot in the owner's own words, and the window closes at once", async () => {
+test("Go opens the shared intake surface and accepts pasted images while rejecting empty files", async () => {
   await mount(page());
-  await click("New Outcome");
-  await input(document.body.querySelector('select[aria-label="Execution Bot"]')!, bots[1]!.id);
-  const words = "Compare backup plans for this goal\n(keep it cheap)";
-  await input(document.body.querySelector("textarea")!, words);
-  await click("Hand to the bot");
-  const created = calls.find((call) => call.path === "/api/outcomes/threads");
-  // Nothing about the goal is decided for the owner: no options, no wizard, just the words and the bot.
-  expect(created?.body).toMatchObject({ text: words, botId: bots[1]!.id });
-  expect(calls.some((call) => call.path === "/api/outcomes/plans")).toBe(false);
-  // The form is gone and the goal list is back.
-  expect(document.body.textContent).not.toContain("Hand to the bot");
-  expect(document.body.textContent).not.toContain("Generate planning options");
+  await click("Go");
+  expect(document.body.textContent).toContain("Whatever is on your mind");
+  const editor = document.body.querySelector<HTMLElement>('[role="textbox"]')!;
+  const img = new dom.window.File(["png-bytes"], "clip.png", { type: "image/png" });
+  const empty = new dom.window.File([], "empty.txt", { type: "text/plain" });
+  await act(async () => {
+    const paste = new dom.window.Event("paste", { bubbles: true, cancelable: true });
+    Object.defineProperty(paste, "clipboardData", { value: { files: [img, empty], items: [] } });
+    editor.dispatchEvent(paste);
+  });
+  expect(document.body.textContent).toContain("clip.png");
+  expect(document.body.textContent).not.toContain("empty.txt");
+  expect(document.body.querySelector('[role="alert"]')?.textContent).toContain("Some files could not be attached");
 });
 
-test("new Outcome with no Bots provides a way back to chat", async () => {
-  let closed = false;
+test("Go intake remains available without Bots", async () => {
   await mount(
     <Workspace
       target={{}}
       bots={[]}
-      onClose={() => {
-        closed = true;
-      }}
+      onClose={() => {}}
     />
   );
-  await click("New Outcome");
-  expect(document.body.textContent).toContain("Create a Bot in chat before planning an Outcome.");
-  await click("Back to chats");
-  expect(closed).toBe(true);
+  await click("Go");
+  expect(document.body.textContent).toContain("Whatever is on your mind");
 });
 
 test("notification targets open the corresponding detail in a modal and mark only that notification read", async () => {
@@ -973,7 +938,7 @@ test("goal list opens a floating dialog; outside click closes it and retains the
   });
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(host.querySelector("select")?.value).toBe("running");
-  expect(calls.at(-1)?.path).toBe("/api/outcomes?status=running");
+  expect(calls.at(-1)?.path).toBe("/api/outcomes?statuses=running");
   expect(calls.every((call) => !call.body)).toBe(true);
 });
 
@@ -986,7 +951,7 @@ test("Escape closes a goal modal; inspecting the saved plan inside does not dism
       status: "pending_approval",
       approvedAt: null,
     },
-  };
+  } as OutcomeDetail;
   await mount(page());
   await showAllGoals();
   await openFirstGoal();

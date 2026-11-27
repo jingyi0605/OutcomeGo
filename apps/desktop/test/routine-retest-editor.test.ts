@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import {
   routinePresentationValue,
-  routineLocalDateTime,
   routineScheduleDrafts,
   DEFAULT_ROUTINE_SCHEDULE,
   type RoutineView,
@@ -299,24 +298,6 @@ class EditorHarness {
 }
 
 describe("routine editor component deferred-response retest", () => {
-  test("one-time arrangements preserve their trigger on content edits and save date changes with a revision", async () => {
-    const editor = new EditorHarness();
-    const runAt = new Date(Date.now() + 3_600_000).toISOString();
-    const preparation = { at: new Date(Date.now() + 1_800_000).toISOString(), instruction: "Check the authorized reference." };
-    editor.server = { ...editor.server, scheduleKind: "once", schedules: [], trigger: { type: "once", runAt, preparation } };
-    await editor.start();
-    expect(editor.find((node) => node.props?.children === "Test run")).toBeUndefined();
-    expect(editor.find((node) => node.props?.id === "routine-once-time")?.props.value).toBe(routineLocalDateTime(runAt));
-    editor.input("routine-name", "Updated arrangement");
-    editor.debounce();
-    await editor.flush();
-    expect(editor.server.trigger).toEqual({ type: "once", runAt, preparation });
-    const movedTo = routineLocalDateTime(new Date(Date.now() + 7_200_000).toISOString());
-    editor.input("routine-once-time", movedTo);
-    editor.debounce();
-    await editor.flush();
-    expect(editor.updates[1]).toMatchObject({ expectedRevision: 2, trigger: { type: "once", runAt: new Date(movedTo).toISOString(), preparation } });
-  });
   test("hide/reopen retains authored mixed listeners and Advanced presentation through queued saves", async () => {
     const h = new EditorHarness();
     await h.start();

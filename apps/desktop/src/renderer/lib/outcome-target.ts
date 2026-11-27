@@ -1,20 +1,19 @@
 import { parseOutcomeDeepLink } from "@outcomego/contracts/app-deep-links";
 import { OUTCOME_NOTIFICATION_CATEGORIES, type OutcomeNotificationCategory } from "@outcomego/contracts/notification-content";
 
-export type OutcomeWorkspaceSection = "overview" | "all" | "inbox" | "explore" | "calendar";
+export type OutcomeWorkspaceSection = "overview" | "all" | "notes" | "inbox" | "calendar";
 
 const OUTCOME_WORKSPACE_SECTIONS: readonly OutcomeWorkspaceSection[] = [
   "overview",
   "all",
+  "notes",
   "inbox",
-  "explore",
   "calendar",
 ];
 
 export interface DesktopOutcomeTarget {
   outcomeId?: string;
   decisionId?: string;
-  scheduledGoalId?: string;
   section?: OutcomeWorkspaceSection;
   category?: OutcomeNotificationCategory;
   channelId?: string;

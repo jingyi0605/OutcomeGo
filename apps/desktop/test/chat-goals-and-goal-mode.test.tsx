@@ -251,10 +251,16 @@ const botFixture: BotView = {
   updatedAt: "2026-11-22T00:00:00.000Z",
 };
 
+const goalFields = {
+  kind: "standard" as const, kindMeta: {}, revision: 1, parentOutcomeId: null, attachments: [] as never[], tags: [] as string[],
+  urgency: "normal" as const, executor: "bot" as const, dueAt: null, scheduledAt: null, followUpAt: null, snoozeUntil: null,
+};
+
 const allGoals: OutcomeListPage = {
   items: [
     {
       id: "goal-running",
+      ...goalFields,
       title: "清理 Unraid 存储空间（进行中）",
       status: "running",
       botId: "bot-1",
@@ -263,6 +269,7 @@ const allGoals: OutcomeListPage = {
     },
     {
       id: "goal-accepted",
+      ...goalFields,
       title: "清理 Unraid 存储空间（已验收）",
       status: "accepted",
       botId: "bot-1",
@@ -271,6 +278,7 @@ const allGoals: OutcomeListPage = {
     },
     {
       id: "goal-cancelled",
+      ...goalFields,
       title: "Unraid 清理后容量复查",
       status: "cancelled",
       botId: "bot-1",
@@ -287,7 +295,7 @@ test("ChatGoals hides accepted and cancelled goals by default, shows timestamps 
   api.outcomes.list = async (query = "") => {
     queries.push(query);
     const params = new URLSearchParams(query);
-    const statusParam = params.get("status");
+    const statusParam = params.get("statuses");
     const allowed = statusParam ? new Set(statusParam.split(",")) : null;
     return {
       items: allowed ? allGoals.items.filter((item) => allowed.has(item.status)) : allGoals.items,
@@ -326,7 +334,8 @@ test("ChatGoals hides accepted and cancelled goals by default, shows timestamps 
     const toggle = dialog.querySelector('[role="switch"]') as HTMLButtonElement;
     expect(toggle).not.toBeNull();
     expect(dialog.textContent).toContain("Show completed goals");
-    expect(queries[0]).toContain("status=");
+    expect(new URLSearchParams(queries[0]).get("kinds")).toBe("standard,tracked,scheduled_once");
+    expect(queries[0]).toContain("statuses=");
     expect(queries[0]).not.toContain("accepted");
     expect(queries[0]).not.toContain("cancelled");
 
@@ -336,7 +345,7 @@ test("ChatGoals hides accepted and cancelled goals by default, shows timestamps 
     });
     await settle();
 
-    expect(queries.at(-1)).not.toContain("status=");
+    expect(queries.at(-1)).not.toContain("statuses=");
     expect(dialog.textContent).toContain("清理 Unraid 存储空间（已验收）");
     expect(dialog.textContent).toContain("Unraid 清理后容量复查");
 

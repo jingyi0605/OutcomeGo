@@ -14,6 +14,7 @@ export interface OutcomeThreadEvent {
   outcomeId: string;
   title: string;
   status: OutcomeThreadTurnStatus;
+  planMode?: string | null;
 }
 
 const listeners = new Set<(event: OutcomeThreadEvent) => void>();
@@ -24,7 +25,14 @@ export const handleOutcomeThreadEvent = (event: ProductEvent) => {
   const payload = (event.payload ?? {}) as Partial<OutcomeThreadEvent>;
   const outcomeId = payload.outcomeId ?? event.entityId;
   if (!outcomeId || !payload.status) return;
-  for (const listener of listeners) listener({ outcomeId, title: payload.title ?? "", status: payload.status });
+  for (const listener of listeners) {
+    listener({
+      outcomeId,
+      title: payload.title ?? "",
+      status: payload.status,
+      ...(payload.planMode !== undefined ? { planMode: payload.planMode } : {}),
+    });
+  }
 };
 
 export const subscribeOutcomeThreadEvents = (listener: (event: OutcomeThreadEvent) => void) => {

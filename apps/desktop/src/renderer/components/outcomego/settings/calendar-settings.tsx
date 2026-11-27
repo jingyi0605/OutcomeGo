@@ -6,7 +6,7 @@ import { useI18n } from "../../../lib/i18n";
 import { settingsInput, settingsSecondaryButton, SettingsGroup, SettingsRow } from "./ui";
 
 const STORAGE_KEY = "outcomego.goal-calendar";
-const FEED_KINDS: readonly CalendarFeedKind[] = ["goal_due", "human_task", "work_item", "todo", "follow_up", "routine_run"];
+const FEED_KINDS: readonly CalendarFeedKind[] = ["goal_due", "human_task", "work_item", "todo", "follow_up", "routine_run", "scheduled_once"];
 const labels: Record<CalendarFeedKind, string> = {
   goal_due: "Goal deadlines",
   human_task: "Human tasks",
@@ -14,6 +14,8 @@ const labels: Record<CalendarFeedKind, string> = {
   todo: "To-dos",
   follow_up: "Follow-ups",
   routine_run: "Routines",
+  scheduled_once: "Upcoming work",
+  note: "Notes",
 };
 
 type ExternalSelection = { connectionId: string; calendarId: string; busyOnly: boolean };

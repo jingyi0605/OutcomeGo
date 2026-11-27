@@ -125,7 +125,7 @@ export function OutcomeNavigation({
           <TooltipTrigger asChild>
             <button
               type="button"
-              aria-label={t("Capture an idea")}
+              aria-label={t("Go")}
               aria-pressed={ideaActive}
               onClick={onNewIdea}
               className={cn(rowButtonClass(ideaActive), "grid size-9 shrink-0 place-items-center")}
@@ -133,7 +133,7 @@ export function OutcomeNavigation({
               <Lightbulb aria-hidden="true" className="size-[14px]" strokeWidth={1.6} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">{t("Capture an idea")}</TooltipContent>
+          <TooltipContent side="bottom">{t("Go")}</TooltipContent>
         </Tooltip>
       )}
     </div>

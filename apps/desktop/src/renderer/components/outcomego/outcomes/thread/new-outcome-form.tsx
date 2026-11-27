@@ -6,6 +6,12 @@ import { useI18n } from "../../../../lib/i18n";
 import { OutcomeRequestIds, outcomeErrorMessage } from "../planning/outcome-client";
 import { OutcomeButton } from "../outcome-ui";
 
+/** The title a goal has until its bot writes a real one with its first contract. */
+function placeholderTitle(text: string): string {
+  const line = text.trim().split(/\r?\n/, 1)[0]!.trim();
+  return line.length > 60 ? `${line.slice(0, 57)}…` : line;
+}
+
 /**
  * A new goal in the owner's own words. The chosen bot plans it in the goal's thread; this returns at once
  * so the window can close while the bot works.
@@ -14,40 +20,32 @@ export function NewOutcomeForm({
   client,
   bots,
   botId: fixedBotId,
-  exploreIdeaId,
-  initialText = "",
-  postToChat = false,
   onCreated,
 }: {
-  client: Pick<OutcomeClient, "createThread">;
+  client: Pick<OutcomeClient, "create">;
   bots: Array<{ id: string; name: string }>;
   /** A fixed bot (for example the one in the open chat); otherwise the owner picks. */
   botId?: string;
-  exploreIdeaId?: string;
-  initialText?: string;
-  postToChat?: boolean;
   onCreated: (outcome: OutcomeDetail) => void;
 }) {
   const { t } = useI18n();
-  const [text, setText] = useState(initialText);
+  const [text, setText] = useState("");
   const [chosen, setChosen] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ids = useRef(new OutcomeRequestIds());
   const botId = fixedBotId ?? (bots.some((bot) => bot.id === chosen) ? chosen : (bots[0]?.id ?? ""));
-  const create = client.createThread;
-  if (!create) return null;
   async function submit() {
     if (busy || !text.trim() || !botId) return;
     setBusy(true);
     setError(null);
     try {
-      const input = { text, botId, ...(exploreIdeaId ? { exploreIdeaId } : {}), ...(postToChat ? { postToChat: true } : {}) };
-      const result = await create!.call(client, {
+      const input = { kind: "standard" as const, title: placeholderTitle(text), description: text, botId };
+      const result = await client.create({
         ...input,
-        clientRequestId: ids.current.for("create-thread", input),
+        clientRequestId: ids.current.for("create", input),
       });
-      ids.current.complete("create-thread");
+      ids.current.complete("create");
       const name = bots.find((bot) => bot.id === botId)?.name ?? "";
       toast.success(t("Handed to {bot}. You’ll be told when it replies.", { bot: name }));
       onCreated(result.outcome);

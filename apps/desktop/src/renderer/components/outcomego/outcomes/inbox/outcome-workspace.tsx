@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { CalendarDays, Inbox, Lightbulb, LayoutDashboard, ListChecks, Plus, Target } from "lucide-react";
+import { CalendarDays, Inbox, LayoutDashboard, ListChecks, Target } from "lucide-react";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import { api } from "../../../../client/outcomego-api";
 import { useFeatureSettings } from "../../../../hooks/use-feature-settings";
@@ -7,15 +7,13 @@ import type { DesktopOutcomeTarget, OutcomeWorkspaceSection } from "../../../../
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeInbox } from "./outcome-inbox";
 import { useI18n } from "../../../../lib/i18n";
-import { ExplorePanel } from "../explore/explore-panel";
 import { OutcomeList } from "../outcome-list";
 import { OutcomeDashboard } from "../dashboard/outcome-dashboard";
-import QuickIdeaDialog from "../explore/quick-idea-dialog";
+import GoIntakeDialog from "./go-intake-dialog";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { NewOutcomeForm } from "../thread/new-outcome-form";
 import { OutcomeButton } from "../outcome-ui";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../ui/dialog";
-import { ScheduledGoalDetail } from "../detail/scheduled-goal-detail";
 
 const OutcomeRouteView = lazy(() =>
   import("./outcome-route-view").then((module) => ({ default: module.OutcomeRouteView }))
@@ -29,27 +27,23 @@ type Route =
   | { kind: "all" }
   | { kind: "new" }
   | { kind: "inbox" }
-  | { kind: "explore" }
   | { kind: "calendar" }
   | { kind: "decision"; id: string }
   | { kind: "outcome"; id: string; reviewRevision?: number }
-  | { kind: "scheduledGoal"; id: string }
   | { kind: "human"; id: string };
 type Section = OutcomeWorkspaceSection;
-const SECTIONS: readonly Section[] = ["overview", "all", "inbox", "explore", "calendar"];
+const SECTIONS: readonly Section[] = ["overview", "all", "inbox", "calendar"];
 const isSection = (kind: string): kind is Section => (SECTIONS as readonly string[]).includes(kind);
 const sectionFor = (target: DesktopOutcomeTarget): Section =>
   target.section && isSection(target.section)
     ? target.section
     : target.decisionId
       ? "inbox"
-      : target.outcomeId || target.scheduledGoalId
+      : target.outcomeId
         ? "all"
         : "overview";
 const routeFor = (target: DesktopOutcomeTarget): Route =>
-  target.scheduledGoalId
-    ? { kind: "scheduledGoal", id: target.scheduledGoalId }
-    : target.decisionId
+  target.decisionId
       ? { kind: "decision", id: target.decisionId }
       : target.outcomeId
         ? { kind: "outcome", id: target.outcomeId }
@@ -85,7 +79,7 @@ export default function OutcomeWorkspace({
   const [version, setVersion] = useState(0);
   const [botId, setBotId] = useState("");
   const [origin, setOrigin] = useState<Section>(() => sectionFor(target));
-  const [ideaOpen, setIdeaOpen] = useState(false);
+  const [goOpen, setGoOpen] = useState(false);
   useEffect(() => {
     setRoute(routeFor(target));
     setOrigin(sectionFor(target));
@@ -112,7 +106,6 @@ export default function OutcomeWorkspace({
   };
   const review = (id: string, reviewRevision?: number) =>
     openRoute({ kind: "outcome", id, reviewRevision });
-  const openScheduledGoal = (id: string) => openRoute({ kind: "scheduledGoal", id });
   const selectedBotId = bots.some((bot) => bot.id === botId) ? botId : (bots[0]?.id ?? "");
   const tab: Section = isSection(route.kind) ? route.kind : origin;
   const modalOpen = !isSection(route.kind);
@@ -139,13 +132,9 @@ export default function OutcomeWorkspace({
           <OutcomeButton
             className="electron-no-drag"
             variant="default"
-            onClick={() => {
-              setOrigin(tab);
-              openRoute({ kind: "new" });
-            }}
+            onClick={() => setGoOpen(true)}
           >
-            <Plus aria-hidden="true" className="size-3.5" />
-            {t("New Outcome")}
+            {t("Go")}
           </OutcomeButton>
         </div>
         <nav aria-label={t("Outcome sections")} className="outcome-page-tabs">
@@ -154,7 +143,6 @@ export default function OutcomeWorkspace({
               { kind: "overview", label: "Dashboard", icon: LayoutDashboard },
               { kind: "all", label: "All goals", icon: ListChecks },
               { kind: "inbox", label: "Needs attention", icon: Inbox },
-              { kind: "explore", label: "Explore ideas", icon: Lightbulb },
               { kind: "calendar", label: "Calendar", icon: CalendarDays },
             ] as const
           ).map((item) => (
@@ -199,7 +187,6 @@ export default function OutcomeWorkspace({
                     }
                   : undefined
               }
-              onOpenScheduledGoal={openScheduledGoal}
             />
           </Suspense>
         </div>
@@ -222,10 +209,9 @@ export default function OutcomeWorkspace({
                   setRoute({ kind: "all" });
                 }}
                 onCreateGoal={() => openRoute({ kind: "new" })}
-                onCreateIdea={() => setIdeaOpen(true)}
+                onCreateIdea={() => setGoOpen(true)}
                 onOpenChannel={onOpenChannel}
                 onOpenRoutine={onOpenRoutine}
-                onOpenScheduledGoal={openScheduledGoal}
                 activityPolicy={{
                   cardMaxItems: policy["activity.cardMaxItems"] as number,
                 }}
@@ -237,46 +223,28 @@ export default function OutcomeWorkspace({
                 client={api.outcomes}
                 bots={bots}
                 onSelect={review}
-                onCreate={() => openRoute({ kind: "new" })}
-                onOpenScheduledGoal={openScheduledGoal}
+                onCreate={() => setGoOpen(true)}
                 refreshVersion={version}
               />
             )}
             {tab === "inbox" && (
               <OutcomeInbox
                 client={api.outcomeInbox}
-                todos={api.outcomes.todos}
-                todoHandoff={
-                  api.outcomes.todos
-                    ? {
-                        bots,
-                        client: api.outcomes.todos,
-                        goals: api.outcomes,
-                        onOpenChannel,
-                        onSelectOutcome: review,
-                      }
-                    : undefined
-                }
+                todos={api.outcomes}
+                todoHandoff={{ bots, onSelectOutcome: review }}
                 onSelect={select}
                 refreshVersion={version}
-              />
-            )}
-            {tab === "explore" && (
-              <ExplorePanel
-                client={api.explore}
-                outcomes={api.outcomes}
-                bots={bots}
-                onOutcome={review}
               />
             )}
           </div>
         </div>
       )}
-      {ideaOpen && (
-        <QuickIdeaDialog
+      {goOpen && (
+        <GoIntakeDialog
           open
-          onOpenChange={setIdeaOpen}
+          onOpenChange={setGoOpen}
           bots={bots.filter((bot) => bot.status === undefined || bot.status === "active")}
+          onOpenOutcome={review}
         />
       )}
       <Dialog
@@ -304,14 +272,13 @@ export default function OutcomeWorkspace({
                   ? "Decision"
                   : route.kind === "human"
                     ? "Human action"
-                    : route.kind === "scheduledGoal" ? "Scheduled goal details" : "Goal details"
+                    : "Goal details"
             )}
           </DialogTitle>
           <DialogDescription className="sr-only">
             {t("Review the goal and handle current decisions.")}
           </DialogDescription>
           <div className="outcome-page-content outcome-modal-body space-y-5">
-            {route.kind === "scheduledGoal" && <ScheduledGoalDetail key={route.id} id={route.id} bots={bots} />}
             {route.kind === "new" &&
               (bots.length > 0 ? (
                 <NewOutcomeForm client={api.outcomes} bots={bots} onCreated={() => closeModal()} />

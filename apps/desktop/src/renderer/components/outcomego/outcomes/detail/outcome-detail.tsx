@@ -7,6 +7,8 @@ import { OUTCOME_TERMINAL_STATUSES, workThreadIsFinished } from "@outcomego/cont
 import { ContractConfirmation } from "../planning/contract-confirmation";
 import type { ScheduleChange } from "../timeline/schedule-edit";
 import { GoalDue } from "./goal-due";
+import { ScheduledOutcomeDetail } from "./scheduled-outcome-detail";
+import { NotePanel, OutcomeEvolutionPanel, OutcomeRelationsPanel, TodoDetailPanel } from "./outcome-kind-panels";
 import {
   type OutcomeClient,
   OutcomeRequestIds,
@@ -26,7 +28,9 @@ import { useI18n } from "../../../../lib/i18n";
 import { subscribeOutcomeRefresh } from "../../../../lib/outcome-events";
 import { useOutcomeThread } from "../../../../lib/outcome-thread";
 import { OutcomeAsset } from "../outcome-asset";
+import { MessageFileAttachments } from "../../file-attachment";
 import { OutcomeButton, OutcomeRefresh } from "../outcome-ui";
+import { UnifiedPlanPanel } from "../planning/unified-plan-panel";
 import { outcomeCardStage } from "@outcomego/contracts/outcome-chat-card";
 import { outcomeStatusLabels } from "../outcome-list";
 import { outcomeNextSteps } from "../outcome-presentation";
@@ -61,6 +65,7 @@ export function OutcomeDetail({
   useCache = false,
   inChat = false,
   onOpenDetails,
+  onSelectOutcome,
 }: {
   bots?: OutcomeExecutionBot[];
   /** Called right after a Modify request is handed to the background, so the host can close its modal. */
@@ -81,6 +86,7 @@ export function OutcomeDetail({
   onAction?: (item: OutcomeInboxItemView) => void;
   inChat?: boolean;
   onOpenDetails?: () => void;
+  onSelectOutcome?: (outcomeId: string) => void;
 }) {
   const { t: translateCurrent } = useI18n();
   const sectionId = useId();
@@ -100,6 +106,7 @@ export function OutcomeDetail({
   const [refreshVersion, setRefreshVersion] = useState(0);
   const [sentApprovalTurnIds, setSentApprovalTurnIds] = useState<string[]>([]);
   const [inspectionBusy, setInspectionBusy] = useState<string | null>(null);
+  const [planBusy, setPlanBusy] = useState(false);
   const { view: threadView, reload: reloadThread } = useOutcomeThread(outcomeId, client);
   const requestIds = useRef(new OutcomeRequestIds());
   const generation = useRef(0);
@@ -406,6 +413,23 @@ export function OutcomeDetail({
         </button>
       </section>
     );
+  // A one-time scheduled goal has no contract or review: it has a time, run advice and a result.
+  if (outcome.kind === "scheduled_once")
+    return (
+      <ScheduledOutcomeDetail
+        key={outcome.id}
+        outcome={outcome}
+        client={client}
+        bots={bots}
+        thread={{ view: threadView, reload: reloadThread }}
+        onSelectOutcome={onSelectOutcome}
+        onChange={(next) => {
+          generation.current++;
+          outcomeRef.current = next;
+          setOutcome(next);
+        }}
+      />
+    );
   const revision = outcome.currentRevisionView;
   const selectedReview = historicalReview
     ? reviewView?.revision === reviewRevision
@@ -442,8 +466,10 @@ export function OutcomeDetail({
       ["submitted", "review_pending"].includes(item.status)
   );
   const plannerTurns = threadView?.turns ?? [];
+  // Progress analysis runs on the planner's thread too, but it does not hold up the owner's own actions.
+  const inspectionTurns = plannerTurns.filter((turn) => turn.planMode === "advice" && turn.purpose === "plan");
   const plannerWaiting = plannerTurns.some(
-    (turn) => turn.status === "queued" || turn.status === "running"
+    (turn) => !inspectionTurns.includes(turn) && (turn.status === "queued" || turn.status === "running")
   );
   const latestFinishedWorkUpdatedAt = currentWorkItems
     .filter((item) => item.status === "completed" || item.status === "accepted")
@@ -478,12 +504,12 @@ export function OutcomeDetail({
   const requestInspection = async (workItemId?: string) => {
     if (inspectionBusy) return;
     const key = `inspection:${outcomeId}:${workItemId ?? "goal"}`;
-    const input = { clientRequestId: requestIds.current.for(key, {}) };
+    const input = { mode: "advice" as const, ...(workItemId && { workItemId }) };
+    const clientRequestId = requestIds.current.for(key, input);
     setInspectionBusy(key);
     setError(null);
     try {
-      if (workItemId) await client.inspectWorkItem?.(outcomeId, workItemId, input);
-      else await client.inspect?.(outcomeId, input);
+      await client.plan?.(outcomeId, { ...input, clientRequestId });
       requestIds.current.complete(key);
       reloadThread();
     } catch (inspectionError) {
@@ -492,10 +518,27 @@ export function OutcomeDetail({
       setInspectionBusy(null);
     }
   };
-  const inspectionTurns = (threadView?.reviewTurns ?? []).filter((turn) => turn.purpose === "inspection");
   const inspectionPending = (workItemId?: string) => inspectionTurns.some((turn) =>
-    (turn.workItemId ?? undefined) === workItemId && (turn.status === "queued" || turn.status === "running") && turn.inspectionSource === "manual");
+    (turn.workItemId ?? undefined) === workItemId && (turn.status === "queued" || turn.status === "running"));
   const canInspect = !terminal && !historicalReview && revision?.status === "approved";
+  const adviceTurns = plannerTurns.filter((turn) => turn.planMode === "advice" && turn.purpose === "plan");
+  const planPending = adviceTurns.some((turn) => turn.status === "queued" || turn.status === "running");
+  const requestUnifiedPlan = async () => {
+    if (!client.plan || planBusy || terminal || historicalReview) return;
+    setPlanBusy(true);
+    setError(null);
+    const input = { mode: "advice" as const, expectedRevision: outcome.revision };
+    const key = `plan:${outcomeId}`;
+    try {
+      await client.plan(outcomeId, { ...input, clientRequestId: requestIds.current.for(key, input) });
+      requestIds.current.complete(key);
+      reloadThread();
+    } catch (cause) {
+      setError(outcomeErrorMessage(cause));
+    } finally {
+      setPlanBusy(false);
+    }
+  };
   return (
     <article aria-label="Outcome details" aria-busy={busy} className={inChat ? "outcome-detail space-y-2.5" : "outcome-detail space-y-5"}>
       <header className="flex items-center justify-between gap-3">
@@ -506,7 +549,7 @@ export function OutcomeDetail({
               prereviewPending ? "Preliminary review in progress" : outcomeStatusLabels[outcome.status]
             )}
           </p>
-          {outcome.trackingMode === "tracked" ? (
+          {outcome.kind === "tracked" ? (
             <p className="mt-1 text-[12px] opacity-70" data-outcome-tracked={outcome.autoClosedAt ? "closed" : "open"}>
               {translateCurrent(
                 outcome.autoClosedAt ? "Closed automatically by its Bot" : "Tracked by its Bot"
@@ -537,7 +580,7 @@ export function OutcomeDetail({
             busy={busy}
             onRefresh={() => void mutate("refresh", {}, () => client.get(outcomeId))}
           />
-          {canInspect && outcome.inspectionEnabled === true && typeof client.inspect === "function" && (
+          {canInspect && outcome.inspectionEnabled === true && typeof client.plan === "function" && (
             <OutcomeButton
               variant="secondary"
               disabled={inspectionBusy !== null || inspectionPending()}
@@ -595,6 +638,60 @@ export function OutcomeDetail({
         </section>
       )}
       {error && <p role="alert">{error}</p>}
+      {!inChat && <OutcomeRelationsPanel outcome={outcome} onSelectOutcome={onSelectOutcome} />}
+      {outcome.kind !== "note" && outcome.attachments.length > 0 && (
+        <MessageFileAttachments attachments={outcome.attachments} />
+      )}
+      {outcome.kind === "note" && (
+        <NotePanel
+          outcome={outcome}
+          client={client}
+          busy={busy}
+          onSaved={(next) => {
+            outcomeRef.current = next;
+            setOutcome(next);
+          }}
+          onTriageRetried={() => {
+            reloadThread();
+            setRefreshVersion((value) => value + 1);
+          }}
+        />
+      )}
+      {outcome.kind === "todo" && (
+        <TodoDetailPanel
+          outcome={outcome}
+          client={client}
+          bots={bots}
+          busy={busy}
+          onUpdated={(next) => {
+            outcomeRef.current = next;
+            setOutcome(next);
+          }}
+        />
+      )}
+      {outcome.kind !== "standard" && !terminal && (
+        <OutcomeEvolutionPanel
+          outcome={outcome}
+          client={client}
+          bots={bots}
+          busy={busy}
+          onConverted={(next) => {
+            outcomeRef.current = next;
+            setOutcome(next);
+            setRefreshVersion((value) => value + 1);
+          }}
+        />
+      )}
+      {!inChat && (
+        <UnifiedPlanPanel
+          turns={adviceTurns}
+          advice={outcome.latestAdvice}
+          pending={planPending}
+          busy={planBusy}
+          canPlan={Boolean(client.plan) && !terminal && !historicalReview}
+          onPlan={() => void requestUnifiedPlan()}
+        />
+      )}
       {(reviewOpen || sections.has("review")) && (historicalReview || canRenderReview) && (
         <section
           data-outcome-section="review"
@@ -1008,7 +1105,7 @@ export function OutcomeDetail({
                             </details>
                           )}
                           {canInspect && item.inspectionEnabled === true && item.contractRevision === outcome.currentRevision &&
-                            typeof client.inspectWorkItem === "function" &&
+                            typeof client.plan === "function" &&
                             !workThreadIsFinished(item.status) && (
                               <OutcomeButton
                                 variant="ghost"
@@ -1177,10 +1274,10 @@ export function OutcomeDetail({
           {[...inspectionTurns].reverse().map((turn) => (
             <div key={turn.id} className="outcome-card space-y-1">
               <p className="text-xs text-foreground-secondary">
-                {turn.inspectionSource === "automatic" ? translateCurrent("Automatic analysis") : translateCurrent("Manual analysis")}
-                {turn.workItemId && ` · ${outcome.workItems.find((item) => item.id === turn.workItemId)?.title ?? turn.workItemId}`}
-                {` · ${new Date(turn.createdAt).toLocaleString()} · ${translateCurrent(turn.status)}`}
+                {turn.workItemId && `${outcome.workItems.find((item) => item.id === turn.workItemId)?.title ?? turn.workItemId} · `}
+                {`${new Date(turn.createdAt).toLocaleString()} · ${translateCurrent(turn.status)}`}
               </p>
+              {turn.planMode === "advice" && turn.result?.summary && <p className="whitespace-pre-wrap text-sm">{turn.result.summary}</p>}
               {turn.reply && <p className="whitespace-pre-wrap text-sm">{turn.reply}</p>}
               {turn.status === "failed" && <p className="text-xs">{turn.error?.message ?? translateCurrent("Analysis did not finish.")}</p>}
             </div>

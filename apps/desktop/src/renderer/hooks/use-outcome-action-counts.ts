@@ -3,6 +3,7 @@ import { OUTCOME_LIMITS, type OutcomeStatus } from "@outcomego/contracts/outcome
 import { api } from "../client/outcomego-api";
 import { subscribeOutcomeListRefresh } from "../lib/outcome-events";
 import { countByBot, sameCounts } from "../lib/outcome-counts";
+import { GOAL_OUTCOME_KINDS } from "../lib/outcome-kinds";
 
 /** Goals that wait on the owner: something to approve, decide or do, and a result to accept. */
 export interface OutcomeActionCounts {
@@ -25,7 +26,8 @@ const REVIEW_STATUSES: readonly OutcomeStatus[] = ["review_pending"];
 /** Reads one page at most; callers cap the display at "99+" instead of paging for an exact total. */
 async function listStatuses(statuses: readonly OutcomeStatus[]) {
   const query = new URLSearchParams({
-    status: statuses.join(","),
+    kinds: GOAL_OUTCOME_KINDS.join(","),
+    statuses: statuses.join(","),
     limit: String(OUTCOME_LIMITS.listPageSizeMax),
   });
   return (await api.outcomes.list(query.toString())).items;

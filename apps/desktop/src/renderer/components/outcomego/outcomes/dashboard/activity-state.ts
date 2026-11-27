@@ -27,6 +27,7 @@ export const ACTIVITY_STATE_STYLE: Record<string, ActivityStateStyle> = {
   blocked: { label: "Blocked", icon: "✕", tone: "fail", animated: false },
   no_follow_up: { label: "No one is following up", icon: "!", tone: "action", animated: false },
   completed: { label: "Completed", icon: "✓", tone: "pass", animated: false },
+  accepted: { label: "Accepted", icon: "✓", tone: "pass", animated: false },
   queued: { label: "Queued", icon: "⧗", tone: "plan", animated: false },
   cancelled: { label: "Cancelled", icon: "–", tone: "muted", animated: false },
   running: { label: "Running", icon: "▶", tone: "review", animated: true },
@@ -107,7 +108,7 @@ export function mergeInProgressItems(
   const attentionIds = new Set(attention.map((row) => row.outcomeId));
   const coveredOutcomeIds = new Set(
     base
-      .filter((item) => item.type === "goal_task" && item.link.type === "outcome")
+      .filter((item) => (item.type === "goal_task" || item.type === "scheduled_once") && item.link.type === "outcome")
       .map((item) => item.link.id),
   );
   const synthesized: ActivityItem[] = [];

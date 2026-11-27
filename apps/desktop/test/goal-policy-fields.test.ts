@@ -115,7 +115,7 @@ describe("which groups the page shows", () => {
 
   test("the groups are in the order the design gives, and each has a deep-link anchor", () => {
     const ids = GOAL_SETTINGS_GROUPS.map((group) => group.id);
-    expect(ids).toEqual(["goal-management", "goal-roles", "goal-schedule", "goal-activity", "goal-todo", "goal-auto-accept", "goal-calendar"]);
+    expect(ids).toEqual(["goal-management", "goal-roles", "goal-schedule", "goal-activity", "goal-todo", "goal-auto-accept", "goal-calendar", "goal-inspection"]);
     for (const group of GOAL_SETTINGS_GROUPS) expect(group.id).toMatch(/^goal-/);
   });
 

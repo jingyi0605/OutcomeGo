@@ -1,7 +1,7 @@
 /** Goals per Bot: the floating window's yellow badge. */
-export function countByBot(items: ReadonlyArray<{ botId: string }>): Record<string, number> {
+export function countByBot(items: ReadonlyArray<{ botId: string | null }>): Record<string, number> {
   const counts: Record<string, number> = {};
-  for (const item of items) counts[item.botId] = (counts[item.botId] ?? 0) + 1;
+  for (const item of items) if (item.botId) counts[item.botId] = (counts[item.botId] ?? 0) + 1;
   return counts;
 }
 
