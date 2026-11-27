@@ -26,24 +26,16 @@ describe("scheduled routine wake content", () => {
     ].join("\n"));
   });
 
-  test("names a dated cron as the one-off it is, and gives the fire time in the routine's zone", () => {
+  test("shows the weekly schedule and fire time in the routine's zone", () => {
     const content = scheduledRoutineWakeContent({
       name: "Support check",
       folder: "support-check",
-      schedule: "10 13 18 10 *",
+      schedule: "10 13 * * 0",
       scheduledFor: new Date("2026-10-18T20:10:00.000Z"),
       timeZone: "America/Los_Angeles",
-      prompt: "Check the support case, then delete this routine.",
+      prompt: "Check the support queue.",
     });
-    expect(content).toMatch(/is due\. Trigger: Once October 18 at 1:10 PM \(10 13 18 10 \*\), fired 10\/18\/2026, 1:10:00\sPM PDT\./);
-    expect(scheduledRoutineWakeContent({
-      name: "Weekly", folder: "weekly", schedule: "10 13 * * 0",
-      scheduledFor: new Date("2026-10-18T13:10:00.000Z"), prompt: "Check.",
-    })).toContain("Trigger: Every Sunday at 1:10 PM (10 13 * * 0)");
-    expect(scheduledRoutineWakeContent({
-      name: "Odd", folder: "odd", schedule: "10 13 31 2 *",
-      scheduledFor: new Date("2026-10-18T13:10:00.000Z"), prompt: "Check.",
-    })).not.toContain("Once February 31");
+    expect(content).toMatch(/is due\. Trigger: Every Sunday at 1:10 PM \(10 13 \* \* 0\), fired 10\/18\/2026, 1:10:00\sPM PDT\./);
   });
 
   test("matches Bot's trusted manual-run framing", () => {

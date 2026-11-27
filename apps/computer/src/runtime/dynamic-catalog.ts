@@ -2,8 +2,10 @@ import { REPORT_TASK_PROGRESS_TOOL, TaskProgressInput, REPORT_REQUEST_PROGRESS_T
 import { READ_TRANSCRIPT_TOOL, parseReadTranscriptInput } from "@outcomego/contracts/read-transcript";
 import { READ_AGENT_ACTIVITY_TOOL, parseReadAgentActivityInput } from "@outcomego/contracts/read-agent-activity";
 import { OUTCOME_CHAT_TOOLS, decodeOutcomeChatInput } from "@outcomego/contracts/outcome-chat";
+import { goalThreadToolsForPurpose } from "@outcomego/contracts/outcome-thread";
 import { GROUP_TASK_TOOLS, decodeGroupTaskInput } from "@outcomego/contracts/group-tasks";
-import { TODO_TOOLS, TODO_TOOL_INPUT, todoToolAllowed } from "@outcomego/contracts/todo";
+import { isReadonlyConnectorRead } from "@outcomego/contracts/plugin-namespaces";
+import { allowsCursorTool } from "./access-mode";
 import { normalizeMainToolArguments } from "@outcomego/contracts/reference-main-parsers";
 import { withCanonicalSubagentType } from "@outcomego/contracts/subagent-dispatch";
 import { withReferenceContract, taskToolContract, firstPartyNamespaceDescription } from "@outcomego/contracts/tool-contracts";
@@ -197,12 +199,7 @@ export function dynamicCatalog(
   }, execute: (turn, callId, args, signal) => callControlPlaneTool(turn, callId, "ReadAgentActivity", args, signal) };
   const cursorTools: RuntimeDynamicTool[] = [
     ...additionalTools,
-    ...(active.outcomesEnabled && active.runtimeProfile === "agent" && !active.readOnly && !active.outcomeThread && !active.goalThread
-      ? TODO_TOOLS.filter(({ name }) => todoToolAllowed(name, active.todoTurnMode)).map((tool): RuntimeDynamicTool => ({
-        ...tool, source: "first-party", decodeArguments: (args) => TODO_TOOL_INPUT[tool.name].parse(args),
-        execute: (turn, callId, args, signal) => callControlPlaneTool(turn, callId, tool.name, args, signal),
-      })) : []),
-    ...(active.outcomesEnabled && active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && !active.readOnly
+    ...(active.outcomesEnabled && active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && (active.accessMode ?? "full") === "full" && !active.goalThread
       ? OUTCOME_CHAT_TOOLS.map((tool): RuntimeDynamicTool => ({
           ...tool,
           inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
@@ -213,7 +210,7 @@ export function dynamicCatalog(
         }))
       : []),
     // The shared group board is for a member's own group turn, never its workers, routines or read-only runs.
-    ...(active.groupTasksEnabled && active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && !active.readOnly && !active.goalThread
+    ...(active.groupTasksEnabled && active.runtimeProfile !== "subagent" && active.requestSource !== "automation" && (active.accessMode ?? "full") === "full" && !active.goalThread
       ? GROUP_TASK_TOOLS.map((tool): RuntimeDynamicTool => ({
           ...tool,
           inputSchema: tool.inputSchema as unknown as Readonly<Record<string, unknown>>,
@@ -350,7 +347,7 @@ export function dynamicCatalog(
       kind: "mcp" as const,
       namespaceStatus: namespace.namespaceStatus,
       ...(namespace.statusMessage ? { statusMessage: namespace.statusMessage } : {}),
-      tools: namespace.tools.map((tool) => ({
+      tools: namespace.tools.filter((tool) => (active.accessMode ?? "full") === "full" || isReadonlyConnectorRead(tool)).map((tool) => ({
         name: tool.name,
         description: tool.description,
         inputSchema: tool.inputSchema,
@@ -371,9 +368,10 @@ export function dynamicCatalog(
           ),
       })),
     }));
+  const planTools = active.goalThread ? goalThreadToolsForPurpose(active.goalThread.purpose, active.goalThread.planMode) : [];
   const firstPartyTools = (active.requestSource === "automation"
     ? cursorTools.filter((tool) => !AUTOMATION_PARENT_ONLY_TOOLS.has(tool.name))
-    : cursorTools).map(withReferenceContract).flatMap(tool => {
+    : cursorTools).filter(tool => active.accessMode !== "research_readonly" || allowsCursorTool(active, tool.name) || planTools.some(name => name === tool.name)).map(withReferenceContract).flatMap(tool => {
       if (tool.name === "Task") return [{ ...tool, ...taskToolContract(active.taskConfiguration) }];
       if (tool.name === AWAIT_SHELL_TOOL.name) return [{ ...tool, description: awaitShellDescription(active) }];
       if (tool.name !== "UploadFile" && tool.name !== "DownloadFile") return [tool];

@@ -32,6 +32,29 @@ test("unavailable connections carry their stored reason to the agent", async () 
   ]);
 });
 
+test("research loads the planner and target skill descriptions and strips connector writes and executable packages", async () => {
+  const installation = { name: "Notion", pluginKey: "notion", version: "1", status: "installed", manifest: { files: { "hooks/hooks.json": "{}" } } };
+  const connection = {
+    id: "notion", name: "Notion", alias: "default", connectorKey: "notion", createdAt: new Date(0), status: "ready", installation,
+    toolSnapshot: [
+      { name: "notion-fetch" }, { name: "get-custom", risk: "read" }, { name: "read-annotated", annotations: { readOnlyHint: true } }, { name: "notion-create-page" },
+    ],
+  };
+  const prisma = {
+    pluginConnection: { findMany: async () => [connection] },
+    pluginInstallation: { findMany: async () => [installation] },
+    pluginPrivateSkill: { findMany: async ({ where }: { where: unknown }) => {
+      expect(where).toEqual({ OR: [{ enabledBotIds: { array_contains: ["planner"] } }, { enabledBotIds: { array_contains: ["target"] } }] });
+      return [{ name: "Target workflow", description: "Find reference notes" }];
+    } },
+  };
+  const context = await pluginRuntimeContext(prisma as never, "planner", "main", { borrowedBotId: "target" });
+  expect(context.dynamicNamespaces[0]?.tools.map((tool) => tool.name)).toEqual(["notion-fetch", "get-custom", "read-annotated"]);
+  expect(context.dynamicNamespaces[0]).not.toHaveProperty("fileTransfers");
+  expect(context.pluginRuntimePackages).toEqual([]);
+  expect(context.skillInstructions).toContain("Find reference notes");
+});
+
 test("the main agent's prompt carries saved connector instructions; workers' prompts do not", async () => {
   const installation={name:"Slack",pluginKey:"slack",version:"1",status:"installed",manifest:{skills:[],files:{}}};
   const prisma={

@@ -29,7 +29,8 @@ export { isReviewBatchEvidence, outcomeReviewBatchKey, readOutcomeReviewBatch, o
 export { appendOutcomeEvent, GOAL_SCHEDULE_CHANGED_TOPIC, publishGoalScheduleChanged, recomputeOutcomeStatus, transitionWorkItem, type ActorRef, type TransitionWorkItemInput } from "./outcome-state";
 export { startOutcomeThreadTurn, settleOutcomeThreadTurn, settleFinishedOutcomeThreadTurns, outcomeThreadContext, OUTCOME_THREAD_EVENT_TOPIC } from "./outcome-threads";
 export { enqueueOutcomeTurn, settleOutcomeWorkItem, emitReviewRequiredIfNeeded, enqueueOutcomePrereviewIfNeeded, dispatchQueuedOutcomeWorkItems, dispatchDueScheduledWorkItems, releaseHeldOutcomeTurn, DEFERRED_BY_AGENT_REASON, outcomeRunContext, type OutcomeThreadRuntime, type EnqueueOutcomeTurnInput, type EnqueueOutcomeTurnResult } from "./outcome-threads";
-export { AUTO_INSPECTION_ACTOR, dispatchDueOutcomeInspections, enqueueOutcomeInspection, inspectionSnapshot, readInspectionTarget } from "./outcome-inspections";
+export { dispatchDueOutcomeAdvice, dispatchDueScheduledOutcomes, enqueueOutcomePlan, scheduledOutcomeRunIsCurrent, settleScheduledOutcomeDelivery, settleScheduledOutcomeRun } from "./outcome-scheduler";
+export { OUTCOME_SCHEDULER_ACTOR } from "./outcome-roles";
 export { recoverOutcomeWorkItem, recoverOutcomeWorkItems, routeOutcomeNextStep, OUTCOME_RECOVERY_PROMPT, type OutcomeRecoveryRuntime, type OutcomeNextFact } from "./outcome-recovery";
 export { outcomeDispatchEnabled } from "./outcome-availability";
 export { unavailableHumanActionPort, type DecisionEffect, type HumanActionPort, type HumanActionInput, type HumanActionResult } from "./outcome-actions";
@@ -777,6 +778,7 @@ export interface WakeInput {
   replyToMessageId?: string;
   isFork?: boolean;
   automationContextRunId?: string;
+  outcomeId?: string;
   outcomeWorkItemId?: string;
   /** A turn of a goal's own thread (specs/004.8); the owner's words arrive as the turn's content. */
   outcomeThreadId?: string;
@@ -788,7 +790,6 @@ export interface WakeInput {
   /** The run this typed message superseded; it gets the unfinished-tasks reminder when that run had dispatched. */
   interruptedRunId?: string;
   draftNotification?: { variant: "control" | "treatment" };
-  preparationModel?: import("@outcomego/contracts").InferenceModelSelection;
 }
 
 export interface ToolContext {
@@ -1075,6 +1076,7 @@ export class AgentMessaging {
         origin: input.origin,
         channelId: input.channelId,
         deliveryId: input.deliveryId,
+        outcomeId: input.outcomeId,
         outcomeWorkItemId: input.outcomeWorkItemId,
         outcomeThreadId: input.outcomeThreadId,
       },
@@ -1106,7 +1108,6 @@ export class AgentMessaging {
           handoff: input.handoff,
           interruptedRunId: input.interruptedRunId,
           draftNotification: input.draftNotification,
-          preparationModel: input.preparationModel,
         }),
         priority: input.priority,
         availableAt: input.availableAt,
@@ -2201,7 +2202,7 @@ export class AgentMessaging {
     const goalThread = context?.scope === "outcome-thread";
     const globalInference = goalThread ? await this.agentData.loadInferenceSettings().catch(() => null) : null;
     const outcomeContext = outcome
-      ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId ?? context!.scopeId)
+      ? outcomeWorkItemId ? await outcomeRunContext(this.prisma, botId, outcomeWorkItemId) : null
       : goalThread
         ? await outcomeThreadContext(this.prisma, botId, outcomeThreadId ?? context!.scopeId, {
             globalInference,
@@ -2400,9 +2401,7 @@ export class AgentMessaging {
       formatFriendlyDate(new Date(), timeZone)
     );
     const automationResults = !automation && channelId !== undefined ? await this.prisma.automationResult.findMany({
-      where: { wakeRunId: null, acknowledgedAt: null, run: { botId, channelId,
-        OR: [{ routineExecution: null }, { routineExecution: { routineRevision: { onceTrigger: { equals: Prisma.DbNull } } } }],
-      } },
+      where: { wakeRunId: null, acknowledgedAt: null, run: { botId, channelId } },
       orderBy: { createdAt: "asc" }, take: 20,
     }) : [];
     // A result names the routine it came from, not just its run.
@@ -3159,8 +3158,6 @@ export class AgentMessaging {
 export type { RoutineExecutionView, RoutineMutationInput, RoutineView } from "./routines";
 export {
   appendRoutineRunLedger,
-  claimOnceRoutineExecution,
-  isOnceTrigger,
   inferRoutineScheduleAnchor,
   manualRoutineWakeContent,
   nextRoutineRun,
@@ -3184,10 +3181,10 @@ export {
   timestampUserTurn,
 } from "./timestamps";
 export { readUserTimeZone, userTimeZoneView } from "./user-time-zone";
-export { expireTodoRows, expireTodoSuggestions, publishTodoChanges } from "./owner-todo-lifecycle";
-export { todoAttentionWhere, todoLocalDay } from "./owner-todo-attention";
-export { enqueueUrgentTodoPush } from "./owner-todo-notifications";
-export { dispatchTodoDigest, readTodoDigest } from "./owner-todo-digest";
+export { expireTodoRows, expireTodoSuggestions, publishTodoChanges } from "./outcome-todo-lifecycle";
+export { liveTodoSuggestionWhere, todoAttentionWhere, todoLocalDay } from "./outcome-todo-attention";
+export { enqueueUrgentTodoPush } from "./outcome-todo-notifications";
+export { dispatchTodoDigest, readTodoDigest } from "./outcome-todo-digest";
 export {
   featureSettingsView,
   readFeatureSettings,
@@ -3422,3 +3419,4 @@ export { createOutcomeDecision, isOutcomeDecisionRevisionActive, outcomeDecision
 
 export { postOutcomeUpdateCard } from "./outcome-update-cards";
 export { consumeOutcomeInboxEvent, reconcileOutcomeInboxNotifications, outcomeNotificationIsCurrent, unreadOutcomeNotifications, outcomeReviewNotificationFactsSql } from "./outcome-inbox-notifications";
+export { syncOutcomeNoteMemory } from "./outcome-note-memory";

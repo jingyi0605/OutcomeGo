@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
+import type { Prisma } from "@outcomego/db";
 
 const MAX_MEMORY_CONTENT = 500;
+export const OUTCOME_NOTE_MEMORY_NAMESPACE = "user:notes";
 
 /** How a fact was saved, stored in MemoryFact.origin with the run that saved it. */
 export type MemoryProvenance = { source: "tool" | "extract" | "template"; turnId?: string };
@@ -28,3 +30,8 @@ export const memoryTier = (content: string, tier: "profile" | "log"): "profile" 
 
 export const memoryImportance = (content: string): number =>
   content.startsWith("[episode] ") ? 1.5 : content.startsWith("[note] ") ? 0.5 : 1;
+
+export async function invalidateSharedMemory(tx: Prisma.TransactionClient): Promise<void> {
+  await tx.memoryRevision.upsert({ where: { scope: "user" }, create: { scope: "user", revision: 1 }, update: { revision: { increment: 1 } } });
+  await tx.$executeRaw`UPDATE "outcomego_context_prompt_snapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "promptSections" ? 'memory'`;
+}

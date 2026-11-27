@@ -350,10 +350,9 @@ export class ComputerRuntime {
       goalThread: request.goalThread,
       outcomesEnabled: request.outcomesEnabled === true,
       groupTasksEnabled: request.groupTasksEnabled === true,
-      todoTurnMode: request.todoTurnMode,
       groupTurn: request.groupTurn === true,
       directTextReply: request.directTextReply === true && (request.runtimeProfile ?? "agent") === "agent" &&
-        !request.subagentType && !request.readOnly && !request.groupTurn && request.requestSource !== "automation",
+        !request.subagentType && request.accessMode === "full" && !request.groupTurn && request.requestSource !== "automation",
       turnId: request.runId,
       session: null,
       sessionPath: null,
@@ -373,7 +372,8 @@ export class ComputerRuntime {
       pluginNamespaces: request.dynamicNamespaces ?? [],
       pluginRuntimePackages: request.pluginRuntimePackages as import("@outcomego/plugin-sdk").PluginRuntimePackage[] | undefined,
       pluginAbortController: new AbortController(),
-      readOnly: request.readOnly ?? false,
+      accessMode: request.accessMode,
+      borrowedBotId: request.borrowedBotId,
       attachmentTempDirectories: [],
     };
     if (active.directTextReply && request.replyPreviewAttempt !== undefined) {

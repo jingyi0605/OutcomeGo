@@ -106,6 +106,8 @@ test("file parser schedules every listener, validates later listeners and keeps 
       },
     });
     expect(parsed.nextRunAt?.toISOString()).toBe("2026-11-12T23:09:00.000Z");
+    await expect(parse({ schedule: "CRON_TZ=UTC 36 10 21 10 *" })).rejects.toThrow("Use a scheduled Outcome for a fixed date.");
+    await expect(parse({ trigger: { type: "once", runAt: "2027-10-21T10:36:00Z" } })).rejects.toThrow("unsupported automation trigger type: once");
     await expect(
       parse({
         trigger: {

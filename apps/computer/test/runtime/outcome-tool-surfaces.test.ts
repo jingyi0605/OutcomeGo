@@ -74,7 +74,7 @@ test("delegated and readonly turns never receive native goal management tools", 
   const runtime = tools();
   for (const overrides of [
     { runtimeProfile: "subagent", subagentType: "executor" },
-    { runtimeProfile: "agent", readOnly: true },
+    { runtimeProfile: "agent", accessMode: "readonly_strict" },
     { runtimeProfile: "agent", requestSource: "automation", outcomeThread: { workItemId: "fixture" } },
   ]) {
     const names = runtime.dynamicCatalog({
@@ -85,11 +85,50 @@ test("delegated and readonly turns never receive native goal management tools", 
   }
 });
 
+test("research turns expose and execute only research tools and mode-specific Plan tools", async () => {
+  const runtime = tools() as any;
+  const calls: string[] = [];
+  const record = (name: string) => async () => {
+    calls.push(name);
+    return { content: [], details: {} };
+  };
+  Object.assign(runtime.nativeToolExecutor, {
+    externalRead: record("Read"), externalShell: record("Shell"),
+    externalAwaitShell: record("AwaitShell"), listMachines: record("ListMachines"),
+  });
+  runtime.callControlPlaneTool = record("PluginCall");
+  const active = {
+    accessMode: "research_readonly", runtimeProfile: "agent", requestSource: "automation", subagentType: null,
+    runId: "research", contextSessionId: "research-session",
+    goalThread: { threadId: "thread", outcomeId: "outcome", purpose: "plan", planMode: "triage" },
+    pluginNamespaces: [{ name: "source", description: "Fixture", namespaceStatus: "ready", tools: [
+      { connectionId: "account", name: "lookup", description: "Read", inputSchema: { type: "object" }, source: "custom/custom", readOnly: true },
+      { connectionId: "account", name: "modify", description: "Write", inputSchema: { type: "object" }, source: "custom/custom" },
+    ] }],
+  };
+  const names = [
+    ...runtime.customTools(active).map((tool: { name: string }) => tool.name),
+    ...runtime.dynamicCatalog(active).flatMap((namespace: { tools: Array<{ name: string }> }) => namespace.tools.map((tool) => tool.name)),
+  ];
+  expect(names).toEqual(expect.arrayContaining(["Read", "Shell", "AwaitShell", "ListMachines", "ClassifyOutcome", "lookup"]));
+  for (const name of ["SendToUser", "WakeParent", "UpdateRoutine", "CopyToBox", "CopyFromBox", "SaveOutcomeContract", "modify"]) {
+    expect(names).not.toContain(name);
+    await expect(runtime.executeOutcomeGoTool(active, name, name, {})).rejects.toThrow("read-only");
+  }
+  await runtime.executeOutcomeGoTool(active, "read", "Read", { path: "/tmp/example", machineId: "fixture" });
+  await runtime.executeOutcomeGoTool(active, "shell", "Shell", { command: "ls", machineId: "fixture" });
+  for (const [toolName, args, namespace] of [
+    ["AwaitShell", { machineId: "fixture" }, "cursor"], ["ListMachines", {}, "cursor"], ["lookup", {}, "source"],
+  ] as const) await runtime.callDynamicTool(active, toolName, { namespace, toolName, arguments: args });
+  await expect(runtime.callDynamicTool(active, "write", { namespace: "source", toolName: "modify", arguments: {} })).rejects.toThrow("read-only");
+  expect(calls).toEqual(["Read", "Shell", "AwaitShell", "ListMachines", "PluginCall"]);
+});
+
 test("turn contract accepts the optional marker and keeps ordinary requests without it", () => {
   const request = {
     runId: "run", botId: "bot", contextSessionId: "session", conversationId: "conversation",
     sessionPath: null, content: "fixture", clientMessageId: "message", cwd: "/workspace",
-    instructions: "fixture", channelId: "channel", deliveryId: null, model: "fixture", reasoning: "high",
+    instructions: "fixture", channelId: "channel", deliveryId: null, model: "fixture", reasoning: "high", accessMode: "full",
   };
   const decode = Schema.decodeUnknownSync(ComputerTurnRequest);
   expect(decode(request)).not.toHaveProperty("outcomeThread");
@@ -137,7 +176,7 @@ test("a goal's own thread filters tools by purpose and excludes chat, WakeParent
   const ordinary = names({ requestSource: "turn" });
   expect(ordinary).not.toContain("SaveOutcomeContract");
   expect(ordinary).not.toContain("SavePlan");
-  expect(ordinary).toContain("SubmitOutcome");
+  expect(ordinary).toContain("CreateOutcome");
   expect(names({ requestSource: "automation" })).not.toContain("SaveOutcomeContract");
 });
 

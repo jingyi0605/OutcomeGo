@@ -25,9 +25,10 @@ const questionsIn = (text: string) =>
   text.split(/(?<=[.!?])\s+|\n+/).map((part) => part.trim()).filter((part) => part.endsWith("?"));
 
 /** What the user's other bots did lately, from each bot's main chat; nothing is marked read. */
-export async function readOwnedAgentActivity(db: PrismaClient, botId: string, bounds: AgentActivityBounds, now = new Date()): Promise<AgentActivityResult> {
+export async function readOwnedAgentActivity(db: PrismaClient, botId: string, bounds: AgentActivityBounds, now = new Date(), allowedPeerBotId?: string | null): Promise<AgentActivityResult> {
+  if (allowedPeerBotId === null) return { kind: "unavailable" };
   const bots = await db.bot.findMany({
-    where: { id: { not: botId }, status: "active", subagentIdentity: { is: null } },
+    where: { id: { not: botId, ...(allowedPeerBotId ? { equals: allowedPeerBotId } : {}) }, status: "active", subagentIdentity: { is: null } },
     select: { id: true, name: true, description: true },
   });
   if (!bots.length) return { kind: "unavailable" };
@@ -101,7 +102,7 @@ export function renderAgentActivity(result: AgentActivityResult, bounds: AgentAc
   })].join("\n\n");
 }
 
-export async function readAgentActivity(db: PrismaClient, context: { botId: string }, raw: unknown) {
+export async function readAgentActivity(db: PrismaClient, context: { botId: string; allowedPeerBotId?: string | null | undefined }, raw: unknown) {
   const bounds = parseReadAgentActivityInput(raw);
-  return renderAgentActivity(await readOwnedAgentActivity(db, context.botId, bounds), bounds);
+  return renderAgentActivity(await readOwnedAgentActivity(db, context.botId, bounds, undefined, context.allowedPeerBotId), bounds);
 }

@@ -90,6 +90,19 @@ describe("routine schedules", () => {
     expect(() => normalizeRoutineSchedule("*/2 * * * *", "UTC")).toThrow("5 minutes");
   });
 
+  test("rejects removed one-off triggers and fixed-date cron in persisted routines", () => {
+    expect(() => normalizeRoutineMutationTrigger({
+      trigger: { type: "once", runAt: "2027-10-21T10:36:00Z" },
+    }, "UTC")).toThrow(expect.objectContaining({ code: "invalid_routine_trigger" }));
+    for (const input of [
+      { schedule: "36 10 21 10 *" },
+      { trigger: { type: "cron", schedule: "CRON_TZ=America/New_York 5 17 3 2 *" } },
+      { trigger: { type: "group", listeners: [{ type: "cron", schedule: "0 9 * * 1-5" }, { type: "cron", schedule: "36 10 21 10 *" }] } },
+    ]) {
+      expect(() => normalizeRoutineMutationTrigger(input, "UTC")).toThrow("Use a scheduled Outcome for a fixed date.");
+    }
+  });
+
   test("selects the earliest occurrence across grouped time triggers", () => {
     const fallback = normalizeRoutineSchedule("0 9 * * 1-5", "UTC", {
       enforceMinimum: false,

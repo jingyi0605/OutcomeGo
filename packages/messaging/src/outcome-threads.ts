@@ -12,10 +12,10 @@ import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import type { AgentMessaging } from "./index";
 import { readFeatureSettings } from "./feature-settings";
-import { enqueueOutcomeThreadTurn, resolveOutcomeRole } from "./outcome-roles";
+import { enqueueOutcomeThreadTurn, OUTCOME_SCHEDULER_ACTOR, resolveOutcomeRole } from "./outcome-roles";
 import { readOutcomeReviewBatch } from "./outcome-review-batch";
 import { finalRunMessage, runGroupBackgroundWorkRunning } from "./automation-results";
-import { appendOutcomeEvent, recomputeOutcomeStatus, transitionWorkItem } from "./outcome-state";
+import { appendOutcomeEvent, publishGoalScheduleChanged, recomputeOutcomeStatus, transitionWorkItem } from "./outcome-state";
 import { outcomeDispatchEnabled } from "./outcome-availability";
 import { createOutcomeDecision, isOutcomeDecisionRevisionActive, outcomeDecisionRevisionActiveSql } from "./outcome-decisions";
 
@@ -352,11 +352,11 @@ export async function enqueueOutcomePrereviewIfNeeded(
   if (!outcomeDispatchEnabled()) return false;
   const outcome = await tx.outcome.findUnique({
     where: { id: outcomeId },
-    select: { botId: true, status: true, trackingMode: true, currentRevisionId: true, cancelledAt: true, acceptedAt: true, currentRevision: { select: { status: true } } },
+    select: { botId: true, status: true, kind: true, currentRevisionId: true, cancelledAt: true, acceptedAt: true, currentRevision: { select: { status: true } } },
   });
-  if (outcome?.currentRevisionId !== contractRevisionId || outcome.currentRevision?.status !== "approved" || outcome.trackingMode !== "standard" ||
+  if (outcome?.currentRevisionId !== contractRevisionId || outcome.currentRevision?.status !== "approved" || outcome.kind !== "standard" ||
       outcome.cancelledAt || outcome.acceptedAt || !["review_pending", "decision_pending"].includes(outcome.status)) return false;
-  const resolved = await resolveOutcomeRole(tx, "reviewer", outcome.botId);
+  const resolved = await resolveOutcomeRole(tx, "reviewer", outcome.botId ?? undefined);
   if (!(resolved.status === "configured" || resolved.status === "model_only") || !resolved.botId) return false;
   const batch = await readOutcomeReviewBatch(tx, outcomeId, contractRevisionId);
   if (!batch.hasResults) return false;
@@ -455,7 +455,7 @@ export async function settleOutcomeWorkItem(tx: Prisma.TransactionClient, runId:
   ) {
     const planTask = parseOutcomePlan(item.contractRevision.plan)?.tasks.find((task) => task.key === item.planKey);
     if (planTask?.nature === "deliverable") {
-      const resolvedReviewer = await resolveOutcomeRole(tx, "reviewer", item.outcome.botId);
+      const resolvedReviewer = await resolveOutcomeRole(tx, "reviewer", item.outcome.botId ?? undefined);
       if ((resolvedReviewer.status === "configured" || resolvedReviewer.status === "model_only") && resolvedReviewer.botId) {
         const existingReviewTurn = await tx.outcomeThreadTurn.findFirst({
           where: { thread: { outcomeId: item.outcomeId }, purpose: "review_task", workItemId: item.id },
@@ -579,9 +579,9 @@ const TERMINAL_RUN_STATUSES = ["completed", "failed", "cancelled", "interrupted"
 export const OUTCOME_THREAD_EVENT_TOPIC = "goal.thread.updated";
 
 /** Clients refresh the goal from this and, when a turn ends, tell the owner which goal answered. */
-const announceThreadTurn = async (tx: Prisma.TransactionClient, outcomeId: string, turnId: string, status: string) => {
+const announceThreadTurn = async (tx: Prisma.TransactionClient, outcomeId: string, turnId: string, status: string, planMode?: string | null) => {
   const title = (await tx.outcome.findUnique({ where: { id: outcomeId }, select: { title: true } }))?.title ?? "";
-  await tx.event.create({ data: { topic: OUTCOME_THREAD_EVENT_TOPIC, entityId: outcomeId, payload: { outcomeId, turnId, status, title } } });
+  await tx.event.create({ data: { topic: OUTCOME_THREAD_EVENT_TOPIC, entityId: outcomeId, payload: { outcomeId, turnId, status, title, ...(planMode ? { planMode } : {}) } } });
 };
 
 /** The turn's run took its lease: it is working now. */
@@ -589,7 +589,22 @@ export async function startOutcomeThreadTurn(tx: Prisma.TransactionClient, runId
   const turn = await tx.outcomeThreadTurn.findUnique({ where: { runId }, include: { thread: { select: { outcomeId: true } } } });
   if (!turn || turn.status !== "queued") return;
   await tx.outcomeThreadTurn.update({ where: { id: turn.id }, data: { status: "running" } });
+  await updateScheduledPreparation(tx, turn, "scheduled", "preparing");
   await announceThreadTurn(tx, turn.thread.outcomeId, turn.id, "running");
+}
+
+async function updateScheduledPreparation(
+  tx: Prisma.TransactionClient,
+  turn: { planMode: string | null; outcomeRevision: number | null; triggerBy: string; thread: { outcomeId: string } },
+  from: "scheduled" | "preparing",
+  to: "scheduled" | "preparing",
+) {
+  if (turn.planMode !== "advice" || turn.triggerBy !== OUTCOME_SCHEDULER_ACTOR || turn.outcomeRevision == null) return;
+  const { outcomeId } = turn.thread;
+  const updated = await tx.outcome.updateMany({ where: {
+    id: outcomeId, kind: "scheduled_once", status: from, revision: turn.outcomeRevision,
+  }, data: { status: to } });
+  if (updated.count) await publishGoalScheduleChanged(tx, outcomeId);
 }
 
 /**
@@ -601,6 +616,9 @@ export async function settleOutcomeThreadTurn(
   runId: string,
   messaging?: AgentMessaging
 ): Promise<void> {
+  const found = await tx.outcomeThreadTurn.findUnique({ where: { runId }, select: { thread: { select: { outcomeId: true } } } });
+  if (!found) return;
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.thread.outcomeId}`}))`;
   const turn = await tx.outcomeThreadTurn.findUnique({
     where: { runId },
     include: {
@@ -608,10 +626,10 @@ export async function settleOutcomeThreadTurn(
       run: { select: { status: true, error: true } },
     },
   });
-  if (!turn?.run || turn.status === "completed" || turn.status === "failed") return;
+  if (!turn?.run || turn.status === "completed" || turn.status === "failed" || turn.status === "cancelled") return;
   if (!(TERMINAL_RUN_STATUSES as readonly string[]).includes(turn.run.status)) return;
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${turn.thread.outcomeId}`}))`;
-  const completed = turn.run.status === "completed";
+  const triage = turn.planMode === "triage";
+  const completed = triage ? turn.result != null : turn.run.status === "completed";
   const reply = completed ? (await finalRunMessage(tx, runId))?.trim() || null : null;
   const detail = turn.run.error && typeof turn.run.error === "object" ? turn.run.error as { code?: unknown; message?: unknown } : null;
 
@@ -650,10 +668,13 @@ export async function settleOutcomeThreadTurn(
         : {
             status: "failed",
             error: {
-              code: typeof detail?.code === "string" ? detail.code : `run_${turn.run.status}`,
-              message: typeof detail?.message === "string" ? detail.message : "The bot's turn did not finish",
+              code: typeof detail?.code === "string" ? detail.code : triage ? "classification_not_saved" : `run_${turn.run.status}`,
+              message: typeof detail?.message === "string" ? detail.message : triage ? "The planner did not save a classification" : "The bot's turn did not finish",
             },
           }),
+      ...(completed && turn.planMode === "advice" && turn.result === null && reply
+        ? { result: { schemaVersion: 1, summary: reply.slice(0, 2_000), facts: [], gaps: [], recommendations: [] } }
+        : {}),
       ...(unreviewedFallback
         ? {
             result: {
@@ -665,8 +686,23 @@ export async function settleOutcomeThreadTurn(
         : {}),
     },
   });
-  if (turn.purpose === "inspection") {
-    await announceThreadTurn(tx, turn.thread.outcomeId, turn.id, completed ? "completed" : "failed");
+  if (triage) {
+    const outcome = await tx.outcome.findUnique({ where: { id: turn.thread.outcomeId }, select: { kind: true, status: true, revision: true, kindMeta: true } });
+    const meta = outcome?.kindMeta;
+    if (!completed && outcome?.kind === "note" && outcome.status === "active" && outcome.revision === turn.outcomeRevision &&
+        meta && typeof meta === "object" && !Array.isArray(meta) && meta.triageStatus === "pending") {
+      const triageError = typeof detail?.code === "string" ? detail.code.slice(0, 300) : "classification_not_saved";
+      await tx.outcome.update({ where: { id: turn.thread.outcomeId }, data: {
+        kindMeta: { ...meta, triageStatus: "failed", triageError },
+      } });
+      await tx.event.create({ data: { topic: "goal.updated", entityId: turn.thread.outcomeId, payload: { outcomeId: turn.thread.outcomeId, triageStatus: "failed", triageError } } });
+    }
+    await announceThreadTurn(tx, turn.thread.outcomeId, turn.id, completed ? "completed" : "failed", turn.planMode);
+    return;
+  }
+  if (turn.planMode === "advice") {
+    await updateScheduledPreparation(tx, turn, "preparing", "scheduled");
+    await announceThreadTurn(tx, turn.thread.outcomeId, turn.id, completed ? "completed" : "failed", turn.planMode);
     return;
   }
   const derivedStatus = await recomputeOutcomeStatus(tx, turn.thread.outcomeId, threadActor);
@@ -723,10 +759,10 @@ export async function outcomeThreadContext(
   const activeTurn = await db.outcomeThreadTurn.findFirst({
     where: options?.runId ? { threadId, runId: options.runId } : { threadId, status: { in: ["queued", "running"] } },
     orderBy: { createdAt: "asc" },
-    select: { purpose: true, workItemId: true },
+    select: { purpose: true, workItemId: true, planMode: true },
   });
   const purpose = activeTurn?.purpose ?? "owner_message";
-  const isReviewerTurn = purpose === "review" || purpose === "review_task" || purpose === "inspection";
+  const isReviewerTurn = purpose === "review" || purpose === "review_task";
   const settings = await readFeatureSettings(db);
   const environmentNote = settings.environmentNote?.trim() || null;
   const parsedPlan = revision ? parseOutcomePlan(revision.plan) : null;
@@ -739,7 +775,7 @@ export async function outcomeThreadContext(
   }> | undefined;
   let submitterBot: { id: string; name: string | null } | undefined;
 
-  if (!isReviewerTurn) {
+  if (!isReviewerTurn && activeTurn?.planMode !== "advice") {
     const rows = await db.bot.findMany({
       where: {
         status: "active",
@@ -777,7 +813,7 @@ export async function outcomeThreadContext(
             }
           : globalFallback,
     }));
-    if (purpose === "plan") {
+    if (purpose === "plan" && outcome.botId) {
       const submitter = await db.bot.findUnique({ where: { id: outcome.botId }, select: { id: true, name: true } });
       submitterBot = { id: outcome.botId, name: submitter?.name ?? null };
     }
@@ -788,6 +824,9 @@ export async function outcomeThreadContext(
       id: outcome.id,
       title: outcome.title,
       description: outcome.description,
+      kind: outcome.kind,
+      scheduledAt: outcome.scheduledAt?.toISOString(),
+      dueAt: outcome.dueAt?.toISOString(),
       status: outcome.status,
       contract: revision
         ? {
@@ -838,11 +877,18 @@ export async function outcomeThreadContext(
       "- `note` is never sent to the executing bot; never phrase it as rework commands or use it to bypass rejection rules. Record your decision with ReviewTaskResult.",
     ].join("\n");
   }
-  if (purpose === "inspection") {
+  if (activeTurn?.planMode === "triage") {
     return [
-      "## Goal inspection",
+      "## Outcome intake triage",
       JSON.stringify(contextPayload),
-      "You are performing a proactive inspection of the current goal or task. Inspect the saved state with GetOutcome and report the current status, blockers, missing information, next action and any time risk.",
+      "Classify the source with ClassifyOutcome after reading the original content and its attachments. Use single_convert for one result; for distinct actions or goals use split_from_note and keep the source note. Do not execute work or invent missing facts. Leave a concise final summary for the owner.",
+    ].join("\n");
+  }
+  if (activeTurn?.planMode === "advice") {
+    return [
+      "## Outcome advice",
+      JSON.stringify(contextPayload),
+      "Research this Outcome without executing its work. Use GetOutcome and available read-only tools to report status, verified facts, missing information and time risks. Save the brief with SavePlanAdvice when available, and leave a complete, concise final message.",
       "- This is an analysis pass. Do not change the contract, plan, schedule, task state or external systems.",
       "- Use only facts present in the saved goal, task, outputs, evidence and progress records. Mark unknown facts as unknown.",
       "- Keep the result concise and concrete. Mention whether the owner needs to act.",

@@ -8,6 +8,7 @@ import { AgentDataStore } from '../src/agent-data';
 import { buildGroupTurnPrompt } from '../src/index';
 import { normalizeMemoryContent } from '../src/memory-facts';
 import { referenceTool } from '@outcomego/contracts/tool-contracts';
+import { OUTCOME_CHAT_TOOL_NAMES } from '@outcomego/contracts/outcome-chat';
 import { AUTOMATION_TRIGGER_SHAPE_LINES } from '@outcomego/contracts/reference-main-parsers';
 
 const skill = (id: string) => managed.skills.find(s => s.id === id)!.content;
@@ -56,6 +57,11 @@ test('connector skills install without asking and promise no connect card', () =
   expect(skill('no-connector-fallback')).toContain('a row reading needsAuth is a connector, so call AuthenticateMcpServer and never open the box for that service');
   expect(skill('add-connector')).toContain('**Only related plugins match**');
   expect(skill('add-connector')).toContain('You are not resumed when sign-in finishes.');
+});
+
+test('the routines skill sends a single future time to a scheduled Outcome, not a retired once trigger', () => {
+  expect(skill('routines')).toContain('save it as kind=scheduled_once');
+  expect(skill('routines')).not.toContain('once trigger');
 });
 
 test('the routines skill lists the trigger shapes the UpdateRoutine parser answers with', () => {
@@ -226,6 +232,7 @@ test('forms, sending, skill and template skills follow the tools as they work he
 test('every tool a managed skill names exists under that name', async () => {
   const plugins = join(import.meta.dir, '../../plugins');
   const connectorTools = new Set<string>();
+  const outcomeTools = new Set<string>(OUTCOME_CHAT_TOOL_NAMES);
   for (const file of ['calendar', 'docs', 'drive', 'drive-files', 'sheets', 'slides'])
     for (const tool of JSON.parse(await readFile(join(plugins, '_shared/reference', `${file}.json`), 'utf8')) as { name: string }[]) connectorTools.add(tool.name);
   for (const file of ['email/connector/server.ts'])
@@ -238,6 +245,8 @@ test('every tool a managed skill names exists under that name', async () => {
     // Prompt blocks, stock states and routine wake blocks, not tools.
     'user_info', 'agent_skills', 'automation_status', 'in_stock', 'out_of_stock', 'made_to_order', 'github_event', 'linear_event', 'microsoft_teams_message',
     'origin_event', 'pagerduty_event', 'sentry_event', 'slack_message', 'webhook_event', 'email_received', 'plugin_event',
+    // A CreateOutcome kind, not a tool.
+    'scheduled_once',
   ]);
   const unknown: string[] = [];
   for (const item of managed.skills) {
@@ -246,7 +255,7 @@ test('every tool a managed skill names exists under that name', async () => {
     // office-pptx names python-pptx attributes, not tools.
     if (item.id !== 'office-pptx') names.push(...[...prose.matchAll(/(?<![\w./-])[a-z]+(?:_[a-z]+)+(?![\w/-])/g)].map(([name]) => name));
     for (const name of new Set(names))
-      if (!words.has(name) && !tool(name) && !connectorTools.has(name) && !argumentNames.has(name)) unknown.push(`${item.id}: ${name}`);
+      if (!words.has(name) && !tool(name) && !outcomeTools.has(name) && !connectorTools.has(name) && !argumentNames.has(name)) unknown.push(`${item.id}: ${name}`);
   }
   expect(unknown).toEqual([]);
 });

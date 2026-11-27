@@ -1,9 +1,9 @@
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
-import { compareTodoAttention, deriveTodoAttention, type TodoDigest } from "@outcomego/contracts/todo";
+import { compareOutcomeTodoAttention, deriveOutcomeTodoAttention, type OutcomeTodoDigest } from "@outcomego/contracts/task-overview";
 import type { Prisma, PrismaClient } from "@outcomego/db";
 import { readFeatureSettings } from "./feature-settings";
-import { todoAttentionWhere, todoLocalDay } from "./owner-todo-attention";
-import { enqueueTodoPush } from "./owner-todo-notifications";
+import { todoAttentionWhere, todoLocalDay } from "./outcome-todo-attention";
+import { enqueueTodoPush } from "./outcome-todo-notifications";
 import { readUserTimeZone } from "./user-time-zone";
 
 const scope = "todo-digest";
@@ -17,32 +17,35 @@ async function digestSettings(db: PrismaClient) {
 }
 
 async function digestForDay(db: Prisma.TransactionClient, ownerId: string, now: Date, timeZone: string, maxTitles: number,
-  day: Awaited<ReturnType<typeof todoLocalDay>>): Promise<TodoDigest | null> {
-  const rows = await db.ownerTodoItem.findMany({
+  day: Awaited<ReturnType<typeof todoLocalDay>>): Promise<OutcomeTodoDigest | null> {
+  const rows = await db.outcome.findMany({
     where: await todoAttentionWhere(db, ownerId, now, timeZone, day),
-    select: { id: true, status: true, title: true, dueAt: true, scheduledAt: true, followUpAt: true, snoozeUntil: true, expiresAt: true, urgency: true, createdAt: true },
+    select: { id: true, status: true, title: true, dueAt: true, scheduledAt: true, followUpAt: true, snoozeUntil: true, kindMeta: true, urgency: true, createdAt: true },
   });
   const counts = { overdue: 0, today: 0, follow_up: 0, suggested: 0 };
   const entries = rows.flatMap((row) => {
-    const attention = deriveTodoAttention(row, now, timeZone);
+    const { status, kindMeta } = row;
+    if (status !== "suggested" && status !== "open" && status !== "waiting") return [];
+    const expiry = kindMeta && typeof kindMeta === "object" && !Array.isArray(kindMeta) ? kindMeta.expiresAt : null;
+    const attention = deriveOutcomeTodoAttention({ ...row, status, expiresAt: typeof expiry === "string" ? new Date(expiry) : null }, now, timeZone);
     if (!attention || (attention === "today" && !row.dueAt)) return [];
     counts[attention] += 1;
     const since = attention === "overdue" ? row.dueAt : attention === "follow_up" ? row.followUpAt : row.createdAt;
     return [{ key: row.id, attention, urgency: row.urgency, since: (since ?? row.createdAt).toISOString(), title: row.title }];
   });
   if (!entries.length) return null;
-  const titles = entries.sort(compareTodoAttention).slice(0, maxTitles).map(({ title }) => title);
+  const titles = entries.sort(compareOutcomeTodoAttention).slice(0, maxTitles).map(({ title }) => title);
   return { date: day.date, counts, titles };
 }
 
-export async function readTodoDigest(db: PrismaClient, ownerId: string, now = new Date()): Promise<TodoDigest | null> {
+export async function readTodoDigest(db: PrismaClient, ownerId: string, now = new Date()): Promise<OutcomeTodoDigest | null> {
   const settings = await digestSettings(db);
   if (!settings) return null;
   const day = await todoLocalDay(db, now, settings.timeZone);
   return digestForDay(db, ownerId, now, settings.timeZone, settings.maxTitles, day);
 }
 
-function digestBody(digest: TodoDigest, chinese: boolean): string {
+function digestBody(digest: OutcomeTodoDigest, chinese: boolean): string {
   const { today, overdue, suggested, follow_up } = digest.counts;
   let body = chinese
     ? `今天到期 ${today} · 逾期 ${overdue} · 待分诊 ${suggested} · 需跟进 ${follow_up}`

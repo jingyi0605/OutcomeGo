@@ -46,6 +46,17 @@ test("recall keeps the first long fact, limits later facts and preserves note ma
   expect(result).toEndWith("(1 more matches not shown. Narrow the query.)");
 });
 
+test("note recall uses noteId provenance rather than exposing an editable memory id", () => {
+  const result = recallMemoryResult({ query: "meeting" }, [{
+    ...fact("[note] Meeting notes: risks and owners", 9, "user", "note"),
+    id: "internal-memory-fact-id",
+    noteId: "source-outcome-id",
+  }]);
+  expect(result).toContain("[shared_note via Career Bot]");
+  expect(result).toContain("[noteId: source-outcome-id]");
+  expect(result).not.toContain("internal-memory-fact-id");
+});
+
 test("superseded facts are excluded before scoring and limiting, and explicitly labeled in history", () => {
   const candidates = [
     { ...fact("Favourite football player is Ronaldo.", 1), id: "old", supersededAt: new Date("2026-09-02"), supersededById: "new" },

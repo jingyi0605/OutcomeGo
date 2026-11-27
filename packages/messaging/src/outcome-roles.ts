@@ -1,4 +1,4 @@
-import { DEFAULT_PI_REASONING_LEVEL, type InferenceModelSelection, type OutcomeThreadTurnModelView } from "@outcomego/contracts";
+import { DEFAULT_PI_REASONING_LEVEL, type AssetRef, type InferenceModelSelection, type OutcomePlanMode, type OutcomeThreadTurnModelView } from "@outcomego/contracts";
 import type { OutcomeThreadPurpose, OutcomeThreadRole } from "@outcomego/contracts/outcome-thread";
 import { OutcomeError } from "@outcomego/contracts/outcomes";
 import type { Prisma, PrismaClient } from "@outcomego/db";
@@ -20,9 +20,10 @@ export const OUTCOME_THREAD_PRIORITY = 290;
 /** System-initiated goal-thread turns (replan, review, review_task): below owner messages, above work items. */
 export const OUTCOME_THREAD_SYSTEM_PRIORITY = 285;
 export const OUTCOME_THREAD_EVENT_TOPIC = "goal.thread.updated";
+export const OUTCOME_SCHEDULER_ACTOR = "system:outcome-scheduler";
 
 export const roleForThreadPurpose = (purpose: OutcomeThreadPurpose): OutcomeThreadRole =>
-  purpose === "review" || purpose === "review_task" || purpose === "inspection" ? "reviewer" : "planner";
+  purpose === "review" || purpose === "review_task" ? "reviewer" : "planner";
 
 /**
  * Checks whether a bot is an active primary bot with a conversation and active bot_dm channel.
@@ -114,6 +115,9 @@ export interface EnqueueOutcomeThreadTurnInput {
   clientRequestId: string;
   model?: InferenceModelSelection | OutcomeThreadTurnModelView | null;
   workItemId?: string | null;
+  attachments?: readonly AssetRef[];
+  planMode?: OutcomePlanMode;
+  outcomeRevision?: number;
   priority?: number;
   result?: Prisma.InputJsonObject;
 }
@@ -169,6 +173,8 @@ export async function enqueueOutcomeThreadTurn(
     data: {
       threadId: thread.id,
       purpose: input.purpose,
+      planMode: input.planMode,
+      outcomeRevision: input.outcomeRevision,
       trigger: input.text,
       triggerBy: input.actor,
       clientRequestId: input.clientRequestId,
@@ -190,9 +196,10 @@ export async function enqueueOutcomeThreadTurn(
     outcomeThreadId: thread.id,
     type: "outcome.thread_turn",
     content: input.text,
+    attachments: input.attachments,
     clientId: `outcome-thread:${turn.id}`,
     priority,
-    includeAttachmentPaths: false,
+    includeAttachmentPaths: Boolean(input.attachments?.length),
     wrapUserContent: false,
   });
   const linked = await tx.outcomeThreadTurn.update({

@@ -437,6 +437,31 @@ export async function wakeAutomationParent(
       );
     }
     if (run.origin === "outcome") {
+      if (run.outcomeId && !run.outcomeWorkItemId) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${run.outcomeId}`}))`;
+        const outcome = await tx.outcome.findUnique({ where: { id: run.outcomeId }, select: {
+          kind: true, status: true, botId: true, kindMeta: true,
+        } });
+        const meta = outcome?.kindMeta;
+        if (outcome?.kind !== "scheduled_once" || outcome.status !== "running" || outcome.botId !== run.botId ||
+            !meta || typeof meta !== "object" || Array.isArray(meta) || meta.lastRunId !== run.id || requestIsStopped(run)) {
+          throw new ApiError(403, "wake_parent_unavailable", "This scheduled Outcome is no longer running");
+        }
+        const automation_run_ids = [run.id];
+        const existing = await tx.automationResult.findUnique({ where: { runId: run.id } });
+        if (existing?.wakeRunId) return { woken: true, run_id: existing.wakeRunId, automation_run_ids };
+        const wake = await messaging.enqueueWake(tx, {
+          botId: run.botId, channelId: context.channelId, origin: "background_revival", type: "automation.wake_parent",
+          content: renderAutomationHandoffPrompt(input.message), handoff: input.message,
+          clientId: `outcome:${run.id}:wake-parent`, priority: 260,
+        });
+        await tx.automationResult.upsert({
+          where: { runId: run.id },
+          create: { runId: run.id, message: input.message, wakeRunId: wake.run.id },
+          update: { message: input.message, wakeRunId: wake.run.id },
+        });
+        return { woken: true, run_id: wake.run.id, automation_run_ids };
+      }
       if (!run.outcomeWorkItemId) throw new ApiError(403, "wake_parent_unavailable", "Outcome work item is missing");
       const item = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: run.outcomeWorkItemId } });
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${item.outcomeId}`}))`;
@@ -466,10 +491,6 @@ export async function wakeAutomationParent(
         "wake_parent_unavailable",
         "Automation context does not belong to this run"
       );
-    const execution = await tx.routineExecution.findUnique({ where: { runId: rootId }, select: { kind: true } });
-    if (execution?.kind === "preparation") {
-      throw new ApiError(403, "wake_parent_unavailable", "Preparation is private. Leave the brief in your final text.");
-    }
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`automation-result:${rootId}`}))`;
     // The caller stops the background work these runs started.
     const automation_run_ids = (

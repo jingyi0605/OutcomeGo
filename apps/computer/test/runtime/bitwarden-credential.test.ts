@@ -16,7 +16,7 @@ const turn = (overrides: Record<string, unknown> = {}): any => ({
   runtimeProfile: "agent",
   subagentType: null,
   requestSource: "turn",
-  readOnly: false,
+  accessMode: "full",
   pluginNamespaces: [],
   ...overrides,
 });

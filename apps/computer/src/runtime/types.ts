@@ -10,6 +10,7 @@ import type { BotArchiveBlob, BotMessage } from "../bot-compaction";
 import type { ComputerEventQueue } from "../computer-event-queue";
 import type { DynamicToolDefinition } from "../dynamic-tool-gateway";
 import type { TaskConfiguration } from "@outcomego/contracts/task-configuration";
+import type { TurnAccessMode } from "@outcomego/contracts/outcome-plan";
 
 export type TurnStatus = "completed" | "failed" | "interrupted" | "cancelled";
 
@@ -20,7 +21,8 @@ export interface ActiveTurn {
   pluginRuntimePackages?: readonly import("@outcomego/plugin-sdk").PluginRuntimePackage[];
   pluginAbortController?: AbortController;
   closePluginSession?: () => Promise<void>;
-  readOnly?: boolean;
+  accessMode?: TurnAccessMode;
+  borrowedBotId?: string;
   runId: string;
   /** Stable scope shared by a parent turn and its delegated computerUse worker. */
   credentialScopeId?: string;
@@ -56,7 +58,6 @@ export interface ActiveTurn {
   outcomesEnabled: boolean;
   /** A member's turn in a group chat: the group task board tools are offered (specs/010). */
   groupTasksEnabled: boolean;
-  todoTurnMode?: import("@outcomego/contracts/todo").TodoTurnMode;
   /** A group room woke this bot: it owes the room the same opening acknowledgement as a private turn. */
   groupTurn?: boolean;
   /** The assistant message whose work calls the opening gate refused; its sibling calls are refused too, later responses are not. */

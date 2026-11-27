@@ -7,7 +7,7 @@ import {
   type PluginSkillAgent,
 } from "@outcomego/plugin-sdk";
 import { PLUGIN_WORKFLOW_HOST_CONTEXT } from "@outcomego/contracts/plugin-workflows";
-import { connectorCustomInstructionsSection, pluginDynamicNamespaces } from "@outcomego/contracts/plugin-namespaces";
+import { connectorCustomInstructionsSection, isReadonlyConnectorRead, pluginDynamicNamespaces } from "@outcomego/contracts/plugin-namespaces";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { PrismaClient } from "@outcomego/db";
@@ -78,7 +78,8 @@ export const pluginSkillInstructions = async (
 export const pluginRuntimeContext = async (
   prisma: PrismaClient,
   botId: string,
-  agent: PluginSkillAgent | null = "main"
+  agent: PluginSkillAgent | null = "main",
+  research?: { borrowedBotId?: string },
 ): Promise<{
   dynamicNamespaces: PluginDynamicNamespace[];
   skillInstructions: string;
@@ -97,6 +98,28 @@ export const pluginRuntimeContext = async (
   const namespaces = connectionNamespaces(named);
 
   const dynamicNamespaces = pluginDynamicNamespaces(connections, namespaces);
+  if (research) {
+    const readonlyNamespaces = dynamicNamespaces.flatMap(({ fileTransfers, ...namespace }) => {
+      const tools = namespace.tools.filter(isReadonlyConnectorRead);
+      return tools.length ? [{ ...namespace, tools }] : [];
+    });
+    const allowedConnections = new Set(readonlyNamespaces.flatMap((namespace) => namespace.tools.map((tool) => tool.connectionId)));
+    const privateSkills = await prisma.pluginPrivateSkill.findMany({
+      where: { OR: [...new Set([botId, research.borrowedBotId].filter((id): id is string => Boolean(id)))].map((id) => ({ enabledBotIds: { array_contains: [id] } })) },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }], take: 25,
+      select: { name: true, description: true },
+    });
+    const instructions = connectorCustomInstructionsSection(connections.filter((connection) => allowedConnections.has(connection.id)), namespaces);
+    return {
+      dynamicNamespaces: readonlyNamespaces,
+      pluginRuntimePackages: [],
+      skillInstructions: [
+        instructions,
+        await renderSkillInstructions(installations, agent),
+        privateSkills.length ? `## Available private skill descriptions (research context only)\n${JSON.stringify(privateSkills)}` : "",
+      ].filter(Boolean).join("\n\n"),
+    };
+  }
   // Saved connector instructions are rules for the main agent and its routine runs, not for workers.
   const customInstructions = agent === "main" ? connectorCustomInstructionsSection(connections, namespaces) : "";
 

@@ -28,7 +28,7 @@ test("workers, routines, goal threads and read-only runs never get the board too
     { runtimeProfile: "subagent", subagentType: "executor" },
     { requestSource: "automation" },
     { requestSource: "automation", goalThread: { threadId: "t", outcomeId: "o", purpose: "plan" } },
-    { readOnly: true },
+    { accessMode: "readonly_strict" },
   ]) {
     expect(groupTools({ groupTasksEnabled: true, ...overrides })).toEqual([]);
   }
@@ -42,7 +42,7 @@ test("the turn contract carries the optional group marker", () => {
   const request = {
     runId: "run", botId: "bot", contextSessionId: "session", conversationId: "conversation",
     sessionPath: null, content: "fixture", clientMessageId: "message", cwd: "/workspace",
-    instructions: "fixture", channelId: "channel", deliveryId: null, model: "fixture", reasoning: "high",
+    instructions: "fixture", channelId: "channel", deliveryId: null, model: "fixture", reasoning: "high", accessMode: "full",
   };
   const decode = Schema.decodeUnknownSync(ComputerTurnRequest);
   expect(decode(request)).not.toHaveProperty("groupTasksEnabled");

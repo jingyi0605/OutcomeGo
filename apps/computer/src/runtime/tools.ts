@@ -35,7 +35,8 @@ import { parseDraftExternalMessage } from "@outcomego/contracts/external-draft-b
 import { presentationReferencesInResult } from "@outcomego/contracts/presentation";
 import { HostShellCompletions } from "../host-shell-completions";
 import { expandPluginAgent } from "./plugin-components";
-import { isReadonlyConnectorRead } from "./readonly-connectors";
+import { isReadonlyConnectorRead } from "@outcomego/contracts/plugin-namespaces";
+import { allowsCursorTool, researchNativeTools, strictNativeTools } from "./access-mode";
 import { computerArgumentsWithAliases } from "@outcomego/contracts/computer-action-aliases";
 import {
   CONNECTOR_TRANSFER_TOOLS,
@@ -252,7 +253,6 @@ const COMBINED_COMPUTER_GUIDANCE =
   " For anything inside a web page, use the browser_* tools first. Use Computer only for native UI (desktop apps, OS dialogs, browser chrome), a press-and-hold widget (click with holdDurationMs), or a step a browser tool has failed at for a technical reason, not to look at or wait on ordinary page state. After a click that did not land, re-target from the new screenshot before typing, and to replace a field's text, clear it first with key Control+a, then BackSpace.";
 
 /** A readonly agent lists and greps with Shell, since Read opens one file and cannot list a directory. */
-const READONLY_NATIVE_TOOLS = ["Read", "Shell", "RecallMemory", "GetDynamicTools", "CallDynamicTool", "ListSections"];
 
 export const SUBAGENT_PRIVATE_NATIVE_TOOLS: ReadonlySet<string> = new Set([
   "RecallMemory",
@@ -294,7 +294,7 @@ const OUTCOME_THREAD_TOOLS: OutcomeThreadToolRegistry = {
 /** The small tool set of a goal's own thread; it appears only on that thread's turns and is filtered by turn purpose. */
 export const goalThreadToolDefinitions = (active: Pick<ActiveTurn, "goalThread">): Array<Omit<RuntimeDynamicTool, "execute">> => {
   if (!active.goalThread) return [];
-  const allowed = new Set<string>(goalThreadToolsForPurpose(active.goalThread.purpose));
+  const allowed = new Set<string>(goalThreadToolsForPurpose(active.goalThread.purpose, active.goalThread.planMode));
   return OUTCOME_GOAL_THREAD_TOOLS.filter((tool) => allowed.has(tool.name)).map((tool) => ({
     name: tool.name,
     description: tool.description,
@@ -313,10 +313,11 @@ export const outcomeThreadToolDefinitions = (
 
 /** First-party tools a worker or routine run calls directly instead of looking them up with GetDynamicTools. */
 export const workerTopLevelTools = (
-  active: Pick<ActiveTurn, "subagentType" | "readOnly"> & Partial<Pick<ActiveTurn, "requestSource" | "runtimeProfile" | "outcomeThread" | "goalThread">>
+  active: Pick<ActiveTurn, "subagentType" | "accessMode"> & Partial<Pick<ActiveTurn, "requestSource" | "runtimeProfile" | "outcomeThread" | "goalThread">>
 ): readonly string[] => {
   // A goal's own thread has nobody to hand work back to: its tools, and no WakeParent.
   if (active.goalThread && active.runtimeProfile !== "subagent") return goalThreadToolDefinitions({ goalThread: active.goalThread }).map((tool) => tool.name);
+  if (active.accessMode === "research_readonly") return [];
   if (active.requestSource === "automation" && active.runtimeProfile !== "subagent")
     return [WAKE_PARENT_TOOL.name, ...outcomeThreadToolDefinitions(active).map((tool) => tool.name)];
   // File transfers stay in the cursor namespace, as in the reference's Task worker manifest.
@@ -803,7 +804,7 @@ export class RuntimeTools {
           ? GRAPHICAL_WORKER_SHELL_DESCRIPTION
           : GRAPHICAL_WORKER_READ_DESCRIPTION
       );
-    const graphical = active.subagentType === "computerUse";
+    const graphical = active.subagentType === "computerUse" && active.accessMode !== "research_readonly";
     const computerTool = () => defineTool({
           name: COMPUTER_USE_TOOL.name,
           label: COMPUTER_USE_TOOL.name,
@@ -861,10 +862,11 @@ export class RuntimeTools {
         // AwaitShell only waits on Shell's background commands.
         (tool.name !== "AwaitShell" || taskToolEnabled(active.taskConfiguration, SHELL_TOOL.name)));
     }
-    if (active.goalThread?.purpose === "inspection") return topLevelTools();
     const availableNativeTools = NATIVE_TOOLS.filter(
       (tool) =>
-        (!active.readOnly || READONLY_NATIVE_TOOLS.includes(tool.name)) &&
+        (active.accessMode === "research_readonly" ? researchNativeTools.has(tool.name) ||
+          (tool.name === "UpdateMemory" && active.goalThread?.planMode === "contract_plan") :
+          active.accessMode !== "readonly_strict" || strictNativeTools.has(tool.name)) &&
         (active.requestSource !== "automation" || !AUTOMATION_PARENT_ONLY_TOOLS.has(tool.name)) &&
         (!active.subagentType || !SUBAGENT_PRIVATE_NATIVE_TOOLS.has(tool.name))
     );
@@ -877,7 +879,9 @@ export class RuntimeTools {
               "A widget or secret request ends the turn and waits for the user. Set end_turn only if no further work or delivery is needed.",
               "For a local file use its absolute file URL. Prefer a local copy of a web image. Use reply_to for the quoted message and channel for an explicit connected destination.",
             ].join(" "), RICH_REPLY_TOOL)
-          : native(tool)
+          : active.accessMode === "research_readonly" && tool.name === SHELL_TOOL.name
+            ? native(tool, "Use Shell only for read-only research. Inspect existing files and extract information without editing, moving, deleting, redirecting output to files, or running scripts that change state. Set machineId to inspect a registered computer.")
+            : native(tool)
       ),
       ...topLevelTools(),
     ].sort((a, b) => directToolRank(a.name) - directToolRank(b.name));
@@ -966,17 +970,18 @@ export class RuntimeTools {
     signal?: AbortSignal,
     claimResponseCall?: () => boolean
   ): Promise<AgentToolResult<Record<string, unknown>>> {
-    if (active.goalThread?.purpose === "inspection" && tool !== "GetOutcome")
-      throw new Error("Goal analysis can only read the saved goal");
+    if (active.accessMode === "research_readonly" && !researchNativeTools.has(tool) &&
+      !allowsCursorTool(active, tool) && !workerTopLevelTools(active).includes(tool))
+      throw new Error("This action is unavailable in a read-only research turn");
     if (tool === "Task")
       args = expandPluginAgent(active.pluginRuntimePackages ?? [], args as Record<string, unknown>);
     if (
-      active.readOnly &&
-      !READONLY_NATIVE_TOOLS.includes(tool) &&
+      active.accessMode === "readonly_strict" &&
+      !strictNativeTools.has(tool) &&
       !workerTopLevelTools(active).includes(tool)
     )
       throw new Error("This plugin agent is read-only");
-    if (active.readOnly && ["Read", "Shell", "AwaitShell"].includes(tool) && (args as Record<string, unknown>).machineId)
+    if (active.accessMode === "readonly_strict" && ["Read", "Shell", "AwaitShell"].includes(tool) && (args as Record<string, unknown>)?.machineId)
       throw new Error("Read-only agents cannot access the user's computer");
     signal?.throwIfAborted();
     active.pluginAbortController?.signal.throwIfAborted();
@@ -1037,7 +1042,7 @@ export class RuntimeTools {
           active.subagentType === "computerUse"
             ? await this.screens.commandEnvironment(active.screenBotId, active.cwd)
             : undefined;
-        const secretEnvironment = await this.processSecrets(active, signal);
+        const secretEnvironment = active.accessMode === "research_readonly" ? {} : await this.processSecrets(active, signal);
         const result = await this.nativeToolExecutor.shell(
           shellInput,
           active.cwd,
@@ -1065,7 +1070,7 @@ export class RuntimeTools {
           this.nativeToolExecutor.externalRead(readInput, signal))();
       }
       const earlierWriters = [...(this.stepFileWriters.get(active.runId) ?? [])];
-      const secrets = Object.values(await this.processSecrets(active, signal));
+      const secrets = active.accessMode === "research_readonly" ? [] : Object.values(await this.processSecrets(active, signal));
       const read = () => this.nativeToolExecutor.read(readInput, active.cwd);
       const result = await read().catch(async (error) => {
         // A Read issued beside the Shell call that creates its file waits for that call, then retries once.
@@ -2084,7 +2089,7 @@ export class RuntimeTools {
     active: ActiveTurn
   ): Array<DynamicNamespaceDefinition<RuntimeDynamicTool>> {
     const bitwardenTools: RuntimeDynamicTool[] =
-      (active.runtimeProfile === "agent" || active.subagentType === "computerUse") && !active.readOnly && !active.goalThread
+      (active.runtimeProfile === "agent" || active.subagentType === "computerUse") && (active.accessMode ?? "full") === "full" && !active.goalThread
         ? [
             {
               name: "RequestBitwardenReadApproval",
@@ -2170,7 +2175,7 @@ export class RuntimeTools {
           : []),
         // Workers that use the parent's connectors move files with them both ways;
         // graphical and media workers have no connector accounts.
-        ...((active.runtimeProfile !== "subagent" || subagentUsesParentConnectors(active.subagentType)) && !active.readOnly
+        ...((active.runtimeProfile !== "subagent" || subagentUsesParentConnectors(active.subagentType)) && (active.accessMode ?? "full") === "full"
           ? CONNECTOR_TRANSFER_TOOLS
           : []
         ).map(
@@ -2323,7 +2328,7 @@ export class RuntimeTools {
           };
         }),
         // Registered computers are listed on demand, as in the reference; box-scoped and read-only agents stay on the box.
-        ...(active.readOnly || active.subagentType === "computerUse"
+        ...(active.accessMode === "readonly_strict" || active.subagentType === "computerUse"
           ? []
           : [{
               name: LIST_MACHINES_TOOL.name,
@@ -2454,13 +2459,16 @@ export class RuntimeTools {
     responseCall = false
   ): Promise<AgentToolResult<Record<string, unknown>>> {
     if (
-      active.readOnly &&
+      (active.accessMode === "readonly_strict" || active.accessMode === "research_readonly") &&
       (input.namespace === "cursor"
-        ? !["AwaitShell", "WebSearch", "WebFetch", "SearchPlugins", "GetPlugin", "GetMcpServerStatus"].includes(input.toolName)
+        ? !allowsCursorTool(active, input.toolName)
         : !active.pluginNamespaces.some((namespace) => namespace.name === input.namespace &&
             namespace.tools.some((tool) => tool.name === input.toolName && isReadonlyConnectorRead(tool))))
     )
       throw new Error("This tool is unavailable to a read-only plugin agent");
+    if (active.accessMode === "readonly_strict" && input.namespace === "cursor" && input.toolName === "AwaitShell" &&
+      (input.arguments as { machineId?: unknown } | undefined)?.machineId)
+      throw new Error("Read-only agents cannot access the user's computer");
     const options = this.lookupOptions(active);
     const resolved = await this.withCatalogRefresh(active, callId, () => {
       const catalog = this.dynamicCatalog(active);

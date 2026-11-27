@@ -87,7 +87,7 @@ test("calls cut off because a typed message superseded the run say the user inte
     pluginAbortController: controller,
     requestSource: "agent",
     subagentType: null,
-    readOnly: false,
+    accessMode: "full",
     pluginRuntimePackages: [],
     pluginNamespaces: [],
     sentMessageCount: 0,

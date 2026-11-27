@@ -4,7 +4,7 @@ import { notificationRouting } from "./notification-presence";
 
 export async function enqueueTodoPush(tx: Prisma.TransactionClient, ownerId: string, key: string, now: Date,
   payloadForLocale: (chinese: boolean) => TodoNotificationPayload): Promise<number> {
-  const authMode = ownerId === "local" ? "disabled" : "required";
+  const authMode: "disabled" | "required" = ownerId === "local" ? "disabled" : "required";
   if (!(await notificationRouting(tx, authMode, now)).smartEnabled) return 0;
   const devices = await tx.pushDevice.findMany({
     where: authMode === "disabled" ? { enabled: true, authRequired: false }

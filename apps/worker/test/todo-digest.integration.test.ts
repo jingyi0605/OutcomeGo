@@ -18,10 +18,10 @@ test.skipIf(!url)("digest follows owner time, policy, same-day dedupe and empty-
   try {
     await setPolicy({});
     await db.userTimeZoneSettings.upsert({ where: { id: "global" }, create: { override: "Asia/Singapore" }, update: { override: "Asia/Singapore" } });
-    await db.ownerTodoItem.createMany({ data: [
+    await db.outcome.createMany({ data: [
       { title: "First title", urgency: "high", dueAt: new Date("2026-11-25T02:00:00Z") },
       { title: "Second title", dueAt: new Date("2026-11-25T03:00:00Z") },
-    ].map((row) => ({ ...row, urgency: row.urgency as "high" | undefined, ownerId: "local", createdVia: "owner_ui", createdBy: "user:local", summary: "PRIVATE-SUMMARY", sourceRef: { kind: "ref", id: "fixture", label: "PRIVATE-SOURCE" } })) });
+    ].map((row) => ({ ...row, urgency: row.urgency as "high" | undefined, ownerId: "local", kind: "todo", status: "open", executor: "owner", kindMeta: { createdVia: "owner_ui" }, createdBy: "owner:local", description: "PRIVATE-SUMMARY", sourceRef: { kind: "ref", id: "fixture", label: "PRIVATE-SOURCE" } })) });
     expect(await dispatchTodoDigest(db, "disabled", at)).toBe(false);
     expect(await readTodoDigest(db, "local", at)).toBeNull();
     await setPolicy({ "todo.digest.enabled": true, "todo.digest.localTime": "08:30", "todo.digest.maxTitles": 1 });
@@ -36,14 +36,14 @@ test.skipIf(!url)("digest follows owner time, policy, same-day dedupe and empty-
     const payload = { kind: "todo", type: "digest", ownerId: "local", schemaVersion: 1, date: "2026-11-25", title: "Summary", body: "Count and titles" } as const;
     expect(apnsPayload(device, payload, 0)).toMatchObject({ aps: { alert: { title: "Summary", body: "Count and titles" } }, data: { kind: "todo", type: "digest", notificationScope: "fixture-scope" } });
     expect(fcmPayload(device, payload, 0, "fixture")).toMatchObject({ message: { data: { kind: "todo", type: "digest", title: "Summary", body: "Count and titles", notificationScope: "fixture-scope" } } });
-    await db.ownerTodoItem.updateMany({ where: { ownerId: "local" }, data: { status: "done" } });
+    await db.outcome.updateMany({ where: { kind: "todo", ownerId: "local" }, data: { status: "accepted" } });
     expect(await readTodoDigest(db, "local", tomorrow)).toBeNull();
     expect(await dispatchTodoDigest(db, "disabled", tomorrow)).toBe(false);
     expect(await db.idempotencyRecord.count({ where: { scope: "todo-digest" } })).toBe(1);
   } finally {
     await db.outboxDelivery.deleteMany({ where: { target: device.id } });
     await db.pushDevice.delete({ where: { id: device.id } });
-    await db.ownerTodoItem.deleteMany({ where: { ownerId: "local" } });
+    await db.outcome.deleteMany({ where: { kind: "todo", ownerId: "local" } });
     await db.idempotencyRecord.deleteMany({ where: { scope: "todo-digest" } });
     await db.userTimeZoneSettings.deleteMany({ where: { id: "global" } });
     await db.featureSettings.deleteMany({ where: { id: "global" } });

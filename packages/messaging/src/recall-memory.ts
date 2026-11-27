@@ -1,5 +1,6 @@
 export interface RecallCandidate {
   id?: string;
+  noteId?: string;
   /** An owned active duplicate of a newer shared representative, when different. */
   editableId?: string;
   supersededAt?: Date | null;
@@ -50,7 +51,8 @@ const candidateLabel = (fact: RecallCandidate) => {
   const profile = fact.tier === "profile";
   if (fact.scope === "agent") return profile ? "profile" : "journal";
   const via = fact.via?.trim() ?? "";
-  return `${profile ? "shared_profile" : "shared_journal"}${via ? ` via ${via}` : ""}`;
+  const type = fact.noteId ? "shared_note" : profile ? "shared_profile" : "shared_journal";
+  return `${type}${via ? ` via ${via}` : ""}`;
 };
 
 const formatDate = (date: Date) =>
@@ -87,7 +89,7 @@ export function recallMemoryResult(input: unknown, candidates: readonly RecallCa
       ? `superseded ${formatDate(fact.supersededAt)}${fact.supersededById ? ` by ${fact.supersededById}` : ""}`
       : "active";
     const editable = fact.editableId && fact.editableId !== fact.id ? `; editable id: ${fact.editableId}` : "";
-    const metadata = fact.id ? ` [id: ${fact.id}; ${status}${editable}]` : "";
+    const metadata = fact.noteId ? ` [noteId: ${fact.noteId}]` : fact.id ? ` [id: ${fact.id}; ${status}${editable}]` : "";
     const line = `- (${formatDate(fact.createdAt)}) [${candidateLabel(fact)}] ${fact.content}${metadata}`;
     if (shown > 0 && line.length > budget) break;
     lines.push(line);

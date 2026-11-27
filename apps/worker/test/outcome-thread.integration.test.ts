@@ -1,10 +1,75 @@
 import { describe, expect, test } from "bun:test";
-import { enqueueOutcomeTurn, transitionWorkItem } from "@outcomego/messaging";
+import { dispatchDueOutcomeAdvice, dispatchDueScheduledOutcomes, enqueueOutcomeThreadTurn, enqueueOutcomeTurn, transitionWorkItem } from "@outcomego/messaging";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
 import { contextScopeForRun, WakeWorker } from "../src/worker";
 
 const url = process.env.OUTCOMEGO_TEST_DATABASE_URL;
 describe.skipIf(!url)("Outcome worker isolation", () => {
+  test("planner claims use read-only target scope and do not borrow for reviewers or inactive targets", async () => {
+    const h = await outcomeThreadFixture();
+    const planner = await h.db.bot.create({ data: { name: "Separate planner", status: "active", defaultDirectory: h.root, conversation: { create: {} } } });
+    const plannerChannel = await h.db.channel.create({ data: { kind: "bot_dm", directKey: `bot:${planner.id}`, name: "Planner", members: { create: { botId: planner.id, ordinal: 0 } } } });
+    const worker = Object.assign(Object.create(WakeWorker.prototype), { prisma: h.db, messaging: h.messaging, agentData: h.store, workspaceRoot: h.root });
+    try {
+      const attachment = await h.messaging.assets.ingestBytes({ fileName: "source.txt", bytes: new TextEncoder().encode("Original context") });
+      await h.db.outcome.update({ where: { id: h.outcome.id }, data: { attachments: [attachment] } });
+      const modes = [
+        { purpose: "plan", planMode: "triage" }, { purpose: "plan", planMode: "advice" }, { purpose: "plan", planMode: "contract_plan" },
+        { purpose: "owner_message" }, { purpose: "replan" }, { purpose: "review" },
+      ] as const;
+      for (const mode of modes) {
+        const { turn } = await h.db.$transaction((tx) => enqueueOutcomeThreadTurn(tx, h.messaging, {
+          ...mode, outcomeId: h.outcome.id, botId: planner.id, text: "Read only", actor: "owner:local", clientRequestId: crypto.randomUUID(),
+        }));
+        const claimed = await worker.claim(planner.id);
+        expect(claimed).toMatchObject({ runId: turn.runId, goalThread: { purpose: mode.purpose, outcomeId: h.outcome.id } });
+        if (mode.purpose === "review") expect(claimed).toMatchObject({ accessMode: "full", borrowedBot: undefined });
+        else expect(claimed).toMatchObject({ accessMode: "research_readonly", borrowedBot: { id: h.bot.id, name: h.bot.name }, unmaterializedOutcomeAttachments: [attachment] });
+        await h.db.botRunLease.deleteMany({ where: { runId: turn.runId! } });
+        await h.db.run.update({ where: { id: turn.runId! }, data: { status: "completed" } });
+      }
+      await h.db.bot.update({ where: { id: h.bot.id }, data: { status: "archived" } });
+      await h.db.$transaction((tx) => enqueueOutcomeThreadTurn(tx, h.messaging, {
+        purpose: "plan", planMode: "advice", outcomeId: h.outcome.id, botId: planner.id, text: "Advice", actor: "owner:local", clientRequestId: crypto.randomUUID(),
+      }));
+      expect(await worker.claim(planner.id)).toMatchObject({ accessMode: "research_readonly", borrowedBot: undefined });
+    } finally {
+      const runs = await h.db.run.findMany({ where: { botId: planner.id }, select: { id: true } });
+      await h.db.event.deleteMany({ where: { entityId: { in: runs.map((run) => run.id) } } });
+      await h.db.bot.delete({ where: { id: planner.id } });
+      await h.db.channel.delete({ where: { id: plannerChannel.id } });
+      await h.cleanup();
+    }
+  });
+  test("superseded advice is skipped and the scheduled run claims its Outcome scope", async () => {
+    const h = await outcomeThreadFixture();
+    const worker = Object.assign(Object.create(WakeWorker.prototype), { prisma: h.db, messaging: h.messaging, agentData: h.store, workspaceRoot: h.root });
+    const target = { id: h.outcome.id };
+    const previous = await h.db.featureSettings.findUnique({ where: { id: "global" } });
+    const now = new Date("2026-11-25T01:00:00.000Z");
+    const due = new Date("2026-11-25T02:00:00.000Z");
+    try {
+      await h.db.featureSettings.upsert({ where: { id: "global" }, create: { id: "global", outcomesEnabled: true }, update: { outcomesEnabled: true } });
+      await h.db.outcome.update({ where: target, data: { kind: "scheduled_once", status: "scheduled", currentRevisionId: null, prepareAt: now, scheduledAt: due } });
+      expect(await dispatchDueOutcomeAdvice(h.db, h.messaging, now)).toBe(1);
+      const advice = await h.db.outcomeThreadTurn.findFirstOrThrow({ where: { thread: { outcomeId: target.id } } });
+      await h.db.outcome.update({ where: target, data: { revision: { increment: 1 } } });
+      expect(await dispatchDueScheduledOutcomes(h.db, h.messaging, due)).toBe(1);
+      const claimed = await worker.claim(h.bot.id);
+      expect(claimed).not.toBeNull();
+      expect(await h.db.run.findUniqueOrThrow({ where: { id: claimed!.runId } })).toMatchObject({ origin: "outcome", outcomeId: target.id, outcomeWorkItemId: null });
+      expect(await h.db.contextSession.findUniqueOrThrow({ where: { id: claimed!.contextSessionId } })).toMatchObject({ scope: "outcome", scopeId: target.id });
+      expect(await h.db.botRunLease.findUniqueOrThrow({ where: { runId: claimed!.runId } })).toMatchObject({ scope: `outcome:${target.id}` });
+      expect(await worker.claim(h.bot.id)).toBeNull();
+      expect(await h.db.outcomeThreadTurn.findUniqueOrThrow({ where: { id: advice.id } })).toMatchObject({ status: "cancelled", skipReason: "schedule_superseded" });
+      expect(await h.db.run.findUniqueOrThrow({ where: { id: advice.runId! } })).toMatchObject({ status: "cancelled" });
+    } finally {
+      if (previous) await h.db.featureSettings.update({ where: { id: "global" }, data: { outcomesEnabled: previous.outcomesEnabled } });
+      else await h.db.featureSettings.deleteMany({ where: { id: "global" } });
+      await h.cleanup();
+    }
+  });
+
   test("main chat and two Outcomes claim independently; typed input cannot interrupt Outcome", async () => {
     const h = await outcomeThreadFixture();
     const worker = Object.assign(Object.create(WakeWorker.prototype), {

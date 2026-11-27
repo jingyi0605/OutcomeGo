@@ -1,6 +1,5 @@
-import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, notifyRequestsNeedingOwner, dispatchDueScheduledWorkItems, dispatchDueOutcomeInspections, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
+import { settleTaskProgress, dispatchTaskContinuations, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, notifyRequestsNeedingOwner, dispatchDueScheduledWorkItems, dispatchDueScheduledOutcomes, dispatchDueOutcomeAdvice, scheduledOutcomeRunIsCurrent, settleScheduledOutcomeRun, settleScheduledOutcomeDelivery, requestWakeAllowed, requestIsStopped, taskProgress, recoverTaskInterruption, TASK_RECOVERY_LOCK, requeueAutomationWake, automationRetryDelay, AUTOMATION_ATTEMPT_LIMIT } from "@outcomego/messaging";
 import { dispatchTodoDigest, expireTodoSuggestions } from "@outcomego/messaging";
-import { todoTurnMode } from "@outcomego/contracts/todo";
 import {
   isManagedDraftWake,
   isTreatmentDraftWake,
@@ -20,6 +19,7 @@ import type {
   SubagentType,
 } from "@outcomego/contracts";
 import { MAX_TURN_INLINE_IMAGE_BYTES, MAX_TURN_INLINE_IMAGES, SEND_TO_USER_REPLY_NUDGE_PROMPT } from "@outcomego/contracts";
+import { isOutcomeResearchTurn, type TurnAccessMode } from "@outcomego/contracts/outcome-plan";
 import { CLIENT_CAPABILITIES, formatPiModelRef, normalizePiReasoningLevel } from "@outcomego/contracts";
 import { checkComputerModelAvailable, resolveRunInference } from "./inference-selection";
 import {
@@ -65,19 +65,17 @@ import {
   type RevivalCompletion,
   automationContinuationRoute,
   automationContextRunId,
-  claimOnceRoutineExecution,
   reconcileRoutineExecution,
   settleOutcomeWorkItem,
   settleOutcomeThreadTurn,
   settleFinishedOutcomeThreadTurns,
   startOutcomeThreadTurn,
+  OUTCOME_SCHEDULER_ACTOR,
+  OUTCOME_THREAD_EVENT_TOPIC,
+  readFeatureSettings,
   dispatchQueuedOutcomeWorkItems,
   recoverOutcomeWorkItems,
   outcomeDispatchEnabled,
-  AUTO_INSPECTION_ACTOR,
-  inspectionSnapshot,
-  readInspectionTarget,
-  readFeatureSettings,
   isOutcomeDecisionRevisionActive,
   transitionWorkItem,
   groupRoutineState,
@@ -213,8 +211,10 @@ interface Claimed extends WakeAttempt {
   outcomeThreadId?: string | null;
   runtimeProfile: "agent" | "subagent";
   subagentType: SubagentType | null;
-  readOnly: boolean;
-  preparationModel?: import("@outcomego/contracts").InferenceModelSelection;
+  accessMode: TurnAccessMode;
+  goalThread?: ComputerTurnRequest["goalThread"];
+  borrowedBot?: { id: string; name: string };
+  unmaterializedOutcomeAttachments?: AssetRef[];
   inferenceParentRunId: string | null;
   taskConfiguration: TaskConfiguration | null;
   fileAttachments: string[];
@@ -235,7 +235,8 @@ export const contextScopeForRun = (
   automationRunId?: string,
   outcomeWorkItemId?: string | null,
   outcomeThreadId?: string | null,
-  isolatedRunId?: string | null
+  isolatedRunId?: string | null,
+  outcomeId?: string | null,
 ): { scope: "home" | "channel" | "automation" | "outcome" | "outcome-thread"; scopeId: string } => {
   if (origin === "outcome_thread") {
     if (!outcomeThreadId) throw new Error("A goal thread turn requires its thread ID");
@@ -243,8 +244,9 @@ export const contextScopeForRun = (
     return { scope: "outcome-thread", scopeId: isolatedRunId ?? outcomeThreadId };
   }
   if (origin === "outcome") {
-    if (!outcomeWorkItemId) throw new Error("An Outcome requires its work item ID");
-    return { scope: "outcome", scopeId: outcomeWorkItemId };
+    const scopeId = outcomeWorkItemId ?? outcomeId;
+    if (!scopeId) throw new Error("An Outcome requires its work item ID or Outcome ID");
+    return { scope: "outcome", scopeId };
   }
   if (origin === "routine") {
     if (!automationRunId) throw new Error("An automation requires its own context run ID");
@@ -718,6 +720,8 @@ export class WakeWorker {
    * routine pass or startup recovery: one failing source must not take the others down.
    */
   private async releaseDueScheduledWork(): Promise<void> {
+    await dispatchDueScheduledOutcomes(this.prisma, this.messaging).catch((error) => console.error("scheduled-outcome-release", error));
+    await dispatchDueOutcomeAdvice(this.prisma, this.messaging).catch((error) => console.error("outcome-advice-release", error));
     try {
       await dispatchDueScheduledWorkItems(this.prisma, this.messaging);
     } catch (error) {
@@ -737,7 +741,6 @@ export class WakeWorker {
       await expireTodoSuggestions(this.prisma).catch((error) => console.error("todo-expiry", error));
       await dispatchTodoDigest(this.prisma, pushAuthenticationModeFromEnvironment()).catch((error) => console.error("todo-digest", error));
       await this.releaseDueScheduledWork();
-      await dispatchDueOutcomeInspections(this.prisma, this.messaging).catch((error) => console.error("outcome-inspection", error));
       const reconciliation = await this.agentData.reconcileAutomationFilesBatch(
         this.automationReconcileCursor,
         AUTOMATION_RECONCILE_BATCH_SIZE
@@ -987,6 +990,7 @@ export class WakeWorker {
     this.stalledWakeScanActive = true;
     try {
       const now = new Date();
+      await this.recoverScheduledOutcomeRuns(now);
       const terminal = await this.prisma.inboxEvent.findMany({
         where: {
           status: "processing",
@@ -1036,6 +1040,35 @@ export class WakeWorker {
       });
     } finally {
       this.stalledWakeScanActive = false;
+    }
+  }
+
+  private async recoverScheduledOutcomeRuns(now: Date): Promise<void> {
+    const stale = await this.prisma.run.findMany({
+      where: { origin: "outcome", outcomeId: { not: null }, outcomeWorkItemId: null, status: "running",
+        NOT: { lease: { is: { expiresAt: { gt: now } } } } },
+      orderBy: [{ updatedAt: "asc" }, { id: "asc" }], take: 50, select: { id: true, botId: true },
+    });
+    for (const run of stale) {
+      try {
+        const response = await this.computerFetch(COMPUTER_API_PATHS.turnCancel(run.id), { method: "POST", body: JSON.stringify({ recovery: true }) });
+        if (!response.ok && !(response.status === 400 && (await response.text()).includes("Run is not actively executing"))) continue;
+        await this.prisma.$transaction(async (tx) => {
+          await lockAgentLifecycle(tx, run.botId);
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${run.botId}`}))`;
+          const error = { code: "scheduled_outcome_interrupted", message: "The run was interrupted and was not replayed." };
+          const stopped = await tx.run.updateMany({ where: { id: run.id, status: "running",
+            NOT: { lease: { is: { expiresAt: { gt: new Date() } } } } },
+          data: { status: "interrupted", completedAt: now, error } });
+          if (!stopped.count) return;
+          await tx.inboxEvent.updateMany({ where: { runId: run.id, status: { in: ["pending", "processing"] } },
+            data: { status: "failed", completedAt: now, error } });
+          await tx.botRunLease.deleteMany({ where: { runId: run.id } });
+          await settleScheduledOutcomeRun(tx, run.id);
+        });
+      } catch (error) {
+        console.error("Scheduled Outcome recovery deferred", run.id, error);
+      }
     }
   }
 
@@ -1544,9 +1577,11 @@ export class WakeWorker {
           if (candidate.type === "automation.wake_parent" && candidate.run.origin === "background_revival") {
             const handoff = await tx.automationResult.findUnique({
               where: { wakeRunId: candidate.runId },
-              select: { run: { select: { status: true, error: true, requestStoppedAt: true } } },
+              select: { run: { select: { status: true, error: true, requestStoppedAt: true, origin: true, outcomeId: true, outcomeWorkItemId: true } } },
             });
             automationEnded = !!handoff && requestIsStopped(handoff.run);
+            if (!automationEnded && handoff?.run.origin === "outcome" && handoff.run.outcomeId && !handoff.run.outcomeWorkItemId &&
+                ["queued", "running"].includes(handoff.run.status)) continue;
           }
           if (!automationEnded && (candidate.run.origin === "user" || candidate.run.origin === "outcome" || candidate.run.origin === "outcome_thread" || await requestWakeAllowed(tx, candidate))) candidates.push(candidate);
           else {
@@ -1572,32 +1607,30 @@ export class WakeWorker {
             const turn = await tx.outcomeThreadTurn.findUnique({
               where: { runId: candidate.runId }, include: { thread: { select: { outcomeId: true, outcome: { select: { cancelledAt: true, acceptedAt: true } } } } },
             });
-            let inspectionRunnable = true;
-            if (turn?.purpose === "inspection") {
+            let superseded = false;
+            let automaticAdviceAllowed = true;
+            if (turn?.outcomeRevision != null) {
               const { outcomeId } = turn.thread;
               const [lock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
                 SELECT pg_try_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`})) AS locked`;
               if (!lock?.locked) continue;
-              const target = await readInspectionTarget(tx, outcomeId, turn.workItemId);
-              const snapshot = turn.result as ReturnType<typeof inspectionSnapshot> | null;
-              const currentSnapshot = target && inspectionSnapshot(target);
-              inspectionRunnable = Boolean(snapshot && currentSnapshot && snapshot.revisionId === currentSnapshot.revisionId &&
-                snapshot.dueAt === currentSnapshot.dueAt && snapshot.scheduledAt === currentSnapshot.scheduledAt);
-              if (inspectionRunnable && turn.triggerBy === AUTO_INSPECTION_ACTOR) {
-                const supersedingManualTurn = await tx.outcomeThreadTurn.findFirst({
-                  where: { threadId: turn.threadId, workItemId: turn.workItemId, purpose: "inspection",
-                    triggerBy: { not: AUTO_INSPECTION_ACTOR }, result: { equals: inspectionSnapshot(target!) },
-                    createdAt: { gte: turn.createdAt } }, select: { id: true },
-                });
-                const settings = await readFeatureSettings(tx);
-                inspectionRunnable = settings.outcomesEnabled && settings.taskPolicy?.["inspection.enabled"] !== false &&
-                  !supersedingManualTurn && Boolean(target?.dueAt && target.dueAt > new Date());
+              const latest = await tx.outcome.findUnique({ where: { id: outcomeId }, select: { revision: true, kind: true, status: true } });
+              superseded = latest?.revision !== turn.outcomeRevision;
+              if (!superseded && turn.planMode === "advice" && turn.triggerBy === OUTCOME_SCHEDULER_ACTOR) {
+                automaticAdviceAllowed = outcomeDispatchEnabled() && (await readFeatureSettings(tx)).outcomesEnabled &&
+                  (latest?.kind !== "scheduled_once" || latest.status === "scheduled");
               }
-              inspectionRunnable &&= outcomeDispatchEnabled();
             }
-            if (!turn || turn.status === "completed" || turn.status === "failed" || turn.thread.outcome.cancelledAt || turn.thread.outcome.acceptedAt || !inspectionRunnable) {
-              await tx.inboxEvent.updateMany({ where: { id: candidate.id, status: "pending" }, data: { status: "completed", completedAt: new Date() } });
-              await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_thread_not_runnable" } } });
+            if (!turn || turn.status !== "queued" || turn.thread.outcome.cancelledAt || turn.thread.outcome.acceptedAt || superseded || !automaticAdviceAllowed) {
+              const completedAt = new Date();
+              const code = superseded ? "schedule_superseded" : "outcome_thread_not_runnable";
+              if (turn?.status === "queued") {
+                await tx.outcomeThreadTurn.update({ where: { id: turn.id }, data: { status: "cancelled", skipReason: code } });
+                await tx.event.create({ data: { topic: OUTCOME_THREAD_EVENT_TOPIC, entityId: turn.thread.outcomeId,
+                  payload: { outcomeId: turn.thread.outcomeId, turnId: turn.id, status: "cancelled" } } });
+              }
+              await tx.inboxEvent.update({ where: { id: candidate.id }, data: { status: "completed", completedAt } });
+              await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt, error: { code } } });
               continue;
             }
             if (!canClaimThreadTurn(turn.purpose, threadCounts)) continue;
@@ -1645,28 +1678,35 @@ export class WakeWorker {
             inbox = candidate;
             break;
           }
-          if (outcomes.some(lease => lease.scope === `outcome:${candidate.run.outcomeWorkItemId}`)) continue;
-          const found = candidate.run.outcomeWorkItemId
-            ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, select: { outcomeId: true } }) : null;
-          if (found) {
+          const workItemId = candidate.run.outcomeWorkItemId;
+          const outcomeScope = workItemId ?? candidate.run.outcomeId;
+          if (outcomes.some(lease => lease.scope === `outcome:${outcomeScope}`)) continue;
+          const outcomeId = workItemId
+            ? (await tx.outcomeWorkItem.findUnique({ where: { id: workItemId }, select: { outcomeId: true } }))?.outcomeId
+            : candidate.run.outcomeId;
+          if (outcomeId) {
             // A Stop can hold several Outcomes in UUID order. Candidate priority
             // order differs, so never wait while retaining another candidate's lock.
             const [outcomeLock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
-              SELECT pg_try_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`})) AS locked`;
+              SELECT pg_try_advisory_xact_lock(hashtext(${`outcome:${outcomeId}`})) AS locked`;
             if (!outcomeLock?.locked) continue;
-            const [itemLock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
-              SELECT pg_try_advisory_xact_lock(hashtext(${`outcome-work-item:${candidate.run.outcomeWorkItemId}`})) AS locked`;
-            if (!itemLock?.locked) continue;
+            if (workItemId) {
+              const [itemLock] = await tx.$queryRaw<Array<{ locked: boolean }>>`
+                SELECT pg_try_advisory_xact_lock(hashtext(${`outcome-work-item:${workItemId}`})) AS locked`;
+              if (!itemLock?.locked) continue;
+            }
           }
           const current = await tx.inboxEvent.findUnique({ where: { id: candidate.id }, include: { run: true } });
           if (!current || current.run.status !== "queued"
             || !(current.status === "pending" || current.status === "processing" && current.claimedAt && current.claimedAt < staleAt)) continue;
           const item = candidate.run.outcomeWorkItemId
             ? await tx.outcomeWorkItem.findUnique({ where: { id: candidate.run.outcomeWorkItemId }, include: { outcome: true, contractRevision: true } }) : null;
-          if (!item || item.outcome.cancelledAt || item.outcome.acceptedAt || !item.contractRevision.approvedAt
-            || !await isOutcomeDecisionRevisionActive(tx, item.outcomeId, item.contractRevisionId, item.id)
-            || ["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)) {
-            await tx.inboxEvent.updateMany({ where: { id: candidate.id, status: "pending" }, data: { status: "completed", completedAt: new Date() } });
+          const runnable = workItemId ? item && !item.outcome.cancelledAt && !item.outcome.acceptedAt && item.contractRevision.approvedAt
+            && await isOutcomeDecisionRevisionActive(tx, item.outcomeId, item.contractRevisionId, item.id)
+            && !["completed", "failed", "cancelled", "waiting_decision", "waiting_human", "needs_review"].includes(item.status)
+            : outcomeId && await scheduledOutcomeRunIsCurrent(tx, outcomeId, candidate.runId);
+          if (!runnable) {
+            await tx.inboxEvent.update({ where: { id: candidate.id }, data: { status: "completed", completedAt: new Date() } });
             await tx.run.updateMany({ where: { id: candidate.runId, status: "queued", startedAt: null }, data: { status: "cancelled", completedAt: new Date(), error: { code: "outcome_not_runnable" } } });
             continue;
           }
@@ -1716,7 +1756,6 @@ export class WakeWorker {
           channelId?: string;
           automationContextRunId?: string;
           interruptedRunId?: unknown;
-          preparationModel?: import("@outcomego/contracts").InferenceModelSelection;
         };
         if (!payload.content || !payload.clientId) {
           await tx.inboxEvent.update({
@@ -1728,7 +1767,7 @@ export class WakeWorker {
         const lease = await tx.botRunLease.createMany({
           data: {
             botId,
-            scope: inbox.run.origin === "outcome_thread" ? `outcome-thread:${inbox.run.outcomeThreadId}` : inbox.run.origin === "outcome" ? `outcome:${inbox.run.outcomeWorkItemId}` : inbox.run.origin === "routine" ? `automation:${payload.automationContextRunId ?? inbox.runId}` : "foreground",
+            scope: inbox.run.origin === "outcome_thread" ? `outcome-thread:${inbox.run.outcomeThreadId}` : inbox.run.origin === "outcome" ? `outcome:${inbox.run.outcomeWorkItemId ?? inbox.run.outcomeId}` : inbox.run.origin === "routine" ? `automation:${payload.automationContextRunId ?? inbox.runId}` : "foreground",
             runId: inbox.runId,
             ownerId,
             expiresAt: new Date(Date.now() + LEASE_MS),
@@ -1744,20 +1783,6 @@ export class WakeWorker {
             attempts: { increment: 1 },
           },
         });
-        let preparationBrief: string | null = null;
-        let onceStage: string | null = null;
-        if (inbox.run.origin === "routine") {
-          const onceClaim = await claimOnceRoutineExecution(tx, inbox.runId, new Date(), automationContextRunId(inbox.runId, payload));
-          preparationBrief = onceClaim.brief;
-          onceStage = onceClaim.stage;
-          if (!onceClaim.allowed) {
-            const settledAt = new Date();
-            await tx.inboxEvent.update({ where: { id: inbox.id }, data: { status: "completed", completedAt: settledAt } });
-            await tx.run.update({ where: { id: inbox.runId }, data: { status: "cancelled", completedAt: settledAt, error: { code: "routine_schedule_superseded" } } });
-            await tx.botRunLease.deleteMany({ where: { runId: inbox.runId, ownerId } });
-            return "retry";
-          }
-        }
         const batch = draftResponseBatch(inbox, candidates) ?? revivalBatch(inbox, candidates);
         const baseContent = batch?.content ?? payload.content;
         if (batch) {
@@ -1810,14 +1835,9 @@ export class WakeWorker {
           where: { runId: inbox.runId, status: "queued" },
           data: { status: "running", startedAt: new Date() },
         });
-        if (onceStage) {
-          await tx.event.create({ data: {
-            topic: "routine.execution.started", entityId: inbox.runId, payload: { runId: inbox.runId, botId },
-          } });
-        }
         if (inbox.run.origin === "outcome_thread") await startOutcomeThreadTurn(tx, inbox.runId);
-        if (inbox.run.origin === "outcome") {
-          const item = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: inbox.run.outcomeWorkItemId! } });
+        if (inbox.run.origin === "outcome" && inbox.run.outcomeWorkItemId) {
+          const item = await tx.outcomeWorkItem.findUniqueOrThrow({ where: { id: inbox.run.outcomeWorkItemId } });
           if (item.status !== "running") await transitionWorkItem(tx, { workItemId: item.id, to: "running", reason: "lease_acquired", actor: "system:worker" });
         }
         if (inbox.run.origin === "bootstrap") {
@@ -1842,8 +1862,25 @@ export class WakeWorker {
         });
         const runtimeOwners = subagentRuntimeOwners(botId, inbox.bot.subagentIdentity);
         const threadTurn = inbox.run.origin === "outcome_thread"
-          ? await tx.outcomeThreadTurn.findUnique({ where: { runId: inbox.runId }, select: { purpose: true } })
+          ? await tx.outcomeThreadTurn.findUnique({ where: { runId: inbox.runId }, select: {
+              purpose: true, planMode: true, outcomeRevision: true,
+              thread: { select: { id: true, outcomeId: true, outcome: { select: { attachments: true,
+                bot: { select: { id: true, name: true, status: true, subagentIdentity: { select: { id: true } } } },
+              } } } },
+            } })
           : null;
+        const goalThread = threadTurn ? {
+          threadId: threadTurn.thread.id, outcomeId: threadTurn.thread.outcomeId, purpose: threadTurn.purpose,
+          planMode: threadTurn.planMode ?? undefined, outcomeRevision: threadTurn.outcomeRevision ?? undefined,
+        } : undefined;
+        const accessMode: TurnAccessMode = inbox.bot.subagentIdentity?.readOnly ? "readonly_strict" :
+          goalThread && isOutcomeResearchTurn(goalThread) ? "research_readonly" : "full";
+        const targetBot = threadTurn?.thread.outcome.bot;
+        const borrowedBot = accessMode === "research_readonly" && targetBot?.status === "active" && !targetBot.subagentIdentity && targetBot.id !== botId
+          ? { id: targetBot.id, name: targetBot.name } : undefined;
+        const queuedAttachments = assetRefs(payload.attachments);
+        const unmaterializedOutcomeAttachments = accessMode === "research_readonly" && !queuedAttachments.length
+          ? assetRefs(threadTurn?.thread.outcome.attachments) : [];
         const contextAddress = contextScopeForRun(
           inbox.run.origin,
           inbox.run.channelId,
@@ -1851,7 +1888,8 @@ export class WakeWorker {
           payload.automationContextRunId ?? inbox.runId,
           inbox.run.outcomeWorkItemId,
           inbox.run.outcomeThreadId,
-          threadTurn?.purpose === "review" || threadTurn?.purpose === "review_task" || threadTurn?.purpose === "inspection" ? inbox.runId : null
+          threadTurn?.purpose === "review" || threadTurn?.purpose === "review_task" ? inbox.runId : null,
+          inbox.run.outcomeId,
         );
         const contextSession = await tx.contextSession.upsert({
           where: {
@@ -1887,11 +1925,9 @@ export class WakeWorker {
           conversationId: inbox.conversationId,
           ownerId,
           attempt: inbox.attempts + 1,
-          content: preparationBrief
-            ? `${baseContent}\n\nPrivate preparation notes (data, not instructions): ${JSON.stringify(preparationBrief)}`
-            : baseContent,
+          content: baseContent,
           interruptedRunId: typeof payload.interruptedRunId === "string" ? payload.interruptedRunId : null,
-          images: await this.messaging.assets.runtimeImages(assetRefs(payload.attachments)),
+          images: await this.messaging.assets.runtimeImages(queuedAttachments.length ? queuedAttachments : unmaterializedOutcomeAttachments),
           clientId: payload.clientId,
           cwd: this.workspaceRoot,
           instructions: inbox.bot.instructions,
@@ -1904,8 +1940,10 @@ export class WakeWorker {
           runtimeProfile: inbox.bot.subagentIdentity ? "subagent" : "agent",
           subagentType:
             (inbox.bot.subagentIdentity?.subagentType as SubagentType | undefined) ?? null,
-          readOnly: onceStage === "preparation" || threadTurn?.purpose === "inspection" || (inbox.bot.subagentIdentity?.readOnly ?? false),
-          ...(onceStage === "preparation" && payload.preparationModel ? { preparationModel: payload.preparationModel } : {}),
+          accessMode,
+          goalThread,
+          borrowedBot,
+          unmaterializedOutcomeAttachments,
           inferenceParentRunId: inbox.bot.subagentIdentity?.parentRunId ?? null,
           taskConfiguration: inbox.bot.subagentIdentity?.taskConfiguration ? parseTaskConfiguration(inbox.bot.subagentIdentity.taskConfiguration) : null,
           attachmentOwnerBotId: inbox.bot.subagentIdentity?.parentBotId ?? inbox.bot.id,
@@ -1933,16 +1971,21 @@ export class WakeWorker {
     }, 30_000);
     let completion: Extract<ComputerEvent, { type: "turn.completed" }> | null = null;
     try {
+      const { goalThread, borrowedBot } = claimed;
+      const research = claimed.accessMode === "research_readonly";
       const skillAgent = pluginSkillAgent(claimed.runtimeProfile, claimed.subagentType);
-      const [pluginContext, inference, configuredTasks, capabilities] = await Promise.all([
+      const [pluginContext, inference, configuredTasks, capabilities, outcomeFiles] = await Promise.all([
         subagentLoadsPluginContext(claimed.subagentType)
-          ? pluginRuntimeContext(this.prisma, claimed.pluginBotId, skillAgent)
+          ? pluginRuntimeContext(this.prisma, claimed.pluginBotId, skillAgent, research ? { borrowedBotId: borrowedBot?.id } : undefined)
           : pluginSkillInstructions(this.prisma, claimed.pluginBotId, skillAgent).then((skillInstructions) => ({
               dynamicNamespaces: [], skillInstructions, pluginRuntimePackages: [],
             })),
         this.agentData.loadInferenceSettings(),
         this.agentData.loadTaskConfiguration(),
         this.loadTaskCapabilities(),
+        claimed.unmaterializedOutcomeAttachments?.length
+          ? this.agentData.materializeAttachments(claimed.botId, claimed.clientId, claimed.unmaterializedOutcomeAttachments)
+          : Promise.resolve([]),
         this.reconcileContextState(claimed),
       ]);
       const taskConfiguration = selectTaskConfiguration(claimed.taskConfiguration ?? configuredTasks, capabilities);
@@ -1950,7 +1993,7 @@ export class WakeWorker {
       // later by platformInstructions and therefore win on conflict.
       const platformPrompt = await this.messaging.platformPrompt(claimed.botId, claimed.contextSessionId,
         pluginContext.skillInstructions, claimed.runChannelId, taskConfiguration, claimed.origin, claimed.outcomeWorkItemId ?? undefined, claimed.outcomeThreadId ?? undefined,
-        claimed.runtimeProfile === "agent" && !claimed.subagentType && !claimed.readOnly);
+        claimed.runtimeProfile === "agent" && !claimed.subagentType && (!claimed.accessMode || claimed.accessMode === "full"));
       // Replay failed user inputs whose durable-session delivery was never
       // acknowledged, including a turn a typed message superseded before its input
       // reached the model. Runtime message IDs prevent duplication after a lost ack.
@@ -1967,17 +2010,10 @@ export class WakeWorker {
         if (!payload.content || !payload.clientId) continue;
         missedMessages.push({ id: `input:${payload.clientId}`, content: `[SAND_HIDDEN_PROMPT]Earlier user input whose delivery was interrupted:\n${payload.content}`, images: await this.messaging.assets.runtimeImages(assetRefs(payload.attachments), budget) });
       }
-      const instructions = platformPrompt.instructions;
-      // A goal's own thread tells the computer which goal and turn purpose it works on, so only allowed tools appear.
-      const goalTurnRow = claimed.outcomeThreadId
-        ? await this.prisma.outcomeThreadTurn.findUnique({
-            where: { runId: claimed.runId },
-            select: { purpose: true, thread: { select: { outcomeId: true } } },
-          })
-        : null;
-      const goalThread = claimed.outcomeThreadId && goalTurnRow
-        ? { threadId: claimed.outcomeThreadId, outcomeId: goalTurnRow.thread.outcomeId, purpose: goalTurnRow.purpose }
-        : null;
+      const instructions = research ? [platformPrompt.instructions,
+        "This is a read-only Outcome planning turn. Use local-machine Shell only to inspect files or facts. Do not change files, send messages, publish, or execute the Outcome's work. Save findings only through the appropriate planning tools.",
+        borrowedBot ? `The associated Bot is ${JSON.stringify(borrowedBot.name)} (ID ${borrowedBot.id}). When relevant, use this Bot ID with ReadTranscript; its available connection tools and memory access are read-only.` : "",
+      ].filter(Boolean).join("\n\n") : platformPrompt.instructions;
       // A room turn is woken by a synthetic clientId, so its spoken origin is the message that started the round.
       const triggeringMessage = claimed.deliveryId
         ? await this.prisma.channelDelivery
@@ -2028,7 +2064,7 @@ export class WakeWorker {
       const turnModel =
         activeThreadTurn?.model && typeof activeThreadTurn.model === "object" && !Array.isArray(activeThreadTurn.model)
           ? (activeThreadTurn.model as { providerId?: string | null; modelId?: string | null; reasoning?: string | null })
-        : claimed.preparationModel ?? null;
+        : null;
       const resolvedInference = await resolveRunInference({
         parentRun: inferenceParent,
         turnModel,
@@ -2079,7 +2115,7 @@ export class WakeWorker {
           }
         }
       });
-      const todoMode = platformPrompt.outcomesEnabled ? todoTurnMode(claimed.origin, claimed.inboxType) : undefined;
+      const ownerMessage = platformPrompt.outcomesEnabled && claimed.origin === "user" && claimed.inboxType !== "user.reaction";
       const turnRequest = {
         runId: claimed.runId,
         credentialScopeId: claimed.inferenceParentRunId ?? claimed.runId,
@@ -2095,9 +2131,9 @@ export class WakeWorker {
           directTextReply: platformPrompt.directTextReply,
           runtimeProfile: claimed.runtimeProfile,
           notes: [platformPrompt.automationStatus, platformPrompt.agentProfileUpdate, platformPrompt.instructionsUpdate,
-            todoMode === "owner" && claimed.runtimeProfile === "agent" ? `<owner_message_ref>${claimed.triggerMessageId}</owner_message_ref>` : null],
+            ownerMessage && claimed.runtimeProfile === "agent" ? `<owner_message_ref>${claimed.triggerMessageId}</owner_message_ref>` : null],
           unfinishedTasks: await this.supersededUnfinishedRun(claimed),
-        }, claimed.content),
+        }, outcomeFiles.length ? `${claimed.content}\n\nOutcome source files (open with Read):\n${JSON.stringify(outcomeFiles)}` : claimed.content),
         prependMessages: [...missedMessages, ...voicePrompt, ...(platformPrompt.ambientContext ? [{
           id: `${claimed.clientId}:ambient`,
           content: `[SAND_HIDDEN_PROMPT]${platformPrompt.ambientContext}`,
@@ -2111,7 +2147,6 @@ export class WakeWorker {
         connectorInstructions: pluginContext.skillInstructions,
         agentProfileSnapshot: platformPrompt.agentProfileSnapshot ?? undefined,
         todoUpdate: platformPrompt.todoUpdate,
-        todoTurnMode: todoMode,
         resetSelfSummaryCount: wakeResetsSelfSummaryCount(claimed.inboxType),
         requestSource: runtimeRequestSourceForOrigin(claimed.origin, claimed.inboxType),
         ...(claimed.outcomeWorkItemId ? { outcomeThread: { workItemId: claimed.outcomeWorkItemId } } : {}),
@@ -2121,7 +2156,8 @@ export class WakeWorker {
         runtimeProfile: claimed.runtimeProfile,
         subagentType: claimed.subagentType ?? undefined,
         taskConfiguration,
-        readOnly: claimed.readOnly,
+        accessMode: claimed.accessMode ?? "full",
+        ...(borrowedBot ? { borrowedBotId: borrowedBot.id } : {}),
         timeZone: await this.messaging.userTimeZone(),
         outcomesEnabled: platformPrompt.outcomesEnabled === true,
         groupTasksEnabled: platformPrompt.groupTasksEnabled === true,
@@ -2213,6 +2249,8 @@ export class WakeWorker {
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
       await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
+      if (claimed.origin === "outcome") await settleScheduledOutcomeRun(tx, claimed.runId);
+      if (claimed.inboxType === "automation.wake_parent") await settleScheduledOutcomeDelivery(tx, claimed.runId);
       if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId, this.messaging);
       if (claimed.origin === "bootstrap") {
         const onboarding = await tx.bot.updateMany({
@@ -2552,6 +2590,7 @@ export class WakeWorker {
       const settledRoutine = await reconcileRoutineExecution(tx, claimed.runId);
       if (settledRoutine) await this.routines.afterExecution(tx, settledRoutine);
       await settleOutcomeWorkItem(tx, claimed.runId, { messaging: this.messaging, workspaceRoot: this.workspaceRoot });
+      if (claimed.origin === "outcome") await settleScheduledOutcomeRun(tx, claimed.runId);
       if (claimed.origin === "outcome_thread") await settleOutcomeThreadTurn(tx, claimed.runId, this.messaging);
       if (priorityInterrupted) await this.redriveSupersededWake(tx, claimed);
       if (claimed.origin === "bootstrap") {
@@ -2681,7 +2720,7 @@ export class WakeWorker {
         routine: { select: { runLedger: true } },
       },
     });
-    if (!execution || execution.kind === "preparation") return;
+    if (!execution) return;
     const status =
       execution.status === "completed"
         ? "ok"

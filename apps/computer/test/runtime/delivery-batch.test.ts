@@ -82,7 +82,7 @@ for (const scenario of ["changed", "new", "failed", "cancelled", "interrupted", 
     if (scenario === "interrupted") { active.pluginAbortController = new AbortController(); active.pluginAbortController.abort(new Error("interrupted by user")); }
     if (scenario === "failed") tools.callControlPlaneTool = async () => {throw new Error("stop failed");};
     if (scenario === "cancelled") { active.pluginAbortController = new AbortController(); active.pluginAbortController.abort(); }
-    if (scenario === "read-only") active.readOnly = true;
+    if (scenario === "read-only") active.accessMode = "readonly_strict";
     if (scenario === "later") batch([{type: "toolCall", name: "CallDynamicTool", id: "later", arguments: stop}]);
     await expect(execute(scenario === "changed" ? {...stop, arguments: {subagent_id: "other"}} : stop,
       ["new", "later"].includes(scenario) ? scenario : "stop")).rejects.toThrow();
@@ -102,7 +102,7 @@ test("queued cleanup rechecks cancel after mutation wait", async () => {
   expect(calls.map(c => c.name)).toEqual(["SendToUser"]);
 });
 
-const routine = {action: "create", name: "Check back", prompt: "Check the support case and tell the user in this chat.", schedule: "10 13 18 10 *"};
+const routine = {action: "create", name: "Check back", prompt: "Check the support case and tell the user in this chat.", schedule: "10 13 * * 1"};
 function siblingFixture(failing?: string) {
   const f = fixture();
   Object.assign(f.active, {toolArgs: new Map()});
@@ -238,7 +238,7 @@ for (const closing of ["attachment", "reaction"] as const)
 
 test("every main-agent tool runs in parallel; only graphical controls stay sequential", () => {
   const tools = new RuntimeTools({} as any, "http://unused.invalid", "fixture", "/tmp", "/tmp") as any;
-  const base = {requestSource: "turn", subagentType: null, readOnly: false, pluginRuntimePackages: [], pluginNamespaces: []};
+  const base = {requestSource: "turn", subagentType: null, accessMode: "full", pluginRuntimePackages: [], pluginNamespaces: []};
   const main = tools.customTools(base);
   expect(main.map((tool: any) => tool.name)).toContain("SendToUser");
   expect(main.filter((tool: any) => tool.executionMode !== "parallel")).toEqual([]);

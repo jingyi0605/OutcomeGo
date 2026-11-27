@@ -415,12 +415,13 @@ export async function publishRequiredDecisionNotification(tx: Prisma.Transaction
   if (!found) return false;
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`outcome:${found.outcomeId}`}))`;
   const decision = await tx.outcomeDecision.findUniqueOrThrow({ where: { id: decisionId }, include: { outcome: true, contractRevision: true } });
-  if (!["open", "presented"].includes(decision.status) || !await isOutcomeDecisionRevisionActive(tx, decision.outcomeId, decision.contractRevisionId, decision.workItemId) || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
+  const botId = decision.outcome.botId;
+  if (!botId || !["open", "presented"].includes(decision.status) || !await isOutcomeDecisionRevisionActive(tx, decision.outcomeId, decision.contractRevisionId, decision.workItemId) || decision.outcome.cancelledAt || decision.outcome.acceptedAt ||
     (decision.expiresAt && decision.expiresAt <= new Date())) return false;
-  const channel = await tx.channel.findFirst({ where: { kind: "bot_dm", archivedAt: null, members: { some: { botId: decision.outcome.botId } } }, orderBy: { createdAt: "asc" } });
+  const channel = await tx.channel.findFirst({ where: { kind: "bot_dm", archivedAt: null, members: { some: { botId } } }, orderBy: { createdAt: "asc" } });
   if (!channel) return false;
   await publishOutcomeNotification(tx, outcomeNotificationPayload({ type: "outcome.decision.required", factKey: `decision.required:${decision.id}`,
-    outcomeId: decision.outcomeId, decisionId: decision.id, botId: decision.outcome.botId, channelId: channel.id,
+    outcomeId: decision.outcomeId, decisionId: decision.id, botId, channelId: channel.id,
     contractRevision: decision.contractRevision.revision, urgent: decision.reasonCode === "external_result_unknown" }));
   return true;
 }

@@ -132,7 +132,7 @@ export function pluginComponentsExtension(
         for (const pkg of packages)
           for (const hook of pkg.hooks.filter((item) => item.event === event)) {
             if (pkg.hooksUnavailableReason) continue;
-            if (active.readOnly && hook.command) continue;
+            if ((active.accessMode === "readonly_strict" || active.accessMode === "research_readonly") && hook.command) continue;
             if (
               hook.matcher &&
               !new RegExp(hook.matcher).test(

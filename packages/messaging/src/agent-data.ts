@@ -38,7 +38,6 @@ import { basename, dirname, extname, join, relative, resolve, sep } from "node:p
 import {
   ApiError,
   BOT_MEMORY_LIST_LIMIT,
-  isOnceTrigger,
   type BotMemoryEntry,
   type BotMemoryList,
   parseBotRecipe,
@@ -84,10 +83,12 @@ import {
   uniqueSlug,
 } from "./file-state";
 import {
+  invalidateSharedMemory,
   memoryImportance,
   memoryLogicalId,
   memoryTier,
   normalizeMemoryContent,
+  OUTCOME_NOTE_MEMORY_NAMESPACE,
   type MemoryProvenance,
 } from "./memory-facts";
 import {
@@ -2154,20 +2155,11 @@ export class AgentDataStore {
           cronExpression: null, intervalSeconds: null, timezoneMode: "installation" as const, timezone: userZone,
         };
         const now = new Date();
-        const once = isOnceTrigger(parsed.trigger) ? parsed.trigger : null;
-        if (existing?.scheduleKind === "once" && !once) {
-          throw new Error("Create a new routine to switch between one-time and other schedules.");
-        }
-        if (once && existing?.onceStartedAt && (triggerChanged || existing.deletedAt)) {
-          throw new Error("Create a new arrangement to schedule another run.");
-        }
-        const schedulingChanged = triggerChanged || enabledChanged || Boolean(existing?.deletedAt) || Boolean(once && changed);
+        const schedulingChanged = triggerChanged || enabledChanged || Boolean(existing?.deletedAt);
         const scheduleAnchorAt = !existing ? parsed.scheduleAnchorAt : schedulingChanged ? now :
           await inferRoutineScheduleAnchor(tx, existing);
         let nextRunAt = existing ? existing.nextRunAt : parsed.nextRunAt;
-        if (existing?.onceStartedAt) {
-          nextRunAt = null;
-        } else if (existing && schedulingChanged) {
+        if (existing && schedulingChanged) {
           nextRunAt = parsed.enabled && parsed.schedule
             ? nextRoutineTriggerRun(parsed.trigger, schedule, now, userZone, scheduleAnchorAt ?? now)
             : null;
@@ -2184,7 +2176,6 @@ export class AgentDataStore {
           triggerPresentation: parsed.triggerPresentation && !(triggerChanged && existing && JSON.stringify(existing.triggerPresentation) === JSON.stringify(parsed.triggerPresentation))
             ? asInputJson(parsed.triggerPresentation) : Prisma.JsonNull,
           provenance: parsed.provenance, ...schedule, enabled: parsed.enabled, revision, validationError: null,
-          onceAt: once ? new Date(once.runAt) : null,
           pausedAt: parsed.enabled ? null : (existing?.pausedAt ?? now), deletedAt: null,
           ...(!existing ? {
             nextRunAt, scheduleAnchorAt, lastRunAt: parsed.lastRunAt,
@@ -2235,7 +2226,6 @@ export class AgentDataStore {
           await tx.routineRevision.create({ data: {
             routineId: routine.id, revision, name: parsed.name, prompt: parsed.prompt,
             ...schedule, enabled: parsed.enabled, source: "filesystem",
-            ...(once ? { onceTrigger: asInputJson(once) } : {}),
             ...(!existing && parsed.projection ? { callId: parsed.projection.creationCallId, runId: parsed.projection.creationRunId } : {}),
           } });
         }
@@ -2515,21 +2505,12 @@ export class AgentDataStore {
 
   /** Invalidate corrections immediately, including shared facts pinned by other bots. */
   private async invalidateMemory(tx: Tx, botId: string, scope: MemoryScope): Promise<void> {
+    if (scope === "user") return invalidateSharedMemory(tx);
     // A stale prompt preparation may finish after invalidation. Its old revision
     // ensures the next turn cannot keep that stale snapshot pinned indefinitely.
-    if (scope === "agent") {
-      await tx.bot.updateMany({ where: { id: botId }, data: { memoryRevision: { increment: 1 } } });
-    } else {
-      // Shared invalidation must not update every Bot row: archival locks a
-      // parent's children before the parent and can otherwise deadlock here.
-      await tx.memoryRevision.upsert({ where: { scope: "user" }, create: { scope: "user", revision: 1 }, update: { revision: { increment: 1 } } });
-    }
-    if (scope === "agent") {
-      await tx.event.create({ data: { topic: "memory.changed", entityId: botId, payload: { botId } } });
-      await tx.$executeRaw`UPDATE "outcomego_context_prompt_snapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "contextSessionId" IN (SELECT "id" FROM "outcomego_context_session" WHERE "botId" = ${botId}::uuid)`;
-    } else {
-      await tx.$executeRaw`UPDATE "outcomego_context_prompt_snapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "promptSections" ? 'memory'`;
-    }
+    await tx.bot.updateMany({ where: { id: botId }, data: { memoryRevision: { increment: 1 } } });
+    await tx.event.create({ data: { topic: "memory.changed", entityId: botId, payload: { botId } } });
+    await tx.$executeRaw`UPDATE "outcomego_context_prompt_snapshot" SET "promptSections" = "promptSections" - 'memory' WHERE "contextSessionId" IN (SELECT "id" FROM "outcomego_context_session" WHERE "botId" = ${botId}::uuid)`;
   }
 
   /** Compare-and-replace within the writer's namespace. Concurrent stale corrections fail. */
@@ -3024,14 +3005,19 @@ export class AgentDataStore {
     }
   }
 
-  async recallMemory(botId: string, input: unknown, channelId?: string | null): Promise<string> {
+  async recallMemory(botId: string, input: unknown, channelId?: string | null, borrowedBotId?: string | null): Promise<string> {
     botId = canonicalMemoryBotId(botId);
     const args = parseRecallInput(input);
     const userVisible = !(await this.isSharedConversation(botId, channelId));
+    const borrowedNamespace = userVisible && borrowedBotId && borrowedBotId !== botId ? memoryNamespace(canonicalMemoryBotId(borrowedBotId), "agent") : null;
     const facts = await this.prisma.memoryFact.findMany({
       where: { ...(args.includeHistory ? {} : { supersededAt: null }), OR: [
         { namespace: memoryNamespace(botId, "agent") },
-        ...(userVisible ? [{ namespace: { startsWith: "user:agent:" } }] : []),
+        ...(borrowedNamespace ? [{ namespace: borrowedNamespace, scope: "agent" as const }] : []),
+        ...(userVisible ? [
+          { namespace: { startsWith: "user:agent:" } },
+          { namespace: OUTCOME_NOTE_MEMORY_NAMESPACE, scope: "user" as const, sourceOutcomeId: { not: null } },
+        ] : []),
       ] },
       orderBy: [{ createdAt: "desc" }, { sourceOrdinal: "desc" }],
     });
@@ -3052,15 +3038,17 @@ export class AgentDataStore {
       if (!editableShared.has(key)) editableShared.set(key, fact.id);
     }
     const shared = new Map<string, (typeof facts)[number]>();
-    for (const fact of facts.filter((fact) => fact.scope === "user").sort((a, b) => (a.writtenByBotId ?? "").localeCompare(b.writtenByBotId ?? ""))) {
+    const notes = facts.filter((fact) => fact.namespace === OUTCOME_NOTE_MEMORY_NAMESPACE);
+    for (const fact of facts.filter((fact) => fact.scope === "user" && fact.namespace !== OUTCOME_NOTE_MEMORY_NAMESPACE).sort((a, b) => (a.writtenByBotId ?? "").localeCompare(b.writtenByBotId ?? ""))) {
       const key = args.includeHistory ? fact.id : normalizeMemoryContent(fact.fact).toLowerCase();
       const previous = shared.get(key);
       if (!previous || fact.createdAt > previous.createdAt) shared.set(key, fact);
     }
-    const candidates = [...own, ...[...shared.values()].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.fact < b.fact ? -1 : a.fact > b.fact ? 1 : 0))];
+    const candidates = [...own, ...[...shared.values(), ...notes].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.fact < b.fact ? -1 : a.fact > b.fact ? 1 : 0))];
     return recallMemoryResult(args, candidates.map((fact) => ({
       id: fact.id, supersededAt: fact.supersededAt, supersededById: fact.supersededById,
-      editableId: fact.scope === "user" && !fact.supersededAt ? editableShared.get(normalizeMemoryContent(fact.fact).toLowerCase()) : undefined,
+      noteId: fact.namespace === OUTCOME_NOTE_MEMORY_NAMESPACE ? fact.sourceOutcomeId ?? undefined : undefined,
+      editableId: fact.scope === "user" && fact.namespace !== OUTCOME_NOTE_MEMORY_NAMESPACE && !fact.supersededAt ? editableShared.get(normalizeMemoryContent(fact.fact).toLowerCase()) : undefined,
       content: fact.fact, createdAt: fact.createdAt, tier: fact.tier,
       scope: fact.scope === "user" ? "user" : "agent",
       via: fact.writtenByBotId ? names.get(fact.writtenByBotId) ?? fact.writtenByBotId : undefined,

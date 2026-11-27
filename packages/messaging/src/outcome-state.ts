@@ -107,7 +107,7 @@ export async function transitionWorkItem(tx: Prisma.TransactionClient, input: Tr
       where: { id: item.outcomeId },
       select: { botId: true, cancelledAt: true, acceptedAt: true },
     });
-    if (outcome && !outcome.cancelledAt && !outcome.acceptedAt && (await hasActivePlannerRole(tx))) {
+    if (outcome?.botId && !outcome.cancelledAt && !outcome.acceptedAt && (await hasActivePlannerRole(tx))) {
       const existingOpen = await tx.outcomeThreadTurn.findFirst({
         where: { thread: { outcomeId: item.outcomeId }, purpose: "replan", workItemId: item.id, status: { in: ["queued", "running"] } },
         select: { id: true },
@@ -269,6 +269,16 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
     },
   });
   const current = outcome.currentRevision;
+  if (outcome.kind !== "standard" && outcome.kind !== "tracked") return outcome.status;
+  if (outcome.kind === "tracked") {
+    const waitingForOwner = !outcome.cancelledAt && !outcome.acceptedAt && current && await tx.outcomeDecision.count({ where: {
+      outcomeId, contractRevisionId: current.id, workItemId: null, status: { in: ["open", "presented"] },
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+    } });
+    const status = outcome.cancelledAt ? "cancelled" : outcome.acceptedAt ? "accepted" : waitingForOwner ? "decision_pending" : "running";
+    await persistDerivedStatus(tx, outcome, actor, status, status === "decision_pending" ? "running" : null);
+    return status;
+  }
   const items = outcome.workItems.filter((item) => item.contractRevisionId === current?.id);
   const agent = items.filter((item) => item.executorType === "agent");
   const human = items.filter((item) => item.executorType === "human");
@@ -276,11 +286,6 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
   if (outcome.cancelledAt) candidates.add("cancelled");
   if (outcome.acceptedAt) candidates.add("accepted");
   if (agent.some((item) => item.status === "waiting_decision")) candidates.add("decision_pending");
-  // A tracked task has no work item to wait on, so its own owner decision (specs/004.7) marks it pending.
-  if (outcome.trackingMode === "tracked" && current && await tx.outcomeDecision.count({ where: {
-    outcomeId, contractRevisionId: current.id, workItemId: null, status: { in: ["open", "presented"] },
-    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-  } })) candidates.add("decision_pending");
   if (agent.some((item) => item.status === "waiting_human") || human.some((item) => (ACTIVE_HUMAN_STATES as readonly string[]).includes(item.status)))
     candidates.add("human_action_pending");
   const blockedQueued = blockedByFailedDependencies(agent);
@@ -326,7 +331,9 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
   // While the goal's planning thread is working on the plan (a new goal, or the owner's words about a pending or
   // unsaved plan) the goal is in planning. When that turn ends, the facts alone decide again.
   if ((!current || current.status === "draft" || current.status === "pending_approval") && await tx.outcomeThreadTurn.count({
-    where: { thread: { outcomeId }, purpose: { in: ["plan", "owner_message"] }, status: { in: ["queued", "running"] } },
+    where: { thread: { outcomeId }, purpose: { in: ["plan", "owner_message"] }, status: { in: ["queued", "running"] },
+      OR: [{ planMode: null }, { planMode: "contract_plan" }],
+    },
   })) {
     candidates.delete("pending_approval");
     candidates.delete("draft");
@@ -335,6 +342,13 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
   const status = OUTCOME_STATUS_PRIORITY.find((candidate) => candidates.has(candidate)) ?? "draft";
   const base = OUTCOME_STATUS_PRIORITY.find((candidate) => candidates.has(candidate) && !SIDE_STATUSES.includes(candidate)) ?? "draft";
   const resumeStatus = SIDE_STATUSES.includes(status) ? base : null;
+  await persistDerivedStatus(tx, outcome, actor, status, resumeStatus);
+  return status;
+}
+
+async function persistDerivedStatus(tx: Prisma.TransactionClient, outcome: { id: string; status: OutcomeStatus; resumeStatus: OutcomeStatus | null },
+  actor: ActorRef, status: OutcomeStatus, resumeStatus: OutcomeStatus | null) {
+  const outcomeId = outcome.id;
   if (status !== outcome.status || resumeStatus !== outcome.resumeStatus) {
     await tx.outcome.update({ where: { id: outcomeId }, data: { status, resumeStatus } });
     if (status !== outcome.status) {
@@ -343,5 +357,4 @@ export async function recomputeOutcomeStatus(tx: Prisma.TransactionClient, outco
       await tx.event.create({ data: { topic: "goal.status.changed", entityId: outcomeId, payload: { outcomeId, from: outcome.status, to: status } } });
     }
   }
-  return status;
 }

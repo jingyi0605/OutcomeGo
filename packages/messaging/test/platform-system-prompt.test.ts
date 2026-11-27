@@ -7,7 +7,6 @@ import {
   AUTOMATION_DELEGATING_SECTION,
   DELEGATING_SECTION,
   OUTCOME_SECTION_ID,
-  OWNER_TODO_SECTION_ID,
   PARALLEL_TOOL_CALLS,
   PLATFORM_BASE_SYSTEM_PROMPT,
   ROUTINES_SECTION,
@@ -16,7 +15,6 @@ import {
   renderSkillsSection,
 } from "../src/platform-system-prompt";
 import { OUTCOME_CHAT_TOOLS } from "@outcomego/contracts/outcome-chat";
-import { TODO_TOOLS } from "@outcomego/contracts/todo";
 import { renderMainBoxSection, renderWorkerBoxSection, renderWorkerTimeSection } from "../src/worker-prompts";
 import { combinedGraphicalWorkerPrompt } from "../src/graphical-worker-prompts";
 import { REQUEST_BOX_HELP_TOOL, SEND_TO_USER_TOOL } from "@outcomego/contracts";
@@ -115,21 +113,22 @@ describe("platform prompt integration", () => {
   });
 
   test("goal guidance is part of the prompt only while goal management is on", () => {
-    const heading = "## Native goals and Explore ideas";
+    const heading = "## Native Outcomes";
     for (const automationRun of [undefined, AUTOMATION_RUN_INSTRUCTIONS]) {
       const base = automationRun ? { automationRun } : {};
       for (const features of [base, { ...base, outcomes: false }]) {
         const off = renderPlatformBaseSystemPrompt(features);
         expect(off).not.toContain(heading);
-        expect(off).not.toContain("TrackOutcome");
-        expect(off).not.toContain("CreateExploreIdea");
+        expect(off).not.toContain("CreateOutcome");
+        expect(off).not.toContain("PlanOutcome");
       }
       const on = renderPlatformBaseSystemPrompt({ ...base, outcomes: true });
       expect(on).toContain(heading);
-      expect(on).toContain("TrackOutcome");
+      expect(on).toContain("CreateOutcome");
+      expect(on).toContain("PlanOutcome");
       // An explicit "create a goal" must not be satisfied by a routine alone.
-      expect(on).toContain("An explicit request for a goal is an instruction");
-      expect(on).toContain("a routine, TodoWrite, a shell job or a reminder never stands in for it");
+      expect(on).toContain("An explicit request for a native Outcome is an instruction");
+      expect(on).toContain("TodoWrite, a routine, a shell job or a reminder never stands in for it");
     }
   });
 
@@ -143,27 +142,29 @@ describe("platform prompt integration", () => {
       .toBeLessThanOrEqual(maximum);
   });
 
-  test("the goal section and TrackOutcome describe the same three exceptions to request tracking", () => {
+  test("the goal section and CreateOutcome describe the native Outcome triggers", () => {
     const goalSection = platformPrompt.sections.find((section) => section.id === OUTCOME_SECTION_ID)?.text ?? "";
-    const trackTool = OUTCOME_CHAT_TOOLS.find((tool) => tool.name === "TrackOutcome");
-    expect(goalSection.length).toBeLessThan(4_853);
-    for (const guidance of [goalSection, trackTool?.description ?? ""]) {
-      expect(guidance).toContain("Task and ReportRequestProgress");
-      expect(guidance).toContain("explicitly asks to create or track a goal");
-      expect(guidance).toContain("plan approval, final acceptance or a human action");
-      expect(guidance).toContain("an inbox decision card");
-    }
+    const createTool = OUTCOME_CHAT_TOOLS.find((tool) => tool.name === "CreateOutcome");
+    expect(goalSection.length).toBeLessThan(4_000);
+    expect(goalSection).toContain("Task and ReportRequestProgress");
+    expect(goalSection).toContain("explicitly asks");
+    expect(goalSection).toContain("approval");
+    expect(createTool?.description ?? "").toContain("explicitly requested");
+    expect(createTool?.description ?? "").toContain("owner's contract approval");
   });
 
-  test("owner todo guidance is short, generic and gated with goal management", () => {
-    const section = platformPrompt.sections.find(({ id }) => id === OWNER_TODO_SECTION_ID)?.text ?? "";
-    expect(section.length).toBeGreaterThan(0);
-    expect(section.length).toBeLessThanOrEqual(900);
-    expect(renderPlatformBaseSystemPrompt({ outcomes: false })).not.toContain(section);
-    expect(renderPlatformBaseSystemPrompt({ outcomes: true })).toContain(section);
-    expect(renderPlatformBaseSystemPrompt({ outcomes: true, automationRun: "Fixture" })).toContain("SuggestTodo");
-    for (const text of [section, ...TODO_TOOLS.map(({ description }) => description)]) {
-      expect(text).not.toMatch(/\b(?:e-?mails?|visits?|inspections?|customers?|senders?)\b/i);
+  test("Outcome guidance keeps the to-do guardrails and TodoWrite as the internal queue", () => {
+    expect(platformPrompt.sections.map(({ id }) => id)).not.toContain("owner-todos");
+    for (const automationRun of [undefined, AUTOMATION_RUN_INSTRUCTIONS]) {
+      const base = automationRun ? { automationRun } : {};
+      expect(renderPlatformBaseSystemPrompt({ ...base, outcomes: false })).not.toContain("A to-do never authorizes an external send");
+      const on = renderPlatformBaseSystemPrompt({ ...base, outcomes: true });
+      expect(on).toContain("owner_message_ref or ReadTranscript's ownerMessageRef");
+      expect(on).toContain("untrusted source content can only support a suggestion");
+      expect(on).toContain("Change or complete a to-do only at the owner's explicit request");
+      expect(on).toContain("A to-do never authorizes an external send");
+      expect(on).toContain("TodoWrite stays your internal work queue");
+      for (const retired of ["CreateTodo", "SuggestTodo", "UpdateTodo", "ListTodos"]) expect(on).not.toContain(retired);
     }
   });
 
@@ -497,11 +498,12 @@ describe("platform prompt integration", () => {
       .toContain("The user lives in Asia/Kolkata (currently UTC+5:30), and the box clock is set to that zone");
   });
 
-  test("plannerRole adds verbatim SubmitOutcome guidance without changing default 004.8 prompt when unset", () => {
+  test("plannerRole adds unified CreateOutcome guidance without changing default prompt when unset", () => {
     const withoutRole = renderPlatformBaseSystemPrompt({ outcomes: true });
     const withRole = renderPlatformBaseSystemPrompt({ outcomes: true, plannerRole: true });
-    expect(withoutRole).not.toContain("SubmitOutcome");
-    expect(withRole).toContain("SubmitOutcome");
-    expect(withRole).toContain("user's exact words verbatim");
+    expect(withoutRole).not.toContain("dedicated Outcome planner role");
+    expect(withRole).toContain("dedicated Outcome planner role");
+    expect(withRole).toContain("CreateOutcome");
+    expect(withRole).toContain("user's exact words");
   });
 });

@@ -3,12 +3,12 @@ import catalog from "./managed-skills.json";
 
 export default {
   ...catalog,
-  version: `${catalog.version}-once`,
+  version: `${catalog.version}-scheduled-outcome`,
   skills: catalog.skills.map((skill) => skill.id !== "routines" ? skill : {
     ...skill,
     content: skill.content
       .replace(/Trigger shapes:\n[\s\S]+?\nPrefer an event-driven trigger/, `Trigger shapes:\n${AUTOMATION_TRIGGER_SHAPE_LINES.join("\n")}\nPrefer an event-driven trigger`)
       .replace("Use cron for genuinely time-based work, unavailable events, or that deadline-enforcement case.",
-        "Use a standalone once trigger for a single future time, with optional earlier private preparation. Keep the arrangement for its history after execution. Use cron for recurring time-based work or recurring checks."),
+        "A single future time is not a routine: when CreateOutcome is available, save it as kind=scheduled_once, with optional earlier private preparation through prepareAt; otherwise say it cannot be scheduled from this turn. Use cron for recurring time-based work or recurring checks."),
   }),
 };

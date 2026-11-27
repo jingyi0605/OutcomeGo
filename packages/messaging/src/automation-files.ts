@@ -11,7 +11,7 @@ import {
   readText,
   uniqueSlug,
 } from "./file-state";
-import { isOnceTrigger, nextRoutineTriggerRun, normalizeRoutineSchedule } from "./routines";
+import { nextRoutineTriggerRun, normalizePersistedRoutineSchedule } from "./routines";
 
 const MAX_AUTOMATION_NAME = 80;
 
@@ -29,7 +29,7 @@ export interface ParsedAutomation {
   prompt: string;
   trigger: Record<string, unknown>;
   triggerPresentation: Record<string, unknown> | null;
-  schedule: ReturnType<typeof normalizeRoutineSchedule> | null;
+  schedule: ReturnType<typeof normalizePersistedRoutineSchedule> | null;
   enabled: boolean;
   provenance: "user" | "untrusted";
   createdAt: Date;
@@ -140,7 +140,7 @@ export const parseAutomationFile = async (
       schedule: required(value.schedule, "schedule", Number.MAX_SAFE_INTEGER),
     });
   }
-  const schedules = cronSchedules(trigger).map((candidate) => normalizeRoutineSchedule(candidate, userZone, {
+  const schedules = cronSchedules(trigger).map((candidate) => normalizePersistedRoutineSchedule(candidate, userZone, {
     enforceMinimum: process.env.OUTCOMEGO_ENFORCE_AUTOMATION_MINIMUM !== "false",
   }));
   let scheduleIndex = 0;
@@ -151,16 +151,7 @@ export const parseAutomationFile = async (
       ? { ...listener, schedule: schedules[scheduleIndex++]?.scheduleText }
       : listener),
   };
-  const schedule = isOnceTrigger(trigger)
-    ? {
-        scheduleText: `Once at ${trigger.runAt}`,
-        scheduleKind: "once" as const,
-        cronExpression: null,
-        intervalSeconds: null,
-        timezoneMode: "installation" as const,
-        timezone: userZone,
-      }
-    : schedules[0] ?? null;
+  const schedule = schedules[0] ?? null;
   let triggerPresentation: Record<string, unknown> | null = null;
   if (value.triggerPresentation && typeof value.triggerPresentation === "object") {
     try {

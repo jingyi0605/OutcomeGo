@@ -402,7 +402,7 @@ for (const { closing, failures, thenStop = false } of [
                     arguments: JSON.stringify(CLOSINGS[closing].arguments) } },
                   { index: 1, id: `routine-${step}`, type: "function", function: { name: "UpdateRoutine",
                     arguments: JSON.stringify({ action: "create", name: "Check back",
-                      prompt: "Check the support case and tell the user in this chat.", schedule: "10 13 18 10 *" }) } },
+                      prompt: "Check the support case and tell the user in this chat.", schedule: "10 13 * * 1" }) } },
                 ] };
             const chunks = [
               { choices: [{ index: 0, delta, finish_reason: null }] },
@@ -584,7 +584,7 @@ describe("sibling closing calls", () => {
                     { index: closings.length, id: "routine", type: "function", function: connectorFailure || extraRoutine
                       ? { name: "CallDynamicTool", arguments: JSON.stringify({ namespace: "fixture", toolName: "read_case", arguments: {} }) }
                       : { name: "UpdateRoutine", arguments: JSON.stringify({ action: "create", name: "Check back",
-                        prompt: "Check the support case and tell the user in this chat.", schedule: "10 13 18 10 *" }) } },
+                        prompt: "Check the support case and tell the user in this chat.", schedule: "10 13 * * 1" }) } },
                     ...(extraRoutine ? [{ index: closings.length + 1, id: "routine-2", type: "function", function: { name: "CallDynamicTool",
                       arguments: JSON.stringify({ namespace: "fixture", toolName: "read_case", arguments: {} }) } }] : []),
                   ] };

@@ -45,7 +45,7 @@ export function boundTranscriptValue(value: unknown, limit = 2000) {
 }
 
 /** Reads the persisted visible projection, never runtime/Pi session files. */
-export async function readTranscript(db: PrismaClient, context: {botId: string; channelId: string | null}, raw: unknown) {
+export async function readTranscript(db: PrismaClient, context: {botId: string; channelId: string | null; researchScope?: {borrowedBotId: string | null} | undefined}, raw: unknown) {
   const input = parseReadTranscriptInput(raw);
   return db.$transaction(async tx => {
     // Workers get the facts they need in their task; they never read transcripts.
@@ -53,6 +53,18 @@ export async function readTranscript(db: PrismaClient, context: {botId: string; 
     let botId = context.botId;
     let channelIds: string[] = [];
     let worker = false;
+    if (context.researchScope) {
+      const requested = input.in === "session" ? context.botId : input.in;
+      if (requested !== context.botId && requested !== context.researchScope.borrowedBotId) throw unavailable();
+      const channel = await tx.channel.findFirst({ where: {
+        kind: "bot_dm", directKey: `bot:${requested}`, archivedAt: null,
+        members: { some: { botId: requested, bot: { status: "active", subagentIdentity: { is: null } } } },
+        ...(input.in === "session" && context.channelId ? { id: context.channelId } : {}),
+      }, select: { id: true } });
+      if (!channel) throw unavailable();
+      botId = requested;
+      channelIds = [channel.id];
+    } else {
     // An id is tried as a dispatched subagent, then one of this agent's conversations, then an owned agent.
     const id = input.in === "session" ? undefined : input.in.replace(/^sand-subagent-/, "");
     if (id !== undefined && !uuid.test(id)) throw unavailable();
@@ -73,6 +85,7 @@ export async function readTranscript(db: PrismaClient, context: {botId: string; 
       }, select: {id: true}});
       channelIds = channels.map(c => c.id);
       if (!channelIds.length) throw unavailable();
+    }
     }
     // Only the agent's own execution records accompany conversation messages.
     // Peer agent access follows the existing visible transcript policy: messages

@@ -1,5 +1,4 @@
 import { RE2JS } from "re2js";
-import { parseOffsetTimestamp } from "@outcomego/contracts/outcomes";
 const MAX_GROUP_TRIGGERS = 8;
 const GITHUB_EVENT_KINDS = new Set([
   "pr-opened",
@@ -304,7 +303,6 @@ const parseCaseTrigger = (
 
 const validateGroup = (listeners: Array<Record<string, unknown>>): Record<string, unknown> => {
   const types = new Set(listeners.map((entry) => entry.type));
-  if (types.has("once")) throw new Error("A one-time trigger must stand alone");
   if (types.has("origin") && [...types].some((type) => ORIGIN_EXCLUSIONS.has(String(type)))) {
     throw new Error(
       "origin cannot be grouped with Teams, Linear, Sentry, PagerDuty, email, plugin, or webhook triggers"
@@ -312,23 +310,6 @@ const validateGroup = (listeners: Array<Record<string, unknown>>): Record<string
   }
   const onlyListener = listeners.length === 1 ? listeners[0] : undefined;
   return onlyListener ?? { type: "group", listeners };
-};
-
-const parseTimestamp = (value: unknown, label: string): string => {
-  const date = parseOffsetTimestamp(value);
-  if (!date) throw new Error(`${label} must be an ISO timestamp with a UTC offset`);
-  return date.toISOString();
-};
-
-const parseOnce = (trigger: Record<string, unknown>): Record<string, unknown> => {
-  const runAt = parseTimestamp(trigger.runAt, "trigger.runAt");
-  if (trigger.preparation === undefined) return { type: "once", runAt };
-  const preparation = object(trigger.preparation, "trigger.preparation");
-  const at = parseTimestamp(preparation.at, "trigger.preparation.at");
-  if (at >= runAt) throw new Error("Preparation must be before the scheduled time");
-  if (typeof preparation.instruction !== "string" || !preparation.instruction.trim() || preparation.instruction.length > 20_000)
-    throw new Error("Preparation instruction must contain 1–20000 characters");
-  return { type: "once", runAt, preparation: { at, instruction: preparation.instruction.trim() } };
 };
 
 export const parseStoredTrigger = (input: unknown): Record<string, unknown> => {
@@ -360,7 +341,6 @@ export const parseStoredTrigger = (input: unknown): Record<string, unknown> => {
   if (type === "cron") {
     return { type, schedule: line(trigger.schedule, "trigger.schedule", Number.MAX_SAFE_INTEGER) };
   }
-  if (type === "once") return parseOnce(trigger);
   if (type === "slack") return parseSlack(trigger);
   if (type === "github" || type === "origin") return parseGithubLike(trigger, type);
   if (type === "microsoftTeams") return parseTeams(trigger);

@@ -228,7 +228,7 @@ describe("specialized subagent tool surfaces", () => {
     expect(result.content[0].text).toBe("results");
     expect(searches).toEqual(["outcomego"]);
     expect(toolNames("executor")).not.toContain("TodoWrite");
-    expect(runtime.customTools(workerTurn("executor", { readOnly: true })).map((tool: any) => tool.name)).toEqual(
+    expect(runtime.customTools(workerTurn("executor", { accessMode: "readonly_strict" })).map((tool: any) => tool.name)).toEqual(
       expect.arrayContaining(["WebSearch", "WebFetch"])
     );
   });
@@ -269,7 +269,7 @@ describe("specialized subagent tool surfaces", () => {
     expect(bare.tools.map((tool: any) => tool.name)).not.toContain("DownloadFile");
     expect(bare.description).not.toContain("UploadFile");
     expect(cursor(workerTurn("executor", { pluginNamespaces: [] }))).toMatchObject({ tools: [expect.objectContaining({ name: "ListMachines" })] });
-    expect(cursor(workerTurn("executor", { pluginNamespaces: [], readOnly: true }))).toMatchObject({ tools: [], description: header.split("\n\n")[0] });
+    expect(cursor(workerTurn("executor", { pluginNamespaces: [], accessMode: "readonly_strict" }))).toMatchObject({ tools: [], description: header.split("\n\n")[0] });
   });
 
   test("routine runs and connector workers upload and download files; graphical and media workers cannot", () => {
@@ -449,15 +449,15 @@ describe("durable state tools", () => {
       expect(cursorToolNames(runtime, active)).not.toContain("UpdateProject");
     }
     for (const subagentType of ["executor", "knowledgeWork", "computerUse"]) {
-      for (const readOnly of [false, true]) {
-        const active = workerTurn(subagentType, { readOnly });
+      for (const accessMode of ["full", "readonly_strict"]) {
+        const active = workerTurn(subagentType, { accessMode });
         const names = runtime.customTools(active).map((tool: any) => tool.name);
         expect(names).not.toContain("UpdateMemory");
         expect(names).not.toContain("UpdateRoutine");
         for (const name of namespacedStateTools) expect(cursorToolNames(runtime, active)).not.toContain(name);
       }
     }
-    const readOnly = { ...workerTurn("executor", { readOnly: true }), runId: "run-1" };
+    const readOnly = { ...workerTurn("executor", { accessMode: "readonly_strict" }), runId: "run-1" };
     for (const name of ["UpdateMemory", "UpdateRoutine"])
       await expect(runtime.executeOutcomeGoTool(readOnly, "call-1", name, { action: "pause", id: "brief" })).rejects.toThrow("read-only");
     for (const toolName of namespacedStateTools)
@@ -949,7 +949,7 @@ test('the parent-only dispatch reminder names only tools the parent has and that
 
 test('a readonly worker lists and greps with Shell on the box, reads only through read tools, and moves no files', async () => {
   const runtime = runtimeTools() as any;
-  const readonly = workerTurn('executor', { readOnly: true, runId: 'run-ro',
+  const readonly = workerTurn('executor', { accessMode: 'readonly_strict', runId: 'run-ro',
     pluginNamespaces: [{ name: 'calendar_work', description: 'Google Calendar', namespaceStatus: 'ready', tools: [
       { connectionId: 'c1', name: 'list_events', description: '', inputSchema: { type: 'object' }, source: 'google-calendar/calendar' },
       { connectionId: 'c1', name: 'whoami', description: '', inputSchema: { type: 'object' }, source: 'custom/custom', readOnly: true },
