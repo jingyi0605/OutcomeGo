@@ -62,6 +62,7 @@ const requestRows = {
   conversationId: true,
   channelId: true,
   userMessageId: true,
+  outcomeId: true,
   requestProgress: true,
   requestRevision: true,
   requestReconciliations: true,
@@ -202,10 +203,22 @@ export class ActivityService {
     });
     const titles = await readRequestTitles(this.prisma, rows);
     const workers = await this.workerCounts(rows.map((row) => row.id));
-    return rows.map((row) => ({
-      ...this.item(row, titles.get(row.userMessageId) ?? "", now, checkOverdueMinutes),
-      workerCount: workers.get(row.id) ?? 0,
-    }));
+    const linked = await this.linkedOutcomes(rows.flatMap((row) => (row.outcomeId ? [row.outcomeId] : [])));
+    return rows.map((row) => {
+      const relatedOutcome = row.outcomeId ? linked.get(row.outcomeId) : undefined;
+      return {
+        ...this.item(row, titles.get(row.userMessageId) ?? "", now, checkOverdueMinutes),
+        workerCount: workers.get(row.id) ?? 0,
+        ...(relatedOutcome ? { relatedOutcome } : {}),
+      };
+    });
+  }
+
+  /** The to-dos requests are linked to. A deleted one is simply absent. */
+  private async linkedOutcomes(ids: readonly string[]): Promise<Map<string, { id: string; title: string }>> {
+    if (!ids.length) return new Map();
+    const rows = await this.prisma.outcome.findMany({ where: { id: { in: [...ids] } }, select: { id: true, title: true } });
+    return new Map(rows.map((row) => [row.id, row]));
   }
 
   /** Executors still working, per request: they are summarised under their request and never listed on their own. */

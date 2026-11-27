@@ -369,6 +369,8 @@ export interface ActivityItem {
   link: { type: string; id: string };
   /** Executors summarised under a request. */
   workerCount?: number;
+  /** The to-do a request works on, when the bot linked one. */
+  relatedOutcome?: { id: string; title: string };
 }
 
 // ---------------------------------------------------------------------------

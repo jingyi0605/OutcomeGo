@@ -177,6 +177,12 @@ describe.skipIf(!url)("the owner's activity list (specs/004.10 task 4.1)", () =>
     expect(followUps.get(`follow_up:request:${typed.id}`)).toMatchObject({
       title: "Check the figures again", relatedOutcomeId: todo.id, link: { type: "channel", id: t.h.channel.id },
     });
+    // The activity list, which the bot's routine list reads, names the linked to-do.
+    const listed = new Map((await t.service.list({ botId: t.h.bot.id })).items.map((item) => [item.id, item]));
+    expect(listed.get(`request:${typed.id}`)).toMatchObject({
+      nextCheckAt: checkAt.toISOString(), relatedOutcome: { id: todo.id, title: "Reconcile figures" },
+    });
+    expect(listed.get(`request:${unsent.id}`)).not.toHaveProperty("relatedOutcome");
     // The link only groups the entry; opening the follow-up still opens the conversation.
     expect(followUps.get(`follow_up:request:${typed.id}`)?.outcomeId).toBeUndefined();
     expect(followUps.get(`follow_up:request:${unsent.id}`)).not.toHaveProperty("relatedOutcomeId");
