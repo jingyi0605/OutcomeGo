@@ -444,7 +444,7 @@ export default function App() {
     setOutcomeTarget({ outcomeId });
   }, []);
   useOutcomeThreadNotices(outcomesEnabled ? openOutcomeById : undefined);
-  // Goal management is opt-in: while it is off no goal view can be shown, however it was requested.
+  // While goal management is off no goal view can be shown, however it was requested.
   const outcomeTarget = outcomesEnabled ? requestedOutcomeTarget : null;
   const [requestedWorkThread, setWorkThread] = useState<OutcomeWorkThreadView | null>(null);
   const workThread = !outcomeTarget ? requestedWorkThread : null;

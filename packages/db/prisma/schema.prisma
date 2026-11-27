@@ -1872,11 +1872,11 @@ model UserTimeZoneSettings {
   @@map("outcomego_user_time_zone_settings")
 }
 
-/// Optional product modules the owner switches on in Settings → General. Every module is off by default.
+/// Product modules the owner can switch in settings. Goal management is on by default; the rest are off.
 model FeatureSettings {
   id String @id @default("global")
   /// Goal management (Outcomes, Explore ideas, the goal board) for the bots.
-  outcomesEnabled Boolean @default(false)
+  outcomesEnabled Boolean @default(true)
   streamBotReplies Boolean @default(false)
   plannerBotId String? @db.Uuid
   reviewerBotId String? @db.Uuid

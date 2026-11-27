@@ -1589,7 +1589,7 @@ export const ComputerTurnRequest = Schema.Struct({
   borrowedBotId: Schema.optional(Schema.UUID),
   /** The user's IANA time zone; the computer sets the box clock to it before the turn runs. */
   timeZone: Schema.optional(Schema.String),
-  /** Goal management is an opt-in module; without it the turn gets no Outcome tools. */
+  /** Goal management can be switched off; without it the turn gets no Outcome tools. */
   outcomesEnabled: Schema.optional(Schema.Boolean),
   /** A member's turn in a group chat: the turn gets the group task board tools (specs/010-群任务看板). */
   groupTasksEnabled: Schema.optional(Schema.Boolean),

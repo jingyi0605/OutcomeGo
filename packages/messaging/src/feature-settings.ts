@@ -45,11 +45,14 @@ type FeatureSettingsRow = {
   updatedAt?: Date | null;
 };
 
-/** Every optional module is off until the owner switches it on. */
+/** Goal management is on until the owner switches it off. Matches the column default in schema.prisma. */
+const OUTCOMES_ENABLED_BY_DEFAULT = true;
+
+/** Defaults apply only while nothing is stored: a saved choice always wins. */
 export const featureSettingsView = (
   row: FeatureSettingsRow | null
 ): FeatureSettingsView => ({
-  outcomesEnabled: row?.outcomesEnabled ?? false,
+  outcomesEnabled: row?.outcomesEnabled ?? OUTCOMES_ENABLED_BY_DEFAULT,
   streamBotReplies: row?.streamBotReplies ?? false,
   plannerBotId: row?.plannerBotId ?? null,
   reviewerBotId: row?.reviewerBotId ?? null,
@@ -82,7 +85,7 @@ const writeTaskPolicy = async (db: FeatureDb, update: TaskPolicyUpdate): Promise
   const removeJson = JSON.stringify(remove);
   await db.$executeRaw`
     INSERT INTO "outcomego_feature_settings" ("id", "outcomesEnabled", "streamBotReplies", "taskPolicy", "updatedAt")
-    VALUES ('global', false, false, ${setJson}::jsonb, now())
+    VALUES ('global', ${OUTCOMES_ENABLED_BY_DEFAULT}, false, ${setJson}::jsonb, now())
     ON CONFLICT ("id") DO UPDATE SET
       "taskPolicy" = (COALESCE("outcomego_feature_settings"."taskPolicy", '{}'::jsonb) || ${setJson}::jsonb)
         - ARRAY(SELECT jsonb_array_elements_text(${removeJson}::jsonb)),
@@ -118,7 +121,7 @@ export const updateFeatureSettings = async (
   };
   const createData: Prisma.FeatureSettingsCreateInput = {
     id: "global",
-    outcomesEnabled: input.outcomesEnabled ?? false,
+    outcomesEnabled: input.outcomesEnabled ?? OUTCOMES_ENABLED_BY_DEFAULT,
     streamBotReplies: input.streamBotReplies ?? false,
     ...(input.plannerBotId !== undefined ? { plannerBotId: input.plannerBotId } : {}),
     ...(input.reviewerBotId !== undefined ? { reviewerBotId: input.reviewerBotId } : {}),

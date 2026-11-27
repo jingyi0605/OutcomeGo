@@ -54,7 +54,7 @@ export interface ActiveTurn {
   outcomeThread?: ComputerTurnRequest["outcomeThread"];
   /** A turn of a goal's own thread: only that thread's tools are offered (specs/004.8). */
   goalThread?: ComputerTurnRequest["goalThread"];
-  /** Goal management is an opt-in module; the Outcome and Explore tools are offered only while it is on. */
+  /** Goal management can be switched off; the Outcome and Explore tools are offered only while it is on. */
   outcomesEnabled: boolean;
   /** A member's turn in a group chat: the group task board tools are offered (specs/010). */
   groupTasksEnabled: boolean;

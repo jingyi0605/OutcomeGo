@@ -89,7 +89,7 @@ export const SUBMIT_OUTCOME_ROLE_GUIDANCE =
   "A dedicated Outcome planner role is active: when creating a new goal, call CreateOutcome with the user's exact words in the title and description, then let the planner prepare the contract. Do not use TodoWrite or a routine as a substitute for the native Outcome.";
 
 export interface PlatformPromptFeatures {
-  /** Goal management is opt-in: without it the prompt carries no native Outcome guidance. */
+  /** Goal management can be switched off: without it the prompt carries no native Outcome guidance. */
   outcomes?: boolean;
   /** True when a dedicated planner bot or planner model override is configured. */
   plannerRole?: boolean;

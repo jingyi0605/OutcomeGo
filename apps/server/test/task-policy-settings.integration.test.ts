@@ -62,7 +62,7 @@ describe.skipIf(!url)("task policy through the settings channel", () => {
     expect(await db.featureSettings.count({ where: { id: "global" } })).toBe(0);
     const view = await updateFeatureSettings(db, { taskPolicy: { "todo.highUrgencyNotify": true } });
     expect(view.taskPolicy).toEqual({ "todo.highUrgencyNotify": true });
-    expect(view.outcomesEnabled).toBe(false);
+    expect(view.outcomesEnabled).toBe(true);
   });
 
   test("two concurrent updates to different keys both survive", async () => {

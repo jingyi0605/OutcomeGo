@@ -292,8 +292,9 @@ describe("platform prompt integration", () => {
     ] as const) {
       const fixture = mainAgent(id);
       const prompt = await fixture.messaging.platformPrompt(id, `${id}-context`);
+      // Nothing is stored here, so goal management is on, as for a new owner.
       expect(prompt.instructions).toStartWith(
-        `${renderPlatformBaseSystemPrompt()}\n\nYou are ${id}.`
+        `${renderPlatformBaseSystemPrompt({ outcomes: true })}\n\nYou are ${id}.`
       );
       expect(prompt.instructions).toContain(`Follow ${id}'s preferences.`);
       expect(prompt.instructions).toContain(`${id}'s memory policy.`);
@@ -326,7 +327,7 @@ describe("platform prompt integration", () => {
       args.where?.kind === "group" ? [] : [{ id: "c2", name: "Trip planning", kind: "bot_dm" }];
     const prompt = await messaging.platformPrompt("alpha", "alpha-context", "\n\n## Installed plugin skills\n\nPlugin skill text");
     const text = prompt.instructions;
-    expect(text).toStartWith(`${renderPlatformBaseSystemPrompt()}\n\nYou are alpha.`);
+    expect(text).toStartWith(`${renderPlatformBaseSystemPrompt({ outcomes: true })}\n\nYou are alpha.`);
     const order = ["alpha's memory policy.", "## Other active conversations", "## Routines\n", "## Skills\n", "## Teammates and groups\n", "## Installed plugin skills", "## Your box\n", "## The box desktop\n"].map((part) => text.indexOf(part));
     expect(order.every((at, index) => at > (order[index - 1] ?? 0))).toBe(true);
     for (const gone of ["<available_subagent_types>", "task queue", "Book flights", "hiddenFromSidebar="]) expect(text).not.toContain(gone);

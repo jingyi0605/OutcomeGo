@@ -3,7 +3,7 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { AUTH_CREDENTIALS_CHANGED_EVENT } from "../client/auth";
 import { api } from "../client/outcomego-api";
 
-/** Optional modules are off until the owner enables them, so an unloaded setting reads as off. */
+/** A setting that hasn't loaded reads as off, so nothing shows for an owner who turned it off. */
 interface FeatureState extends FeatureSettingsView {
   /** False until the server answered, so callers can tell "off" from "not known yet". */
   loaded: boolean;
