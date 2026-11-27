@@ -6,11 +6,14 @@ import type { OutcomeActionCounts } from "../../../hooks/use-outcome-action-coun
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../ui/tooltip";
 
 /** Shared by row buttons so background, hover and focus behave identically. */
-const rowButtonClass = (active: boolean) =>
+const rowButtonClass = (active: boolean, showActiveBackground = true) =>
   cn(
     "electron-no-drag rounded-lg outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
     active
-      ? "bg-selected text-foreground"
+      ? cn(
+          showActiveBackground ? "bg-selected" : "bg-transparent hover:bg-transparent",
+          "text-foreground"
+        )
       : "text-foreground-secondary hover:bg-hover hover:text-foreground"
   );
 
@@ -140,7 +143,7 @@ export function OutcomeNavigation({
       data-guide-target="outcome"
       onClick={onOpen}
       className={cn(
-        rowButtonClass(active),
+        rowButtonClass(active, false),
         "relative inline-flex items-center text-left transition-[background-color,transform] duration-150 active:scale-[0.98]",
         compact
           ? "mx-auto mb-2 size-12 justify-center"

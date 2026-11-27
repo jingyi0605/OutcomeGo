@@ -355,10 +355,11 @@ test("the brand row keeps separate Outcome and Go buttons in both locales", asyn
   await render(<OutcomeNavigation active onOpen={() => {}} onNewIdea={() => {}} ideaActive />);
   const selectedOpen = host.querySelector('button[aria-label="Outcomes"]')!;
   const selectedIdea = host.querySelector('button[aria-label="Go"]')!;
-  for (const el of [selectedIdea, selectedOpen]) {
-    expect(el.className).toContain("bg-selected");
-    expect(el.className).toContain("rounded-lg");
-  }
+  expect(selectedIdea.className).toContain("bg-selected");
+  expect(selectedIdea.className).toContain("rounded-lg");
+  expect(selectedOpen.className).not.toContain("bg-selected");
+  expect(selectedOpen.className).toContain("bg-transparent");
+  expect(selectedOpen.className).toContain("text-foreground");
 
   // Even under Chinese locale, the visible brand wordmark remains English "Outcome" and "Go".
   try {
