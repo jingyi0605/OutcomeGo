@@ -132,8 +132,8 @@ struct OutcomeThreadSection: View {
   }
 }
 
-/// A new goal is the owner's own words plus the bot that should plan it. The words go to the bot
-/// unchanged and the request returns at once.
+/// A new goal is the owner's own words plus the bot that should plan it. The words become the goal's
+/// description unchanged and the request returns at once.
 struct NewOutcomeView: View {
   @Environment(AppStore.self) private var store
   @Environment(\.dismiss) private var dismiss
@@ -192,8 +192,8 @@ struct NewOutcomeView: View {
       requestFor = key
     }
     do {
-      _ = try await store.createOutcomeThread(
-        CreateOutcomeThread(text: words, botId: botId, clientRequestId: requestId))
+      _ = try await store.createOutcome(
+        CreateOutcome(goal: words, botId: botId, clientRequestId: requestId))
       onCreated()
       dismiss()
     } catch {

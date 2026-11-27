@@ -63,32 +63,40 @@ final class TransportTests: XCTestCase, @unchecked Sendable {
   func testNeedsMeTodosPreserveCursorAndFourRevisionedWrites() async throws {
     let client = try api()
     let until = Date(timeIntervalSince1970: 1_893_553_440)
-    let actions: [(MobileTodoAction, String)] = [(.accept, "accept"), (.snooze, "snooze"), (.dismiss, "dismiss"), (.complete, "complete")]
+    let actions: [(MobileTodoAction, String)] = [(.accept, "accept_todo"), (.snooze, "snooze"), (.dismiss, "dismiss"), (.complete, "complete")]
     XCTAssertEqual(MobileTodoAction.allCases, actions.map(\.0))
     for (id, revision) in [("item-a", 3), ("item/b", 8)] {
       MockProtocol.stub.set { request in
         XCTAssertEqual(request.httpMethod, "GET")
-        XCTAssertEqual(request.url?.path, "/team/api/v0/todos")
-        XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems,
-          [URLQueryItem(name: "cursor", value: "next/+"), URLQueryItem(name: "view", value: "needs_me")])
+        XCTAssertEqual(request.url?.path, "/team/api/v0/outcomes")
+        let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        XCTAssertEqual(Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0.value ?? "") }),
+          ["cursor": "next/+", "kinds": "todo", "limit": "100", "view": "needs_me"])
         return (200, [:], Data("""
-          {"items":[{"id":"\(id)","title":"Item \(revision)","status":"suggested","displayState":"suggested","revision":\(revision)}],"nextCursor":"next/+"}
+          {"items":[{"id":"\(id)","kind":"todo","title":"Item \(revision)","status":"suggested","revision":\(revision),"botId":null,"kindMeta":{"summary":"Why"}}],"nextCursor":"next/+"}
           """.utf8))
       }
       let response = try await client.needsMeTodos(cursor: "next/+")
       let page = try XCTUnwrap(response)
       let item = try XCTUnwrap(page.items.first)
       XCTAssertEqual(item.id, id)
+      XCTAssertEqual(item.summary, "Why")
       XCTAssertEqual(page.nextCursor, "next/+")
-      for (action, route) in actions {
+      for (action, name) in actions {
         MockProtocol.stub.set { request in
           XCTAssertEqual(request.httpMethod, "POST")
           XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.percentEncodedPath,
-            "/team/api/v0/todos/\(id.replacingOccurrences(of: "/", with: "%2F"))/\(route)")
+            "/team/api/v0/outcomes/\(id.replacingOccurrences(of: "/", with: "%2F"))/actions")
           let body = try JSONDecoder().decode(JSON.self, from: requestBody(request))
-          XCTAssertEqual(body["revision"], .number(Double(revision)))
-          XCTAssertEqual(Set(body.object.keys), action == .snooze ? ["revision", "snoozeUntil"] : ["revision"])
-          if action == .snooze { XCTAssertEqual(ISO8601DateFormatter().date(from: body["snoozeUntil"].string), until) }
+          XCTAssertEqual(body["action"], .string(name))
+          XCTAssertEqual(body["expectedRevision"], .number(Double(revision)))
+          XCTAssertNotNil(UUID(uuidString: body["clientRequestId"].string))
+          let common: Set<String> = ["action", "expectedRevision", "clientRequestId"]
+          XCTAssertEqual(Set(body.object.keys), action == .snooze ? common.union(["payload"]) : common)
+          if action == .snooze {
+            XCTAssertEqual(Set(body["payload"].object.keys), ["snoozeUntil"])
+            XCTAssertEqual(ISO8601DateFormatter().date(from: body["payload"]["snoozeUntil"].string), until)
+          }
           return (200, [:], Data("{}".utf8))
         }
         try await client.actOnTodo(item, action: action, snoozeUntil: action == .snooze ? until : nil)
@@ -98,12 +106,39 @@ final class TransportTests: XCTestCase, @unchecked Sendable {
 
   func testTodoActionsFollowServerTransitions() throws {
     for (status, actions) in [("suggested", [.accept, .snooze, .dismiss]), ("open", [.complete, .snooze, .dismiss]),
-      ("waiting", [.complete, .snooze, .dismiss]), ("done", []), ("dismissed", []), ("future_status", [])] as [(String, [MobileTodoAction])] {
+      ("waiting", [.complete, .snooze, .dismiss]), ("accepted", []), ("cancelled", []), ("future_status", [])] as [(String, [MobileTodoAction])] {
       let item = try JSONDecoder().decode(MobileTodo.self, from: Data("""
-        {"id":"item-a","title":"Item A","status":"\(status)","displayState":"today","revision":1}
+        {"id":"item-a","title":"Item A","status":"\(status)","revision":1}
         """.utf8))
       XCTAssertEqual(item.actions, actions)
     }
+  }
+
+  func testTodoAttentionIsDerivedFromDates() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+    let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2030-01-02T12:00:00Z"))
+    func todo(_ status: String, _ dates: String) throws -> MobileTodo {
+      try JSONDecoder().decode(MobileTodo.self, from: Data("""
+        {"id":"a","title":"A","status":"\(status)","revision":1\(dates)}
+        """.utf8))
+    }
+    let cases: [(String, String, MobileTodoAttention?)] = [
+      ("open", #","dueAt":"2030-01-02T11:00:00.000Z""#, .overdue),
+      ("open", #","dueAt":"2030-01-02T23:00:00.000Z""#, .today),
+      ("open", #","dueAt":"2030-01-03T00:00:00.000Z""#, nil),
+      ("open", #","scheduledAt":"2030-01-02T23:00:00Z""#, .today),
+      ("waiting", #","followUpAt":"2030-01-02T12:00:00Z","dueAt":"2030-01-01T00:00:00Z""#, .overdue),
+      ("waiting", #","followUpAt":"2030-01-03T00:00:00Z","dueAt":"2030-01-02T23:00:00Z""#, .today),
+      ("waiting", #","followUpAt":"2030-01-03T00:00:00Z","scheduledAt":"2030-01-02T00:00:00Z""#, nil),
+      ("suggested", #","dueAt":"2030-01-01T00:00:00Z""#, nil),
+      ("open", "", nil),
+    ]
+    for (status, dates, expected) in cases {
+      XCTAssertEqual(try todo(status, dates).attention(now: now, calendar: calendar), expected, "\(status)\(dates)")
+    }
+    let followUp = try todo("waiting", #","followUpAt":"2030-01-02T12:00:00Z""#)
+    XCTAssertEqual(followUp.attentionDate(now: now), now)
   }
 
   func testPresentationPhotosUseOnlySelectedServerWithScopedCredentials() async throws {

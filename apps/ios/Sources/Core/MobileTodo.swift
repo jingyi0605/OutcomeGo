@@ -5,18 +5,22 @@ public struct MobileTodoPage: Decodable, Sendable {
   public let nextCursor: String?
 }
 
+/// A `kind=todo` Outcome as listed by the unified collection; the body is only in its detail.
 public struct MobileTodo: Decodable, Sendable, Identifiable {
+  public struct Meta: Decodable, Sendable {
+    public let summary: String?
+  }
+
   public let id: String
   public let title: String
   public let status: String
-  public let displayState: String
   public let revision: Int
-  public let overdue: Bool?
-  public let note: String?
-  public let summary: String?
+  public let kindMeta: Meta?
   public let dueAt: String?
   public let scheduledAt: String?
   public let followUpAt: String?
+
+  public var summary: String? { kindMeta?.summary }
 
   public var actions: [MobileTodoAction] {
     switch status {
@@ -26,29 +30,53 @@ public struct MobileTodo: Decodable, Sendable, Identifiable {
     }
   }
 
-  public var attentionDate: String? {
-    displayState == "follow_up" ? followUpAt : (dueAt ?? scheduledAt)
+  /// Why an accepted to-do needs the owner, judged by this device's clock and calendar.
+  public func attention(now: Date = .now, calendar: Calendar = .current) -> MobileTodoAttention? {
+    guard status == "open" || status == "waiting" else { return nil }
+    let due = Self.date(dueAt)
+    if let due, due < now { return .overdue }
+    if status == "waiting", let followUp = Self.date(followUpAt), followUp <= now { return .followUp }
+    guard let date = due ?? (status == "open" ? Self.date(scheduledAt) : nil) else { return nil }
+    return calendar.compare(date, to: now, toGranularity: .day) == .orderedSame ? .today : nil
+  }
+
+  public func attentionDate(now: Date = .now) -> Date? {
+    Self.date(attention(now: now) == .followUp ? followUpAt : (dueAt ?? scheduledAt))
+  }
+
+  private static func date(_ value: String?) -> Date? {
+    guard let value else { return nil }
+    return (try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(value))
+      ?? (try? Date.ISO8601FormatStyle().parse(value))
   }
 }
 
+public enum MobileTodoAttention: Sendable {
+  case followUp, overdue, today
+}
+
 public enum MobileTodoAction: String, CaseIterable, Sendable {
-  case accept, snooze, dismiss, complete
+  case accept = "accept_todo", snooze, dismiss, complete
 }
 
 extension API {
   public func needsMeTodos(cursor: String? = nil) async throws -> MobileTodoPage? {
-    var query = ["view": "needs_me"]
+    var query = ["limit": "100", "kinds": "todo", "view": "needs_me"]
     query["cursor"] = cursor
-    do { return try await get("/api/v0/todos", as: MobileTodoPage.self, query: query) }
+    do { return try await get(Self.outcomesPath, as: MobileTodoPage.self, query: query) }
     catch let error as APIError where error.status == 404 { return nil }
   }
 
   public func actOnTodo(_ item: MobileTodo, action: MobileTodoAction, snoozeUntil: Date? = nil) async throws {
-    var body: [String: JSON] = ["revision": .number(Double(item.revision))]
+    var body: [String: JSON] = [
+      "action": .string(action.rawValue),
+      "expectedRevision": .number(Double(item.revision)),
+      "clientRequestId": .string(UUID().uuidString),
+    ]
     if action == .snooze {
       guard let snoozeUntil else { throw APIError("Choose a future snooze time.") }
-      body["snoozeUntil"] = .string(ISO8601DateFormatter().string(from: snoozeUntil))
+      body["payload"] = .object(["snoozeUntil": .string(ISO8601DateFormatter().string(from: snoozeUntil))])
     }
-    _ = try await request("/api/v0/todos/\(Self.segment(item.id))/\(action.rawValue)", method: "POST", body: .object(body))
+    _ = try await request(Self.outcomeActionsPath(item.id), method: "POST", body: .object(body))
   }
 }

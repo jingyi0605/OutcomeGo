@@ -8,6 +8,7 @@ struct NeedsMeTodosSection: View {
   @State private var actionMessage: LocalizedStringKey?
   @State private var snoozing: MobileTodo?
   @State private var snoozeDate = Date.now
+  @State private var notes: [String: String] = [:]
 
   private var items: [MobileTodo] { page?.items ?? [] }
 
@@ -23,13 +24,12 @@ struct NeedsMeTodosSection: View {
         VStack(alignment: .leading, spacing: 6) {
           Text(todo.title).font(.headline)
           if let state = attentionLabel(todo) { Text(state).font(.subheadline) }
-          if let rawDate = todo.attentionDate,
-            let date = (try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(rawDate))
-              ?? (try? Date.ISO8601FormatStyle().parse(rawDate)) {
+          if let date = todo.attentionDate() {
             Text(date.formatted(date: .abbreviated, time: .shortened)).font(.caption)
           }
-          if let note = todo.note, !note.isEmpty { Text(note) }
-          if let summary = todo.summary, !summary.isEmpty, summary != todo.note { Text(summary) }
+          let note = notes[noteKey(todo)]
+          if let note, !note.isEmpty { Text(note) }
+          if let summary = todo.summary, !summary.isEmpty, summary != note { Text(summary) }
           ForEach(todo.actions, id: \.self) { action in
             Button(action.label) {
               if action == .snooze {
@@ -39,6 +39,7 @@ struct NeedsMeTodosSection: View {
             }.buttonStyle(.borderless).disabled(busy || loadFailed)
           }
         }
+        .task(id: noteKey(todo)) { await loadNote(todo) }
       }
       if page?.nextCursor != nil && !loadFailed {
         Button("Load more to-dos") { Task { await refresh(more: true) } }.disabled(busy)
@@ -67,10 +68,21 @@ struct NeedsMeTodosSection: View {
 
   private func attentionLabel(_ todo: MobileTodo) -> LocalizedStringKey? {
     if todo.status == "suggested" { return "To-do suggestion" }
-    if todo.displayState == "follow_up" { return "Needs follow-up" }
-    if todo.overdue == true { return "Overdue" }
-    if todo.displayState == "today" { return "Today" }
-    return nil
+    switch todo.attention() {
+    case .followUp: return "Needs follow-up"
+    case .overdue: return "Overdue"
+    case .today: return "Today"
+    case nil: return nil
+    }
+  }
+
+  private func noteKey(_ todo: MobileTodo) -> String { "\(todo.id)@\(todo.revision)" }
+
+  /// Read once per revision for visible rows; a failed read just leaves the note out.
+  private func loadNote(_ todo: MobileTodo) async {
+    let key = noteKey(todo)
+    guard notes[key] == nil else { return }
+    if let note = try? await store.todoNote(todo.id) { notes[key] = note }
   }
 
   private func fetch(more: Bool = false) async {

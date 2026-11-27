@@ -31,24 +31,42 @@ public struct OutcomeThreadView: Decodable, Sendable {
   public let reviewTurns: [OutcomeThreadTurn]?
 }
 
-/// A new goal in the owner's own words; the chosen bot plans it.
-public struct CreateOutcomeThread: Encodable, Sendable, Equatable {
-  public let text: String
+/// `POST /api/v0/outcomes` for a new goal: the owner's words become its description and the chosen
+/// bot plans it.
+public struct CreateOutcome: Encodable, Sendable, Equatable {
+  public let kind: String
+  public let title: String
+  public let description: String
   public let botId: String
-  public let exploreIdeaId: String?
   public let clientRequestId: String
 
-  public init(text: String, botId: String, exploreIdeaId: String? = nil, clientRequestId: String) {
-    self.text = text
+  public init(goal words: String, botId: String, clientRequestId: String) {
+    let description = words.trimmingCharacters(in: .whitespacesAndNewlines)
+    kind = "standard"
+    title = Self.title(from: description)
+    self.description = description
     self.botId = botId
-    self.exploreIdeaId = exploreIdeaId
     self.clientRequestId = clientRequestId
+  }
+
+  /// The first line, shortened to 60 UTF-16 units (the server's measure) without splitting a character.
+  private static func title(from words: String) -> String {
+    let line = (words.split(whereSeparator: \.isNewline).first.map(String.init) ?? "")
+      .trimmingCharacters(in: .whitespaces)
+    guard line.utf16.count > 60 else { return line }
+    var prefix = ""
+    for character in line {
+      guard prefix.utf16.count + character.utf16.count <= 57 else { break }
+      prefix.append(character)
+    }
+    return prefix + "…"
   }
 }
 
-public struct CreatedOutcomeThread: Decodable, Sendable {
+public struct CreatedOutcome: Decodable, Sendable {
   public let outcome: OutcomeDetail
-  public let turn: OutcomeThreadTurn
+  /// Nil when no planning was queued.
+  public let turn: OutcomeThreadTurn?
 }
 
 public struct SendOutcomeThreadMessage: Encodable, Sendable, Equatable {
@@ -68,5 +86,4 @@ extension API {
   public static func outcomeAdoptPrereviewPath(_ id: String) -> String {
     "/api/v0/outcomes/\(segment(id))/reviews/adopt-prereview"
   }
-  public static let outcomeThreadsPath = "/api/v0/outcomes/threads"
 }

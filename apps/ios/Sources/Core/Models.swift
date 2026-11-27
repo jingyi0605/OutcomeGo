@@ -397,12 +397,14 @@ public enum MessageMerge {
   }
 }
 
-// Open status strings preserve compatibility with newer Outcome servers.
+// Open kind and status strings preserve compatibility with newer Outcome servers.
 public struct OutcomeSummary: Decodable, Sendable, Identifiable, Equatable {
   public let id: String
   public let title: String
   public let status: String
-  public let botId: String
+  public let kind: String?
+  /// To-dos, ideas and notes may have no bot.
+  public let botId: String?
   public let currentRevision: Int?
   public let updatedAt: String
 }
@@ -486,7 +488,8 @@ public struct OutcomeDetail: Decodable, Sendable, Identifiable {
   public let id: String
   public let title: String
   public let status: String
-  public let botId: String
+  public let kind: String?
+  public let botId: String?
   public let currentRevision: Int?
   public let updatedAt: String
   public let description: String

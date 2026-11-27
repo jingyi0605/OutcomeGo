@@ -1843,6 +1843,10 @@ final class AppStore {
   func actOnTodo(_ item: MobileTodo, action: MobileTodoAction, snoozeUntil: Date? = nil) async throws {
     try await withTodoAPI { try await $0.actOnTodo(item, action: action, snoozeUntil: snoozeUntil) }
   }
+  /// The to-do's body, which the collection leaves out.
+  func todoNote(_ id: String) async throws -> String {
+    try await withTodoAPI { try await $0.outcomeDetail(id: id).description }
+  }
   private func withTodoAPI<Value>(_ operation: (API) async throws -> Value) async throws -> Value {
     guard let api else { throw APIError("Sign in to continue.", status: 401) }
     let epoch = generation
@@ -1896,9 +1900,10 @@ final class AppStore {
   }
 
   func listOutcomes(cursor: String? = nil) async throws -> OutcomeListPage? {
-    var query = ["limit": "20"]
-    if let cursor { query["cursor"] = cursor }
-    do { return try await fetch("/api/v0/outcomes", as: OutcomeListPage.self, query: query) }
+    do {
+      return try await fetch(
+        API.outcomesPath, as: OutcomeListPage.self, query: API.outcomeGoalsQuery(cursor: cursor))
+    }
     catch let error as APIError where error.status == 404 { return nil }
   }
 
@@ -1918,9 +1923,9 @@ final class AppStore {
   }
 
   /// Hands a new goal to the chosen bot; the bot decides whether to ask or to write a contract.
-  func createOutcomeThread(_ input: CreateOutcomeThread) async throws -> CreatedOutcomeThread {
-    try await request(API.outcomeThreadsPath, method: "POST", body: .encode(input))
-      .decode(CreatedOutcomeThread.self)
+  func createOutcome(_ input: CreateOutcome) async throws -> CreatedOutcome {
+    try await request(API.outcomesPath, method: "POST", body: .encode(input))
+      .decode(CreatedOutcome.self)
   }
 
   func fetch<T: Decodable>(_ path: String, as type: T.Type, query: [String: String] = [:])

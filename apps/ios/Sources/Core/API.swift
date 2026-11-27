@@ -329,11 +329,22 @@ public struct ReplyPreviewSnapshot: Decodable, Sendable {
 }
 
 extension API {
+  public static let outcomesPath = "/api/v0/outcomes"
+
+  public static func outcomeActionsPath(_ id: String) -> String {
+    "\(outcomesPath)/\(segment(id))/actions"
+  }
+
+  /// The goals list holds goals only; to-dos, ideas and notes share the collection.
+  public static func outcomeGoalsQuery(cursor: String? = nil) -> [String: String] {
+    var query = ["limit": "20", "kinds": "standard,tracked"]
+    query["cursor"] = cursor
+    return query
+  }
+
   /// Only the missing collection route means that the server does not support Outcomes.
   public func listOutcomes(cursor: String? = nil) async throws -> OutcomeListPage? {
-    var query = ["limit": "20"]
-    if let cursor { query["cursor"] = cursor }
-    do { return try await get("/api/v0/outcomes", as: OutcomeListPage.self, query: query) }
+    do { return try await get(Self.outcomesPath, as: OutcomeListPage.self, query: Self.outcomeGoalsQuery(cursor: cursor)) }
     catch let error as APIError where error.status == 404 { return nil }
   }
 

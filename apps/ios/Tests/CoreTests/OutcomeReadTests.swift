@@ -54,6 +54,7 @@ final class OutcomeReadTests: XCTestCase, @unchecked Sendable {
     let query = URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false)?.queryItems
     XCTAssertEqual(query?.first { $0.name == "cursor" }?.value, "cursor/+=&")
     XCTAssertEqual(query?.first { $0.name == "limit" }?.value, "20")
+    XCTAssertEqual(query?.first { $0.name == "kinds" }?.value, "standard,tracked")
 
     OutcomeProtocol.response = try fixture()
     let detail = try await api().outcomeDetail(id: "outcome/one")
@@ -109,15 +110,37 @@ final class OutcomeReadTests: XCTestCase, @unchecked Sendable {
     XCTAssertFalse(view.turns[1].inProgress)
     XCTAssertEqual(view.turns[0].trigger, "取消目标")
     XCTAssertEqual(view.turns[1].error?.message, "Bot offline")
-    // Words and ids go out exactly as given: no wrapper text, no intent label, no empty idea id.
+    // Words and ids go out exactly as given: no wrapper text, no intent label.
     let sent = try JSONEncoder().encode(SendOutcomeThreadMessage(text: "取消目标", clientRequestId: "req"))
     let object = try XCTUnwrap(JSONSerialization.jsonObject(with: sent) as? [String: String])
     XCTAssertEqual(object, ["text": "取消目标", "clientRequestId": "req"])
-    let created = try JSONEncoder().encode(CreateOutcomeThread(text: "goal", botId: "b", clientRequestId: "req"))
-    let createdObject = try XCTUnwrap(JSONSerialization.jsonObject(with: created) as? [String: String])
-    XCTAssertEqual(createdObject["exploreIdeaId"], nil)
     XCTAssertEqual(API.outcomeThreadPath("a/b"), "/api/v0/outcomes/a%2Fb/thread")
     XCTAssertEqual(API.outcomeAdoptPrereviewPath("a/b"), "/api/v0/outcomes/a%2Fb/reviews/adopt-prereview")
+  }
+
+  func testNewGoalSendsTheUnifiedCreateBody() throws {
+    func body(_ words: String) throws -> [String: String] {
+      let data = try JSONEncoder().encode(CreateOutcome(goal: words, botId: "b", clientRequestId: "req-12345678"))
+      return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: String])
+    }
+    XCTAssertEqual(try body("  Ship it\nwith tests  "), [
+      "kind": "standard", "title": "Ship it", "description": "Ship it\nwith tests",
+      "botId": "b", "clientRequestId": "req-12345678",
+    ])
+    let sixty = String(repeating: "a", count: 60)
+    XCTAssertEqual(try body(sixty)["title"], sixty)
+    XCTAssertEqual(try body(sixty + "b")["title"], String(repeating: "a", count: 57) + "…")
+    // An emoji straddling the cut is dropped whole.
+    let emoji = String(repeating: "a", count: 56) + "😀tail"
+    XCTAssertEqual(try body(emoji)["title"], String(repeating: "a", count: 56) + "…")
+    XCTAssertEqual(try body(emoji)["description"], emoji)
+
+    // Creating without queued planning answers with a null turn.
+    let created = Data(#"{"outcome":{"id":"o","kind":"note","title":"N","status":"active","botId":null,"currentRevision":null,"updatedAt":"now","description":"","workItems":[],"outputs":[],"evidence":[],"reviews":[]},"turn":null}"#.utf8)
+    let result = try JSONDecoder().decode(CreatedOutcome.self, from: created)
+    XCTAssertNil(result.turn)
+    XCTAssertNil(result.outcome.botId)
+    XCTAssertEqual(result.outcome.kind, "note")
   }
 
   func testDecodesPlanTaskReviewPrereviewAndAdoptRequest() throws {
