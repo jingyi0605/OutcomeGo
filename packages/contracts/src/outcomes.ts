@@ -1,7 +1,7 @@
 import { JSONSchema, Schema } from "effect";
 import { ListOutcomesFilterInput, validateOutcomeDateRange } from "./outcome-input";
 import {
-  OUTCOME_LIMITS, REVIEW_RESULTS, OutcomeBudgetInput, Uuid, parseOffsetTimestamp,
+  OUTCOME_LIMITS, PLAN_ESTIMATE_MINUTES, REVIEW_RESULTS, OutcomeBudgetInput, Uuid, parseOffsetTimestamp,
   type OutcomeSourceRef, type OutcomeStatus, type OutcomeStatusFor, type OutcomeSummary, type ReviewResult,
 } from "./outcome-view";
 import type { OutcomePlanAdvice } from "./outcome-plan";
@@ -300,7 +300,6 @@ export const PLAN_TASK_NATURES = ["deliverable", "action"] as const;
 export type PlanTaskNature = (typeof PLAN_TASK_NATURES)[number];
 
 /** Scale limit for a planner's duration estimate, in minutes (one minute to one week). */
-export const PLAN_ESTIMATE_MINUTES = { min: 1, max: 10_080 } as const;
 
 export interface PlanTask {
   key: string;

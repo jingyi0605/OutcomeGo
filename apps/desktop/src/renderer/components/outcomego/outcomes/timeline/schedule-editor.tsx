@@ -1,4 +1,4 @@
-import { PLAN_ESTIMATE_MINUTES } from "@outcomego/contracts/outcomes";
+import { PLAN_ESTIMATE_MINUTES } from "@outcomego/contracts/outcome-state";
 import { useId, useState, type FormEvent } from "react";
 import { useI18n } from "../../../../lib/i18n";
 import {

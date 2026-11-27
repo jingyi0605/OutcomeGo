@@ -434,10 +434,11 @@ const readLazyClosures = async () => {
       groupTasksBottomSheet: ["src/renderer/components/outcomego/group-tasks-bottom-sheet.tsx"],
       workThreadNavigation: ["src/renderer/components/outcomego/work-thread-navigation.tsx"],
       attachmentStage: ["src/renderer/components/outcomego/attachment-stage.tsx"],
-      outcomeRoleSettings: ["src/renderer/components/outcomego/settings/outcome-role-settings.tsx"],
+      settingsGoals: ["src/renderer/components/outcomego/settings/goals.tsx"],
       goalShowcase: ["src/renderer/components/outcomego/outcomes/showcase/goal-showcase.tsx"],
       outcomeGoGuide: ["src/renderer/components/outcomego/outcome-go-guide.tsx"],
-      quickIdea: ["src/renderer/components/outcomego/outcomes/explore/quick-idea-dialog.tsx"],
+      goIntake: ["src/renderer/components/outcomego/outcomes/inbox/go-intake-dialog.tsx"],
+      outcomeCalendar: ["src/renderer/components/outcomego/outcomes/calendar/calendar-page.tsx"],
       settingsKeyboard: ["src/renderer/components/outcomego/settings/keyboard.tsx"],
       settingsBotDock: ["src/renderer/components/outcomego/settings/bot-dock-settings.tsx"],
       settingsTimeZone: ["src/renderer/components/outcomego/settings/time-zone.tsx"],
@@ -523,6 +524,7 @@ const readLazyClosures = async () => {
       settingsTranscription: ["src/renderer/components/outcomego/settings/transcription.tsx"],
       settingsProviders: ["src/renderer/components/outcomego/settings/providers.tsx"],
       settingsUpdates: ["src/renderer/components/outcomego/settings/updates.tsx"],
+      releaseNotesMarkdown: ["src/renderer/components/outcomego/settings/release-notes-markdown.tsx"],
       screenbotBridge: ["src/renderer/lib/screenbot-bridge.ts"],
     };
     const closures = Object.fromEntries(

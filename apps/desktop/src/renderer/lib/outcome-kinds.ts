@@ -3,7 +3,7 @@ import {
   OUTCOME_STATUSES_BY_KIND,
   type OutcomeKind,
   type OutcomeStatus,
-} from "@outcomego/contracts/outcome-view";
+} from "@outcomego/contracts/outcome-state";
 
 export const OUTCOME_KIND_FILTERS = ["all", ...OUTCOME_KINDS] as const;
 export type OutcomeKindFilter = (typeof OUTCOME_KIND_FILTERS)[number];

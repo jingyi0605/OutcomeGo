@@ -64,6 +64,7 @@
     "./task-overview": "./src/task-overview.ts",
     "./task-policy": "./src/task-policy.ts",
     "./outcome-view": "./src/outcome-view.ts",
+    "./outcome-state": "./src/outcome-state.ts",
     "./inference-presets": "./src/inference-presets.ts",
     "./outcome-chat": "./src/outcome-chat.ts",
     "./outcome-chat-card": "./src/outcome-chat-card.ts",

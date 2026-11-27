@@ -1,4 +1,4 @@
-import { PLAN_ESTIMATE_MINUTES } from "@outcomego/contracts/outcomes";
+import { PLAN_ESTIMATE_MINUTES } from "@outcomego/contracts/outcome-state";
 
 /**
  * Turning what the owner typed into the change to send (specs/004.10 requirements C7 and C8). Pure and shape-only:

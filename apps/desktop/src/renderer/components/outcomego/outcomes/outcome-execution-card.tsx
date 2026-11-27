@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { BotView } from "@outcomego/contracts";
 import type { OutcomeDetail, OutcomeWorkThreadView, WorkItemStatus } from "@outcomego/contracts/outcomes";
-import { workThreadIsFinished } from "@outcomego/contracts/outcome-view";
+import { workThreadIsFinished } from "@outcomego/contracts/outcome-state";
 import "./outcome-ui.css";
 import type { OutcomeClient } from "../../../client/outcome-api";
 import { useI18n } from "../../../lib/i18n";
