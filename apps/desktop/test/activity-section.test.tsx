@@ -135,6 +135,24 @@ describe("opening an item", () => {
     expect(closed).not.toMatch(/<button[^>]*class="outcome-activity-card"/);
     expect(closed).toContain("Goes nowhere");
   });
+
+  test("removable request items render a remove button in both cards and table without nesting buttons", () => {
+    const activeReq = item({ id: "request:1", type: "request", state: "in_progress", title: "Active req" });
+    const doneReq = item({ id: "request:2", type: "request", state: "completed", title: "Done req" });
+    const goalTask = item({ id: "goal_task:1", type: "goal_task", state: "running", title: "Goal work" });
+    const cards = render([activeReq, doneReq, goalTask], { cardMaxItems: 5, onRemove: () => undefined });
+    expect(cards).toContain('data-activity-remove="request:1"');
+    expect(cards).toContain('aria-label="Stop and remove this record"');
+    expect(cards).toContain('data-activity-remove="request:2"');
+    expect(cards).toContain('aria-label="Remove this record"');
+    expect(cards).not.toContain('data-activity-remove="goal_task:1"');
+
+    const table = render([activeReq, doneReq, goalTask], { cardMaxItems: 1, onRemove: () => undefined });
+    expect(table).toContain("<table");
+    expect(table).toContain('data-activity-remove="request:1"');
+    expect(table).toContain('data-activity-remove="request:2"');
+    expect(table).not.toContain('data-activity-remove="goal_task:1"');
+  });
 });
 
 describe("motion", () => {

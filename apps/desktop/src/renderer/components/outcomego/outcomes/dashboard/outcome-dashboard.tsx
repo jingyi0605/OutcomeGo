@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Hand,
   Lightbulb,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-state";
@@ -146,7 +147,21 @@ function Waiting({ since }: { since: string }) {
 }
 
 /** A request that waits on the owner. Its reason is bot-written, shown as plain text and labelled as such. */
-function RequestRow({ item, botName, canOpen, onOpen }: { item: NeedsMeItem; botName: string; canOpen: boolean; onOpen: () => void }) {
+function RequestRow({
+  item,
+  botName,
+  canOpen,
+  onOpen,
+  onRemove,
+  removing,
+}: {
+  item: NeedsMeItem;
+  botName: string;
+  canOpen: boolean;
+  onOpen: () => void;
+  onRemove?: () => void;
+  removing?: boolean;
+}) {
   const { t } = useI18n();
   const style = styleForActivity(item.state);
   const body = (
@@ -172,13 +187,27 @@ function RequestRow({ item, botName, canOpen, onOpen }: { item: NeedsMeItem; bot
     </>
   );
   return (
-    <li data-needs-me-request={item.key} data-zone={item.zone}>
+    <li data-needs-me-request={item.key} data-zone={item.zone} className={onRemove ? "outcome-dash-request-item" : undefined}>
       {canOpen ? (
-        <button className="outcome-row outcome-dash-step" onClick={onOpen}>
+        <button type="button" className="outcome-row outcome-dash-step" onClick={onOpen}>
           {body}
         </button>
       ) : (
         <div className="outcome-row outcome-dash-step">{body}</div>
+      )}
+      {onRemove && (
+        <button
+          type="button"
+          className="outcome-dash-remove"
+          data-request-remove={item.key}
+          disabled={removing}
+          aria-label={t("Stop and remove this record")}
+          title={t("Stop and remove this record")}
+          onClick={onRemove}
+        >
+          <X aria-hidden="true" className="size-3" />
+          <span>{t("Remove")}</span>
+        </button>
       )}
     </li>
   );
@@ -271,7 +300,7 @@ export function OutcomeDashboard({
   activityPolicy,
   refreshVersion = 0,
 }: {
-  outcomes: Pick<OutcomeClient, "list" | "activity" | "needsMe" | "act" | "update" | "convert"> & GoalFocusClient;
+  outcomes: Pick<OutcomeClient, "list" | "activity" | "stopRequest" | "needsMe" | "act" | "update" | "convert"> & GoalFocusClient;
   inbox: Pick<InboxClient, "list" | "decision" | "resolve">;
   bots: readonly OutcomeExecutionBot[];
   onSelectOutcome: (id: string) => void;
@@ -296,6 +325,8 @@ export function OutcomeDashboard({
   const [allQueue, setAllQueue] = useState(false);
   const [todoActing, setTodoActing] = useState(false);
   const [todoError, setTodoError] = useState(false);
+  const [removingIds, setRemovingIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [removeError, setRemoveError] = useState(false);
   const inProgressRef = useRef<HTMLElement>(null);
   const generation = useRef(0);
   async function load() {
@@ -377,6 +408,33 @@ export function OutcomeDashboard({
   }
   const actOnTodo = (item: TodoOutcome, request: TodoActionRequest) => mutateTodo(() => actOnTodoItem(outcomes, item, request));
   const todoHandoff = { bots, client: outcomes, change: mutateTodo, onSelectOutcome };
+  async function removeRequest(itemKey: string) {
+    if (!outcomes.stopRequest || !itemKey.startsWith("request:") || removingIds.has(itemKey)) return;
+    const runId = itemKey.slice("request:".length);
+    if (!runId) return;
+    setRemoveError(false);
+    setRemovingIds((previous) => new Set(previous).add(itemKey));
+    try {
+      await outcomes.stopRequest(runId);
+      setData((current) =>
+        current && {
+          ...current,
+          requests: current.requests.filter((entry) => entry.key !== itemKey),
+          activity: current.activity ? current.activity.filter((entry) => entry.id !== itemKey) : null,
+        }
+      );
+      void load();
+    } catch {
+      setRemoveError(true);
+      void load();
+    } finally {
+      setRemovingIds((previous) => {
+        const next = new Set(previous);
+        next.delete(itemKey);
+        return next;
+      });
+    }
+  }
   const canOpenActivity = (item: ActivityItem) =>
     item.link.type === "outcome" || (item.link.type === "channel" && onOpenChannel !== undefined) ||
       (item.link.type === "routine" && onOpenRoutine !== undefined);
@@ -449,6 +507,7 @@ export function OutcomeDashboard({
         />
         {data?.todoDigest && <TodoDigestCard digest={data.todoDigest} />}
         {todoError && <p role="alert" className="text-xs text-destructive">{t("Could not update the to-do. Try again.")}</p>}
+        {removeError && <p role="alert" className="text-xs text-destructive">{t("Could not remove the record. Try again.")}</p>}
         {data && entries.length === 0 && (
           <p className="outcome-dash-empty" role="status">
             <CheckCheck aria-hidden="true" className="size-4" strokeWidth={1.6} />
@@ -476,6 +535,8 @@ export function OutcomeDashboard({
                   botName={bots.find((bot) => bot.id === entry.item.botId)?.name ?? t("Bot")}
                   canOpen={entry.item.link.type === "channel" && onOpenChannel !== undefined}
                   onOpen={() => onOpenChannel?.(entry.item.link.id)}
+                  onRemove={outcomes.stopRequest ? () => void removeRequest(entry.item.key) : undefined}
+                  removing={removingIds.has(entry.item.key)}
                 />
               ) : entry.kind === "todo" ? (
                 isTodoOutcome(entry.item.outcome) && <TodoRow key={entry.key} item={entry.item.outcome} attention={entry.item.attention}
@@ -522,6 +583,9 @@ export function OutcomeDashboard({
         viewAllAction={stats.total > 0 ? { label: t("View all"), onClick: onShowGoals } : undefined}
         onOpen={openActivity}
         canOpen={canOpenActivity}
+        onRemove={outcomes.stopRequest ? (item) => void removeRequest(item.id) : undefined}
+        canRemove={(item) => item.type === "request" && Boolean(outcomes.stopRequest)}
+        removingIds={removingIds}
       />
 
       {!!data?.upcoming.length && (

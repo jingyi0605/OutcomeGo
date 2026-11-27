@@ -61,6 +61,7 @@ interface Options {
   goals?: OutcomeSummary[];
   /** Replaces the activity call; omit it altogether to model a server that has no such call. */
   activity?: ((query?: { includeAll?: boolean }) => Promise<unknown>) | null;
+  stopRequest?: (id: string) => Promise<{ stopped: true; requestRunId: string }>;
   cardMaxItems?: number;
 }
 async function mount(options: Options = {}) {
@@ -73,6 +74,7 @@ async function mount(options: Options = {}) {
     ...(options.activity === null
       ? {}
       : { activity: options.activity ?? (async (query?: { includeAll?: boolean }) => (calls.push(query), { items: options.items ?? [], truncated: false })) }),
+    ...(options.stopRequest ? { stopRequest: options.stopRequest } : {}),
   };
   const inbox = { list: async () => ({ items: [], nextCursor: null }), decision: async () => null, resolve: async () => null };
   host = dom.document.createElement("div");
@@ -198,5 +200,27 @@ describe("the owner's limit for cards", () => {
     host.remove();
     await mount({ cardMaxItems: 2, items: [activity(), activity(), activity()] });
     expect(host.querySelector(".outcome-activity-table")).not.toBeNull();
+  });
+});
+
+describe("removing unwanted request records", () => {
+  test("clicking Remove on an activity request calls stopRequest and removes it from In progress", async () => {
+    const req = activity({ id: "request:22222222-2222-4222-8222-222222222222", title: "Stale delegated search" });
+    let items = [req];
+    const stopped: string[] = [];
+    await mount({
+      activity: async () => ({ items, truncated: false }),
+      stopRequest: async (id) => {
+        stopped.push(id);
+        items = [];
+        return { stopped: true, requestRunId: id };
+      },
+    });
+    const removeButton = host.querySelector<HTMLButtonElement>(`[data-activity-remove="${req.id}"]`)!;
+    expect(removeButton).not.toBeNull();
+    await click(removeButton);
+    await act(async () => void (await Promise.resolve()));
+    expect(stopped).toEqual(["22222222-2222-4222-8222-222222222222"]);
+    expect(host.textContent).not.toContain("Stale delegated search");
   });
 });
