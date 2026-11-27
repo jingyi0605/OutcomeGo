@@ -10,6 +10,7 @@ import type { ActivityResponse, ScheduleQuery, ScheduleResponse } from "@outcome
 import type { OutcomeThreadView } from "@outcomego/contracts/outcome-thread";
 let TooltipProvider: typeof import("../src/renderer/components/ui/tooltip").TooltipProvider;
 let OutcomeNavigation: typeof import("../src/renderer/components/outcomego/outcomes/outcome-navigation").OutcomeNavigation;
+let CalendarNavigationButton: typeof import("../src/renderer/components/outcomego/outcomes/outcome-navigation").CalendarNavigationButton;
 let OutcomeList: typeof import("../src/renderer/components/outcomego/outcomes/outcome-list").OutcomeList;
 import { outcomeFixture, planFixture } from "./outcome-fixture";
 import type { DecisionView, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
@@ -175,7 +176,7 @@ beforeAll(async () => {
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
   }
   ({ TooltipProvider } = await import("../src/renderer/components/ui/tooltip"));
-  ({ OutcomeNavigation } = await import(
+  ({ CalendarNavigationButton, OutcomeNavigation } = await import(
     "../src/renderer/components/outcomego/outcomes/outcome-navigation"
   ));
   ({ OutcomeList } = await import("../src/renderer/components/outcomego/outcomes/outcome-list"));
@@ -327,25 +328,15 @@ test("navigation shows a colored count badge for each status that needs the owne
   expect(host.querySelector("[data-outcome-badge]")).toBeNull();
 });
 
-test("the brand icon and Go wordmark stay in separate buttons with Calendar at far right", async () => {
+test("the brand row keeps separate Outcome and Go buttons in both locales", async () => {
   let ideas = 0;
   let opened = 0;
-  let calendars = 0;
-  await mount(
-    <OutcomeNavigation
-      active={false}
-      onOpen={() => opened++}
-      onNewIdea={() => ideas++}
-      onOpenCalendar={() => calendars++}
-      calendarTodayCount={5}
-    />
-  );
+  await mount(<OutcomeNavigation active={false} onOpen={() => opened++} onNewIdea={() => ideas++} />);
   const buttons = [...host.querySelectorAll("button")];
-  expect(buttons).toHaveLength(3);
-  const [open, idea, calendar] = buttons as [HTMLButtonElement, HTMLButtonElement, HTMLButtonElement];
+  expect(buttons).toHaveLength(2);
+  const [open, idea] = buttons as [HTMLButtonElement, HTMLButtonElement];
   expect(open.getAttribute("aria-label")).toBe("Outcomes");
   expect(idea.getAttribute("aria-label")).toBe("Go");
-  expect(calendar.getAttribute("aria-label")).toBe("Calendar, Today's goals & to-dos: 5");
   expect(open.textContent).toBe("Outcome");
   expect(open.querySelector('img[alt=""]')?.getAttribute("src")).toEndWith("outcomego-icon.png");
   expect(idea.textContent).toBe("Go");
@@ -353,32 +344,17 @@ test("the brand icon and Go wordmark stay in separate buttons with Calendar at f
   expect(idea.querySelector('svg.lucide-arrow-up-right[aria-hidden="true"]')).not.toBeNull();
   expect(open.contains(idea)).toBe(false);
   expect(idea.parentElement).toBe(open.parentElement);
-  expect(calendar.parentElement).toBe(open.parentElement);
   expect(open.className).toContain("h-9");
   expect(idea.className).toContain("h-9");
   expect(idea.className).toContain("outcome-brand-go-button");
-  expect(calendar.className).toContain("ml-auto");
-  expect(calendar.querySelector('[data-calendar-badge="today"]')?.textContent).toBe("5");
   await act(async () => {
     idea.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-    calendar.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
-  expect([ideas, opened, calendars]).toEqual([1, 0, 1]);
+  expect([ideas, opened]).toEqual([1, 0]);
   expect(idea.className).not.toContain("bg-selected");
-  await render(
-    <OutcomeNavigation
-      active
-      onOpen={() => {}}
-      onNewIdea={() => {}}
-      onOpenCalendar={() => {}}
-      ideaActive
-      calendarTodayCount={120}
-    />
-  );
+  await render(<OutcomeNavigation active onOpen={() => {}} onNewIdea={() => {}} ideaActive />);
   const selectedOpen = host.querySelector('button[aria-label="Outcomes"]')!;
   const selectedIdea = host.querySelector('button[aria-label="Go"]')!;
-  const cappedCalendar = host.querySelector('[data-calendar-badge="today"]')!;
-  expect(cappedCalendar.textContent).toBe("99+");
   for (const el of [selectedIdea, selectedOpen]) {
     expect(el.className).toContain("bg-selected");
     expect(el.className).toContain("rounded-lg");
@@ -389,20 +365,10 @@ test("the brand icon and Go wordmark stay in separate buttons with Calendar at f
     await act(async () => {
       window.dispatchEvent(new dom.window.CustomEvent("outcomego-locale-change", { detail: "zh-CN" }));
     });
-    await render(
-      <OutcomeNavigation
-        active={false}
-        onOpen={() => {}}
-        onNewIdea={() => {}}
-        onOpenCalendar={() => {}}
-        calendarTodayCount={3}
-      />
-    );
-    const zhButtons = [...host.querySelectorAll("button")];
-    expect(zhButtons[0]?.textContent).toBe("Outcome");
-    expect(zhButtons[1]?.textContent).toBe("Go");
-    expect(zhButtons[2]?.getAttribute("aria-label")).toBe("日历, 今日目标与待办: 3");
-    expect(zhButtons[2]?.querySelector('[data-calendar-badge="today"]')?.textContent).toBe("3");
+    expect([...host.querySelectorAll("button")].map((button) => button.textContent)).toEqual([
+      "Outcome",
+      "Go",
+    ]);
   } finally {
     await act(async () => {
       window.dispatchEvent(new dom.window.CustomEvent("outcomego-locale-change", { detail: "en" }));
@@ -410,24 +376,33 @@ test("the brand icon and Go wordmark stay in separate buttons with Calendar at f
   }
 });
 
-test("calendar navigation opens a separate calendar action and hides zero badge", async () => {
+test("the calendar button opens the calendar and shows a localized today badge in both layouts", async () => {
   let opened = 0;
-  await mount(<OutcomeNavigation active={false} onOpen={() => {}} onOpenCalendar={() => opened++} />);
+  const onOpen = () => opened++;
+  const badge = () => host.querySelector('[data-calendar-badge="today"]');
+  await mount(<CalendarNavigationButton onOpen={onOpen} />);
   const calendar = host.querySelector('button[aria-label="Calendar"]')!;
   expect(calendar).toBeTruthy();
-  expect(calendar.querySelector('[data-calendar-badge="today"]')).toBeNull();
+  expect(badge()).toBeNull();
   await act(async () => calendar.dispatchEvent(new dom.window.Event("click", { bubbles: true })));
   expect(opened).toBe(1);
-  await render(
-    <OutcomeNavigation
-      compact
-      active={false}
-      onOpen={() => {}}
-      onOpenCalendar={() => opened++}
-      calendarTodayCount={4}
-    />
-  );
-  expect(host.querySelector('[data-calendar-badge="today"]')?.textContent).toBe("4");
+
+  await render(<CalendarNavigationButton onOpen={onOpen} todayCount={120} />);
+  expect(badge()?.textContent).toBe("99+");
+  expect(calendar.getAttribute("aria-label")).toBe("Calendar, Today's goals & to-dos: 120");
+
+  await render(<CalendarNavigationButton compact onOpen={onOpen} todayCount={4} />);
+  expect(badge()?.textContent).toBe("4");
+  try {
+    await act(async () => {
+      window.dispatchEvent(new dom.window.CustomEvent("outcomego-locale-change", { detail: "zh-CN" }));
+    });
+    expect(calendar.getAttribute("aria-label")).toBe("日历, 今日目标与待办: 4");
+  } finally {
+    await act(async () => {
+      window.dispatchEvent(new dom.window.CustomEvent("outcomego-locale-change", { detail: "en" }));
+    });
+  }
 });
 
 /** The detail view is two lazy imports deep; the first load takes longer than a few ticks. */

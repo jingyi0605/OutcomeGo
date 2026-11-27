@@ -123,7 +123,7 @@ import { SidebarCollapseMotion, SidebarMotion } from "./sidebar-motion";
 import { SidebarActivityProvider, useSidebarComposing } from "./sidebar-activity";
 import { SidebarUnreadAvatar, SidebarUnreadDot } from "./sidebar-unread";
 import { externalPlatformLabel } from "./external-delivery-status";
-import { OutcomeNavigation } from "./outcomes/outcome-navigation";
+import { CalendarNavigationButton, OutcomeNavigation } from "./outcomes/outcome-navigation";
 import type { OutcomeActionCounts } from "../../hooks/use-outcome-action-counts";
 
 const EMPTY_PINNED_IDS: ReadonlySet<string> = new Set();
@@ -2273,15 +2273,20 @@ function CompactSidebarContent({
   return (
     <>
       <div className="electron-drag h-11 shrink-0" />
-      {onOpenOutcomes && (
-        <OutcomeNavigation
-          compact
-          active={Boolean(outcomesActive)}
-          onOpen={onOpenOutcomes}
-          onOpenCalendar={onOpenCalendar}
-          badges={outcomeBadges}
-          calendarTodayCount={calendarTodayCount}
-        />
+      {(onOpenOutcomes || onOpenCalendar) && (
+        <div className="flex flex-col items-center gap-1">
+          {onOpenOutcomes && (
+            <OutcomeNavigation
+              compact
+              active={Boolean(outcomesActive)}
+              onOpen={onOpenOutcomes}
+              badges={outcomeBadges}
+            />
+          )}
+          {onOpenCalendar && (
+            <CalendarNavigationButton compact onOpen={onOpenCalendar} todayCount={calendarTodayCount} />
+          )}
+        </div>
       )}
       <div className="relative flex min-h-0 flex-1">
         <nav
@@ -3037,6 +3042,9 @@ export const Sidebar = memo(function Sidebar({
           ) : (
             <>
               <div className="electron-drag flex h-[47px] shrink-0 items-center justify-end gap-0.5 px-[13px] pt-0.5">
+                {onOpenCalendar && (
+                  <CalendarNavigationButton onOpen={onOpenCalendar} todayCount={calendarTodayCount} />
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -3057,11 +3065,9 @@ export const Sidebar = memo(function Sidebar({
                   <OutcomeNavigation
                     active={outcomesActive}
                     onOpen={onOpenOutcomes}
-                    onOpenCalendar={onOpenCalendar}
                     onNewIdea={onNewIdea}
                     ideaActive={newIdeaActive}
                     badges={outcomeBadges}
-                    calendarTodayCount={calendarTodayCount}
                   />
                 </div>
               )}
