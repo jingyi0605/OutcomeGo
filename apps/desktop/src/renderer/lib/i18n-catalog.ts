@@ -2531,7 +2531,6 @@ export const sourceTranslations: Record<string, string> = {
   "Remove {time}": "移除 {time}",
   "Removing failed. Check your connection and try again.": "移除失败，请检查网络连接后重试。",
   Reset: "重置",
-  Restart: "重新开始",
   "Retry setup": "重试设置",
   "Review version {version} of this Bot template before publishing.":
     "发布前请查看此机器人模板的版本 {version}。",
@@ -3456,7 +3455,6 @@ export const sourceTranslations: Record<string, string> = {
   Retrying: "重试中",
   "Needs review": "待审查",
   Failed: "失败",
-  "Not started": "未开始",
   "Awaiting your review": "等待你验收",
   "Sent back": "已退回",
 
@@ -3806,6 +3804,8 @@ export const sourceTranslations: Record<string, string> = {
   "Clear time": "清除时间",
   "Choose a valid calendar date and time.": "请选择有效的日期和时间。",
   "To-do actions": "待办操作",
+  "To-do": "待办",
+  Snooze: "延后",
   "Completion note": "完成备注",
   "Optional note": "可选备注",
   "Snoozed until": "已延后至",

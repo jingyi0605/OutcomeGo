@@ -379,7 +379,7 @@ export function TodoDetailPanel({
           <div className="flex flex-wrap items-center gap-2">
             {suggested && (
               <OutcomeButton type="button" variant="default" disabled={busy || saving} onClick={() => void runAction({ action: "accept_todo" })}>
-                {t("Accept")}
+                {t("Accept suggestion")}
               </OutcomeButton>
             )}
             {!suggested && (

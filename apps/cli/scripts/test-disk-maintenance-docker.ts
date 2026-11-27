@@ -147,8 +147,11 @@ try {
       return runner.run(command, args, options);
     },
   };
+  const interruptedProject = new ComposeProject(
+    one.paths, one.project.command, interrupted, one.project.projectName
+  );
   assert.throws(
-    () => retainStackImages(one.paths, one.project, interrupted, [current], [next]),
+    () => retainStackImages(one.paths, interruptedProject, interrupted, [current], [next]),
     /fixture interrupted cleanup/
   );
   assert.equal(exists(pulledMarker), true, "interrupted cleanup must retain the ownership marker");
@@ -169,7 +172,10 @@ try {
       return runner.run(command, args, options);
     },
   };
-  assert.throws(() => retainStackImages(one.paths, one.project, racing, [current], [next]));
+  const racingProject = new ComposeProject(
+    one.paths, one.project.command, racing, one.project.projectName
+  );
+  assert.throws(() => retainStackImages(one.paths, racingProject, racing, [current], [next]));
   assert.notEqual(racedContainer, "", "fixture must create a container after the inventory check");
   assert.equal(
     exists(racedMarker),

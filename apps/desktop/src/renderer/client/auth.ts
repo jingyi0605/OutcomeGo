@@ -10,7 +10,7 @@ import {
 } from "@outcomego/client-core";
 import { authErrorMessage } from "@outcomego/product-core/auth-feedback";
 import { translateCurrent } from "../lib/i18n-catalog";
-import { CONFIGURED_API_BASE_KEY, resolveConfiguredApiBase } from "./runtime-url";
+import { CONFIGURED_API_BASE_KEY, resolveRendererApiBase } from "./runtime-url";
 import { readNativeAuthWithDeadline } from "./native-auth-deadline";
 
 export type {
@@ -22,11 +22,7 @@ export type {
 } from "@outcomego/client-core";
 export { parseAuthUser } from "@outcomego/client-core";
 
-const API_BASE = resolveConfiguredApiBase(
-  window.location.href,
-  localStorage,
-  import.meta.env.VITE_OUTCOMEGO_API_URL
-);
+const API_BASE = resolveRendererApiBase();
 const USER_KEY = "outcomego:auth-user";
 export const AUTH_REQUIRED_EVENT = "outcomego:auth-required";
 
