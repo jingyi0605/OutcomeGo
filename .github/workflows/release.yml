@@ -563,7 +563,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { architecture: arm64, runner: macos-15 }
+          - { architecture: arm64, runner: macos-26 }
           - { architecture: x64, runner: macos-15-intel }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -614,7 +614,10 @@ jobs:
           xcrun actool --version
           bun run package:mac-release
       - name: Verify the disk image
-        run: hdiutil verify "apps/desktop/release/OutcomeGo-*-mac-${{ matrix.architecture }}.dmg"
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+          ARCHITECTURE: ${{ matrix.architecture }}
+        run: hdiutil verify "apps/desktop/release/OutcomeGo-$VERSION-mac-$ARCHITECTURE.dmg"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: desktop-macOS-${{ matrix.architecture }}
