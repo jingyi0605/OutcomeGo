@@ -1,14 +1,22 @@
 package com.outcomego.features
 
 import com.outcomego.android.data.MobileFeatureApi
+import com.outcomego.mobile.core.ConvertOutcomeRequest
+import com.outcomego.mobile.core.CreateOutcomeRequest
 import com.outcomego.mobile.core.HttpMethod
+import com.outcomego.mobile.core.OutcomeActionPayload
+import com.outcomego.mobile.core.OutcomeActionRequest
 import com.outcomego.mobile.core.OutcomeDetail
 import com.outcomego.mobile.core.OutcomeGoRequestException
 import com.outcomego.mobile.core.OutcomeInboxPage
 import com.outcomego.mobile.core.OutcomeListPage
+import com.outcomego.mobile.core.OutcomeMutationResult
+import com.outcomego.mobile.core.outcomeActionsPath
+import com.outcomego.mobile.core.outcomeConvertPath
 import com.outcomego.mobile.core.outcomeDetailPath
 import com.outcomego.mobile.core.outcomeInboxPath
 import com.outcomego.mobile.core.outcomeListPath
+import com.outcomego.mobile.core.outcomesPath
 import kotlinx.coroutines.CancellationException
 import com.outcomego.mobile.core.mobileJson
 import kotlinx.coroutines.delay
@@ -31,6 +39,7 @@ import java.net.URI
 import java.net.URLEncoder
 import java.net.URLDecoder
 import java.time.Instant
+import java.util.UUID
 
 /**
  * Maps the feature contracts to the existing authenticated server API. The
@@ -38,7 +47,7 @@ import java.time.Instant
  */
 class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway {
     override suspend fun needsMeTodos(cursor: String?): Result<MobileTodoPage?> = runCatching {
-        val path = "/api/v0/todos?view=needs_me" + (cursor?.let { "&cursor=${URLEncoder.encode(it, "UTF-8")}" } ?: "")
+        val path = outcomeListPath(cursor, kinds = listOf("todo"), view = "needs_me", limit = 100)
         try {
             mobileJson.decodeFromJsonElement(MobileTodoPage.serializer(), client.request(HttpMethod.GET, path))
         } catch (error: OutcomeGoRequestException) {
@@ -47,11 +56,10 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
     }.onFailure { if (it is CancellationException) throw it }
 
     override suspend fun actOnTodo(item: MobileTodo, action: MobileTodoAction, snoozeUntil: Instant?): Result<Unit> = runCatching {
-        val body = buildJsonObject {
-            put("revision", item.revision)
-            if (action == MobileTodoAction.SNOOZE) put("snoozeUntil", requireNotNull(snoozeUntil).toString())
-        }
-        client.request(HttpMethod.POST, "/api/v0/todos/${URLEncoder.encode(item.id, "UTF-8")}/${action.route}", body)
+        val payload = if (action == MobileTodoAction.SNOOZE) {
+            OutcomeActionPayload(snoozeUntil = requireNotNull(snoozeUntil).toString())
+        } else null
+        postOutcomeAction(item.id, OutcomeActionRequest(action.wireName, item.revision, payload, UUID.randomUUID().toString()))
         Unit
     }.onFailure { if (it is CancellationException) throw it }
 
@@ -95,10 +103,10 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
         }
     }.onFailure { if (it is CancellationException) throw it }
 
-    override suspend fun listOutcomes(cursor: String?, status: String?, query: String?): Result<OutcomeListPage?> = runCatching {
+    override suspend fun listOutcomes(cursor: String?, status: String?, query: String?, kinds: List<String>): Result<OutcomeListPage?> = runCatching {
         try {
             mobileJson.decodeFromJsonElement(OutcomeListPage.serializer(),
-                client.request(HttpMethod.GET, outcomeListPath(cursor, status, query)))
+                client.request(HttpMethod.GET, outcomeListPath(cursor, status, query, kinds)))
         } catch (error: OutcomeGoRequestException) {
             if (error.error.status == 404) null else throw error
         }
@@ -118,16 +126,38 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
         }
     }.onFailure { if (it is CancellationException) throw it }
 
-    override suspend fun createOutcomeThread(input: com.outcomego.mobile.core.CreateOutcomeThreadRequest): Result<com.outcomego.mobile.core.CreatedOutcomeThread> = runCatching {
+    override suspend fun createOutcome(input: CreateOutcomeRequest): Result<OutcomeMutationResult> = runCatching {
         mobileJson.decodeFromJsonElement(
-            com.outcomego.mobile.core.CreatedOutcomeThread.serializer(),
+            OutcomeMutationResult.serializer(),
             client.request(
                 HttpMethod.POST,
-                com.outcomego.mobile.core.outcomeThreadsPath(),
-                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.CreateOutcomeThreadRequest.serializer(), input).jsonObject,
+                outcomesPath(),
+                mobileJson.encodeToJsonElement(CreateOutcomeRequest.serializer(), input).jsonObject,
             ),
         )
     }.onFailure { if (it is CancellationException) throw it }
+
+    override suspend fun convertOutcome(id: String, input: ConvertOutcomeRequest): Result<OutcomeMutationResult> = runCatching {
+        mobileJson.decodeFromJsonElement(
+            OutcomeMutationResult.serializer(),
+            client.request(
+                HttpMethod.POST,
+                outcomeConvertPath(id),
+                mobileJson.encodeToJsonElement(ConvertOutcomeRequest.serializer(), input).jsonObject,
+            ),
+        )
+    }.onFailure { if (it is CancellationException) throw it }
+
+    override suspend fun actOnOutcome(id: String, input: OutcomeActionRequest): Result<OutcomeDetail> = runCatching {
+        mobileJson.decodeFromJsonElement(OutcomeDetail.serializer(), postOutcomeAction(id, input))
+    }.onFailure { if (it is CancellationException) throw it }
+
+    private suspend fun postOutcomeAction(id: String, input: OutcomeActionRequest): JsonObject =
+        client.request(
+            HttpMethod.POST,
+            outcomeActionsPath(id),
+            mobileJson.encodeToJsonElement(OutcomeActionRequest.serializer(), input).jsonObject,
+        )
 
     override suspend fun outcomeThread(id: String): Result<com.outcomego.mobile.core.OutcomeThreadView> = runCatching {
         mobileJson.decodeFromJsonElement(
@@ -283,39 +313,6 @@ class LiveFeatureGateway(private val client: MobileFeatureApi) : FeatureGateway 
                     com.outcomego.mobile.core.HumanKnowledgeReadRequest.serializer(),
                     com.outcomego.mobile.core.HumanKnowledgeReadRequest(reference),
                 ).jsonObject,
-            ),
-        )
-    }.onFailure { if (it is CancellationException) throw it }
-
-    override suspend fun listExploreIdeas(cursor: String?): Result<com.outcomego.mobile.core.ExploreIdeaPage?> = runCatching {
-        try {
-            mobileJson.decodeFromJsonElement(
-                com.outcomego.mobile.core.ExploreIdeaPage.serializer(),
-                client.request(HttpMethod.GET, com.outcomego.mobile.core.exploreListPath(cursor)),
-            )
-        } catch (error: OutcomeGoRequestException) {
-            if (error.error.status == 404) null else throw error
-        }
-    }.onFailure { if (it is CancellationException) throw it }
-
-    override suspend fun createExploreIdea(input: com.outcomego.mobile.core.CreateExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> = runCatching {
-        mobileJson.decodeFromJsonElement(
-            com.outcomego.mobile.core.ExploreIdea.serializer(),
-            client.request(
-                HttpMethod.POST,
-                "/api/v0/explore",
-                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.CreateExploreIdeaRequest.serializer(), input).jsonObject,
-            ),
-        )
-    }.onFailure { if (it is CancellationException) throw it }
-
-    override suspend fun discardExploreIdea(id: String, input: com.outcomego.mobile.core.DiscardExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> = runCatching {
-        mobileJson.decodeFromJsonElement(
-            com.outcomego.mobile.core.ExploreIdea.serializer(),
-            client.request(
-                HttpMethod.POST,
-                "${com.outcomego.mobile.core.exploreItemPath(id)}/discard",
-                mobileJson.encodeToJsonElement(com.outcomego.mobile.core.DiscardExploreIdeaRequest.serializer(), input).jsonObject,
             ),
         )
     }.onFailure { if (it is CancellationException) throw it }

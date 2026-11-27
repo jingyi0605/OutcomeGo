@@ -5,15 +5,19 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonElement
 
-// Status keys remain strings so a newer server cannot break an older mobile client.
+// Kind and status keys remain strings so a newer server cannot break an older mobile client.
 @Serializable
 data class OutcomeSummary(
     val id: String,
     val title: String,
     val status: String,
-    val botId: String,
+    /** To-dos, ideas and notes may have no bot. */
+    val botId: String? = null,
     val currentRevision: Int? = null,
     val updatedAt: String,
+    val kind: String = "standard",
+    /** The Outcome's own revision, sent back as `expectedRevision`; distinct from the contract's `currentRevision`. */
+    val revision: Int? = null,
 )
 
 @Serializable
@@ -27,9 +31,10 @@ data class OutcomeDetail(
     val id: String,
     val title: String,
     val status: String,
-    val botId: String,
+    val botId: String? = null,
     val currentRevision: Int? = null,
     val updatedAt: String,
+    val kind: String = "standard",
     val description: String,
     val currentRevisionView: OutcomeContractRevision? = null,
     val workItems: List<OutcomeWorkItem> = emptyList(),
@@ -229,8 +234,9 @@ class TransportOutcomeReadApi(private val transport: OutcomeGoTransport) {
         cursor: String? = null,
         status: String? = null,
         query: String? = null,
+        kinds: List<String> = OUTCOME_GOAL_KINDS,
     ): OutcomeListPage? {
-        val response = transport.execute(server, token, MobileRequest(HttpMethod.GET, outcomeListPath(cursor, status, query)))
+        val response = transport.execute(server, token, MobileRequest(HttpMethod.GET, outcomeListPath(cursor, status, query, kinds)))
         if (response.status == 404) return null
         return mobileJson.decodeFromString(response.requireSuccess().body)
     }
@@ -273,20 +279,55 @@ data class OutcomeThreadView(
     val reviewTurns: List<OutcomeThreadTurn> = emptyList(),
 )
 
-/** A new goal described in the owner's own words; the chosen bot plans it. */
+/**
+ * Creates an Outcome of any kind. A `standard` goal carries the owner's own words as its description
+ * and the chosen bot plans it. `kind` has no default: [mobileJson] omits defaulted values.
+ */
 @Serializable
-data class CreateOutcomeThreadRequest(
-    val text: String,
-    val botId: String,
-    val exploreIdeaId: String? = null,
+data class CreateOutcomeRequest(
+    val kind: String,
+    val title: String,
+    val description: String? = null,
+    val botId: String? = null,
+    val clientRequestId: String,
+)
+
+/** Changes an Outcome's kind in place; converting to `standard` also queues the bot's planning turn. */
+@Serializable
+data class ConvertOutcomeRequest(
+    val targetKind: String,
+    val expectedRevision: Int,
+    val botId: String? = null,
     val clientRequestId: String,
 )
 
 @Serializable
-data class CreatedOutcomeThread(
-    val outcome: OutcomeDetail,
-    val turn: OutcomeThreadTurn,
+data class OutcomeActionPayload(val snoozeUntil: String? = null)
+
+/** A lifecycle action such as `accept_todo`, `snooze`, `complete` or `dismiss`. */
+@Serializable
+data class OutcomeActionRequest(
+    val action: String,
+    val expectedRevision: Int? = null,
+    val payload: OutcomeActionPayload? = null,
+    val clientRequestId: String,
 )
+
+/** Answer to create and convert; `turn` is null when no planning was queued. */
+@Serializable
+data class OutcomeMutationResult(
+    val outcome: OutcomeDetail,
+    val turn: OutcomeThreadTurn? = null,
+)
+
+/** Title for a goal described only in the owner's words: the first line, shortened to 60 characters. */
+fun outcomeTitleFromWords(words: String): String {
+    val line = words.trim().lineSequence().first().trim()
+    if (line.length <= 60) return line
+    // Never cut a surrogate pair in half.
+    val end = if (line[56].isHighSurrogate()) 56 else 57
+    return line.take(end) + "…"
+}
 
 /** The owner's words about a goal; they reach the bot unchanged. */
 @Serializable
@@ -392,8 +433,14 @@ data class OutcomeTranscriptPage(
 )
 
 class TransportOutcomeWriteApi(private val transport: OutcomeGoTransport) {
-    suspend fun createThread(server: String, token: String?, input: CreateOutcomeThreadRequest): CreatedOutcomeThread =
-        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, outcomeThreadsPath(), body = mobileJson.encodeToString(input))))
+    suspend fun create(server: String, token: String?, input: CreateOutcomeRequest): OutcomeMutationResult =
+        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, outcomesPath(), body = mobileJson.encodeToString(input))))
+
+    suspend fun convert(server: String, token: String?, id: String, input: ConvertOutcomeRequest): OutcomeMutationResult =
+        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, outcomeConvertPath(id), body = mobileJson.encodeToString(input))))
+
+    suspend fun act(server: String, token: String?, id: String, input: OutcomeActionRequest): OutcomeDetail =
+        decode(transport.execute(server, token, MobileRequest(HttpMethod.POST, outcomeActionsPath(id), body = mobileJson.encodeToString(input))))
 
     suspend fun thread(server: String, token: String?, id: String): OutcomeThreadView =
         decode(transport.execute(server, token, MobileRequest(HttpMethod.GET, outcomeThreadPath(id))))
@@ -432,17 +479,33 @@ class TransportOutcomeWriteApi(private val transport: OutcomeGoTransport) {
         mobileJson.decodeFromString(response.requireSuccess().body)
 }
 
-fun outcomeListPath(cursor: String? = null, status: String? = null, query: String? = null): String =
-    "/api/v0/outcomes?limit=20" +
-        (cursor?.let { "&cursor=${outcomeSegment(it)}" } ?: "") +
-        (status?.takeIf { it.isNotBlank() }?.let { "&status=${outcomeSegment(it)}" } ?: "") +
-        (query?.takeIf { it.isNotBlank() }?.let { "&q=${outcomeSegment(it)}" } ?: "")
+/** Kinds shown in the goals list; to-dos and ideas have their own surfaces. */
+val OUTCOME_GOAL_KINDS: List<String> = listOf("standard", "tracked")
 
-fun outcomeDetailPath(id: String): String = "/api/v0/outcomes/${outcomeSegment(id)}"
+/** The server rejects query parameters it does not know, so only contract names are sent. */
+fun outcomeListPath(
+    cursor: String? = null,
+    status: String? = null,
+    query: String? = null,
+    kinds: List<String> = OUTCOME_GOAL_KINDS,
+    view: String? = null,
+    limit: Int = 20,
+): String =
+    "${outcomesPath()}?limit=$limit&kinds=${kinds.joinToString(",") { outcomeSegment(it) }}" +
+        (view?.let { "&view=${outcomeSegment(it)}" } ?: "") +
+        (cursor?.let { "&cursor=${outcomeSegment(it)}" } ?: "") +
+        (status?.takeIf { it.isNotBlank() }?.let { "&statuses=${outcomeSegment(it)}" } ?: "") +
+        (query?.takeIf { it.isNotBlank() }?.let { "&query=${outcomeSegment(it)}" } ?: "")
+
+fun outcomesPath(): String = "/api/v0/outcomes"
+
+fun outcomeDetailPath(id: String): String = "${outcomesPath()}/${outcomeSegment(id)}"
 
 fun outcomeBriefPath(id: String): String = "${outcomeDetailPath(id)}/brief"
 
-fun outcomeThreadsPath(): String = "/api/v0/outcomes/threads"
+fun outcomeConvertPath(id: String): String = "${outcomeDetailPath(id)}/convert"
+
+fun outcomeActionsPath(id: String): String = "${outcomeDetailPath(id)}/actions"
 
 fun outcomeThreadPath(id: String): String = "${outcomeDetailPath(id)}/thread"
 

@@ -16,10 +16,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.outcomego.mobile.core.OutcomeGoRequestException
@@ -40,6 +42,7 @@ internal fun rememberNeedsMeTodoItems(
     var busy by remember(gateway) { mutableStateOf(false) }
     var loadFailed by remember(gateway) { mutableStateOf(false) }
     var actionMessage by remember(gateway) { mutableStateOf<String?>(null) }
+    val descriptions = remember(gateway) { mutableStateMapOf<String, String>() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val conflict = localizedText("The to-do changed. Review the current list.", "待办已变化，请查看最新列表。")
@@ -112,18 +115,20 @@ internal fun rememberNeedsMeTodoItems(
                 }
             }
             items(page?.items.orEmpty(), key = { "needs-me-todo:${it.id}" }) { todo ->
+                val note = rememberOutcomeDescription(gateway, descriptions, todo.id, todo.revision)
                 OutcomeInboxCard {
                     Text(todo.title, style = MaterialTheme.typography.titleMedium)
-                    val state = when {
-                        todo.status == "suggested" -> localizedText("To-do suggestion", "待办建议")
-                        todo.displayState == "follow_up" -> localizedText("Needs follow-up", "需跟进")
-                        todo.overdue -> localizedText("Overdue", "已逾期")
-                        todo.displayState == "today" -> localizedText("Today", "今天")
-                        else -> null
+                    val state = if (todo.status == "suggested") {
+                        localizedText("To-do suggestion", "待办建议")
+                    } else when (todo.attention()) {
+                        MobileTodoAttention.FOLLOW_UP -> localizedText("Needs follow-up", "需跟进")
+                        MobileTodoAttention.OVERDUE -> localizedText("Overdue", "已逾期")
+                        MobileTodoAttention.TODAY -> localizedText("Today", "今天")
+                        null -> null
                     }
                     state?.let { Text(it, style = MaterialTheme.typography.labelMedium) }
-                    todo.attentionDate?.let { Text(formatOutcomeTimestamp(it), style = MaterialTheme.typography.bodySmall) }
-                    listOfNotNull(todo.note, todo.summary).filter { it.isNotBlank() }.distinct().forEach { Text(it) }
+                    todo.attentionDate()?.let { Text(formatOutcomeTimestamp(it), style = MaterialTheme.typography.bodySmall) }
+                    listOfNotNull(note, todo.summary).filter { it.isNotBlank() }.distinct().forEach { Text(it) }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         todo.actions.forEach { action ->
                             TextButton(enabled = !busy && !loadFailed, onClick = {
@@ -150,6 +155,24 @@ internal fun rememberNeedsMeTodoItems(
             }
         }
     }
+}
+
+/**
+ * Collection items carry no body, so a visible card reads it from the detail. [cache] is keyed by
+ * revision so scrolling does not read it again; a failed read just leaves the body out.
+ */
+@Composable
+internal fun rememberOutcomeDescription(
+    gateway: FeatureGateway,
+    cache: SnapshotStateMap<String, String>,
+    id: String,
+    revision: Int?,
+): String? {
+    val key = "$id@$revision"
+    LaunchedEffect(gateway, key) {
+        if (key !in cache) gateway.outcomeDetail(id).onSuccess { cache[key] = it.description }
+    }
+    return cache[key]
 }
 
 private fun chooseSnoozeTime(context: Context, onSelected: (Instant) -> Unit) {

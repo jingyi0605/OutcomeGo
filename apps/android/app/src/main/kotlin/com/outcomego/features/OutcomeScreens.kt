@@ -1078,6 +1078,7 @@ private fun OutcomeCard(modifier: Modifier = Modifier, content: @Composable () -
 @Composable
 internal fun outcomeStatusLabel(value: String?): String = when (value) {
     "draft" -> localizedText("Draft", "草稿")
+    "exploring" -> localizedText("Exploring", "探索中")
     "planning" -> localizedText("Planning", "规划中")
     "pending_approval" -> localizedText("Pending approval", "待批准")
     "approved" -> localizedText("Approved", "已批准")

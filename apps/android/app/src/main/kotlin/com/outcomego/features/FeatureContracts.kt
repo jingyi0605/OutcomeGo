@@ -484,16 +484,25 @@ interface FeatureGateway {
     suspend fun outcomesEnabled(): Result<Boolean?> =
         Result.failure(UnsupportedOperationException("Feature settings are not available for this session."))
 
-    suspend fun listOutcomes(cursor: String? = null, status: String? = null, query: String? = null): Result<OutcomeListPage?> =
+    suspend fun listOutcomes(
+        cursor: String? = null,
+        status: String? = null,
+        query: String? = null,
+        kinds: List<String> = com.outcomego.mobile.core.OUTCOME_GOAL_KINDS,
+    ): Result<OutcomeListPage?> =
         Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
     suspend fun outcomeDetail(id: String): Result<OutcomeDetail> =
         Result.failure(UnsupportedOperationException("Outcome API is not available for this session."))
     /** Null denotes a server without the read-only brief route; the detail page then falls back to saved records. */
     suspend fun outcomeBrief(id: String): Result<com.outcomego.mobile.core.OutcomeBrief?> =
         Result.failure(UnsupportedOperationException("Outcome brief is not available for this session."))
-    /** Hand a new goal to the chosen bot in the owner's own words; returns at once while the bot plans. */
-    suspend fun createOutcomeThread(input: com.outcomego.mobile.core.CreateOutcomeThreadRequest): Result<com.outcomego.mobile.core.CreatedOutcomeThread> =
-        Result.failure(UnsupportedOperationException("Outcome threads are not available for this session."))
+    /** Create a goal or an idea; a goal returns at once while the chosen bot plans it. */
+    suspend fun createOutcome(input: com.outcomego.mobile.core.CreateOutcomeRequest): Result<com.outcomego.mobile.core.OutcomeMutationResult> =
+        Result.failure(UnsupportedOperationException("Outcome creation is not available for this session."))
+    suspend fun convertOutcome(id: String, input: com.outcomego.mobile.core.ConvertOutcomeRequest): Result<com.outcomego.mobile.core.OutcomeMutationResult> =
+        Result.failure(UnsupportedOperationException("Outcome conversion is not available for this session."))
+    suspend fun actOnOutcome(id: String, input: com.outcomego.mobile.core.OutcomeActionRequest): Result<OutcomeDetail> =
+        Result.failure(UnsupportedOperationException("Outcome actions are not available for this session."))
     suspend fun outcomeThread(id: String): Result<com.outcomego.mobile.core.OutcomeThreadView> =
         Result.failure(UnsupportedOperationException("Outcome threads are not available for this session."))
     /** Send the owner's words to the goal's bot unchanged. */
@@ -525,12 +534,6 @@ interface FeatureGateway {
         Result.failure(UnsupportedOperationException("Knowledge search is not available for this session."))
     suspend fun readOutcomeKnowledge(outcomeId: String, reference: com.outcomego.mobile.core.OutcomeKnowledgeReference): Result<com.outcomego.mobile.core.OutcomeKnowledgeDocument> =
         Result.failure(UnsupportedOperationException("Knowledge read is not available for this session."))
-    suspend fun listExploreIdeas(cursor: String? = null): Result<com.outcomego.mobile.core.ExploreIdeaPage?> =
-        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
-    suspend fun createExploreIdea(input: com.outcomego.mobile.core.CreateExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> =
-        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
-    suspend fun discardExploreIdea(id: String, input: com.outcomego.mobile.core.DiscardExploreIdeaRequest): Result<com.outcomego.mobile.core.ExploreIdea> =
-        Result.failure(UnsupportedOperationException("Explore is not available for this session."))
     suspend fun submitRichAction(messageId: String, actionId: String, values: Map<String, String> = emptyMap()): Result<Unit>
     suspend fun uploadAttachment(uri: String): Result<Attachment>
     suspend fun downloadAttachment(attachmentId: String): Result<String>

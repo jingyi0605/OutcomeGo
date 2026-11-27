@@ -28,16 +28,18 @@ import com.outcomego.android.ui.designsystem.SpatialPrimaryButton
 import com.outcomego.android.ui.designsystem.SpatialRadii
 import com.outcomego.android.ui.designsystem.SpatialSpacing
 import com.outcomego.android.ui.designsystem.SpatialTheme
-import com.outcomego.mobile.core.CreateOutcomeThreadRequest
+import com.outcomego.mobile.core.CreateOutcomeRequest
 import com.outcomego.mobile.core.OutcomeDetail
 import com.outcomego.mobile.core.OutcomeGoRequestException
 import com.outcomego.mobile.core.OutcomeLinkTarget
+import com.outcomego.mobile.core.outcomeTitleFromWords
 import kotlinx.coroutines.launch
 import java.util.UUID
 
 /**
- * A new goal is one box of the owner's own words plus the bot that should plan it. The words go to the
- * bot unchanged and the request returns at once; the bot decides whether to ask or to write a contract.
+ * A new goal is one box of the owner's own words plus the bot that should plan it. The words become the
+ * goal's description unchanged and the request returns at once; the bot decides whether to ask or to
+ * write a contract.
  */
 @Composable
 internal fun NewOutcomeScreen(
@@ -120,8 +122,14 @@ internal fun NewOutcomeScreen(
                                         requestId = UUID.randomUUID().toString()
                                         requestFor = key
                                     }
-                                    gateway.createOutcomeThread(
-                                        CreateOutcomeThreadRequest(text = words, botId = bot, clientRequestId = requestId),
+                                    gateway.createOutcome(
+                                        CreateOutcomeRequest(
+                                            kind = "standard",
+                                            title = outcomeTitleFromWords(words),
+                                            description = words,
+                                            botId = bot,
+                                            clientRequestId = requestId,
+                                        ),
                                     ).fold(
                                         onSuccess = { created ->
                                             requestId = UUID.randomUUID().toString()

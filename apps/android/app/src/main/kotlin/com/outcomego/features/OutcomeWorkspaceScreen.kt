@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -67,16 +68,15 @@ import com.outcomego.android.ui.designsystem.SpatialRadii
 import com.outcomego.android.ui.designsystem.SpatialSecondaryButton
 import com.outcomego.android.ui.designsystem.SpatialSpacing
 import com.outcomego.android.ui.designsystem.SpatialTheme
-import com.outcomego.mobile.core.CreateExploreIdeaRequest
-import com.outcomego.mobile.core.DiscardExploreIdeaRequest
-import com.outcomego.mobile.core.ExploreIdea
-import com.outcomego.mobile.core.ExploreIdeaPage
+import com.outcomego.mobile.core.ConvertOutcomeRequest
+import com.outcomego.mobile.core.CreateOutcomeRequest
+import com.outcomego.mobile.core.OutcomeActionRequest
 import com.outcomego.mobile.core.OutcomeGoRequestException
 import com.outcomego.mobile.core.OutcomeInboxItem
 import com.outcomego.mobile.core.OutcomeInboxPage
 import com.outcomego.mobile.core.OutcomeLinkTarget
 import com.outcomego.mobile.core.OutcomeListPage
-import com.outcomego.mobile.core.CreateOutcomeThreadRequest
+import com.outcomego.mobile.core.OutcomeSummary
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -411,10 +411,12 @@ private fun AllGoalsTab(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        OutcomeBadgePill(
-                            text = botNames[outcome.botId] ?: outcome.botId.take(8),
-                            icon = Icons.Outlined.SmartToy,
-                        )
+                        outcome.botId?.let { botId ->
+                            OutcomeBadgePill(
+                                text = botNames[botId] ?: botId.take(8),
+                                icon = Icons.Outlined.SmartToy,
+                            )
+                        }
                         Spacer(Modifier.weight(1f))
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -624,7 +626,8 @@ private fun ExploreIdeasTab(
     onAuthenticationRequired: (OutcomeLinkTarget) -> Unit,
 ) {
     val colors = SpatialTheme.colors
-    var page by remember(gateway) { mutableStateOf<ExploreIdeaPage?>(null) }
+    var page by remember(gateway) { mutableStateOf<OutcomeListPage?>(null) }
+    val descriptions = remember(gateway) { mutableStateMapOf<String, String>() }
     var loading by remember(gateway) { mutableStateOf(false) }
     var mutatingId by remember { mutableStateOf<String?>(null) }
     var unavailable by remember(gateway) { mutableStateOf(false) }
@@ -645,7 +648,7 @@ private fun ExploreIdeasTab(
         if (loading) return
         loading = true
         errorMessage = null
-        gateway.listExploreIdeas(if (more) page?.nextCursor else null).fold(
+        gateway.listOutcomes(cursor = if (more) page?.nextCursor else null, kinds = listOf("explore_idea")).fold(
             onSuccess = { next ->
                 unavailable = next == null
                 if (next != null) page = if (more) next.copy(items = (page?.items.orEmpty() + next.items).distinctBy { it.id }) else next
@@ -711,12 +714,12 @@ private fun ExploreIdeasTab(
                                 scope.launch {
                                     mutatingId = "create"
                                     errorMessage = null
-                                    gateway.createExploreIdea(
-                                        CreateExploreIdeaRequest(
+                                    gateway.createOutcome(
+                                        CreateOutcomeRequest(
+                                            kind = "explore_idea",
                                             title = newTitle.trim(),
-                                            note = newNote.trim().ifBlank { null },
+                                            description = newNote.trim().ifBlank { null },
                                             botId = selectedBotId.ifBlank { null },
-                                            status = "draft",
                                             clientRequestId = UUID.randomUUID().toString(),
                                         ),
                                     ).fold(
@@ -747,29 +750,35 @@ private fun ExploreIdeasTab(
         items(page?.items.orEmpty(), key = { it.id }) { idea ->
             ExploreIdeaCard(
                 idea = idea,
+                description = rememberOutcomeDescription(gateway, descriptions, idea.id, idea.revision),
                 bots = bots,
                 busy = mutatingId == idea.id,
-                onPropose = { botId ->
+                onPropose = { botId, revision ->
                     scope.launch {
                         mutatingId = idea.id
                         errorMessage = null
-                        // The bot plans it on the goal's own thread; the idea's words go to it as they are.
-                        val words = listOf(idea.title, idea.note).filter { it.isNotBlank() }.joinToString("\n\n")
-                        gateway.createOutcomeThread(
-                            CreateOutcomeThreadRequest(
-                                text = words,
-                                botId = botId.orEmpty(),
-                                exploreIdeaId = idea.id,
-                                // One idea, one request: a retry reaches the server as the same request.
-                                clientRequestId = ideaRequestIds.getOrPut(idea.id + "\n" + botId.orEmpty()) { UUID.randomUUID().toString() },
+                        // The idea becomes the goal in place; the bot plans it from the idea's own words.
+                        // One revision and bot, one request: a retry reaches the server as the same request.
+                        val requestKey = "${idea.id}\n$revision\n$botId"
+                        gateway.convertOutcome(
+                            idea.id,
+                            ConvertOutcomeRequest(
+                                targetKind = "standard",
+                                expectedRevision = revision,
+                                botId = botId,
+                                clientRequestId = ideaRequestIds.getOrPut(requestKey) { UUID.randomUUID().toString() },
                             ),
                         ).fold(
-                            onSuccess = { created ->
-                                ideaRequestIds.remove(idea.id + "\n" + botId.orEmpty())
+                            onSuccess = { converted ->
+                                ideaRequestIds.remove(requestKey)
                                 load()
-                                onOpenOutcome(created.outcome.id)
+                                onOpenOutcome(converted.outcome.id)
                             },
-                            onFailure = { errorMessage = it.message ?: "Failed to hand the idea to the bot" },
+                            onFailure = {
+                                // The idea changed elsewhere: reload so the next attempt uses its latest revision.
+                                if ((it as? OutcomeGoRequestException)?.error?.status == 409) load()
+                                errorMessage = it.message ?: "Failed to hand the idea to the bot"
+                            },
                         )
                         mutatingId = null
                     }
@@ -778,9 +787,9 @@ private fun ExploreIdeasTab(
                     scope.launch {
                         mutatingId = idea.id
                         errorMessage = null
-                        gateway.discardExploreIdea(
+                        gateway.actOnOutcome(
                             idea.id,
-                            DiscardExploreIdeaRequest(clientRequestId = UUID.randomUUID().toString()),
+                            OutcomeActionRequest(action = "dismiss", clientRequestId = UUID.randomUUID().toString()),
                         ).fold(
                             onSuccess = { load() },
                             onFailure = { errorMessage = it.message ?: "Failed to discard" },
@@ -788,7 +797,6 @@ private fun ExploreIdeasTab(
                         mutatingId = null
                     }
                 },
-                onOpenOutcome = onOpenOutcome,
             )
         }
         if (page?.nextCursor != null) {
@@ -805,12 +813,12 @@ private fun ExploreIdeasTab(
 
 @Composable
 private fun ExploreIdeaCard(
-    idea: ExploreIdea,
+    idea: OutcomeSummary,
+    description: String?,
     bots: List<OutcomeBotOption>,
     busy: Boolean,
-    onPropose: (String?) -> Unit,
+    onPropose: (botId: String, revision: Int) -> Unit,
     onDiscard: () -> Unit,
-    onOpenOutcome: (String) -> Unit,
 ) {
     val colors = SpatialTheme.colors
     SpatialGlassSurface(Modifier.fillMaxWidth(), tier = GlassTier.Card, shape = RoundedCornerShape(SpatialRadii.lg)) {
@@ -819,13 +827,18 @@ private fun ExploreIdeaCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutcomeStatusPill(idea.status)
+                // A cancelled idea is one the owner discarded.
+                if (idea.status == "cancelled") {
+                    OutcomeStatusPill(idea.status, label = localizedText("Discarded", "已丢弃"))
+                } else {
+                    OutcomeStatusPill(idea.status)
+                }
                 Spacer(Modifier.weight(1f))
                 Text(formatOutcomeTimestamp(idea.updatedAt), style = MaterialTheme.typography.labelSmall, color = colors.textTertiary)
             }
             Text(idea.title, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold), color = colors.textPrimary)
-            if (idea.note.isNotBlank()) {
-                Text(idea.note, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            if (!description.isNullOrBlank()) {
+                Text(description, style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, maxLines = 3, overflow = TextOverflow.Ellipsis)
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -834,11 +847,12 @@ private fun ExploreIdeaCard(
             ) {
                 val targetBot = idea.botId ?: bots.firstOrNull()?.id
                 if (idea.status in setOf("draft", "exploring")) {
+                    val revision = idea.revision
                     SpatialPrimaryButton(
                         label = localizedText("Hand to the bot", "交给机器人规划"),
-                        enabled = !busy && targetBot != null,
+                        enabled = !busy && targetBot != null && revision != null,
                         loading = busy,
-                        onClick = { onPropose(targetBot) },
+                        onClick = { if (targetBot != null && revision != null) onPropose(targetBot, revision) },
                         modifier = Modifier.weight(1f),
                     )
                     SpatialIconOrb(
@@ -847,13 +861,6 @@ private fun ExploreIdeaCard(
                         enabled = !busy,
                         tint = colors.danger,
                         onClick = onDiscard,
-                    )
-                }
-                idea.proposedOutcomeId?.let { outcomeId ->
-                    SpatialSecondaryButton(
-                        label = localizedText("View Outcome", "查看目标"),
-                        onClick = { onOpenOutcome(outcomeId) },
-                        modifier = Modifier.weight(1f),
                     )
                 }
             }

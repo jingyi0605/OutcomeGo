@@ -1,7 +1,10 @@
 package com.outcomego.features
 
 import com.outcomego.android.data.MobileFeatureApi
+import com.outcomego.mobile.core.ConvertOutcomeRequest
+import com.outcomego.mobile.core.CreateOutcomeRequest
 import com.outcomego.mobile.core.HttpMethod
+import com.outcomego.mobile.core.OutcomeActionRequest
 import com.outcomego.mobile.core.OutcomeGoError
 import com.outcomego.mobile.core.OutcomeGoRequestException
 import com.outcomego.mobile.core.mobileJson
@@ -19,7 +22,7 @@ class OutcomeGatewayTest {
         val client = OutcomeClient()
         val gateway = LiveFeatureGateway(client)
         val page = gateway.listOutcomes("cursor/+=&").getOrThrow()
-        assertEquals("/api/v0/outcomes?limit=20&cursor=cursor%2F%2B%3D%26", client.path)
+        assertEquals("/api/v0/outcomes?limit=20&kinds=standard,tracked&cursor=cursor%2F%2B%3D%26", client.path)
         assertEquals("future_status", page?.items?.single()?.status)
         assertEquals("next-page", page?.nextCursor)
         assertEquals(HttpMethod.GET, client.method)
@@ -44,6 +47,39 @@ class OutcomeGatewayTest {
             assertEquals(status, error.error.status)
         }
     }
+
+    @Test
+    fun ideasAreCreatedListedConvertedAndDiscardedAsOutcomes() = runBlocking {
+        val client = OutcomeClient()
+        val gateway = LiveFeatureGateway(client)
+        client.response = """{"items":[{"id":"idea","kind":"explore_idea","title":"Idea","status":"draft","botId":null,"revision":1,"currentRevision":null,"updatedAt":"now"}],"nextCursor":null}"""
+        val idea = gateway.listOutcomes(kinds = listOf("explore_idea")).getOrThrow()!!.items.single()
+        assertEquals("/api/v0/outcomes?limit=20&kinds=explore_idea", client.path)
+        assertEquals(1, idea.revision)
+
+        val detail = """{"id":"idea","kind":"explore_idea","title":"Idea","status":"draft","botId":null,"currentRevision":null,"updatedAt":"now","description":"Note","workItems":[],"outputs":[],"evidence":[],"reviews":[]}"""
+        client.response = """{"outcome":$detail,"turn":null}"""
+        gateway.createOutcome(
+            CreateOutcomeRequest(kind = "explore_idea", title = "Idea", description = "Note", clientRequestId = "req-create-1"),
+        ).getOrThrow()
+        assertEquals(HttpMethod.POST, client.method)
+        assertEquals("/api/v0/outcomes", client.path)
+        assertEquals(json("""{"kind":"explore_idea","title":"Idea","description":"Note","clientRequestId":"req-create-1"}"""), client.body)
+
+        gateway.convertOutcome(
+            "idea",
+            ConvertOutcomeRequest(targetKind = "standard", expectedRevision = 1, botId = "bot", clientRequestId = "req-convert-1"),
+        ).getOrThrow()
+        assertEquals("/api/v0/outcomes/idea/convert", client.path)
+        assertEquals(json("""{"targetKind":"standard","expectedRevision":1,"botId":"bot","clientRequestId":"req-convert-1"}"""), client.body)
+
+        client.response = detail
+        gateway.actOnOutcome("idea", OutcomeActionRequest(action = "dismiss", clientRequestId = "req-dismiss-1")).getOrThrow()
+        assertEquals("/api/v0/outcomes/idea/actions", client.path)
+        assertEquals(json("""{"action":"dismiss","clientRequestId":"req-dismiss-1"}"""), client.body)
+    }
+
+    private fun json(source: String): JsonObject = mobileJson.parseToJsonElement(source).jsonObject
 
     @Test
     fun goalManagementSwitchDefaultsOffAndOldServersFallBack() = runBlocking {

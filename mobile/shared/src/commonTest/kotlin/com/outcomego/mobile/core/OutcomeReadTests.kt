@@ -127,7 +127,7 @@ class OutcomeReadTests {
         })
         assertEquals("next/+=", api.list("https://fixture.invalid/team", "fixture-token", "cursor/+=&")?.nextCursor)
         assertEquals("outcome-1", api.detail("https://fixture.invalid/team", "fixture-token", "outcome/one").id)
-        assertEquals("/api/v0/outcomes?limit=20&cursor=cursor%2F%2B%3D%26", requests.first().path)
+        assertEquals("/api/v0/outcomes?limit=20&kinds=standard,tracked&cursor=cursor%2F%2B%3D%26", requests.first().path)
         assertEquals("/api/v0/outcomes/outcome%2Fone", requests.last().path)
     }
 
@@ -151,28 +151,49 @@ class OutcomeReadTests {
         assertNull(page.items.single().currentRevision)
         assertNull(page.nextCursor)
         assertTrue(outcomeDetailPath("研究").endsWith("%E7%A0%94%E7%A9%B6"))
+
+        val idea = mobileJson.decodeFromString<OutcomeListPage>(
+            """{"items":[{"id":"idea","kind":"explore_idea","title":"Idea","status":"draft","botId":null,"revision":3,"currentRevision":null,"updatedAt":"now"}]}""",
+        ).items.single()
+        assertEquals("explore_idea", idea.kind)
+        assertNull(idea.botId)
+        assertEquals(3, idea.revision)
     }
 
     @Test
-    fun encodesOutcomeWritePathsAndExploreRoutes() = runTest {
+    fun titlesAGoalWithItsShortenedFirstLine() {
+        assertEquals("Ship it", outcomeTitleFromWords("  Ship it  \r\nwith tests"))
+        val sixty = "a".repeat(60)
+        assertEquals(sixty, outcomeTitleFromWords(sixty))
+        assertEquals("a".repeat(57) + "…", outcomeTitleFromWords(sixty + "b"))
+        // An emoji straddling the cut is dropped whole.
+        assertEquals("a".repeat(56) + "…", outcomeTitleFromWords("a".repeat(56) + "😀tail"))
+    }
+
+    @Test
+    fun encodesOutcomeWritePathsAndBodies() = runTest {
         assertEquals(
-            "/api/v0/outcomes?limit=20&cursor=c1&status=running&q=plan%20a",
+            "/api/v0/outcomes?limit=20&kinds=standard,tracked&cursor=c1&statuses=running&query=plan%20a",
             outcomeListPath(cursor = "c1", status = "running", query = "plan a"),
+        )
+        assertEquals(
+            "/api/v0/outcomes?limit=100&kinds=todo&view=needs_me",
+            outcomeListPath(kinds = listOf("todo"), view = "needs_me", limit = 100),
         )
         assertEquals(
             "/api/v0/outcomes/o-1/work-items/w-1/transcript?before=5",
             outcomeTranscriptPath("o-1", "w-1", before = 5),
         )
-        assertEquals("/api/v0/explore?limit=20&cursor=e1", exploreListPath("e1"))
         val seen = mutableListOf<MobileRequest>()
         val transport = object : OutcomeGoTransport {
             override suspend fun execute(server: String, token: String?, request: MobileRequest): MobileResponse {
                 seen += request
                 return when {
-                    request.path == "/api/v0/outcomes/threads" -> MobileResponse(
+                    request.path == "/api/v0/outcomes" -> MobileResponse(
                         202,
                         body = """{"outcome":$DETAIL,"turn":{"id":"t-1","purpose":"plan","trigger":"goal","status":"queued","createdAt":"now","updatedAt":"now"}}""",
                     )
+                    request.path.endsWith("/convert") -> MobileResponse(200, body = """{"outcome":$DETAIL,"turn":null}""")
                     request.path.endsWith("/thread/messages") -> MobileResponse(
                         202,
                         body = """{"id":"t-2","purpose":"owner_message","trigger":"取消目标","status":"queued","createdAt":"now","updatedAt":"now"}""",
@@ -181,23 +202,55 @@ class OutcomeReadTests {
                         200,
                         body = """{"threadId":"th-1","turns":[{"id":"t-1","purpose":"plan","trigger":"goal","status":"completed","reply":"Done","createdAt":"now","updatedAt":"now"}],"reviewerThreadId":"th-rev-1","reviewTurns":[{"id":"rt-1","purpose":"review","trigger":"prereview","status":"completed","reply":"Summary","workItemId":null,"createdAt":"now","updatedAt":"now"}]}""",
                     )
-                    request.path.endsWith("/reviews/adopt-prereview") -> MobileResponse(200, body = DETAIL)
-                    request.path.startsWith("/api/v0/explore?") && request.method == HttpMethod.GET -> MobileResponse(404)
-                    else -> MobileResponse(
-                        200,
-                        body = """{"id":"e-1","title":"Idea","note":"Note","status":"draft","createdAt":"now","updatedAt":"now"}""",
-                    )
+                    else -> MobileResponse(200, body = DETAIL)
                 }
             }
         }
         val writeApi = TransportOutcomeWriteApi(transport)
-        val created = writeApi.createThread(
+        val created = writeApi.create(
             "https://fixture.invalid",
             "tok",
-            CreateOutcomeThreadRequest("goal", "b-1", clientRequestId = "req-12345678"),
+            CreateOutcomeRequest(kind = "standard", title = "goal", description = "goal", botId = "b-1", clientRequestId = "req-12345678"),
         )
         assertEquals("outcome-1", created.outcome.id)
-        assertTrue(created.turn.inProgress)
+        assertTrue(created.turn?.inProgress == true)
+        assertEquals(HttpMethod.POST, seen.last().method)
+        assertEquals("/api/v0/outcomes", seen.last().path)
+        // The server rejects unknown fields, so the body is exactly the contract's.
+        assertEquals(
+            """{"kind":"standard","title":"goal","description":"goal","botId":"b-1","clientRequestId":"req-12345678"}""",
+            seen.last().body,
+        )
+        val converted = writeApi.convert(
+            "https://fixture.invalid",
+            "tok",
+            "idea/1",
+            ConvertOutcomeRequest(targetKind = "standard", expectedRevision = 3, botId = "b-1", clientRequestId = "req-convert-1"),
+        )
+        assertNull(converted.turn)
+        assertEquals("/api/v0/outcomes/idea%2F1/convert", seen.last().path)
+        assertEquals(
+            """{"targetKind":"standard","expectedRevision":3,"botId":"b-1","clientRequestId":"req-convert-1"}""",
+            seen.last().body,
+        )
+        writeApi.act(
+            "https://fixture.invalid",
+            "tok",
+            "idea/1",
+            OutcomeActionRequest(action = "dismiss", clientRequestId = "req-dismiss-1"),
+        )
+        assertEquals("/api/v0/outcomes/idea%2F1/actions", seen.last().path)
+        assertEquals("""{"action":"dismiss","clientRequestId":"req-dismiss-1"}""", seen.last().body)
+        writeApi.act(
+            "https://fixture.invalid",
+            "tok",
+            "todo-1",
+            OutcomeActionRequest("snooze", 2, OutcomeActionPayload("2030-01-02T03:04:00Z"), "req-snooze-1"),
+        )
+        assertEquals(
+            """{"action":"snooze","expectedRevision":2,"payload":{"snoozeUntil":"2030-01-02T03:04:00Z"},"clientRequestId":"req-snooze-1"}""",
+            seen.last().body,
+        )
         // The owner's words go out untouched: no template, no intent label.
         val sent = writeApi.sendThreadMessage(
             "https://fixture.invalid",
@@ -222,15 +275,6 @@ class OutcomeReadTests {
         assertEquals("outcome-1", adopted.id)
         assertEquals("/api/v0/outcomes/outcome-1/reviews/adopt-prereview", seen.last().path)
         assertTrue(seen.last().body!!.contains("\"turnId\":\"turn-rev-1\""))
-        val exploreApi = TransportExploreApi(transport)
-        assertNull(exploreApi.list("https://fixture.invalid", "tok"))
-        val createdIdea = exploreApi.create(
-            "https://fixture.invalid",
-            "tok",
-            CreateExploreIdeaRequest(title = "Idea", clientRequestId = "req-12345678"),
-        )
-        assertEquals("e-1", createdIdea.id)
-        assertEquals(HttpMethod.POST, seen.first().method)
     }
 
     private companion object {

@@ -53,6 +53,7 @@ import java.time.format.DateTimeFormatter
 internal fun OutcomeStatusPill(
     status: String?,
     modifier: Modifier = Modifier,
+    label: String = outcomeStatusLabel(status),
 ) {
     val colors = SpatialTheme.colors
     val (tint, icon) = when (status) {
@@ -86,7 +87,7 @@ internal fun OutcomeStatusPill(
                 modifier = Modifier.size(13.dp),
             )
             Text(
-                text = outcomeStatusLabel(status),
+                text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                 color = tint,
                 maxLines = 1,
