@@ -4,7 +4,6 @@
  */
 export const goalRoleTranslations: Record<string, string> = {
   // Sales.
-  Sales: "销售",
   "Chase the deal, not the paperwork": "盯客户，不用盯材料",
   "Hand over research, quotes and bid material. Price and the customer conversation stay yours.":
     "客户调研、报价方案、投标材料交给机器人准备，价格和沟通由你来定。",
@@ -33,7 +32,6 @@ export const goalRoleTranslations: Record<string, string> = {
   "The quote is ready": "报价方案已交付",
 
   // Designer.
-  Designer: "设计师",
   "Hand off legwork, keep the taste": "杂活交出去，审美你把关",
   "Reference hunting, spec checks and handoff notes go to a bot. Direction and taste stay yours.":
     "找参考、对规范、整理交付说明交给机器人，方向和审美由你把关。",
@@ -62,7 +60,6 @@ export const goalRoleTranslations: Record<string, string> = {
   "Directions are ready": "方向方案已交付",
 
   // Developer.
-  Developer: "开发",
   "Hand off the digging, keep the call": "排查交出去，决定你来做",
   "A bot investigates, fixes, tests and documents on its own computer. You review before it ships.":
     "排查问题、改代码、补测试、写文档，机器人在自己的电脑上做，上线前由你把关。",
@@ -91,7 +88,6 @@ export const goalRoleTranslations: Record<string, string> = {
   "The fix is ready": "修复结果已交付",
 
   // Project manager.
-  "Project manager": "项目经理",
   "Chase less status, decide more": "少催进度，多做决定",
   "Progress summaries, risk lists and meeting follow-ups go to a bot. Scope and dates are your call.":
     "汇总进度、梳理风险、整理会议待办交给机器人，范围和节点由你拍板。",
@@ -120,7 +116,6 @@ export const goalRoleTranslations: Record<string, string> = {
   "Status report is ready": "项目周报已交付",
 
   // Finance.
-  Finance: "财务",
   "It checks, you sign off": "核对交给它，放行你签字",
   "Reconciling, spotting exceptions and drafting analysis go to a bot. Approving and paying stay yours.":
     "对账、找异常、起草分析交给机器人，放行和付款仍由你操作。",
@@ -149,7 +144,6 @@ export const goalRoleTranslations: Record<string, string> = {
   "Check results ready": "核对结果已交付",
 
   // Marketing and operations.
-  Marketing: "市场运营",
   "Shape the campaign, skip the grind": "活动你策划，苦活交给它",
   "Market research, campaign plans and result reviews go to a bot. Budget and publishing are your call.":
     "市场调研、活动方案、数据复盘交给机器人，预算和发布由你决定。",
@@ -178,7 +172,6 @@ export const goalRoleTranslations: Record<string, string> = {
   "Campaign plan is ready": "活动方案已交付",
 
   // HR.
-  HR: "人事",
   "Sift less, talk to people more": "少翻简历，多聊人",
   "Candidate comparisons, onboarding lists and policy drafts go to a bot. Decisions about people stay yours.":
     "候选人对比、入职清单、制度初稿交给机器人，关于人的决定由你做。",
@@ -207,7 +200,6 @@ export const goalRoleTranslations: Record<string, string> = {
   "Comparison is ready": "对比结果已交付",
 
   // Manager.
-  Manager: "管理者",
   "Read the answer, make the call": "看结论，做决定",
   "Business briefings, studies and meeting prep go to bots. What needs your decision lines up for you.":
     "经营简报、专题调研、会前材料交给机器人，要拍板的事排好队等你。",

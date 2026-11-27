@@ -4,6 +4,8 @@ import { parseHTML } from "linkedom";
 import { act } from "react";
 import type { Root } from "react-dom/client";
 import { missingKeys, sourceTranslations, translate } from "../src/renderer/lib/i18n-catalog";
+import { goalGuideTranslations } from "../src/renderer/lib/goal-guide-catalog";
+import { GOAL_ROLES } from "../src/renderer/lib/goal-roles";
 import { GOAL_POSTER_MS, GOAL_STORIES, goalPosters } from "../src/renderer/lib/goal-showcase";
 import { goalShowcaseTranslations } from "../src/renderer/lib/goal-showcase-catalog";
 import { goalRoleTranslations } from "../src/renderer/lib/goal-showcase-roles-catalog";
@@ -109,14 +111,17 @@ const heading = () => document.querySelector(".showcase-copy h2")!.textContent;
 
 const anyRole = GOAL_STORIES[0]!;
 const general = goalPosters(anyRole);
-const zh: Record<string, string> = { ...goalShowcaseTranslations, ...goalRoleTranslations };
+const catalogs = [goalGuideTranslations, goalShowcaseTranslations, goalRoleTranslations];
+const zh: Record<string, string> = Object.assign({}, ...catalogs);
 const chinese = (key: string) => zh[key] ?? translate("zh-CN", key);
 
 test("the switch offers the roles, starting with the telling for anyone", () => {
-  expect(GOAL_STORIES.map((story) => chinese(story.name))).toEqual([
+  expect(GOAL_ROLES.map((entry) => chinese(entry.name))).toEqual([
     "通用", "销售", "设计师", "开发", "项目经理", "财务", "市场运营", "人事", "管理者",
   ]);
-  expect(new Set(GOAL_STORIES.map((story) => story.id)).size).toBe(GOAL_STORIES.length);
+  // Every role on the switch has its posters, and no story is left off it.
+  expect(GOAL_STORIES.map((story) => story.id)).toEqual(GOAL_ROLES.map((entry) => entry.id));
+  expect(new Set(GOAL_ROLES.map((entry) => entry.id)).size).toBe(GOAL_ROLES.length);
 });
 
 test("every role has four pages: what goals are, then three steps of using them", () => {
@@ -146,23 +151,19 @@ test("each role tells its own story", () => {
 const wordsOf = (story: (typeof GOAL_STORIES)[number]) => {
   const { bot, line, file, plan, criteria, asks } = story.picture;
   return [
-    story.name, bot.name, line, file, plan, ...criteria, ...asks,
+    bot.name, line, file, plan, ...criteria, ...asks,
     ...goalPosters(story).flatMap(({ eyebrow, title, body, points }) => [eyebrow!, title, body, ...points!]),
   ];
 };
 
 test("every word of every role is translated, and no translation is defined twice", () => {
-  const catalogs = [goalShowcaseTranslations, goalRoleTranslations];
-  expect(missingKeys([...GOAL_STORIES.flatMap(wordsOf), ...catalogs.flatMap(Object.keys)])).toEqual([]);
-  for (const catalog of catalogs) {
-    expect(Object.keys(catalog).filter((key) => key in sourceTranslations)).toEqual([]);
-  }
-  expect(Object.keys(goalRoleTranslations).filter((key) => key in goalShowcaseTranslations)).toEqual([]);
+  const words = [...GOAL_ROLES.map((entry) => entry.name), ...GOAL_STORIES.flatMap(wordsOf)];
+  expect(missingKeys([...words, ...catalogs.flatMap(Object.keys)])).toEqual([]);
+  const keys = catalogs.flatMap(Object.keys);
+  expect(keys.filter((key) => key in sourceTranslations)).toEqual([]);
+  expect(keys.filter((key, index) => keys.indexOf(key) !== index)).toEqual([]);
   // The catalogs share one table once loaded: the same key must not read two ways.
-  expect(
-    Object.entries({ ...goalShowcaseTranslations, ...goalRoleTranslations })
-      .filter(([key, value]) => (localDeployShowcaseTranslations[key] ?? value) !== value)
-  ).toEqual([]);
+  expect(Object.entries(zh).filter(([key, value]) => (localDeployShowcaseTranslations[key] ?? value) !== value)).toEqual([]);
 });
 
 // The pictures are drawn on a fixed canvas where these strings don't wrap.
@@ -226,7 +227,7 @@ test("the guide is open at first, and each page of each role draws its picture a
   locale = "zh-CN";
   await mount();
   expect(fold().getAttribute("aria-expanded")).toBe("true");
-  expect(roles().map((button) => button.textContent)).toEqual(GOAL_STORIES.map((story) => chinese(story.name)));
+  expect(roles().map((button) => button.textContent)).toEqual(GOAL_ROLES.map((entry) => chinese(entry.name)));
   expect(picked()).toEqual(["general"]);
   for (const story of GOAL_STORIES) {
     await press(role(story.id));
@@ -293,5 +294,5 @@ test("a folded guide stops its posters and stays folded next time", async () => 
   await mount();
   expect(shown()).toBeNull();
   await press(fold());
-  expect([shown(), fold().textContent, roles().length]).toEqual(["concept", "Hide guide", GOAL_STORIES.length]);
+  expect([shown(), fold().textContent, roles().length]).toEqual(["concept", "Hide guide", GOAL_ROLES.length]);
 });

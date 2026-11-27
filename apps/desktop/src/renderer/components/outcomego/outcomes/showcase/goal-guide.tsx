@@ -1,14 +1,12 @@
 import { BookOpen, ChevronDown, ChevronUp } from "lucide-react";
 import { Component, lazy, type ReactNode, Suspense, useState } from "react";
-import { GOAL_STORIES, goalPosterMemory, type GoalRoleId } from "../../../../lib/goal-showcase";
-import { goalShowcaseTranslations } from "../../../../lib/goal-showcase-catalog";
-import { goalRoleTranslations } from "../../../../lib/goal-showcase-roles-catalog";
+import { goalGuideTranslations } from "../../../../lib/goal-guide-catalog";
+import { GOAL_ROLES, goalPosterMemory, type GoalRoleId } from "../../../../lib/goal-roles";
 import { useI18n } from "../../../../lib/i18n";
 import { registerTranslations } from "../../../../lib/i18n-catalog";
-import "./goal-showcase.css";
+import "./goal-guide.css";
 
-registerTranslations("zh-CN", goalShowcaseTranslations);
-registerTranslations("zh-CN", goalRoleTranslations);
+registerTranslations("zh-CN", goalGuideTranslations);
 
 const GoalShowcase = lazy(() => import("./goal-showcase"));
 
@@ -34,7 +32,7 @@ const store = (key: string, value: string) => {
 
 const readRole = (): GoalRoleId => {
   const stored = readStored(GOAL_GUIDE_ROLE_KEY);
-  return GOAL_STORIES.find((story) => story.id === stored)?.id ?? "general";
+  return GOAL_ROLES.find((role) => role.id === stored)?.id ?? "general";
 };
 
 /** The posters are an introduction: if they fail to load or draw, the page below them goes on. */
@@ -82,7 +80,7 @@ export function GoalGuide() {
           {/* biome-ignore lint/a11y/useSemanticElements: A row of toggle buttons; a fieldset can't lay out its legend in line. */}
           <div aria-label={t("If you are")} className="goal-guide-roles" role="group">
             <span aria-hidden="true">{t("If you are")}</span>
-            {GOAL_STORIES.map(({ id, name }) => (
+            {GOAL_ROLES.map(({ id, name }) => (
               <button aria-pressed={id === role} data-role-id={id} key={id} onClick={() => pick(id)} type="button">
                 {t(name)}
               </button>

@@ -3,21 +3,11 @@
 // lines naming buttons and sections are shared; the names in quotes are the ones on screen
 // (goal-showcase.test.tsx holds them to it).
 import type { RobotAvatarShape } from "@outcomego/contracts/robot-avatar";
+import type { GoalRoleId } from "./goal-roles";
 import { ROLE_STORIES } from "./goal-showcase-roles";
 import type { PosterCopy } from "./poster-showcase";
 
 export type GoalPosterId = "concept" | "capture" | "approve" | "accept";
-
-export type GoalRoleId =
-  | "general"
-  | "sales"
-  | "designer"
-  | "developer"
-  | "projects"
-  | "finance"
-  | "marketing"
-  | "hr"
-  | "manager";
 
 interface PageCopy {
   title: string;
@@ -29,8 +19,6 @@ type Three = readonly [string, string, string];
 /** One role's telling: the words that change with the role, and what the pictures show. English; callers translate. */
 export interface GoalStory {
   id: GoalRoleId;
-  /** The name on the switch. */
-  name: string;
   concept: PageCopy & { points: Three };
   /** `also` is what else this role would jot down. */
   capture: PageCopy & { also: string };
@@ -52,7 +40,6 @@ export interface GoalStory {
 
 const ANY_ROLE: GoalStory = {
   id: "general",
-  name: "Any role",
   concept: {
     title: "Say the outcome, skip the babysitting",
     body: "A goal is the result you want and how you will judge it. A bot plans it, does the work and brings back evidence.",
@@ -85,7 +72,7 @@ const ANY_ROLE: GoalStory = {
   },
 };
 
-/** In the order of the switch. */
+/** In the order of the switch (GOAL_ROLES). */
 export const GOAL_STORIES: readonly GoalStory[] = [ANY_ROLE, ...ROLE_STORIES];
 
 /** The four pages of one role's telling. */
@@ -126,6 +113,3 @@ export const goalPosters = ({ concept, capture, approve, accept }: GoalStory): r
 
 /** Longer than the deployment posters: these are instructions, read while deciding what to do. */
 export const GOAL_POSTER_MS = 10_000;
-
-/** The page shown last, so coming back to the Dashboard carries on instead of starting over. */
-export const goalPosterMemory = { index: 0 };

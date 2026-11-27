@@ -6,7 +6,6 @@ import type { GoalStory } from "./goal-showcase";
 export const ROLE_STORIES: readonly GoalStory[] = [
   {
     id: "sales",
-    name: "Sales",
     concept: {
       title: "Chase the deal, not the paperwork",
       body: "Hand over research, quotes and bid material. Price and the customer conversation stay yours.",
@@ -40,7 +39,6 @@ export const ROLE_STORIES: readonly GoalStory[] = [
   },
   {
     id: "designer",
-    name: "Designer",
     concept: {
       title: "Hand off legwork, keep the taste",
       body: "Reference hunting, spec checks and handoff notes go to a bot. Direction and taste stay yours.",
@@ -74,7 +72,6 @@ export const ROLE_STORIES: readonly GoalStory[] = [
   },
   {
     id: "developer",
-    name: "Developer",
     concept: {
       title: "Hand off the digging, keep the call",
       body: "A bot investigates, fixes, tests and documents on its own computer. You review before it ships.",
@@ -108,7 +105,6 @@ export const ROLE_STORIES: readonly GoalStory[] = [
   },
   {
     id: "projects",
-    name: "Project manager",
     concept: {
       title: "Chase less status, decide more",
       body: "Progress summaries, risk lists and meeting follow-ups go to a bot. Scope and dates are your call.",
@@ -142,7 +138,6 @@ export const ROLE_STORIES: readonly GoalStory[] = [
   },
   {
     id: "finance",
-    name: "Finance",
     concept: {
       title: "It checks, you sign off",
       body: "Reconciling, spotting exceptions and drafting analysis go to a bot. Approving and paying stay yours.",
@@ -176,7 +171,6 @@ export const ROLE_STORIES: readonly GoalStory[] = [
   },
   {
     id: "marketing",
-    name: "Marketing",
     concept: {
       title: "Shape the campaign, skip the grind",
       body: "Market research, campaign plans and result reviews go to a bot. Budget and publishing are your call.",
@@ -210,7 +204,6 @@ export const ROLE_STORIES: readonly GoalStory[] = [
   },
   {
     id: "hr",
-    name: "HR",
     concept: {
       title: "Sift less, talk to people more",
       body: "Candidate comparisons, onboarding lists and policy drafts go to a bot. Decisions about people stay yours.",
@@ -244,7 +237,6 @@ export const ROLE_STORIES: readonly GoalStory[] = [
   },
   {
     id: "manager",
-    name: "Manager",
     concept: {
       title: "Read the answer, make the call",
       body: "Business briefings, studies and meeting prep go to bots. What needs your decision lines up for you.",

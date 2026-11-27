@@ -3,12 +3,6 @@
  * Keys the main catalog already has ("Go", "Yes, approve", "Goals") are reused, never repeated here.
  */
 export const goalShowcaseTranslations: Record<string, string> = {
-  "How goals work": "目标管理怎么用",
-  "Show guide": "展开介绍",
-  "Hide guide": "收起介绍",
-  "If you are": "如果你是",
-  "Any role": "通用",
-
   "What goals are": "功能概念",
   "Say the outcome, skip the babysitting": "交代结果，不用盯过程",
   "A goal is the result you want and how you will judge it. A bot plans it, does the work and brings back evidence.":

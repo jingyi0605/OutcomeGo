@@ -435,6 +435,7 @@ const readLazyClosures = async () => {
       workThreadNavigation: ["src/renderer/components/outcomego/work-thread-navigation.tsx"],
       attachmentStage: ["src/renderer/components/outcomego/attachment-stage.tsx"],
       outcomeRoleSettings: ["src/renderer/components/outcomego/settings/outcome-role-settings.tsx"],
+      goalShowcase: ["src/renderer/components/outcomego/outcomes/showcase/goal-showcase.tsx"],
       quickIdea: ["src/renderer/components/outcomego/outcomes/explore/quick-idea-dialog.tsx"],
       settingsKeyboard: ["src/renderer/components/outcomego/settings/keyboard.tsx"],
       settingsBotDock: ["src/renderer/components/outcomego/settings/bot-dock-settings.tsx"],

@@ -234,6 +234,9 @@ const lazyBudgets: Record<string, number> = {
   workThreadNavigation: 10_000,
   attachmentStage: 38_000,
   outcomeRoleSettings: 52_000,
+  // The goal page's animated posters for every role: their words, pictures and the shared carousel
+  // and setup styles (138,470 bytes measured). Loads only while the guide is open on the Dashboard.
+  goalShowcase: 145_000,
   quickIdea: 36_000,
   settingsKeyboard: 19_000,
   settingsBotDock: 11_000,

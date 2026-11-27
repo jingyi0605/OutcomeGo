@@ -1,9 +1,17 @@
 import { memo } from "react";
-import { GOAL_POSTER_MS, GOAL_STORIES, goalPosterMemory, goalPosters, type GoalRoleId } from "../../../../lib/goal-showcase";
+import { goalPosterMemory, type GoalRoleId } from "../../../../lib/goal-roles";
+import { GOAL_POSTER_MS, GOAL_STORIES, goalPosters } from "../../../../lib/goal-showcase";
+import { goalShowcaseTranslations } from "../../../../lib/goal-showcase-catalog";
+import { goalRoleTranslations } from "../../../../lib/goal-showcase-roles-catalog";
+import { registerTranslations } from "../../../../lib/i18n-catalog";
 import { PosterCarousel, type PosterDeck } from "../../poster-showcase";
 import { GOAL_SCENES, GoalStoryContext } from "./goal-showcase-scenes";
-// The springs and fades the carousel moves with.
+// The springs and fades the carousel moves with, then these posters' own layout and pictures.
 import "../../setup/setup.css";
+import "./goal-showcase.css";
+
+registerTranslations("zh-CN", goalShowcaseTranslations);
+registerTranslations("zh-CN", goalRoleTranslations);
 
 const TELLINGS = new Map(
   GOAL_STORIES.map((story) => {
