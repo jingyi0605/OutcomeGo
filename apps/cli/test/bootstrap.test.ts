@@ -77,7 +77,7 @@ const fixture = () => {
     health: async () => ({ ok: runner.fail !== "health", url: "http://127.0.0.1:18787/api/v0/health", detail: "ready", version: "1.2.3" }),
     enableUpdates: () => undefined,
   };
-  return { root, paths, options, runner, lines, dependencies, run: () => bootstrapCommand(paths, options, runner, dependencies), events: () => lines.map((line) => JSON.parse(line) as DeployProgressEvent) };
+  return { root, paths, options, runner, lines, controller, dependencies, run: () => bootstrapCommand(paths, options, runner, dependencies), events: () => lines.map((line) => JSON.parse(line) as DeployProgressEvent) };
 };
 
 test.each([true, false])("bootstrap probes the signed image on the right side of pull (cached: %s)", async (cached) => {
@@ -206,6 +206,48 @@ test.each([true, false])("managed bootstrap uses the selected digest through res
       writeFileSync(entry.paths.compose, download.compose);
       expect(project.invocation(["up"]).args).toContain(override);
     }
+  } finally { rmSync(entry.root, { recursive: true, force: true }); }
+});
+
+test("external bootstrap retries only the failed image and counts it once", async () => {
+  const entry = fixture();
+  entry.runner.cached = false;
+  const pulled: string[] = [];
+  try {
+    expect(await bootstrapCommand(entry.paths, entry.options, entry.runner, {
+      ...entry.dependencies,
+      rankSources: async () => { throw new Error("External Docker must keep its own registry settings"); },
+      stream: async (command, args, options) => {
+        if (args[args.indexOf("--file") + 2] === "pull") {
+          pulled.push(args.at(-1)!);
+          if (pulled.length === 2) return { status: 1 };
+        }
+        return entry.dependencies.stream(command, args, options);
+      },
+    })).toBe(0);
+    expect(pulled).toEqual(["computer", "server", "server"]);
+    expect(entry.events().filter(event => event.type === "pull-retry" ||
+      (event.type === "stage" && event.stage === "pull" && event.status === "progress"))).toEqual([
+      expect.objectContaining({ type: "stage", current: 1, total: 2 }),
+      expect.objectContaining({ type: "pull-retry", attempt: 1, total: 2 }),
+      expect.objectContaining({ type: "stage", current: 2, total: 2 }),
+    ]);
+  } finally { rmSync(entry.root, { recursive: true, force: true }); }
+});
+
+test("cancelling during retry backoff stops the deployment", async () => {
+  const entry = fixture();
+  entry.runner.fail = "pull";
+  try {
+    expect(await bootstrapCommand(entry.paths, entry.options, entry.runner, {
+      ...entry.dependencies,
+      write: line => {
+        entry.dependencies.write(line);
+        if (JSON.parse(line).type === "pull-retry") setTimeout(() => entry.controller.abort(), 10);
+      },
+    })).toBe(130);
+    expect(entry.runner.calls.filter(action => action === "pull")).toHaveLength(1);
+    expect(entry.events().at(-1)).toMatchObject({ type: "error", code: "CANCELLED" });
   } finally { rmSync(entry.root, { recursive: true, force: true }); }
 });
 

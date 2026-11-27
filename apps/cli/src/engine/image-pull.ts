@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import { parseEnvironment } from "../config";
 import type { ComposeProject } from "../docker";
 import { CliError } from "../errors";
@@ -39,49 +40,70 @@ export interface ImagePullHooks {
   stream?: typeof runStreaming;
   /** Every line the engine prints while pulling, and which registry is being tried. */
   record: (line: string) => void;
+  onRetry?: (attempt: number, total: number) => void;
   /** Throws when the whole operation was cancelled. */
   cancelled?: () => void;
   /** Throws for a pull that was interrupted (exit status 130) rather than one that failed. */
   interrupted: () => never;
 }
 
+const IMAGE_PULL_RETRY_DELAYS_MS = [1_000, 2_000];
+const IMAGE_PULL_TIMEOUT_MS = 30 * 60_000;
+
 /**
- * Pulls one release image from whichever registry answers fastest from this computer, falling back to
- * the official one. The OutcomeGo engine has no registry mirror setting of its own, so this is how
- * its images get downloaded at a usable speed. Resolves to the reference that was pulled: the image
- * itself, or a mirror's reference that must then be run in its place (see `imageSourcesPath`).
- * Resolves to nothing when every source failed.
+ * Pulls a release image with bounded retries. For a managed engine, each round tries the available
+ * sources in speed order. Returns the reference to run, which may be a mirror of the original digest.
  */
-export const pullFastestImage = (
+export const pullFastestImage = async (
   image: string,
   service: string,
-  target: { engine: ManagedEngine; project: ComposeProject; composeFile?: string },
+  target: { engine?: ManagedEngine; project: ComposeProject; composeFile?: string },
   hooks: ImagePullHooks
 ): Promise<string | undefined> => {
   const { engine, project, composeFile } = target;
-  const official = registrySources(image)[0]?.registry ?? image.split("/", 1)[0]!;
-  return pullDeploymentImage(image, {
-    signal: hooks.signal,
-    rank: hooks.rank ?? rankImageSources,
-    cached: reference => engine.docker(["image", "inspect", "--format", "{{.Id}}", reference], { timeoutMs: 10_000 }).status === 0,
-    pull: async reference => {
-      const mirrored = reference !== image;
-      const registry = mirrored ? reference.split("/", 1)[0]! : official;
-      hooks.record(cliTranslate("Pulling {service} from {registry}.", { service, registry }));
-      const invocation = mirrored ? engine.pullInvocation(reference) : project.invocation(["pull", service], composeFile, false);
-      const deadline = mirrored ? AbortSignal.timeout(30 * 60_000) : undefined;
-      const signal = hooks.signal && deadline ? AbortSignal.any([hooks.signal, deadline]) : hooks.signal ?? deadline;
-      const result = await (hooks.stream ?? runStreaming)(invocation.command, invocation.args, {
-        cwd: invocation.cwd, env: invocation.env, signal,
-        onStdoutLine: hooks.record, onStderrLine: hooks.record,
-      });
-      hooks.cancelled?.();
-      if (result.status === 130 && !deadline?.aborted) hooks.interrupted();
-      if (result.status === 0) return true;
-      hooks.record(cliTranslate("Image pull failed from {registry}.", { registry }));
-      return false;
-    },
-  });
+  const official = engine && registrySources(image)[0]?.registry;
+  const pull = async (reference: string) => {
+    hooks.signal?.throwIfAborted();
+    const mirrored = reference !== image;
+    const registry = mirrored ? reference.split("/", 1)[0]! : official;
+    hooks.record(registry
+      ? cliTranslate("Pulling {service} from {registry}.", { service, registry })
+      : cliTranslate("Pulling {service}.", { service }));
+    const invocation = mirrored && engine ? engine.pullInvocation(reference) : project.invocation(["pull", service], composeFile, false);
+    const deadline = AbortSignal.timeout(IMAGE_PULL_TIMEOUT_MS);
+    const signal = hooks.signal ? AbortSignal.any([hooks.signal, deadline]) : deadline;
+    const result = await (hooks.stream ?? runStreaming)(invocation.command, invocation.args, {
+      cwd: invocation.cwd, env: invocation.env, signal,
+      onStdoutLine: hooks.record, onStderrLine: hooks.record,
+    });
+    hooks.cancelled?.();
+    hooks.signal?.throwIfAborted();
+    if (result.status === 130 && !deadline.aborted) hooks.interrupted();
+    if (result.status === 0 && !deadline.aborted) return true;
+    if (deadline.aborted) hooks.record(cliTranslate("Image pull timed out for {service}.", { service }));
+    else if (registry) hooks.record(cliTranslate("Image pull failed from {registry}.", { registry }));
+    return false;
+  };
+  const pullOnce = async () => {
+    if (!engine) return (await pull(image)) ? image : undefined;
+    return pullDeploymentImage(image, {
+      signal: hooks.signal,
+      rank: hooks.rank ?? rankImageSources,
+      cached: reference => engine.docker(["image", "inspect", "--format", "{{.Id}}", reference], { timeoutMs: 10_000 }).status === 0,
+      pull,
+    });
+  };
+
+  for (const [index, delay] of IMAGE_PULL_RETRY_DELAYS_MS.entries()) {
+    const selected = await pullOnce();
+    if (selected) return selected;
+    hooks.record(cliTranslate("Retrying image download for {service} in {seconds}s ({attempt}/{total}).", {
+      service, seconds: delay / 1_000, attempt: index + 1, total: IMAGE_PULL_RETRY_DELAYS_MS.length,
+    }));
+    hooks.onRetry?.(index + 1, IMAGE_PULL_RETRY_DELAYS_MS.length);
+    await sleep(delay, undefined, { signal: hooks.signal });
+  }
+  return pullOnce();
 };
 
 /**
