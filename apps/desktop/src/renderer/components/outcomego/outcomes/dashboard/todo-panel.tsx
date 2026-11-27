@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { OutcomeGoClientError } from "@outcomego/client-core";
 import type { ActOnOutcomeInput, CreateOutcomeInput, OutcomeDetail } from "@outcomego/contracts/outcomes";
-import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-view";
+import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-state";
 import type { OutcomeTodoAttention } from "@outcomego/contracts/task-overview";
 import type { OutcomeAutoAcceptRulesClient } from "../../../../client/outcome-api";
 import { useI18n } from "../../../../lib/i18n";

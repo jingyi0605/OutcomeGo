@@ -609,7 +609,10 @@ jobs:
           CSC_NAME: ${{ vars.MACOS_SIGNING_IDENTITY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-        run: bun run package:mac-release
+          DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+        run: |
+          xcrun actool --version
+          bun run package:mac-release
       - name: Verify the disk image
         run: hdiutil verify "apps/desktop/release/OutcomeGo-*-mac-${{ matrix.architecture }}.dmg"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

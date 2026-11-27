@@ -1,9 +1,6 @@
 import { clientErrorMessage } from "@outcomego/product-core/redaction";
 import { ExternalLink } from "lucide-react";
-import { type ComponentProps, useCallback, useEffect, useState } from "react";
-import { Streamdown } from "streamdown";
-import "../../ai-elements/message-response/streamdown.css";
-import "./release-notes.css";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { useI18n } from "../../../lib/i18n";
 import { LoadingOrb } from "../../ui/loading-orb";
 import {
@@ -16,41 +13,7 @@ import {
 } from "../../ui/dialog";
 import { settingsPrimaryButton, settingsSecondaryButton } from "./ui";
 
-const PULL_REQUEST_URL = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(?:pull|issues)\/(\d+)$/;
-
-type NotesLinkProps = ComponentProps<"a"> & { node?: unknown };
-
-/** A real external link: the main process opens https targets in the system browser. */
-function NotesLink({ children, href, node: _node, className: _className, ...props }: NotesLinkProps) {
-  // GitHub's generated notes link every change by its full pull request URL; show "#123" instead.
-  const reference =
-    href && children === href ? (PULL_REQUEST_URL.exec(href)?.[1] ?? null) : null;
-  return (
-    <a {...props} className="release-notes-link" href={href} rel="noreferrer noopener" target="_blank">
-      {reference ? `#${reference}` : children}
-    </a>
-  );
-}
-
-const notesComponents = { a: NotesLink };
-
-/** Release notes as Markdown. Raw HTML and images in a release body are dropped. */
-export function ReleaseNotesMarkdown({ children }: { children: string }) {
-  return (
-    <Streamdown
-      className="release-notes"
-      components={notesComponents}
-      controls={false}
-      disallowedElements={["img"]}
-      lineNumbers={false}
-      mode="static"
-      skipHtml
-      unwrapDisallowed
-    >
-      {children}
-    </Streamdown>
-  );
-}
+const ReleaseNotesMarkdown = lazy(() => import("./release-notes-markdown"));
 
 type NotesState =
   | { status: "loading" }
@@ -129,7 +92,9 @@ export function ReleaseNotesDialog({
               </button>
             </div>
           ) : state.notes.markdown ? (
-            <ReleaseNotesMarkdown>{state.notes.markdown}</ReleaseNotesMarkdown>
+            <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+              <ReleaseNotesMarkdown>{state.notes.markdown}</ReleaseNotesMarkdown>
+            </Suspense>
           ) : (
             <p className="py-6 text-[13px] text-foreground-secondary">
               {t("This release has no published notes.")}

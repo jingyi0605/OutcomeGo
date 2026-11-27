@@ -8,7 +8,7 @@ import {
   Lightbulb,
   type LucideIcon,
 } from "lucide-react";
-import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-view";
+import { OUTCOME_LIMITS } from "@outcomego/contracts/outcome-state";
 import type { OutcomeInboxCategory, OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import type { OutcomeSummary } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";

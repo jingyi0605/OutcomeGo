@@ -1,6 +1,6 @@
 import type { ChannelView } from "@outcomego/contracts";
 import type { OutcomeWorkThreadView } from "@outcomego/contracts/outcomes";
-import { workThreadCanStop } from "@outcomego/contracts/outcome-view";
+import { workThreadCanStop } from "@outcomego/contracts/outcome-state";
 import { Archive, ChevronRight, MessagesSquare, Square } from "lucide-react";
 import { outcomeErrorMessage } from "./outcomes/planning/outcome-client";
 import { type CSSProperties, useContext, useEffect, useState } from "react";

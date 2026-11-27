@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ReleaseNotesMarkdown } from "../src/renderer/components/outcomego/settings/release-notes-dialog";
+import ReleaseNotesMarkdown from "../src/renderer/components/outcomego/settings/release-notes-markdown";
 
 const render = (markdown: string) =>
   renderToStaticMarkup(<ReleaseNotesMarkdown>{markdown}</ReleaseNotesMarkdown>);

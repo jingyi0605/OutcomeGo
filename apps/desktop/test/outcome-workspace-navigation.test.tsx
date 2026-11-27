@@ -746,6 +746,11 @@ test("dashboard section links switch to the full lists and unified In progress l
 test("dashboard Go button opens the intake dialog", async () => {
   await mount(page());
   await click("Go", host);
+  for (let attempt = 0; attempt < 100 && !document.body.querySelector('[role="dialog"]'); attempt++) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
   expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain("Whatever is on your mind");
 });
 

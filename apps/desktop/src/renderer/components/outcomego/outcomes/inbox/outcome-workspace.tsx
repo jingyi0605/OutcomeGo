@@ -10,7 +10,6 @@ import { useI18n } from "../../../../lib/i18n";
 import { OutcomeList } from "../outcome-list";
 import { OutcomeDashboard } from "../dashboard/outcome-dashboard";
 import { GoalGuide } from "../showcase/goal-guide";
-import GoIntakeDialog from "./go-intake-dialog";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { NewOutcomeForm } from "../thread/new-outcome-form";
 import { OutcomeButton } from "../outcome-ui";
@@ -22,6 +21,7 @@ const OutcomeRouteView = lazy(() =>
 const CalendarPage = lazy(() =>
   import("../calendar/calendar-page").then((module) => ({ default: module.CalendarPage }))
 );
+const GoIntakeDialog = lazy(() => import("./go-intake-dialog"));
 
 type Route =
   | { kind: "overview" }
@@ -258,12 +258,14 @@ export default function OutcomeWorkspace({
         </div>
       )}
       {goOpen && (
-        <GoIntakeDialog
-          open
-          onOpenChange={setGoOpen}
-          bots={bots.filter((bot) => bot.status === undefined || bot.status === "active")}
-          onOpenOutcome={review}
-        />
+        <Suspense fallback={<p role="status">{t("Loading…")}</p>}>
+          <GoIntakeDialog
+            open
+            onOpenChange={setGoOpen}
+            bots={bots.filter((bot) => bot.status === undefined || bot.status === "active")}
+            onOpenOutcome={review}
+          />
+        </Suspense>
       )}
       <Dialog
         open={modalOpen}
