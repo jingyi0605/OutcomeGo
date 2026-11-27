@@ -1,0 +1,87 @@
+/* The guide to Outcome and Go (outcome-go-guide.tsx). It sits below dialogs (z-index 50),
+   so one that opens covers it. */
+
+.outcome-go-guide {
+  --guide-accent: #5b64e8;
+  position: fixed;
+  z-index: 45;
+  width: min(280px, calc(100vw - 16px));
+  border: 1px solid color-mix(in srgb, var(--guide-accent) 45%, var(--border));
+  border-radius: 14px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  padding: 12px 14px;
+  box-shadow: 0 18px 44px -14px rgb(28 32 90 / 42%);
+  animation: outcome-go-guide-in 240ms ease-out backwards;
+}
+:root[data-theme="dark"] .outcome-go-guide {
+  --guide-accent: #8f9bff;
+  box-shadow: 0 18px 44px -14px rgb(0 0 0 / 80%);
+}
+/* The arrow up to the button. */
+.outcome-go-guide::before {
+  position: absolute;
+  top: -6px;
+  left: var(--arrow);
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  rotate: 45deg;
+  border-top: 1px solid color-mix(in srgb, var(--guide-accent) 45%, var(--border));
+  border-left: 1px solid color-mix(in srgb, var(--guide-accent) 45%, var(--border));
+  background: var(--popover);
+  content: "";
+}
+.outcome-go-guide-step {
+  display: block;
+  color: var(--guide-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+.outcome-go-guide h2 {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.outcome-go-guide p {
+  margin: 4px 0 0;
+  color: var(--foreground-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.outcome-go-guide-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* The button being pointed at. */
+[data-guide-target][data-guide-lit] {
+  outline: 2px solid #5b64e8;
+  outline-offset: 1px;
+  animation: outcome-go-guide-pulse 1.8s ease-in-out infinite;
+}
+:root[data-theme="dark"] [data-guide-target][data-guide-lit] {
+  outline-color: #8f9bff;
+}
+
+@keyframes outcome-go-guide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+@keyframes outcome-go-guide-pulse {
+  50% {
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outcome-go-guide,
+  [data-guide-target][data-guide-lit] {
+    animation: none;
+  }
+}

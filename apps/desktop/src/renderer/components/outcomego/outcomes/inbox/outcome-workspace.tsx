@@ -133,6 +133,8 @@ export default function OutcomeWorkspace({
           </h1>
           <OutcomeButton
             className="electron-no-drag"
+            // The Outcome and Go guide points here when the sidebar is too narrow for its own Go.
+            data-guide-target="go"
             variant="default"
             onClick={() => setGoOpen(true)}
           >

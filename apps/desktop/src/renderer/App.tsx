@@ -98,6 +98,7 @@ import { sidebarChannelOrder } from "./lib/sidebar-rows";
 import { readThemePreference, setThemePreference, THEME_CHANGE_EVENT } from "./lib/theme";
 import { useFeatureSettings } from "./hooks/use-feature-settings";
 import { useOutcomeThreadNotices } from "./hooks/use-outcome-thread-notices";
+import { OutcomeGoGuideSlot } from "./components/outcomego/outcome-go-guide-slot";
 import { useBotDockSync } from "./hooks/use-bot-dock-sync";
 import { useOutcomeActionCounts } from "./hooks/use-outcome-action-counts";
 import { useTodayCalendarCount } from "./hooks/use-today-calendar-count";
@@ -1649,6 +1650,7 @@ export default function App() {
               />
             </Suspense>
           )}
+          {outcomesEnabled && !landing && <OutcomeGoGuideSlot />}
           {outcomesEnabled && quickIdeaOpen && (
             <Suspense fallback={null}>
               <GoIntakeDialog

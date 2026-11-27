@@ -127,6 +127,7 @@ export function OutcomeNavigation({
       type="button"
       aria-label={label}
       aria-current={active ? "page" : undefined}
+      data-guide-target="outcome"
       onClick={onOpen}
       className={cn(
         rowButtonClass(active),
@@ -188,6 +189,7 @@ export function OutcomeNavigation({
               type="button"
               aria-label={t("Go")}
               aria-pressed={ideaActive}
+              data-guide-target="go"
               onClick={onNewIdea}
               className={cn(
                 rowButtonClass(ideaActive),
