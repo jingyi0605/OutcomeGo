@@ -142,19 +142,34 @@ const strictList = (value: unknown, label: string, maximumItems: number, maximum
   return result;
 };
 
-/** A subscription to a plugin's events. It must name resources or actors so it never wakes
- * a Bot for everything a plugin reports. */
+/** A subscription needs a scope; only WhatsApp supports all incoming messages on one account. */
 const parsePlugin = (trigger: Record<string, unknown>): Record<string, unknown> => {
   const plugin = line(trigger.plugin, "trigger.plugin", 160);
   if (!PLUGIN_KEY.test(plugin)) throw new Error("plugin trigger plugin must be a plugin key such as dsh-web");
   const events = strictList(trigger.events, "plugin trigger events", 50, 80);
   const resourceIds = strictList(trigger.resourceIds, "plugin trigger resourceIds", 50, 200);
   const actors = strictList(trigger.actors, "plugin trigger actors", 50, 200);
-  if (!resourceIds.length && !actors.length)
+  let accountKey: string | undefined;
+  if (plugin === "whatsapp") {
+    if (typeof trigger.accountKey !== "string" || !/^[a-f0-9]{24}$/.test(trigger.accountKey))
+      throw new Error("WhatsApp triggers need the subscription_account_key from connection_status");
+    accountKey = trigger.accountKey;
+    if (events.length !== 1 || events[0] !== "message.received")
+      throw new Error("WhatsApp triggers must subscribe to message.received");
+    if (trigger.allMessages === true && (resourceIds.length || actors.length))
+      throw new Error("WhatsApp allMessages cannot be combined with resourceIds or actors");
+  } else if (trigger.accountKey !== undefined || trigger.allMessages !== undefined) {
+    throw new Error("accountKey and allMessages are only supported for WhatsApp triggers");
+  }
+  if (trigger.allMessages !== undefined && typeof trigger.allMessages !== "boolean")
+    throw new Error("plugin trigger allMessages must be a boolean");
+  if (!resourceIds.length && !actors.length && trigger.allMessages !== true)
     throw new Error("plugin trigger needs resourceIds or actors, so it does not wake on every event");
   return {
     type: "plugin",
     plugin,
+    ...(accountKey ? { accountKey } : {}),
+    ...(trigger.allMessages === true ? { allMessages: true } : {}),
     ...(events.length ? { events } : {}),
     ...(resourceIds.length ? { resourceIds } : {}),
     ...(actors.length ? { actors } : {}),

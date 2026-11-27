@@ -82,11 +82,29 @@ test('plugin triggers subscribe to a plugin\'s resources and actors, with option
  expect(match(both, { ...reply, actor: 'bot-2' })).toBe(true);
  expect(match({ type: 'group', listeners: [{ type: 'cron', schedule: '@daily' }, bySession] }, reply)).toBe(true);
 });
+test('WhatsApp triggers are scoped to one selected account and an explicit resource, sender, or all-messages choice', () => {
+ const accountKey = 'a'.repeat(24);
+ const base = { id: 'plugin:whatsapp:c1:e1', source: 'plugin' as const, plugin: 'whatsapp', account: 'work', accountKey, kind: 'message.received', text: 'Hello', resourceId: '123-456@g.us', actor: '123@s.whatsapp.net' };
+ const chat = parseStoredTrigger({ type: 'plugin', plugin: 'whatsapp', accountKey, events: ['message.received'], resourceIds: ['123-456@g.us'] });
+ expect(match(chat, base)).toBe(true);
+ expect(match(chat, { ...base, accountKey: 'b'.repeat(24) })).toBe(false);
+ expect(match(chat, { ...base, resourceId: 'other@g.us' })).toBe(false);
+ const contact = parseStoredTrigger({ type: 'plugin', plugin: 'whatsapp', accountKey, events: ['message.received'], actors: ['123@s.whatsapp.net'] });
+ expect(match(contact, base)).toBe(true);
+ expect(match(contact, { ...base, actor: '456@s.whatsapp.net' })).toBe(false);
+ const all = parseStoredTrigger({ type: 'plugin', plugin: 'whatsapp', accountKey, events: ['message.received'], allMessages: true });
+ expect(match(all, base)).toBe(true);
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'whatsapp', events: ['message.received'], resourceIds: ['123-456@g.us'] })).toThrow('subscription_account_key');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'whatsapp', accountKey, events: ['message.received'], allMessages: true, actors: ['123@s.whatsapp.net'] })).toThrow('cannot be combined');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'whatsapp', accountKey, events: ['other'], resourceIds: ['123-456@g.us'] })).toThrow('message.received');
+});
+
 test('plugin triggers must name resources or actors and refuse oversized or malformed input', () => {
  expect(() => parseStoredTrigger({ type: 'plugin' })).toThrow('trigger.plugin');
  expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'DSH Web', resourceIds: ['s1'] })).toThrow('plugin key');
  expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web' })).toThrow('resourceIds or actors');
  expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', events: ['session.completed'] })).toThrow('resourceIds or actors');
+ expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', accountKey: 'a'.repeat(24), actors: ['bot-1'] })).toThrow('only supported for WhatsApp');
  expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: ['  '] })).toThrow('resourceIds or actors');
  expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: 's1' })).toThrow('list of strings');
  expect(() => parseStoredTrigger({ type: 'plugin', plugin: 'dsh-web', resourceIds: [1] })).toThrow('list of strings');

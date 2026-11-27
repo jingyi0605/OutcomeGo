@@ -426,8 +426,10 @@ var emailTrigger = external_exports.object({
 var pluginTrigger = external_exports.object({
   type: external_exports.literal("plugin"),
   plugin: external_exports.string().describe("Plugin key, for example dsh-web."),
-  resourceIds: external_exports.array(external_exports.string()).optional().describe("Resources to watch, such as session IDs. Give this or actors (at least one)."),
-  actors: external_exports.array(external_exports.string()).optional().describe("Who triggered the event, such as an agent ID. Give this or resourceIds (at least one)."),
+  resourceIds: external_exports.array(external_exports.string()).optional().describe("Resources to watch, such as session IDs or WhatsApp chat JIDs. Give this or actors unless allMessages is true."),
+  actors: external_exports.array(external_exports.string()).optional().describe("Who triggered the event, such as an agent ID or WhatsApp sender JID."),
+  accountKey: external_exports.string().optional().describe("WhatsApp only: subscription_account_key from connection_status for the selected account."),
+  allMessages: external_exports.boolean().optional().describe("WhatsApp only: explicitly watch every incoming message on accountKey without chat or sender filters."),
   events: external_exports.array(external_exports.string()).optional().describe("Event kinds to wake on, such as session.completed. Omit for any kind.")
 });
 
@@ -567,7 +569,7 @@ var AUTOMATION_TRIGGER_SHAPE_LINES = [
   '  { "type": "sentry", "event": { "case": "issueCreated" | "issueResolved" | "issueAssigned" | "issueArchived" | "issueUnresolved" | "issueAny" }, "projectIds"?: [...] }',
   '  { "type": "pagerduty", "event": { "case": "incidentTriggered" | "incidentAcknowledged" | "incidentResolved" | "incidentEscalated" | "incidentAny" }, "serviceIds"?: [...] }',
   `  { "type": "email", "inbox": "<one of the user's connected Email plugin inbox addresses (ListEmailInboxes)>", "from"?: ["sender@example.com", ...] (omit for any sender), "requireAuthPass"?: true (default; false also wakes on mail that failed SPF/DKIM/DMARC) }, which fires when mail arrives at that inbox. Mail matching no routine wakes nobody. The wake carries headers only; read the body with ReadEmailThread.`,
-  `  { "type": "plugin", "plugin": "<plugin key, for example dsh-web>", "resourceIds"?: ["<resource id>", ...], "actors"?: ["<actor id>", ...], "events"?: ["<event kind>", ...] }, which fires when that plugin reports an event for those resources or actors. Give resourceIds or actors, at least one. The plugin's own skill says which event kinds and resource ids it reports. This is how you subscribe to a plugin: events matching no routine wake nobody, and pausing or deleting the routine unsubscribes. The wake carries the event; read more with the plugin's tools.`,
+  `  { "type": "plugin", "plugin": "<plugin key, for example dsh-web>", "resourceIds"?: ["<resource id>", ...], "actors"?: ["<actor id>", ...], "events"?: ["<event kind>", ...] }, which fires when that plugin reports an event for those resources or actors. Give resourceIds or actors, at least one. For WhatsApp use plugin "whatsapp", events ["message.received"], and accountKey from the chosen connection's connection_status. Only when the user asks for every incoming message on that account, pass allMessages: true instead of resourceIds or actors. The plugin skill explains scope and event data. Pausing or deleting the routine stops the subscription. The wake carries the event; read more with the plugin's tools.`,
   `  { "type": "webhook" }, which fires when an outside system sends an HTTPS POST to the routine's own webhook URL. When you create or change a Bot or group routine with this trigger, UpdateRoutine provisions the endpoint; the routine details panel shows the copy-ready URL, bearer key, and complete Authorization header. Do not put these credentials in the conversation. Invoke it with an optional JSON body and an Authorization: Bearer <key> header; the server verifies the bearer key before starting only this routine. The server must have a public HTTPS URL configured.`,
   "The id arrays on the linear/sentry/pagerduty shapes, and a microsoftTeams channelIds, are optional narrowing filters (platform ids/UUIDs); omit one to fire for any project, status, cycle, channel, or service. A microsoftTeams trigger always names its scope: tenantId plus at least one team id (teamIds) are required.",
   '  { "type": "group", "listeners": [ ...several listeners... ] }, where any one fires the same prompt. Cron and webhook can be grouped because this server owns both scheduling authorities; Origin can group with cron, Slack, and GitHub, but not with Microsoft Teams, Linear, Sentry, PagerDuty, email, or a plugin.',
@@ -1924,6 +1926,13 @@ function describeListener(listener) {
     case "email":
       return listener.requireAuthPass === false ? `When email arrives at ${listener.inbox}, including unauthenticated senders` : `When email arrives at ${listener.inbox}`;
     case "plugin": {
+      if (listener.plugin === "whatsapp") {
+        if (listener.allMessages) return "When any WhatsApp message arrives on the selected account";
+        const chats = listener.resourceIds?.length ?? 0;
+        const senders = listener.actors?.length ?? 0;
+        const scope = [chats ? `in ${chats} selected ${chats === 1 ? "chat" : "chats"}` : "", senders ? `from ${senders} selected ${senders === 1 ? "sender" : "senders"}` : ""].filter(Boolean).join(" ");
+        return `When a WhatsApp message arrives ${scope}`.trim();
+      }
       const kinds = listener.events?.length ? listener.events.join(", ") : "events";
       const resources = listener.resourceIds?.length ?? 0;
       const actors = listener.actors?.length ?? 0;
