@@ -141,6 +141,31 @@ describe.skipIf(!url)("the owner's activity list (specs/004.10 task 4.1)", () =>
     expect(item.link).toEqual({ type: "channel", id: t.h.channel.id });
   });
 
+  test("the delivery wrapper never names a request: the owner's chat message does, and a hidden wake names nothing", async () => {
+    const t = await setup();
+    const turn = (body: string) => `<timestamp>Friday, Nov 27, 2026, 9:10 AM (UTC+8)</timestamp>\n<user_query>\n${body}\n</user_query>`;
+    /** A request whose message was sent in chat, as the channel keeps it. */
+    const sent = async (content: string, metadata: object = {}) => {
+      const run = await request(t.h, { content: turn(`[t5u]\n[In reply to t4s0: "Earlier answer"]\n${content}`) });
+      const clientId = crypto.randomUUID();
+      await t.h.db.message.update({ where: { id: run.userMessageId }, data: { clientId } });
+      await t.h.db.run.update({ where: { id: run.id }, data: { channelId: t.h.channel.id } });
+      await t.h.db.channelMessage.create({ data: { channelId: t.h.channel.id, clientId, sender: "user", content, metadata } });
+      return run;
+    };
+    const typed = await sent("Check the figures again");
+    const files = await sent("", { attachments: [{ fileName: "figures.csv" }, { fileName: "notes.md" }] });
+    const unsent = await request(t.h, { content: turn("[t7u]\nSummarize the report") });
+    const hidden = await request(t.h, { content: turn("[SAND_HIDDEN_PROMPT]The user submitted the form.") });
+
+    const titles = new Map((await t.service.list({})).items.map((item) => [item.id, item.title]));
+    expect(titles.get(`request:${typed.id}`)).toBe("Check the figures again");
+    expect(titles.get(`request:${files.id}`)).toBe("figures.csv, notes.md");
+    expect(titles.get(`request:${unsent.id}`)).toBe("Summarize the report");
+    expect(titles.get(`request:${hidden.id}`)).toBe("");
+    expect((await t.service.requestDetail(typed.id))?.title).toBe("Check the figures again");
+  });
+
   test("a long message is cut to the title limit, and the cut is marked", async () => {
     const t = await setup();
     const content = `${"word ".repeat(80)}END-OF-MESSAGE`;

@@ -1,15 +1,15 @@
 import { ApiError } from "@outcomego/contracts";
-import { messagePreviewText } from "@outcomego/contracts/message-preview";
 import { OUTCOME_TERMINAL_STATUSES, parseOffsetTimestamp, type OutcomeStatusFor } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import {
-  ACTIVITY_TITLE_LIMIT, deriveOutcomeTodoDisplayState, deriveRequestDisplayState, deriveRoutineDisplayState,
+  deriveOutcomeTodoDisplayState, deriveRequestDisplayState, deriveRoutineDisplayState,
   deriveWorkItemDisplayState, hasUnfinishedDependency, isOverdue, isWorkItemOverdue, isWorkItemScheduleEditable, localDateOf,
   SCHEDULE_ITEM_LIMIT, SCHEDULE_RANGE_DAYS,
   type ScheduleQuery, type ScheduleResponse, type TimeItem, type TimeItemKind,
 } from "@outcomego/contracts/task-overview";
 import type { PrismaClient } from "@outcomego/db";
 import { INDEPENDENT_RUN_ORIGINS, inferRoutineScheduleAnchor, nextRoutineTriggerRun, readFeatureSettings, readUserTimeZone } from "@outcomego/messaging";
+import { readRequestTitles } from "./request-titles";
 
 type Window = Omit<ScheduleQuery, "from" | "to"> & { from: Date; to: Date };
 type LocatedItem = TimeItem & { at: number };
@@ -198,11 +198,7 @@ export class ScheduleService {
       orderBy: [{ requestNextCheckAt: "asc" }, { id: "asc" }], ...take,
     });
     if (!rows.length) return [];
-    const [messages, feature] = await Promise.all([
-      this.db.message.findMany({ where: { id: { in: rows.map((row) => row.userMessageId) } }, select: { id: true, content: true } }),
-      readFeatureSettings(this.db),
-    ]);
-    const titles = new Map(messages.map((row) => [row.id, messagePreviewText(row.content, ACTIVITY_TITLE_LIMIT)]));
+    const [titles, feature] = await Promise.all([readRequestTitles(this.db, rows), readFeatureSettings(this.db)]);
     const checkOverdueMinutes = resolveTaskPolicy(feature.taskPolicy)["activity.checkOverdueMinutes"] as number;
     return rows.map((row) => {
       const instant = row.requestNextCheckAt!;

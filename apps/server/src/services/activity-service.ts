@@ -1,9 +1,8 @@
-import { messagePreviewText, truncatePreviewText } from "@outcomego/contracts/message-preview";
+import { truncatePreviewText } from "@outcomego/contracts/message-preview";
 import { parseOutcomeWorkItemProgress } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import {
   ACTIVITY_LIST_LIMIT,
-  ACTIVITY_TITLE_LIMIT,
   compareNeedsMe,
   deriveRequestDisplayState,
   deriveRoutineDisplayState,
@@ -21,6 +20,7 @@ import {
 } from "@outcomego/contracts/task-overview";
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import { INDEPENDENT_RUN_ORIGINS, OPEN_REQUEST_WORKER_STATUSES, readFeatureSettings } from "@outcomego/messaging";
+import { readRequestTitles } from "./request-titles";
 
 /** What the runtime keeps in `Run.requestProgress`: written by the bot, bounded by its tool. */
 interface StoredProgress {
@@ -137,7 +137,7 @@ export class ActivityService {
       take: ACTIVITY_LIST_LIMIT + 1,
       select: requestRows,
     });
-    const titles = await this.titles(rows.map((row) => row.userMessageId));
+    const titles = await readRequestTitles(this.prisma, rows);
     const items = rows.flatMap((row): NeedsMeItem[] => {
       const progress = row.requestProgress as unknown as StoredProgress;
       const state = this.displayState(row, progress, now, checkOverdueMinutes);
@@ -162,7 +162,7 @@ export class ActivityService {
     if (!row) return null;
     const policy = await this.policy();
     const progress = row.requestProgress as unknown as StoredProgress;
-    const titles = await this.titles([row.userMessageId]);
+    const titles = await readRequestTitles(this.prisma, [row]);
     return {
       requestRunId: row.id,
       botId: row.botId,
@@ -200,7 +200,7 @@ export class ActivityService {
       take: ACTIVITY_LIST_LIMIT + 1,
       select: requestRows,
     });
-    const titles = await this.titles(rows.map((row) => row.userMessageId));
+    const titles = await readRequestTitles(this.prisma, rows);
     const workers = await this.workerCounts(rows.map((row) => row.id));
     return rows.map((row) => ({
       ...this.item(row, titles.get(row.userMessageId) ?? "", now, checkOverdueMinutes),
@@ -320,13 +320,6 @@ export class ActivityService {
       recentCompletedHours: policy["activity.recentCompletedHours"] as number,
       checkOverdueMinutes: policy["activity.checkOverdueMinutes"] as number,
     };
-  }
-
-  /** The start of the owner's own message, one query for all of them. */
-  private async titles(messageIds: readonly string[]): Promise<Map<string, string>> {
-    if (!messageIds.length) return new Map();
-    const messages = await this.prisma.message.findMany({ where: { id: { in: [...messageIds] } }, select: { id: true, content: true } });
-    return new Map(messages.map((message) => [message.id, messagePreviewText(message.content, ACTIVITY_TITLE_LIMIT)]));
   }
 
   private displayState(row: RequestRow, progress: StoredProgress, now: Date, checkOverdueMinutes: number): RequestDisplayState {

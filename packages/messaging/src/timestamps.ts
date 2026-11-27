@@ -80,6 +80,15 @@ export function retimestampUserTurn(previous: string, content: string): string {
   return timestamp === undefined ? content : `<timestamp>${timestamp}</timestamp>\n<user_query>\n${content}\n</user_query>`;
 }
 
+/**
+ * The words inside a delivered turn, for previews such as a request title: without the timestamp, the query
+ * wrapper and the message address. A hidden host prompt has no words of its own, so it yields nothing.
+ */
+export function turnPreviewSource(content: string): string {
+  const query = /<user_query>\n([\s\S]*?)\n<\/user_query>/.exec(content)?.[1] ?? content;
+  return query.startsWith("[SAND_HIDDEN_PROMPT]") ? "" : query.replace(/^\[t\d+[a-z]\d*\]\n/, "");
+}
+
 export function timestampUserTurn(
   content: string,
   options: { occurredAt?: Date | string; timeZone?: string | null } = {}

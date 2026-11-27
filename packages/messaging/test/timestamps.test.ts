@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatFriendlyDate, formatTimeZoneWithOffset, formatTurnTimestamp, resolveTimeZone, timestampUserTurn } from "../src/timestamps";
+import { formatFriendlyDate, formatTimeZoneWithOffset, formatTurnTimestamp, resolveTimeZone, timestampUserTurn, turnPreviewSource } from "../src/timestamps";
 
 describe("model turn timestamps", () => {
   test("formats the user's local wall clock and UTC offset", () => {
@@ -35,5 +35,17 @@ describe("model turn timestamps", () => {
     expect(formatTimeZoneWithOffset("UTC", summer)).toBe("UTC (currently UTC+0)");
     expect(formatFriendlyDate(new Date("2026-10-21T22:30:00Z"), "Asia/Tokyo")).toBe("Thursday Oct 22, 2026");
     expect(formatFriendlyDate(new Date("2026-10-01T12:00:00Z"), "UTC")).toBe("Thursday Oct 1, 2026");
+  });
+});
+
+describe("turn preview source", () => {
+  test("drops the timestamp, the query wrapper and the message address", () => {
+    expect(turnPreviewSource(timestampUserTurn("[t195u]\nLook again\n\n[Sent from machine x]"))).toBe("Look again\n\n[Sent from machine x]");
+    expect(turnPreviewSource(`<system_reminder>note</system_reminder>\n${timestampUserTurn("Plain ask")}`)).toBe("Plain ask");
+    expect(turnPreviewSource("Never wrapped")).toBe("Never wrapped");
+  });
+
+  test("yields nothing for a hidden host prompt", () => {
+    expect(turnPreviewSource(timestampUserTurn("[SAND_HIDDEN_PROMPT][agent] A message arrived"))).toBe("");
   });
 });
