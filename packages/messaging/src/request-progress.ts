@@ -172,7 +172,9 @@ async function cancelQueuedChecks(tx: Prisma.TransactionClient, rootId: string) 
 export async function reportRequestProgress(
   prisma: PrismaClient,
   context: ToolContext,
-  input: RequestProgressInput
+  input: RequestProgressInput,
+  /** Whose to-dos `input.outcomeId` may name. */
+  ownerId?: string
 ) {
   return prisma.$transaction(async (tx) => {
     await lock(tx, context.botId);
@@ -193,12 +195,13 @@ export async function reportRequestProgress(
         "request_progress_unavailable",
         "Saved automations use their own durable task context"
       );
-    const { request_run_id: _, ...milestone } = input;
+    const { request_run_id: _, ...reported } = input;
+    const { outcomeId, ...milestone } = reported;
     const scope = `request-progress:${root.id}`;
     const requestHash = createHash("sha256")
       .update(
         JSON.stringify(
-          Object.fromEntries(Object.entries(milestone).sort(([a], [b]) => a.localeCompare(b)))
+          Object.fromEntries(Object.entries(reported).sort(([a], [b]) => a.localeCompare(b)))
         )
       )
       .digest("hex");
@@ -243,6 +246,14 @@ export async function reportRequestProgress(
         "request_has_unfinished_workers",
         "This request has unfinished workers. Keep their existing ownership, or reconcile/stop them before completing or scheduling a separate parent check."
       );
+    if (outcomeId && !(ownerId && await tx.outcome.findFirst({
+      where: { id: outcomeId, ownerId, kind: "todo" }, select: { id: true },
+    })))
+      throw new ApiError(
+        404,
+        "request_todo_not_found",
+        "outcomeId must name one of the user's existing to-dos. Omit it for any other request."
+      );
     const progress: TaskProgress = {
       ...milestone,
       runId: root.id,
@@ -256,6 +267,8 @@ export async function reportRequestProgress(
         requestRevision: progress.revision,
         requestNextCheckAt: input.checkAt ? new Date(input.checkAt) : null,
         requestReconciliations: 0,
+        // A request root never has an `outcome` origin, so no scheduled-goal path reads this link.
+        ...(outcomeId ? { outcomeId } : {}),
       },
     });
     const response = json({

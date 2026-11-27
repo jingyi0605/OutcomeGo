@@ -579,7 +579,9 @@ export class InternalToolService {
       request={...request,arguments:normalizeMainToolArguments(request.tool,request.arguments)};
       if (request.tool === "ReportRequestProgress") {
         if (childIdentity || backgroundRun) throw new ApiError(403, "request_progress_unavailable", "Only the user-facing parent may track a request");
-        const result = await reportRequestProgress(this.prisma, context, Schema.decodeUnknownSync(RequestProgressInput)(request.arguments));
+        const input = Schema.decodeUnknownSync(RequestProgressInput)(request.arguments);
+        const ownerId = input.outcomeId ? await this.outcomeChatTools?.ownerId() : undefined;
+        const result = await reportRequestProgress(this.prisma, context, input, ownerId);
         return { ...(result as Record<string, unknown>), requests: await requestProgressSnapshot(this.prisma, request.botId, request.channelId) };
       }
       if (request.tool === "ReportTaskProgress") {

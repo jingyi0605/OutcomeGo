@@ -155,6 +155,29 @@ for (const priorState of ["active", "interrupted", "stopped"] as const) test.ski
   expect(await f.db.subagent.findUniqueOrThrow({ where: { id: child.id } })).toMatchObject({ requestRunId: expectedRequest, readOnly: true });
   expect((await requestProgressSnapshot(f.db, f.owner.id, f.channel.id)).map(s => s.request_run_id)).toEqual([expectedRequest]);
 }));
+test.skipIf(!url)("progress links a request to the user's existing to-do, keeps the link, and refuses anything else", () => fixture(async f => {
+  const ownerId = "request-todo-owner";
+  const record = (kind: "todo" | "standard", owner = ownerId) =>
+    f.db.outcome.create({ data: { ownerId: owner, botId: f.owner.id, kind, status: "open", title: `Fixture ${kind}` } });
+  const [todo, goal, foreign] = [await record("todo"), await record("standard"), await record("todo", "other-owner")];
+  const linked = async () => (await f.db.run.findUniqueOrThrow({ where: { id: f.context.runId } })).outcomeId;
+  for (const [outcomeId, owner] of [[goal.id, ownerId], [foreign.id, ownerId], [crypto.randomUUID(), ownerId], [todo.id, undefined]] as const) {
+    await expect(reportRequestProgress(f.db, f.context, { ...wait(), outcomeId }, owner)).rejects.toMatchObject({ code: "request_todo_not_found" });
+    expect(await linked()).toBeNull();
+  }
+  const milestone = { ...wait(), outcomeId: todo.id };
+  const saved = await reportRequestProgress(f.db, f.context, milestone, ownerId);
+  expect(await linked()).toBe(todo.id);
+  expect(JSON.stringify(saved)).not.toContain(todo.id);
+  expect(await reportRequestProgress(f.db, f.context, milestone, ownerId)).toEqual(saved);
+  await expect(reportRequestProgress(f.db, f.context, { ...milestone, outcomeId: undefined }, ownerId))
+    .rejects.toMatchObject({ code: "request_progress_key_conflict" });
+  await reportRequestProgress(f.db, f.context, wait("still-pending"), ownerId);
+  expect(await linked()).toBe(todo.id);
+  expect((await f.db.outcome.findUniqueOrThrow({ where: { id: todo.id } })).status).toBe("open");
+  await f.db.outcome.deleteMany({ where: { id: { in: [todo.id, goal.id, foreign.id] } } });
+}));
+
 async function fixture(body: (f: Awaited<ReturnType<typeof setup>>) => Promise<void>) {
   const f = await setup();
   try {

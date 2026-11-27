@@ -17,6 +17,8 @@ export type TaskProgressInput = typeof TaskProgressInput.Type;
 export const RequestProgressInput = Schema.Struct({
   ...TaskProgressInput.fields,
   request_run_id: Schema.optional(Schema.UUID),
+  /** The owner's existing to-do this request works on. */
+  outcomeId: Schema.optional(Schema.UUID),
 });
 export type RequestProgressInput = typeof RequestProgressInput.Type;
 export type TaskProgress = TaskProgressInput & {
@@ -124,6 +126,7 @@ export const REPORT_REQUEST_PROGRESS_TOOL = {
     properties: {
       ...REPORT_TASK_PROGRESS_TOOL.inputSchema.properties,
       request_run_id: { type: "string", format: "uuid", description: "The original request_run_id returned when tracking this user request; keep it across approval replies and worker changes." },
+      outcomeId: { type: "string", format: "uuid", description: "Set this whenever the request works on one of the user's existing to-dos: that to-do's id from QueryOutcomes or GetOutcome, so the calendar lists this request's check under it. It only links the two; it never changes or completes the to-do. The link stays on later updates. Omit it when no existing to-do is involved." },
     },
   },
 } as const;

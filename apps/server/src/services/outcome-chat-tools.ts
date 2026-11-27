@@ -44,6 +44,9 @@ export class OutcomeChatTools {
     private readonly authMode: "required" | "disabled" = "disabled",
   ) {}
 
+  /** The owner whose Outcomes a Bot turn works with. */
+  ownerId = () => this.outcomes.ownerForBotTurn(this.authMode);
+
   execute = async (
     request: DynamicToolCallRequest,
     context: ToolContext,
@@ -130,7 +133,7 @@ export class OutcomeChatTools {
     };
 
     try {
-      const ownerId = await this.outcomes.ownerForBotTurn(this.authMode);
+      const ownerId = await this.ownerId();
       const ownerContext = { ownerId };
       switch (request.tool) {
         case "CreateOutcome": {
