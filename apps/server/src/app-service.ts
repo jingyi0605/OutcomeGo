@@ -307,7 +307,11 @@ export class AppService {
     );
     this.outcomePlans = new OutcomePlanService(this.prisma, this.outcomes, this.messaging);
     this.outcomeSchedule = new OutcomeScheduleService(this.prisma, this.outcomes, this.messaging);
-    this.activity = new ActivityService(this.prisma);
+    this.activity = new ActivityService(
+      this.prisma,
+      (botId, requestRunId, callId) => this.subagents.stopRequestWorkers(botId, requestRunId, callId),
+      (runId) => Effect.runPromise(this.runs.cancel(runId)).then(() => undefined),
+    );
     this.schedule = new ScheduleService(this.prisma);
     this.calendarFeeds = new CalendarFeedService(this.prisma, this.schedule);
     this.outcomeTaskReviews = new OutcomeTaskReviewService(this.prisma, this.outcomes, this.messaging);

@@ -34,6 +34,7 @@ interface RequestOptions extends ProgressInput {
   origin?: "user" | "routine" | "outcome";
   reconciliations?: number;
   nextCheckAt?: Date | null;
+  channelId?: string | null;
   stopped?: boolean;
   updatedAt?: Date;
   progress?: null;
@@ -76,6 +77,7 @@ async function request(h: Fixture, options: RequestOptions = {}) {
     data: {
       botId: h.bot.id, conversationId: h.bot.conversation!.id, userMessageId: message.id, status: "completed",
       origin: options.origin ?? "user",
+      ...(options.channelId !== undefined ? { channelId: options.channelId } : {}),
       ...(progress ? { requestProgress: progress } : {}),
       requestRevision: 3, requestReconciliations: options.reconciliations ?? 0,
       requestNextCheckAt: options.nextCheckAt ?? null,
@@ -520,27 +522,33 @@ describe.skipIf(!url)("goal tasks in the activity list", () => {
 
 describe.skipIf(!url)("executors and duplicates", () => {
   /** A scoped worker a request started: its own bot, linked to the request. */
-  async function worker(h: Fixture, requestRunId: string, status: "provisioning" | "queued" | "running" | "waiting" | "completed" | "failed") {
+  async function worker(
+    h: Fixture,
+    requestRunId: string,
+    status: "provisioning" | "queued" | "running" | "waiting" | "completed" | "failed",
+    nextCheckAt: Date | null = null
+  ) {
     const child = await h.db.bot.create({ data: { name: "Worker fixture", defaultDirectory: h.root, status: "active", conversation: { create: {} } } });
     cleanups.push(async () => void (await h.db.bot.delete({ where: { id: child.id } }).catch(() => undefined)));
     const channel = await h.db.channel.findFirstOrThrow({ where: { directKey: `bot:${h.bot.id}` } });
     return h.db.subagent.create({
       data: {
         parentBotId: h.bot.id, childBotId: child.id, parentRunId: requestRunId, requestRunId, parentChannelId: channel.id,
-        launchCallId: `call-${crypto.randomUUID()}`, description: "Look into it", prompt: "Look into it", subagentType: "general", outputPath: "out.md", status,
+        launchCallId: `call-${crypto.randomUUID()}`, description: "Look into it", prompt: "Look into it", subagentType: "general", outputPath: "out.md", status, nextCheckAt,
       },
     });
   }
 
-  test("the executors a request started are counted under it and never get a row of their own", async () => {
+  test("the executors a request started are counted under it and never get a row of their own; parked waiting workers without nextCheckAt are not counted", async () => {
     const t = await setup();
     const run = await request(t.h);
     await worker(t.h, run.id, "running");
-    await worker(t.h, run.id, "waiting");
+    await worker(t.h, run.id, "waiting", minutes(30));
+    await worker(t.h, run.id, "waiting", null);
     await worker(t.h, run.id, "completed");
     const { items } = await t.service.list({ botId: t.h.bot.id });
     expect(items).toHaveLength(1);
-    // Two are still working; the one that finished is not counted as working.
+    // Running and scheduled-waiting count as working; parked waiting (nextCheckAt: null) and completed do not.
     expect(items[0]).toMatchObject({ id: `request:${run.id}`, workerCount: 2 });
   });
 
@@ -722,5 +730,35 @@ describe.skipIf(!url)("request recovery is projected without another reminder (s
     expect(await h.db.run.findUniqueOrThrow({ where: { id: waiting.id } })).toEqual(waiting);
     expect(await h.db.inboxEvent.count({ where: eventWhere })).toBe(3);
     expect(await h.db.channelNotification.count({ where: notificationWhere })).toBe(1);
+  });
+
+  test("cancelled runs, inactive bots and archived channels are excluded; owner stopRequest closes active and completed requests with open workers", async () => {
+    const t = await setup();
+    const cancelled = await request(t.h, { state: "blocked", blockSource: "user", summary: "Cancelled request" });
+    await t.h.db.run.update({ where: { id: cancelled.id }, data: { status: "cancelled", error: { code: "cancelled_by_user" } } });
+    const peerInterrupted = await request(t.h, { state: "blocked", blockSource: "user", summary: "Peer interrupted request" });
+    await t.h.db.run.update({ where: { id: peerInterrupted.id }, data: { status: "cancelled", error: { code: "priority_peer_interrupt" } } });
+    const archivedChannel = await t.h.db.channel.create({ data: { kind: "group", name: "Archived", archivedAt: new Date() } });
+    cleanups.push(async () => void (await t.h.db.channel.delete({ where: { id: archivedChannel.id } }).catch(() => undefined)));
+    const archivedRun = await request(t.h, { state: "waiting", nextCheckAt: minutes(30), channelId: archivedChannel.id });
+    const completed = await request(t.h, { state: "complete", summary: "Done recently" });
+
+    expect((await t.service.needsMe()).items.map((item) => item.key)).toEqual([`request:${peerInterrupted.id}`]);
+    expect((await t.service.list({ botId: t.h.bot.id, includeAll: true })).items.map((item) => item.id).sort()).toEqual(
+      [`request:${completed.id}`, `request:${peerInterrupted.id}`].sort()
+    );
+    const schedule = new ScheduleService(t.h.db);
+    const scheduleItems = await schedule.list("local", {
+      from: minutes(-5).toISOString(),
+      to: minutes(60).toISOString(),
+      kinds: ["follow_up"],
+    });
+    expect(scheduleItems.items.some((item) => item.id === `follow_up:request:${archivedRun.id}`)).toBe(false);
+
+    const stopped = await t.service.stopRequest(peerInterrupted.id);
+    expect(stopped).toEqual({ stopped: true, requestRunId: peerInterrupted.id, stoppedWorkers: 0 });
+    expect((await t.service.needsMe()).items).toEqual([]);
+    await t.service.stopRequest(completed.id);
+    expect((await t.service.list({ botId: t.h.bot.id, includeAll: true })).items).toEqual([]);
   });
 });
