@@ -4,30 +4,30 @@ import {
   decodeOutcomeThreadInput,
   goalThreadToolsForPurpose,
   OUTCOME_GOAL_THREAD_TOOLS,
+  OUTCOME_THREAD_PURPOSES,
 } from "../src/outcome-thread";
 import { isOutcomeEventTopic, OUTCOME_EVENT_TOPICS } from "../src/outcomes";
 
-test("goal thread tools enforce purpose whitelists and exclude decision/credential/contract-approval tools", () => {
+test("goal thread tools enforce mode and purpose whitelists without changing review tools", () => {
+  const research = ["GetOutcome", "ListOutcomes", "SavePlanAdvice"] as const;
   for (const purpose of ["plan", "replan"] as const) {
-    expect(goalThreadToolsForPurpose(purpose)).toEqual([
-      "SaveOutcomeContract",
-      "SavePlan",
-      "CancelOutcome",
-      "GetOutcome",
-      "ListOutcomes",
-    ]);
+    expect(goalThreadToolsForPurpose(purpose, "contract_plan")).toEqual(["SaveOutcomeContract", "SavePlan", "CancelOutcome", ...research]);
   }
-  expect(goalThreadToolsForPurpose("owner_message")).toEqual([
+  expect(goalThreadToolsForPurpose("owner_message", "contract_plan")).toEqual([
     "SaveOutcomeContract",
     "SavePlan",
     "AcceptOutcome",
     "RequestOutcomeRework",
     "CancelOutcome",
-    "GetOutcome",
-    "ListOutcomes",
+    ...research,
   ]);
-  expect(goalThreadToolsForPurpose("review")).toEqual(["GetOutcome", "SubmitPrereview"]);
-  expect(goalThreadToolsForPurpose("review_task")).toEqual(["GetOutcome", "ReviewTaskResult"]);
+  for (const purpose of ["plan", "replan", "owner_message"] as const) {
+    expect(goalThreadToolsForPurpose(purpose, "advice")).toEqual(research);
+    expect(goalThreadToolsForPurpose(purpose, "triage")).toEqual([...research, "ClassifyOutcome"]);
+  }
+  expect(goalThreadToolsForPurpose("review", "triage")).toEqual(["GetOutcome", "SubmitPrereview"]);
+  expect(goalThreadToolsForPurpose("review_task", "contract_plan")).toEqual(["GetOutcome", "ReviewTaskResult"]);
+  expect(OUTCOME_THREAD_PURPOSES).toEqual(["plan", "owner_message", "replan", "review", "review_task"]);
 
   for (const tool of OUTCOME_GOAL_THREAD_TOOLS) {
     expect(tool.name).not.toMatch(/Approve|Decision|HumanAction|Bitwarden/i);

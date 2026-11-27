@@ -337,26 +337,15 @@ adaptDescription("UpdateRoutine", [
 // shorthand the parser accepts is advertised beside the compact listener object.
 {
   const { description, ...listener } = contracts.UpdateRoutine!.inputSchema.properties.trigger;
-  const timestamp = {
-    type: "string",
-    pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$",
-    description: "ISO 8601 date and time with seconds and a UTC offset.",
-  };
   contracts.UpdateRoutine!.inputSchema.properties.trigger = {
-    anyOf: [listener, { type: "array", items: listener, minItems: 1 }, {
-      type: "object", required: ["type", "runAt"], additionalProperties: false,
-      properties: {
-        type: { const: "once" },
-        runAt: timestamp,
-        preparation: { type: "object", required: ["at", "instruction"], additionalProperties: false,
-          properties: { at: timestamp, instruction: { type: "string", minLength: 1, maxLength: 20_000 } },
-        },
-      },
-    }],
+    anyOf: [listener, { type: "array", items: listener, minItems: 1 }],
     description,
   };
-  contracts.UpdateRoutine!.description += "\nFor a single future arrangement, use trigger.type=once with runAt. Even for a reminder, set preparation.at to an earlier offset timestamp when authorized records can help. Write preparation.instruction as a private read-only brief request. At runAt deliver the reminder or result with grounded suggestions when available. Clarify ambiguous times and follow existing approval requirements.";
 }
+adaptDescription("UpdateRoutine", [[
+  "Be proactive: when an ask is recurring, time-based, or \"tell me when X\", create a routine (or offer one when unsure it's wanted) instead of doing it once.",
+  "Use routines for recurring schedules and event triggers. For a single future arrangement, use CreateOutcome with kind=scheduled_once.",
+]]);
 
 // StopSubagent reaches this agent's subagents (and the background shells they started) and the peers
 // it messaged with priority; there are no cloud agents.
@@ -588,22 +577,19 @@ const FIRST_PARTY_CATALOG_HEADER =
   "First-party tools built into you, listed first: they are trusted and core to your job, so prefer one over an external namespace that covers the same need. Read a tool's schema with GetDynamicTools, then call it with CallDynamicTool in the cursor namespace.";
 /** One-line cues for the cursor namespace, as in the reference's concise static contexts. */
 const FIRST_PARTY_HINTS: Readonly<Record<string, string>> = {
-  SubmitOutcome: "Submit the user's verbatim goal request to the planning role when one is configured; never rewrite it or write a contract yourself.",
-  CreateOutcome: "Save a native goal with a contract you wrote, for owner approval; use Outcomes before external task apps; never approve or accept it yourself.",
-  TrackOutcome: "Use a native goal only for explicit goal tracking, owner plan approval, final acceptance or human action, or an inbox decision. Use Task and ReportRequestProgress for ordinary ongoing bot work.",
-  CloseOutcome: "Close a tracked goal you finished yourself, without user acceptance.",
-  ListOutcomes: "Find native goals and their execution statuses by text or status.",
-  GetOutcome: "Read a goal's actual contract, Runs, results, Evidence and Reviews.",
-  ReviseOutcome: "Propose a new goal contract revision for owner approval.",
-  StartOutcome: "Start the exact owner-approved revision only when asked.",
+  CreateOutcome: "Record a note, idea, todo, or scheduled goal, or start planning a formal goal for owner approval.",
+  UpdateOutcome: "Edit an Outcome or change its kind while keeping its ID and history.",
+  QueryOutcomes: "Find Outcomes by kind, status, tags, text, or time window.",
+  ListOutcomes: "Find Outcomes relevant to this planning turn.",
+  GetOutcome: "Read an Outcome's details and available plan, contract, and execution history.",
+  ActOnOutcome: "Apply a supported Outcome action requested by the owner.",
+  PlanOutcome: "Request a research brief or a formal plan for an Outcome.",
   CancelOutcome: "Cancel the native goal the user asked to stop, preserving history.",
   ListOutcomeInbox: "Read native decisions, reviews and human actions requiring attention.",
   ListGroupTasks: "Read this group's shared task board before starting any work in a group.",
   CreateGroupTask: "Register group work that needs follow-up or that the user asked you to own, before starting it; not quick answers or single-step actions.",
   ClaimGroupTask: "Take an unowned group task; only one member can own it.",
   UpdateGroupTask: "Update, finish, block, hand over or release a group task you own or created.",
-  CreateExploreIdea: "Record an idea in native Explore without starting execution.",
-  ListExploreIdeas: "Read the user's native Explore ideas.",
   AuthenticateMcpServer: "Start authentication for a connector that needs auth.",
   AwaitShell: "Use to sleep and check shell progress. Never sleep using shell.",
   ChatItems: "Read a conversation out of the user's Messages history.",

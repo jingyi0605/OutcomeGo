@@ -110,14 +110,12 @@ enum RoutineScheduleKind {
   cron
   interval
   event
-  once
   @@map("outcomego_routine_schedule_kind")
 }
 
 enum RoutineExecutionKind {
   scheduled
   test
-  preparation
   @@map("outcomego_routine_execution_kind")
 }
 
@@ -244,48 +242,6 @@ enum SubagentStatus {
   @@map("outcomego_subagent_status")
 }
 
-enum OwnerTodoStatus {
-  suggested
-  open
-  waiting
-  done
-  dismissed
-  @@map("outcomego_owner_todo_status")
-}
-
-enum OwnerTodoExecutor {
-  owner
-  bot
-  external
-  @@map("outcomego_owner_todo_executor")
-}
-
-enum OwnerTodoCreatedVia {
-  owner_ui
-  owner_chat
-  agent_turn
-  @@map("outcomego_owner_todo_created_via")
-}
-
-enum OwnerTodoAcceptedBy {
-  owner
-  rule
-  @@map("outcomego_owner_todo_accepted_by")
-}
-
-enum OwnerTodoUrgency {
-  low
-  normal
-  high
-  @@map("outcomego_owner_todo_urgency")
-}
-
-enum OwnerTodoDismissReason {
-  owner
-  expired
-  @@map("outcomego_owner_todo_dismiss_reason")
-}
-
 enum PluginInstallStatus {
   installed
   error
@@ -343,7 +299,6 @@ model Computer {
 }
 
 model Bot {
-  exploreIdeas ExploreIdea[]
   id String       @id @default(uuid()) @db.Uuid
   name String
   title String       @default("")
@@ -413,7 +368,6 @@ model Bot {
   @@index([status, updatedAt], map: "outcomego_bot_status_updated_at_idx")
   @@map("outcomego_bot")
   outcomes         Outcome[]
-  outcomePlanningDrafts OutcomePlanningDraft[]
 }
 
 model TodoItem {
@@ -432,53 +386,7 @@ model TodoItem {
   @@map("outcomego_todo_item")
 }
 
-model OwnerTodoItem {
-  id String @id @default(uuid()) @db.Uuid
-  ownerId String
-  title String
-  note String?
-  status OwnerTodoStatus @default(open)
-  executor OwnerTodoExecutor @default(owner)
-  createdVia OwnerTodoCreatedVia
-  createdByRunId String? @db.Uuid
-  createdByRoutineId String? @db.Uuid
-  authorizedByMessageId String? @db.Uuid
-  acceptedBy OwnerTodoAcceptedBy?
-  autoAcceptRuleId String? @db.Uuid
-  autoAcceptRuleName String?
-  urgency OwnerTodoUrgency @default(normal)
-  sourceRef Json?
-  summary String?
-  dedupeKey String?
-  createdBy String
-  botId String? @db.Uuid
-  tags String[] @default([])
-  dueAt DateTime? @db.Timestamptz(3)
-  scheduledAt DateTime? @db.Timestamptz(3)
-  snoozeUntil DateTime? @db.Timestamptz(3)
-  followUpAt DateTime? @db.Timestamptz(3)
-  linkedOutcomeId String? @db.Uuid
-  handoffBotId String? @db.Uuid
-  handoffMessageId String? @db.Uuid
-  expiresAt DateTime? @db.Timestamptz(3)
-  completedAt DateTime? @db.Timestamptz(3)
-  completionNote String?
-  dismissedAt DateTime? @db.Timestamptz(3)
-  dismissReason OwnerTodoDismissReason?
-  revision Int @default(1)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
-
-  @@unique([ownerId, dedupeKey], map: "outcomego_owner_todo_dedupe_key")
-  @@index([ownerId, status, dueAt], map: "outcomego_owner_todo_owner_status_due_idx")
-  @@index([status, expiresAt], map: "outcomego_owner_todo_status_expires_idx")
-  @@index([botId, status], map: "outcomego_owner_todo_bot_status_idx")
-  @@index([ownerId, authorizedByMessageId], map: "outcomego_owner_todo_authorization_idx")
-  @@index([ownerId, autoAcceptRuleId, createdAt], map: "outcomego_owner_todo_rule_day_idx")
-  @@map("outcomego_owner_todo_item")
-}
-
-model TodoAutoAcceptRule {
+model OutcomeAutoAcceptRule {
   id String @id @default(uuid()) @db.Uuid
   ownerId String
   name String @db.VarChar(80)
@@ -491,8 +399,8 @@ model TodoAutoAcceptRule {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
-  @@index([ownerId, enabled, createdAt], map: "outcomego_todo_auto_accept_owner_enabled_idx")
-  @@map("outcomego_todo_auto_accept_rule")
+  @@index([ownerId, enabled, createdAt], map: "outcomego_outcome_auto_accept_owner_enabled_idx")
+  @@map("outcomego_outcome_auto_accept_rule")
 }
 
 model Subagent {
@@ -580,10 +488,11 @@ model MemoryFact {
   // Insertion order within the namespace; breaks createdAt ties.
   sourceOrdinal Int         @default(0)
   importance Float       @default(1)
-  // How the fact was saved: tool, extract or template.
+  // How the fact was saved: tool, extract, template or note.
   origin String      @default("tool")
   // The run that saved the fact, when there was one.
   turnId String?
+  sourceOutcomeId String? @db.Uuid
   writtenByBotId String?      @db.Uuid
   writtenByBot   Bot?         @relation("MemoryFactWriter", fields: [writtenByBotId], references: [id], onDelete: SetNull)
   // Retired facts remain available only through explicit historical recall.
@@ -596,6 +505,7 @@ model MemoryFact {
   @@index([namespace, logicalId, createdAt], map: "outcomego_memory_fact_namespace_logical_id_created_at_idx")
   @@index([namespace, tier, updatedAt], map: "outcomego_memory_fact_namespace_tier_updated_at_idx")
   @@index([writtenByBotId, updatedAt], map: "outcomego_memory_fact_written_by_bot_id_updated_at_idx")
+  @@index([sourceOutcomeId], map: "outcomego_memory_fact_source_outcome_id_idx")
   @@map("outcomego_memory_fact")
 }
 
@@ -655,8 +565,6 @@ model Routine {
   enabled Boolean             @default(true)
   revision Int                 @default(1)
   nextRunAt DateTime?
-  onceAt DateTime?
-  onceStartedAt DateTime?
   validationError String?
   scheduleAnchorAt DateTime?
   lastRunAt DateTime?
@@ -688,7 +596,6 @@ model RoutineRevision {
   prompt String
   scheduleText String
   scheduleKind RoutineScheduleKind
-  onceTrigger Json?
   cronExpression String?
   intervalSeconds Int?
   timezoneMode String
@@ -1057,7 +964,7 @@ model Run {
   computerNetworkPolicyApprovals ComputerNetworkPolicyApproval[]
   externalReceipts ExternalMessageReceipt[]
   externalDeliveries ExternalOutboundDelivery[]
-  /// Every run in an Outcome sub-thread names its work item; ordinary runs leave it empty.
+  outcomeId String? @db.Uuid
   outcomeWorkItemId String?      @db.Uuid
   outcomeWorkItem OutcomeWorkItem? @relation("OutcomeWorkItemRuns", fields: [outcomeWorkItemId], references: [id], onDelete: SetNull)
   outcomeRootOf   OutcomeWorkItem? @relation("OutcomeWorkItemRootRun")
@@ -1068,6 +975,7 @@ model Run {
   @@index([conversationId, createdAt], map: "outcomego_run_conversation_id_created_at_idx")
   @@index([channelId, createdAt], map: "outcomego_run_channel_id_created_at_idx")
   @@index([requestNextCheckAt], map: "outcomego_run_request_next_check_at_idx")
+  @@index([outcomeId], map: "outcomego_run_outcome_id_idx")
   @@index([outcomeWorkItemId, createdAt], map: "outcomego_run_outcome_work_item_id_created_at_idx")
   outcomeThreadId String?      @db.Uuid
   outcomeThread OutcomeThread? @relation("OutcomeThreadRuns", fields: [outcomeThreadId], references: [id], onDelete: SetNull)
@@ -2000,12 +1908,15 @@ model NotificationPreferences {
 // Outcome planning, contract, execution and review (specs/004.2)
 // ---------------------------------------------------------------------------
 
-/// standard: owner approves the contract and accepts the result. tracked: a Bot-registered task-board item the Bot may close itself.
-enum OutcomeTrackingMode {
+enum OutcomeKind {
   standard
   tracked
+  scheduled_once
+  todo
+  explore_idea
+  note
 
-  @@map("outcomego_outcome_tracking_mode")
+  @@map("outcomego_outcome_kind")
 }
 
 enum OutcomeStatus {
@@ -2021,7 +1932,28 @@ enum OutcomeStatus {
   paused
   failed
   cancelled
+  scheduled
+  preparing
+  suggested
+  open
+  waiting
+  exploring
+  active
+  archived
   @@map("outcomego_outcome_status")
+}
+
+enum OutcomeUrgency {
+  low
+  normal
+  high
+  @@map("outcomego_outcome_urgency")
+}
+
+enum OutcomeExecutor {
+  owner
+  bot
+  @@map("outcomego_outcome_executor")
 }
 
 enum OutcomeContractRevisionStatus {
@@ -2031,14 +1963,6 @@ enum OutcomeContractRevisionStatus {
   superseded
   closed
   @@map("outcomego_outcome_contract_revision_status")
-}
-
-enum OutcomePlanningDraftStatus {
-  ready
-  failed
-  consumed
-  expired
-  @@map("outcomego_outcome_planning_draft_status")
 }
 
 enum OutcomeWorkItemExecutorType {
@@ -2106,38 +2030,30 @@ enum OutcomeOutputKind {
   @@map("outcomego_outcome_output_kind")
 }
 
-/// A server-held planning snapshot; selections are resolved against it, never against client text.
-model OutcomePlanningDraft {
-  exploreIdea ExploreIdea?
-  id String                     @id @default(uuid()) @db.Uuid
-  botId String                     @db.Uuid
-  bot        Bot                        @relation(fields: [botId], references: [id], onDelete: Cascade)
-  sourceText String
-  status OutcomePlanningDraftStatus @default(ready)
-  /// Options, conflicts and questions for goal, acceptance and boundaries.
-  snapshot Json
-  error Json?
-  createdAt DateTime                   @default(now())
-  expiresAt DateTime
-  outcome    Outcome?
-
-  @@index([status, expiresAt], map: "outcomego_outcome_planning_draft_status_expires_at_idx")
-  @@map("outcomego_outcome_planning_draft")
-}
-
 model Outcome {
-  sourceExploreId String? @unique @db.Uuid
-  sourceExplore ExploreIdea? @relation("ExploreConversion", fields: [sourceExploreId], references: [id], onDelete: SetNull)
-  proposedForExplore ExploreIdea? @relation("ExploreProposedOutcome")
-  explorationSources ExploreIdea[] @relation("ExploreSourceOutcome")
-  decisions OutcomeDecision[]
   id String         @id @default(uuid()) @db.Uuid
-  botId String         @db.Uuid
-  bot               Bot            @relation(fields: [botId], references: [id], onDelete: Cascade)
-  planningDraftId String?        @unique @db.Uuid
-  planningDraft     OutcomePlanningDraft? @relation(fields: [planningDraftId], references: [id], onDelete: SetNull)
+  ownerId String @default("local")
+  kind OutcomeKind @default(standard)
+  botId String? @db.Uuid
+  bot Bot? @relation(fields: [botId], references: [id], onDelete: Cascade)
+  parentOutcomeId String? @db.Uuid
+  parentOutcome Outcome? @relation("OutcomeParent", fields: [parentOutcomeId], references: [id], onDelete: SetNull)
+  childOutcomes Outcome[] @relation("OutcomeParent")
   title String
   description String         @default("")
+  attachments Json @default("[]")
+  tags String[] @default([])
+  urgency OutcomeUrgency @default(normal)
+  sourceRef Json?
+  revision Int @default(1)
+  scheduledAt DateTime?
+  prepareAt DateTime?
+  prepareInstruction String?
+  followUpAt DateTime?
+  snoozeUntil DateTime?
+  executor OutcomeExecutor @default(bot)
+  dedupeKey String?
+  kindMeta Json @default("{}")
   status OutcomeStatus  @default(draft)
   /// The status to return to when a side state (decision, human action, pause) clears.
   resumeStatus OutcomeStatus?
@@ -2151,22 +2067,28 @@ model Outcome {
   humanReceipts     OutcomeHumanReceipt[]
   briefs            OutcomeBrief[]
   threads           OutcomeThread[]
+  decisions         OutcomeDecision[]
+  createdBy String @default("owner:local")
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
   acceptedAt DateTime?
   cancelledAt DateTime?
-  trackingMode OutcomeTrackingMode @default(standard)
   /// Set when a tracked Outcome was closed by its Bot without owner acceptance.
   autoClosedAt DateTime?
   closeSummary String?
   /// Owner-set deadline (specs/004.10). Not part of the contract hash; it never triggers re-approval.
   dueAt DateTime?
   inspectionEnabled Boolean @default(true)
-  inspectionRevisionId String? @db.Uuid
 
+  @@unique([ownerId, dedupeKey], map: "outcomego_outcome_owner_dedupe_key")
   @@index([status, updatedAt], map: "outcomego_outcome_status_updated_at_idx")
   @@index([updatedAt, id], map: "outcomego_outcome_updated_at_id_idx")
   @@index([botId, status], map: "outcomego_outcome_bot_id_status_idx")
+  @@index([ownerId, kind, updatedAt, id], map: "outcomego_outcome_owner_kind_updated_at_id_idx")
+  @@index([kind, status, scheduledAt], map: "outcomego_outcome_kind_status_scheduled_at_idx")
+  @@index([kind, prepareAt], map: "outcomego_outcome_kind_prepare_at_idx")
+  @@index([parentOutcomeId], map: "outcomego_outcome_parent_outcome_id_idx")
+  @@index([followUpAt], map: "outcomego_outcome_follow_up_at_idx")
   @@index([inspectionEnabled, dueAt], map: "outcomego_outcome_inspection_due_idx")
   @@map("outcomego_outcome")
 }
@@ -2197,8 +2119,14 @@ enum OutcomeThreadTurnPurpose {
   replan
   review
   review_task
-  inspection
   @@map("outcomego_outcome_thread_turn_purpose")
+}
+
+enum OutcomePlanMode {
+  triage
+  advice
+  contract_plan
+  @@map("outcomego_outcome_plan_mode")
 }
 
 enum OutcomeThreadTurnStatus {
@@ -2206,6 +2134,7 @@ enum OutcomeThreadTurnStatus {
   running
   completed
   failed
+  cancelled
   @@map("outcomego_outcome_thread_turn_status")
 }
 
@@ -2229,6 +2158,8 @@ model OutcomeThreadTurn {
   threadId String @db.Uuid
   thread OutcomeThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   purpose OutcomeThreadTurnPurpose
+  planMode OutcomePlanMode?
+  outcomeRevision Int?
   /// The owner's words, or system trigger description.
   trigger String
   triggerBy String
@@ -2244,50 +2175,16 @@ model OutcomeThreadTurn {
   /// The bot's final message for the turn, shown with the goal.
   reply String?
   error Json?
+  skipReason String?
   clientRequestId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([threadId, clientRequestId], map: "outcomego_outcome_thread_turn_thread_id_client_request_id_key")
   @@index([threadId, createdAt], map: "outcomego_outcome_thread_turn_thread_id_created_at_idx")
+  @@index([threadId, outcomeRevision, planMode, status], map: "outcomego_outcome_thread_turn_revision_mode_status_idx")
   @@index([workItemId], map: "outcomego_outcome_thread_turn_work_item_id_idx")
   @@map("outcomego_outcome_thread_turn")
-}
-
-enum ExploreIdeaStatus {
-  draft
-  exploring
-  proposed_for_delivery
-  converted
-  discarded
-  @@map("outcomego_explore_idea_status")
-}
-
-/// Informal investigation; its planning draft and resulting delivery are separate facts.
-model ExploreIdea {
-  id String @id @default(uuid()) @db.Uuid
-  botId String? @db.Uuid
-  bot Bot? @relation(fields: [botId], references: [id], onDelete: SetNull)
-  title String
-  note String @default("")
-  status ExploreIdeaStatus @default(draft)
-  sourceOutcomeId String? @db.Uuid
-  sourceOutcome Outcome? @relation("ExploreSourceOutcome", fields: [sourceOutcomeId], references: [id], onDelete: SetNull)
-  sourceReferences Json @default("[]")
-  budget Json?
-  planningDraftId String? @unique @db.Uuid
-  planningDraft OutcomePlanningDraft? @relation(fields: [planningDraftId], references: [id], onDelete: SetNull)
-  proposedOutcomeId String? @unique @db.Uuid
-  proposedOutcome Outcome? @relation("ExploreProposedOutcome", fields: [proposedOutcomeId], references: [id], onDelete: SetNull)
-  convertedOutcome Outcome? @relation("ExploreConversion")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  discardedAt DateTime?
-
-  @@index([updatedAt, id], map: "outcomego_explore_idea_updated_at_id_idx")
-  @@index([status, updatedAt], map: "outcomego_explore_idea_status_updated_at_idx")
-  @@index([sourceOutcomeId], map: "outcomego_explore_idea_source_outcome_id_idx")
-  @@map("outcomego_explore_idea")
 }
 
 /// Approved revisions are never edited in place; any change of goal, acceptance or boundaries is a new revision.
@@ -2394,7 +2291,6 @@ model OutcomeWorkItem {
   /// How many times the agent deferred this task while it was running.
   deferCount Int                         @default(0)
   inspectionEnabled Boolean              @default(true)
-  inspectionRevisionId String? @db.Uuid
   createdAt DateTime                    @default(now())
   updatedAt DateTime                    @updatedAt
 

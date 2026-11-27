@@ -7,10 +7,9 @@ test.skipIf(!database)("one-time routine migration preserves legacy schedules an
   const migration = await Bun.file(new URL("../prisma/migrations/202611250400_add_once_routine/migration.sql", import.meta.url)).text();
   const client = new Client({ connectionString: database });
   await client.connect();
+  const schema = `once_migration_${crypto.randomUUID().replaceAll("-", "")}`;
   try {
-    await client.query("BEGIN");
-    const schema = `once_migration_${crypto.randomUUID().replaceAll("-", "")}`;
-    await client.query(`CREATE SCHEMA ${schema}; SET LOCAL search_path TO ${schema}`);
+    await client.query(`CREATE SCHEMA ${schema}; SET search_path TO ${schema}`);
     await client.query(`
       CREATE TYPE outcomego_routine_schedule_kind AS ENUM ('cron', 'interval', 'event');
       CREATE TYPE outcomego_routine_execution_kind AS ENUM ('scheduled', 'test');
@@ -32,7 +31,8 @@ test.skipIf(!database)("one-time routine migration preserves legacy schedules an
     expect((await client.query("SELECT enum_range(null::outcomego_routine_schedule_kind)::text AS kinds")).rows[0]?.kinds).toBe("{cron,interval,event,once}");
     expect((await client.query("SELECT enum_range(null::outcomego_routine_execution_kind)::text AS kinds")).rows[0]?.kinds).toBe("{scheduled,test,preparation}");
   } finally {
-    await client.query("ROLLBACK");
+    await client.query("ROLLBACK").catch(() => undefined);
+    await client.query(`DROP SCHEMA ${schema} CASCADE`).catch(() => undefined);
     await client.end();
   }
 });

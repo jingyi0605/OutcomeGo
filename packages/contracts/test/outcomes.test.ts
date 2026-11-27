@@ -3,8 +3,7 @@ import { Schema } from "effect";
 import {
   ApproveContractRevisionInput,
   CreateContractRevisionInput,
-  CreateOutcomeInput,
-  CreateOutcomePlanInput,
+  CreateOutcomeFromContractInput,
   decodeOutcomeCursor,
   detectPlanningConflicts,
   encodeOutcomeCursor,
@@ -14,11 +13,9 @@ import {
   OUTCOME_EVENT_TOPICS,
   OUTCOME_LIMITS,
   OUTCOME_STATUS_PRIORITY,
-  OUTCOME_STATUSES,
+  OUTCOME_STATUSES_BY_KIND,
   OutcomeError,
   parseListOutcomesQuery,
-  planningOptionId,
-  type PlanningDimensionView,
   RUN_SEGMENT_LIMIT,
   buildRunSegments,
   parseOutcomePlan,
@@ -30,38 +27,12 @@ import {
   DeferWorkItemInput,
   OUTCOME_THREAD_TOOL_NAMES,
   requiredCriteriaSatisfied,
-  resolvePlanningSelections,
   SubmitOutcomeReviewInput,
 } from "../src/outcomes";
 
 const BOT = "11111111-1111-4111-8111-111111111111";
 const PLAN = "22222222-2222-4222-8222-222222222222";
 const CRITERION = "33333333-3333-4333-8333-333333333333";
-
-const dimension = (options: PlanningDimensionView["options"]): PlanningDimensionView => ({
-  options,
-  selectedOptionIds: [],
-  customEntries: [],
-});
-
-const draft = {
-  goal: dimension([{ id: "goal-1", text: "形成可执行的选型建议", recommended: true, reason: "直接对应决策目标" }]),
-  acceptance: dimension([
-    { id: "acceptance-1", text: "比较两条可行路线", required: true },
-    { id: "acceptance-2", text: "附来源", required: true },
-    { id: "acceptance-3", text: "附一张对比表", required: false },
-  ]),
-  boundaries: dimension([
-    { id: "boundaries-1", text: "只使用公开资料", kind: "included" },
-    { id: "boundaries-2", text: "修改生产系统", kind: "excluded" },
-  ]),
-};
-
-const select = (ids: Partial<Record<"goal" | "acceptance" | "boundaries", string[]>>, custom: Partial<Record<"goal" | "acceptance" | "boundaries", string[]>> = {}) => ({
-  goal: { selectedOptionIds: ids.goal ?? [], customEntries: custom.goal ?? [] },
-  acceptance: { selectedOptionIds: ids.acceptance ?? [], customEntries: custom.acceptance ?? [] },
-  boundaries: { selectedOptionIds: ids.boundaries ?? [], customEntries: custom.boundaries ?? [] },
-});
 
 const expectOutcomeError = (run: () => unknown, code: keyof typeof OUTCOME_ERROR_CODES) => {
   try {
@@ -76,8 +47,8 @@ const expectOutcomeError = (run: () => unknown, code: keyof typeof OUTCOME_ERROR
 };
 
 describe("outcome states and events", () => {
-  test("the derivation priority covers every Outcome status exactly once", () => {
-    expect([...OUTCOME_STATUS_PRIORITY].sort()).toEqual([...OUTCOME_STATUSES].sort());
+  test("the derivation priority covers every standard Outcome status exactly once", () => {
+    expect([...OUTCOME_STATUS_PRIORITY].sort()).toEqual([...OUTCOME_STATUSES_BY_KIND.standard].sort());
   });
 
   test("every Outcome event is prefixed so it cannot collide with runtime run.* topics", () => {
@@ -88,62 +59,26 @@ describe("outcome states and events", () => {
   });
 });
 
-describe("planning selections", () => {
-  test("option IDs follow <dimension>-<n>", () => {
-    expect(planningOptionId("goal", 0)).toBe("goal-1");
-    expect(planningOptionId("acceptance", 3)).toBe("acceptance-4");
-  });
-
-  test("resolves selected options and custom entries into the confirmed contract text", () => {
-    const contract = resolvePlanningSelections(
-      draft,
-      select({ goal: ["goal-1"], acceptance: ["acceptance-1", "acceptance-3"], boundaries: ["boundaries-1", "boundaries-2"] }, {
-        acceptance: ["  给出推荐方案  "],
-        boundaries: ["不访问客户数据"],
-      })
-    );
-    expect(contract.goal).toEqual(["形成可执行的选型建议"]);
-    expect(contract.acceptance).toEqual([
-      { statement: "比较两条可行路线", required: true, verificationMethod: "human_review" },
-      { statement: "附一张对比表", required: false, verificationMethod: "human_review" },
-      { statement: "给出推荐方案", required: true, verificationMethod: "human_review" },
-    ]);
-    expect(contract.boundaries).toEqual({ included: ["只使用公开资料"], excluded: ["修改生产系统", "不访问客户数据"] });
-    expect(contract.budget).toBeNull();
-  });
-
-  test("rejects option IDs that are not in the server snapshot", () => {
-    expectOutcomeError(() => resolvePlanningSelections(draft, select({ goal: ["goal-9"] })), "planning_option_not_found");
-  });
-
-  test("rejects more than four selections or oversized custom text", () => {
-    expectOutcomeError(
-      () => resolvePlanningSelections(draft, select({ goal: ["goal-1", "goal-1", "goal-1", "goal-1", "goal-1"] })),
-      "planning_option_limit_exceeded"
-    );
-    expectOutcomeError(
-      () => resolvePlanningSelections(draft, select({}, { goal: ["x".repeat(OUTCOME_LIMITS.customEntryChars + 1)] })),
-      "planning_input_too_large"
-    );
-  });
-
+describe("contract conflict detection", () => {
+  const contract = {
+    goal: ["Compare two backup options"],
+    acceptance: [{ statement: "Cite the sources", required: true, verificationMethod: "human_review" as const }],
+    boundaries: { included: ["Public sources"], excluded: [] },
+    budget: null,
+  };
   test("blocks approval without a goal or a required criterion, and when a boundary is both included and excluded", () => {
-    const empty = resolvePlanningSelections(draft, select({ acceptance: ["acceptance-3"] }));
+    const empty = { ...contract, goal: [], acceptance: [] };
     const codes = detectPlanningConflicts(empty).map((conflict) => conflict.code);
     expect(codes).toContain("ambiguous_scope");
     expect(codes).toContain("missing_acceptance");
     expect(hasBlockingConflict(detectPlanningConflicts(empty))).toBe(true);
 
-    const clash = resolvePlanningSelections(draft, select({ goal: ["goal-1"], acceptance: ["acceptance-1"] }, { boundaries: ["公开资料", "不公开资料"] }));
-    expect(hasBlockingConflict(detectPlanningConflicts({ ...clash, boundaries: { included: ["公开资料"], excluded: ["公开资料"] } }))).toBe(true);
-
-    const ok = resolvePlanningSelections(draft, select({ goal: ["goal-1"], acceptance: ["acceptance-1"], boundaries: ["boundaries-2"] }));
-    expect(hasBlockingConflict(detectPlanningConflicts(ok))).toBe(false);
+    expect(hasBlockingConflict(detectPlanningConflicts({ ...contract, boundaries: { included: ["Public sources"], excluded: ["Public sources"] } }))).toBe(true);
+    expect(hasBlockingConflict(detectPlanningConflicts(contract))).toBe(false);
   });
 
   test("a repeated custom entry is reported but does not block approval", () => {
-    const contract = resolvePlanningSelections(draft, select({ goal: ["goal-1"], acceptance: ["acceptance-1"] }, { goal: ["形成可执行的选型建议"] }));
-    const conflicts = detectPlanningConflicts(contract);
+    const conflicts = detectPlanningConflicts({ ...contract, goal: [...contract.goal, ...contract.goal] });
     expect(conflicts.map((conflict) => [conflict.code, conflict.severity])).toEqual([["duplicate_selection", "informational"]]);
   });
 });
@@ -173,22 +108,18 @@ describe("acceptance", () => {
 describe("request bodies", () => {
   const decode = <A, I>(schema: Schema.Schema<A, I>, value: unknown) => Schema.decodeUnknownSync(schema)(value);
 
-  test("plan and outcome creation accept the documented shape", () => {
-    expect(decode(CreateOutcomePlanInput, { sourceText: "比较两个备份方案", context: { botId: BOT }, clientRequestId: "plan:pilot-1" }).context.botId).toBe(BOT);
-    const outcome = decode(CreateOutcomeInput, {
-      planId: PLAN,
-      goal: { selectedOptionIds: ["goal-1"], customEntries: [] },
-      acceptance: { selectedOptionIds: ["acceptance-1"], customEntries: [] },
-      boundaries: { selectedOptionIds: [], customEntries: [] },
-      title: "备份方案选型建议",
+  test("direct contract creation accepts the documented shape", () => {
+    const outcome = decode(CreateOutcomeFromContractInput, {
+      goal: ["Compare backup options"],
+      acceptance: [{ statement: "Cite sources", required: true }],
+      boundaries: { included: [], excluded: [] },
+      title: "Backup options",
       clientRequestId: "outcome:pilot-1",
     });
-    expect(outcome.title).toBe("备份方案选型建议");
+    expect(outcome.title).toBe("Backup options");
   });
 
-  test("rejects malformed IDs, empty source text and short request IDs", () => {
-    expect(() => decode(CreateOutcomePlanInput, { sourceText: "", context: { botId: BOT }, clientRequestId: "plan:pilot-1" })).toThrow();
-    expect(() => decode(CreateOutcomePlanInput, { sourceText: "x", context: { botId: "bot" }, clientRequestId: "plan:pilot-1" })).toThrow();
+  test("rejects short request IDs and non-positive revisions", () => {
     expect(() => decode(ApproveContractRevisionInput, { expectedRevision: 1, confirmationText: "ok", clientRequestId: "short" })).toThrow();
     expect(() => decode(ApproveContractRevisionInput, { expectedRevision: 0, confirmationText: "ok", clientRequestId: "approve:x:1" })).toThrow();
   });
@@ -225,7 +156,7 @@ describe("request bodies", () => {
 describe("list query", () => {
   test("parses statuses, caps the limit and round-trips the cursor", () => {
     const cursor = encodeOutcomeCursor("2026-11-17T00:00:00.000Z", PLAN);
-    const query = parseListOutcomesQuery(new URLSearchParams({ status: "running,review_pending", limit: "500", cursor }));
+    const query = parseListOutcomesQuery(new URLSearchParams({ statuses: "running,review_pending", limit: "500", cursor }));
     expect(query.statuses).toEqual(["running", "review_pending"]);
     expect(query.limit).toBe(OUTCOME_LIMITS.listPageSizeMax);
     expect(query.cursor).toEqual({ updatedAt: "2026-11-17T00:00:00.000Z", id: PLAN });
@@ -233,16 +164,11 @@ describe("list query", () => {
   });
 
   test("rejects unknown statuses and malformed cursors with a 400", () => {
-    expectOutcomeError(() => parseListOutcomesQuery(new URLSearchParams({ status: "done" })), "invalid_outcome_query");
+    expectOutcomeError(() => parseListOutcomesQuery(new URLSearchParams({ statuses: "done" })), "invalid_outcome_query");
     expectOutcomeError(() => decodeOutcomeCursor("not-a-cursor"), "invalid_outcome_query");
     expectOutcomeError(() => parseListOutcomesQuery(new URLSearchParams({ limit: "0" })), "invalid_outcome_query");
   });
 
-  test.each(["tracked", "standard"])("parses %s tracking mode without changing the unfiltered default", (trackingMode) => {
-    expect(parseListOutcomesQuery(new URLSearchParams({ trackingMode })).trackingMode).toBe(trackingMode);
-    expect(parseListOutcomesQuery(new URLSearchParams()).trackingMode).toBeUndefined();
-    expectOutcomeError(() => parseListOutcomesQuery(new URLSearchParams({ trackingMode: "unknown" })), "invalid_outcome_query");
-  });
 });
 
 describe("run segments", () => {

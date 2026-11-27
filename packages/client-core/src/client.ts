@@ -68,8 +68,6 @@ import type {
   RootSettingsView,
   RoutineExecutionView,
   RoutineView,
-  ScheduledGoalDetail,
-  ScheduledGoalSummary,
   ScreenActionInput,
   ScreenStatusView,
   ScreenVncSessionView,
@@ -869,9 +867,6 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
       ),
     routine: (routineId: string) =>
       transport.request<RoutineView>(`/api/v0/routines/${encodeURIComponent(routineId)}`),
-    scheduledGoals: () => transport.request<ScheduledGoalSummary[]>("/api/v0/outcomes/scheduled-goals"),
-    scheduledGoal: (id: string) =>
-      transport.request<ScheduledGoalDetail>(`/api/v0/outcomes/scheduled-goals/${encodeURIComponent(id)}`),
     routineWebhook: (routineId: string) =>
       transport.request<RoutineWebhookView | null>(
         `/api/v0/routines/${encodeURIComponent(routineId)}/webhook`
@@ -909,11 +904,6 @@ export const createOutcomeGoClient = (options: OutcomeGoClientOptions) => {
         `/api/v0/routines/${encodeURIComponent(routineId)}/test`,
         { method: "POST", body: JSON.stringify({ clientId: createId() }) }
       ),
-    prepareRoutine: (routineId: string, expectedRevision: number, clientId: string) =>
-      transport.request<RoutineExecutionView>(`/api/v0/routines/${encodeURIComponent(routineId)}/prepare`, {
-        method: "POST",
-        body: JSON.stringify({ expectedRevision, clientId }),
-      }),
     routineExecutions: (routineId: string, limit = 20) =>
       transport.request<RoutineExecutionView[]>(
         `/api/v0/routines/${encodeURIComponent(routineId)}/executions?limit=${encodeURIComponent(

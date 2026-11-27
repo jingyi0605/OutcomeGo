@@ -38,20 +38,17 @@ test("email routine triggers parse, describe, and validate against the model-fac
   expect(describeTrigger({ type: "group", listeners: [{ type: "cron", schedule: "0 9 * * 1-5" }, trigger] })).toContain("or when email arrives at bot@raghav.sh");
 });
 
-test("UpdateRoutine advertises and parses a standalone one-time trigger", async () => {
+test("UpdateRoutine rejects retired one-time triggers", async () => {
   const { createToolValidator } = await import("@outcomego/plugin-sdk/json-schema");
   const validate = createToolValidator(UPDATE_ROUTINE_TOOL.inputSchema);
   const trigger = { type: "once", runAt: "2026-11-26T12:00:00+08:00", preparation: {
     at: "2026-11-26T11:49:00+08:00", instruction: "Check relevant authorized notes.",
   } };
   const input = { action: "create", name: "Scheduled review", prompt: "Remind the owner.", trigger };
-  expect(validate(input).valid).toBe(true);
-  expect(normalizeMainToolArguments("UpdateRoutine", input).trigger).toEqual(trigger);
-  expect(validate({ ...input, trigger: [trigger] }).valid).toBe(false);
-  expect(validate({ ...input, trigger: { ...trigger, runAt: "2026-11-26T12:00:00" } }).valid).toBe(false);
-  for (const invalid of [[trigger], { type: "group", listeners: [trigger] }, { ...trigger, runAt: "2026-11-26T12:00:00" }]) {
+  for (const invalid of [trigger, [trigger], { type: "group", listeners: [trigger] }]) {
     expect(() => normalizeMainToolArguments("UpdateRoutine", { ...input, trigger: invalid })).toThrow("Not a valid trigger");
   }
+  expect(validate(input).valid).toBe(false);
 });
 test("plugin routine triggers validate against the model-facing schema, parse, and describe", async () => {
   const { createToolValidator } = await import("@outcomego/plugin-sdk/json-schema");
@@ -207,14 +204,12 @@ test("a sent local file other than a picture or video carries the snapshot note"
     expect(sent({ type: "attachment", url })).toBe("Message sent to user. (id: t2s1)");
   expect(sent({ type: "text", content: "hi", images: [{ url: "file:///workspace/a.png" }] })).toBe("Message sent to user. (id: t2s1)");
 });
-test("a dated cron is described as a one-off", () => {
-  expect(describeTrigger({ type: "cron", schedule: "36 10 21 10 *" })).toBe("Once October 21 at 10:36 AM");
-  expect(describeTrigger({ type: "cron", schedule: "CRON_TZ=America/New_York 5 17 3 2 *" })).toBe("Once February 3 at 5:05 PM (America/New_York)");
-  // Not one-offs: a weekday restriction, several days, an impossible date, or a calendar shorthand.
-  expect(describeTrigger({ type: "cron", schedule: "0 9 21 10 1" })).not.toStartWith("Once");
-  expect(describeTrigger({ type: "cron", schedule: "0 9 1,15 10 *" })).not.toStartWith("Once");
-  expect(describeTrigger({ type: "cron", schedule: "0 9 31 2 *" })).not.toStartWith("Once");
-  expect(describeTrigger({ type: "cron", schedule: "@yearly" })).not.toStartWith("Once");
+test("fixed-date cron inputs require an Outcome while periodic schedules remain valid", () => {
+  for (const schedule of ["36 10 21 10 *", "CRON_TZ=America/New_York 5 17 3 2 *"]) {
+    expect(() => normalizeMainToolArguments("UpdateRoutine", {
+      action: "create", name: "Reminder", prompt: "Remind the owner.", schedule,
+    })).toThrow("Use a scheduled_once Outcome");
+  }
   expect(describeTrigger({ type: "cron", schedule: "0 9 * * *" })).toBe("Every day at 9:00 AM");
 });
 

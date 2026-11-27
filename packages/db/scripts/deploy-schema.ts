@@ -19,6 +19,7 @@ const READY_PREFIX = `OutcomeGo schema ready: ${SCHEMA_VERSION}:`;
 const INITIALIZING_PREFIX = `OutcomeGo schema initializing: ${SCHEMA_VERSION}:`;
 const INITIALIZING_MARKER = `${INITIALIZING_PREFIX}${schemaFingerprint}`;
 const READY_MARKER = `${READY_PREFIX}${schemaFingerprint}`;
+const outcomeMigrationPath = join(import.meta.dirname, "..", "prisma", "migrations", "202611260001_unify_outcome_model", "migration.sql");
 
 const assertFreshOrCurrentDatabase = async (): Promise<"initialize" | "ready"> => {
   const client = new Client({ connectionString });
@@ -242,6 +243,25 @@ const retireUnusedStorage = async () => {
   }
 };
 
+const upgradeOutcomeSchema = async (): Promise<void> => {
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    await client.query("SELECT pg_advisory_lock(hashtext('outcomego:unify-outcome-model'))");
+    const { rows } = await client.query<{ legacy: boolean }>(`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'outcomego_outcome' AND column_name = 'trackingMode'
+      ) AS legacy
+    `);
+    if (rows[0]?.legacy) {
+      await client.query(await readFile(outcomeMigrationPath, "utf8"));
+      console.log("Applied unified Outcome schema migration");
+    }
+  } finally {
+    await client.end();
+  }
+};
 
 const markSchema = async (marker: string): Promise<void> => {
   const client = new Client({ connectionString });
@@ -261,6 +281,7 @@ if ((await assertFreshOrCurrentDatabase()) === "ready") process.exit(0);
 await markSchema(INITIALIZING_MARKER);
 
 await retireUnusedStorage();
+await upgradeOutcomeSchema();
 const schemaWasPrepared = await prepareSearchProjection();
 const prisma = Bun.spawn(
   [

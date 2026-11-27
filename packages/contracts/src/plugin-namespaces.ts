@@ -1,6 +1,9 @@
 import { fileTransferCapabilities } from "@outcomego/plugin-sdk";
 import type { PluginDynamicNamespace } from "./index";
 import { getDefaultMcpCustomInstruction } from "./reference-formatters";
+import { isReadonlyConnectorRead } from "./readonly-connectors";
+
+export { isReadonlyConnectorRead } from "./readonly-connectors";
 
 export interface NamespaceConnection {
   id: string;
@@ -86,13 +89,14 @@ export function pluginDynamicNamespaces(
             record(tool._meta)["openteam/hostOnly"] === true
           )
             return [];
+          const source = `${connection.installation.pluginKey}/${connection.connectorKey}`;
           return [{
             connectionId: connection.id,
             name: tool.name,
             description: typeof tool.description === "string" ? tool.description : "",
             inputSchema: record(tool.inputSchema),
-            source: `${connection.installation.pluginKey}/${connection.connectorKey}`,
-            ...(tool.risk === "read" ? { readOnly: true } : {}),
+            source,
+            readOnly: isReadonlyConnectorRead({ ...tool, name: tool.name, source }),
           }];
         })
       : [],

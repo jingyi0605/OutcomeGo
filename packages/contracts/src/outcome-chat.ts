@@ -1,103 +1,58 @@
 import { JSONSchema, Schema } from "effect";
+import { GetOutcomeInput, QueryOutcomesInput, RequestOutcomePlanInput } from "./outcome-thread";
 import {
-  CancelOutcomeInput,
-  CloseOutcomeInput,
-  CreateContractRevisionInput,
-  CreateOutcomeFromContractInput,
-  OUTCOME_STATUSES,
-  StartOutcomeRunInput,
-  TrackOutcomeInput,
+  CreateOutcomeFields,
+  OutcomeKindSchema,
+  UpdateOutcomeFields,
   Uuid,
+  outcomeActionSchemas,
+  validateCreateOutcomeFields,
+  validateOutcomePreparation,
 } from "./outcomes";
-import {
-  CreateExploreIdeaInput,
-  DiscardExploreIdeaInput,
-  EXPLORE_STATUSES,
-} from "./explore";
-import { OUTCOME_INBOX_CATEGORIES } from "./outcome-inbox";
 
 export * from "./outcome-chat-card";
 
-const Id = Uuid;
-const PageSize = Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, 100)));
-const Cursor = Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(1000)));
-const { botId: _botId, ...exploreFields } = CreateExploreIdeaInput.fields;
-
-/** Ordinary conversation tools reuse the UI's inputs; actors and planning Bot come from the Run. */
+/** Ordinary conversation tools reuse the UI's inputs; the authenticated actor comes from the Run. */
 export const OUTCOME_CHAT_INPUTS = {
-  SubmitOutcome: Schema.Struct({
-    text: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(8_000)),
-    exploreIdeaId: Schema.optional(Id),
-    clientRequestId: CancelOutcomeInput.fields.clientRequestId,
+  CreateOutcome: Schema.Struct({
+    ...CreateOutcomeFields.omit("autoPlan").fields,
+    ownerMessageRef: Schema.optional(Uuid),
+  }).pipe(Schema.filter((input) => validateCreateOutcomeFields(input, { requireBot: false }))),
+  UpdateOutcome: Schema.Struct({
+    outcomeId: Uuid,
+    ...UpdateOutcomeFields.fields,
+    targetKind: Schema.optional(OutcomeKindSchema),
+  }).pipe(Schema.filter(({ outcomeId, expectedRevision, clientRequestId, ...changes }) =>
+    Object.values(changes).some((value) => value !== undefined)
+      ? validateOutcomePreparation(changes)
+      : "At least one editable field or targetKind is required",
+  )),
+  QueryOutcomes: QueryOutcomesInput,
+  GetOutcome: GetOutcomeInput,
+  ActOnOutcome: outcomeActionSchemas({ outcomeId: Uuid }),
+  PlanOutcome: Schema.Struct({
+    outcomeId: Uuid,
+    ...RequestOutcomePlanInput.fields,
+    mode: Schema.optional(Schema.Literal("advice", "contract_plan")),
   }),
-  CreateOutcome: CreateOutcomeFromContractInput,
-  ListOutcomes: Schema.Struct({
-    query: Schema.optional(Schema.String.pipe(Schema.maxLength(200))),
-    statuses: Schema.optional(Schema.Array(Schema.Literal(...OUTCOME_STATUSES))),
-    cursor: Cursor,
-    limit: PageSize,
-  }),
-  GetOutcome: Schema.Struct({
-    outcomeId: Id,
-    revision: Schema.optional(CreateContractRevisionInput.fields.baseRevision),
-    workItemId: Schema.optional(Id),
-    before: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.positive())),
-    limit: PageSize,
-  }),
-  ReviseOutcome: Schema.Struct({ outcomeId: Id, ...CreateContractRevisionInput.fields }),
-  StartOutcome: Schema.Struct({ outcomeId: Id, ...StartOutcomeRunInput.fields }),
-  CancelOutcome: Schema.Struct({ outcomeId: Id, ...CancelOutcomeInput.fields }),
-  TrackOutcome: TrackOutcomeInput,
-  CloseOutcome: Schema.Struct({ outcomeId: Id, ...CloseOutcomeInput.fields }),
-  ListOutcomeInbox: Schema.Struct({
-    outcomeId: Schema.optional(Id),
-    status: Schema.optional(Schema.Literal("pending", "completed", "all")),
-    category: Schema.optional(Schema.Literal(...OUTCOME_INBOX_CATEGORIES)),
-    cursor: Cursor,
-    limit: PageSize,
-  }),
-  ListExploreIdeas: Schema.Struct({
-    statuses: Schema.optional(Schema.Array(Schema.Literal(...EXPLORE_STATUSES))),
-    cursor: Cursor,
-    limit: PageSize,
-  }),
-  GetExploreIdea: Schema.Struct({ ideaId: Id }),
-  CreateExploreIdea: Schema.Struct(exploreFields),
-  DiscardExploreIdea: Schema.Struct({ ideaId: Id, ...DiscardExploreIdeaInput.fields }),
 } as const;
 
 export type OutcomeChatToolName = keyof typeof OUTCOME_CHAT_INPUTS;
 export const OUTCOME_CHAT_TOOL_NAMES = Object.keys(OUTCOME_CHAT_INPUTS) as OutcomeChatToolName[];
 
 const descriptions: Record<OutcomeChatToolName, string> = {
-  SubmitOutcome:
-    "Submit the user's goal request verbatim when a planning role is configured. Pass the user's exact words in text without rewriting or adding your own contract; the planning role writes the contract and plan. Reuse clientRequestId for identical retries.",
   CreateOutcome:
-    "Save a native goal with a contract you wrote yourself (title, goal statements, acceptance criteria, scope boundaries, optional budget). It is saved unapproved: the owner reviews and approves it in the app, you never approve it. Write for the owner to read: concrete, no filler. Return the actual goal link and one short next step. Use native goals rather than Notion or TodoWrite unless the user asked for those. Reuse clientRequestId for identical retries.",
-  ListOutcomes:
-    "Find native goals by title/description, execution statuses and cursor. Omit filters to list all goals, including goals assigned to other Bots on this user's server. Read-only. Do not use Notion or todos as a substitute.",
+    "Create a native goal, tracked outcome, one-time schedule, to-do, idea, or note. A standard goal queues planning and still needs the owner's contract approval. A to-do stays suggested without an authorized ownerMessageRef or a matching auto-accept rule. Use description for Markdown notes or execution instructions, and scheduledAt for a one-time schedule. Use tracked only for explicitly requested self-managed tracking that needs neither owner approval nor acceptance. Reuse clientRequestId for identical retries.",
+  UpdateOutcome:
+    "Update an existing Outcome's title, description, tags, attachments, or timing using its current expectedRevision. To convert it in place, pass targetKind; this keeps its identity and history. This does not approve a contract or accept a standard goal. Reuse clientRequestId for identical retries.",
+  QueryOutcomes:
+    "Find native Outcomes across all kinds, including notes and to-dos. Filter by kinds, statuses, tags, search text, or date range; use the returned cursor for the next page. Read-only.",
   GetOutcome:
-    "Read native Outcome facts: contract, WorkItems, Runs, Outputs, Evidence and Reviews. Optionally read an actual historical revision or a WorkItem transcript using before/limit pagination. Distinguish pending, running, awaiting review and accepted; an Agent report is not owner acceptance.",
-  ReviseOutcome:
-    "Propose a complete replacement contract for an existing native goal using the baseRevision just read. Creates a new unapproved revision and preserves prior execution/evidence. Explain the changes and return the link for owner approval. Never approve it yourself. Reuse clientRequestId for identical retries.",
-  StartOutcome:
-    "Start an existing native Outcome only when the user asks and its exact expectedRevision is already approved by the owner. Cannot approve a draft. Execution runs in a separate Outcome thread, leaving this conversation available. Reuse clientRequestId for identical retries.",
-  CancelOutcome:
-    "Cancel a native goal when the user asks to cancel it, preserving its history and stopping its unfinished work through the existing service. Read the actual goal first if the target is ambiguous. Reuse clientRequestId for identical retries.",
-  TrackOutcome:
-    "Use a native goal only if the user explicitly asks to create or track a goal, the work needs the owner's plan approval, final acceptance or a human action, or it needs an inbox decision card. For ordinary ongoing bot work use Task and ReportRequestProgress. Check ListOutcomes first to avoid duplicates. ownerNeed: \"none\" = explicitly requested self-managed tracking (use CloseOutcome when done; no owner acceptance); \"decision\" = owner must choose (provide decision.problemSummary and 1-4 options); \"approval\" = owner must approve a plan (saves an unapproved draft; never approve it yourself). Use a standard goal when the owner must accept the result or perform an action. Never use \"none\" for consequential, externally visible or irreversible changes, actions involving the owner's credentials or preferences, or anything requiring owner authorization. Reuse clientRequestId for identical retries.",
-  CloseOutcome:
-    "Close a tracked goal you registered with TrackOutcome (ownerNeed none) and finished yourself, with a short result summary. The goal is marked auto-closed and does not wait for user acceptance. Fails for owner-approved goals and for goals with an unresolved user decision. Reuse clientRequestId for identical retries.",
-  ListOutcomeInbox:
-    "Read native Outcome decisions, acceptance reviews and human actions requiring the user's attention, optionally for one goal. Returns current server facts and a pagination cursor. Does not resolve decisions or mark acceptance.",
-  ListExploreIdeas:
-    "List native Explore ideas and their statuses with cursor pagination. These are ideas before approved delivery goals, not external notes.",
-  GetExploreIdea:
-    "Read one native Explore idea, its notes, provenance and planning/Outcome links. Read-only.",
-  CreateExploreIdea:
-    "Save an idea discussed with the user in native Explore, optionally linked to a source Outcome. Uses this conversation's Bot. Does not execute or approve anything. Reuse clientRequestId for identical retries.",
-  DiscardExploreIdea:
-    "Discard a native Explore idea when the user asks. Uses the existing terminal-state checks; never deletes an Outcome or its history. Reuse clientRequestId for identical retries.",
+    "Read an Outcome's full content, attachments, latest advice and any contract, Work Items, Outputs, Evidence and Reviews. Optionally read a historical revision or a Work Item transcript with pagination. A report from a Bot is not owner acceptance.",
+  ActOnOutcome:
+    "Apply a lifecycle action the user requested, such as completing a to-do, postponing it, pausing a schedule, or archiving a note. Check the target first if ambiguous. Use close_tracked only for completed self-managed tracked work, with a result summary. Does not approve contracts or accept standard goals. Reuse clientRequestId for identical retries.",
+  PlanOutcome:
+    "Queue structured advice or a formal contract and task plan for an existing Outcome. The planner researches and prepares a result without running the actual work or granting approvals. If omitted, mode defaults to contract_plan for standard goals and advice for other kinds. Reuse clientRequestId for identical retries.",
 };
 
 export const OUTCOME_CHAT_TOOLS = OUTCOME_CHAT_TOOL_NAMES.map((name) => ({

@@ -1,64 +1,74 @@
 import { expect, test } from "bun:test";
 import { decodeOutcomeChatInput, OUTCOME_CHAT_TOOLS, OUTCOME_CHAT_TOOL_NAMES } from "../src/outcome-chat";
-import { parseListOutcomesQuery } from "../src/outcomes";
 
-test("native chat has goal/records/Explore tools, no fixed planning step, and no owner approval or acceptance tool", () => {
-  expect(OUTCOME_CHAT_TOOL_NAMES).toHaveLength(14);
-  for (const gone of ["PlanOutcome", "GetOutcomePlan", "ProposeExploreIdea"]) expect(OUTCOME_CHAT_TOOL_NAMES as string[]).not.toContain(gone);
-  expect(OUTCOME_CHAT_TOOLS.map(tool => tool.name)).toEqual(OUTCOME_CHAT_TOOL_NAMES);
-  expect(OUTCOME_CHAT_TOOL_NAMES.some(name => /approve|review|receipt/i.test(name))).toBe(false);
-  expect(OUTCOME_CHAT_TOOL_NAMES).toContain("SubmitOutcome");
-  expect(decodeOutcomeChatInput("SubmitOutcome", { text: "Clean up logs", clientRequestId: "submit:unique" }))
-    .toEqual({ text: "Clean up logs", clientRequestId: "submit:unique" });
-  // The bot writes the contract itself; there is no planning draft or option ID to pick from.
-  const create = OUTCOME_CHAT_TOOLS.find(tool => tool.name === "CreateOutcome")!;
-  expect(create.inputSchema).toMatchObject({ type: "object", required: ["title", "goal", "acceptance", "boundaries", "clientRequestId"] });
-  const contract = { title: "Clean Unraid", goal: ["Free 200 GB"], acceptance: [{ statement: "200 GB free", required: true }], boundaries: { included: [], excluded: ["Deleting media"] }, clientRequestId: "create:unique" };
-  expect(decodeOutcomeChatInput("CreateOutcome", contract)).toEqual(contract);
+const outcomeId = crypto.randomUUID();
+const clientRequestId = "chat:unique";
+
+test("ordinary chat exposes only the six unified tools", () => {
+  expect(OUTCOME_CHAT_TOOL_NAMES).toEqual([
+    "CreateOutcome", "UpdateOutcome", "QueryOutcomes", "GetOutcome", "ActOnOutcome", "PlanOutcome",
+  ]);
+  expect(OUTCOME_CHAT_TOOLS.map((tool) => tool.name)).toEqual(OUTCOME_CHAT_TOOL_NAMES);
+  expect(OUTCOME_CHAT_TOOLS.find((tool) => tool.name === "CreateOutcome")?.inputSchema).toMatchObject({
+    type: "object", required: expect.arrayContaining(["kind", "title", "clientRequestId"]),
+  });
 });
 
-test("schemas reject forged actors, planning Bot, invalid status and unbounded inputs", () => {
-  for (const extra of [{ actor: "owner:local" }, { context: { botId: crypto.randomUUID() } }, { approved: true }]) {
-    expect(() => decodeOutcomeChatInput("CreateOutcome", {
-      title: "Plan", goal: ["x"], acceptance: [{ statement: "y", required: true }], boundaries: { included: [], excluded: [] },
-      clientRequestId: "plan:unique", ...extra,
-    })).toThrow();
+test("CreateOutcome handles all kinds, preserves notes, and keeps todo authorization explicit", () => {
+  for (const kind of ["standard", "tracked", "todo", "explore_idea", "note"] as const) {
+    const input = { kind, title: "Backup checklist", clientRequestId };
+    expect(decodeOutcomeChatInput("CreateOutcome", input)).toEqual(input);
   }
-  expect(() => decodeOutcomeChatInput("ListOutcomes", { query: "x".repeat(201) })).toThrow();
-  expect(() => decodeOutcomeChatInput("ListOutcomes", { statuses: ["made_up"] })).toThrow();
-  expect(() => decodeOutcomeChatInput("ListOutcomes", { limit: 101 })).toThrow();
+  const note = { kind: "note", title: "Backup notes", description: "# Verified\n- Latest backup exists.", tags: ["backup"], clientRequestId } as const;
+  expect(decodeOutcomeChatInput("CreateOutcome", note)).toEqual(note);
+  const todo = { kind: "todo", title: "Check the latest backup", ownerMessageRef: crypto.randomUUID(), clientRequestId } as const;
+  expect(decodeOutcomeChatInput("CreateOutcome", todo)).toEqual(todo);
+  expect(() => decodeOutcomeChatInput("CreateOutcome", { ...todo, ownerMessageRef: "forged" })).toThrow();
+  for (const extra of [{ actor: "owner:local" }, { approved: true }, { status: "open" }, { autoPlan: false }]) {
+    expect(() => decodeOutcomeChatInput("CreateOutcome", { ...note, ...extra })).toThrow();
+  }
+  const schedule = { kind: "scheduled_once", title: "Check tomorrow", description: "Check the latest backup report.", clientRequestId };
+  expect(() => decodeOutcomeChatInput("CreateOutcome", schedule)).toThrow();
+  expect(decodeOutcomeChatInput("CreateOutcome", { ...schedule, scheduledAt: "2099-12-01T09:00:00Z" })).toMatchObject(schedule);
+});
+
+test("QueryOutcomes finds notes by kind, tags, text and date; GetOutcome keeps revision and transcript options", () => {
+  const query = {
+    kinds: ["note", "todo"], statuses: ["active", "open"], tags: ["backup"], query: "weekly",
+    from: "2026-10-01T00:00:00Z", to: "2026-11-01T00:00:00Z", limit: 10,
+  } as const;
+  expect(decodeOutcomeChatInput("QueryOutcomes", query)).toEqual(query);
+  for (const extra of [{ kinds: ["other"] }, { statuses: ["other"] }, { query: "x".repeat(201) }, { limit: 101 }, { to: "2026-09-01T00:00:00Z" }]) {
+    expect(() => decodeOutcomeChatInput("QueryOutcomes", { ...query, ...extra })).toThrow();
+  }
+  const get = { outcomeId, revision: 2, workItemId: crypto.randomUUID(), before: 10, limit: 5 };
+  expect(decodeOutcomeChatInput("GetOutcome", get)).toEqual(get);
   expect(() => decodeOutcomeChatInput("GetOutcome", { outcomeId: "not-a-uuid" })).toThrow();
-  expect(() => decodeOutcomeChatInput("CreateExploreIdea", {
-    title: "Idea", botId: crypto.randomUUID(), clientRequestId: "idea:unique",
+});
+
+test("UpdateOutcome supports in-place conversion, and ActOnOutcome rejects owner-only and mismatched actions", () => {
+  const update = { outcomeId, expectedRevision: 2, description: "# Revised", tags: ["weekly"], targetKind: "todo", clientRequestId } as const;
+  expect(decodeOutcomeChatInput("UpdateOutcome", update)).toEqual(update);
+  expect(decodeOutcomeChatInput("UpdateOutcome", { outcomeId, expectedRevision: 2, targetKind: "todo", clientRequestId })).toMatchObject({ targetKind: "todo" });
+  expect(() => decodeOutcomeChatInput("UpdateOutcome", { ...update, targetKind: "other" })).toThrow();
+  expect(() => decodeOutcomeChatInput("UpdateOutcome", { ...update, expectedRevision: 0 })).toThrow();
+  expect(() => decodeOutcomeChatInput("UpdateOutcome", { outcomeId, expectedRevision: 2, clientRequestId })).toThrow();
+  expect(() => decodeOutcomeChatInput("UpdateOutcome", {
+    ...update, prepareAt: "2099-12-01T10:00:00Z", scheduledAt: "2099-12-01T09:00:00Z",
   })).toThrow();
+  const snooze = { outcomeId, action: "snooze", payload: { snoozeUntil: "2099-12-01T09:00:00Z" }, clientRequestId } as const;
+  expect(decodeOutcomeChatInput("ActOnOutcome", snooze)).toEqual(snooze);
+  const close = { outcomeId, action: "close_tracked", payload: { resultSummary: "Weekly backup verified" }, clientRequestId } as const;
+  expect(decodeOutcomeChatInput("ActOnOutcome", close)).toEqual(close);
+  for (const invalid of [{ action: "approve" }, { action: "accept_outcome" }, { action: "snooze" }, { action: "close_tracked", payload: { resultSummary: "" } }]) {
+    expect(() => decodeOutcomeChatInput("ActOnOutcome", { outcomeId, clientRequestId, ...invalid })).toThrow();
+  }
 });
 
-test("Outcome text search is optional and preserves the existing list query shape", () => {
-  expect(parseListOutcomesQuery(new URLSearchParams())).toEqual({ statuses: [], cursor: null, limit: 20 });
-  expect(parseListOutcomesQuery(new URLSearchParams("query=Unraid&status=running&limit=2")))
-    .toMatchObject({ query: "Unraid", statuses: ["running"], limit: 2 });
-  expect(() => parseListOutcomesQuery(new URLSearchParams({ query: "a".repeat(201) }))).toThrow();
-});
-
-test("TrackOutcome registers without planning and ties decision details to ownerNeed", () => {
-  const base = { title: "Renew domain", goal: "Renew the domain before it expires", clientRequestId: "track:unique" };
-  expect(decodeOutcomeChatInput("TrackOutcome", base)).toEqual(base);
-  expect(decodeOutcomeChatInput("TrackOutcome", { ...base, ownerNeed: "approval" })).toMatchObject({ ownerNeed: "approval" });
-  const decision = { problemSummary: "Renew for 1 or 3 years?", options: [{ label: "1 year", consequence: "Lower cost" }] };
-  expect(decodeOutcomeChatInput("TrackOutcome", { ...base, ownerNeed: "decision", decision })).toMatchObject({ ownerNeed: "decision" });
-  // A decision goal needs its question, and no other goal may carry one.
-  expect(() => decodeOutcomeChatInput("TrackOutcome", { ...base, ownerNeed: "decision" })).toThrow();
-  expect(() => decodeOutcomeChatInput("TrackOutcome", { ...base, decision })).toThrow();
-  expect(() => decodeOutcomeChatInput("TrackOutcome", { ...base, ownerNeed: "approval", decision })).toThrow();
-  expect(() => decodeOutcomeChatInput("TrackOutcome", { ...base, ownerNeed: "everything" })).toThrow();
-  expect(() => decodeOutcomeChatInput("TrackOutcome", { ...base, actor: "owner:local" })).toThrow();
-  expect(() => decodeOutcomeChatInput("TrackOutcome", { ...base, decision: { ...decision, options: [] }, ownerNeed: "decision" })).toThrow();
-});
-
-test("CloseOutcome needs a real target and a non-empty result summary", () => {
-  const outcomeId = crypto.randomUUID();
-  expect(decodeOutcomeChatInput("CloseOutcome", { outcomeId, resultSummary: "Renewed", clientRequestId: "close:unique" }))
-    .toMatchObject({ resultSummary: "Renewed" });
-  expect(() => decodeOutcomeChatInput("CloseOutcome", { outcomeId, resultSummary: "", clientRequestId: "close:unique" })).toThrow();
-  expect(() => decodeOutcomeChatInput("CloseOutcome", { outcomeId: "nope", resultSummary: "x", clientRequestId: "close:unique" })).toThrow();
+test("PlanOutcome uses the shared Plan request and accepts an omitted mode", () => {
+  const plan = { outcomeId, clientRequestId };
+  expect(decodeOutcomeChatInput("PlanOutcome", plan)).toEqual(plan);
+  expect(decodeOutcomeChatInput("PlanOutcome", { ...plan, mode: "advice", prompt: "Check the backup notes", expectedRevision: 1 })).toMatchObject({ mode: "advice" });
+  expect(() => decodeOutcomeChatInput("PlanOutcome", { ...plan, mode: "inspection" })).toThrow();
+  expect(() => decodeOutcomeChatInput("PlanOutcome", { ...plan, mode: "triage" })).toThrow();
 });

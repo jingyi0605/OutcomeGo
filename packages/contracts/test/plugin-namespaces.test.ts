@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { connectorCustomInstructionsSection, pluginDynamicNamespaces } from "../src/plugin-namespaces";
+import { connectorCustomInstructionsSection, isReadonlyConnectorRead, pluginDynamicNamespaces } from "../src/plugin-namespaces";
 
 const connection = (id: string, overrides: Record<string, unknown> = {}) => ({
   id, name: "Google Calendar", alias: "default", connectorKey: "google-calendar", status: "ready", statusMessage: null,
@@ -7,6 +7,20 @@ const connection = (id: string, overrides: Record<string, unknown> = {}) => ({
   installation: { pluginKey: "google-calendar" }, ...overrides,
 });
 const names = new Map([["a", "google-calendar"], ["b", "google-calendar--work"], ["c", "linear"], ["d", "hex"], ["e", "google-drive"]]);
+
+test("explicit unsafe connector metadata overrides the read allowlist", () => {
+  const legacy = { source: "google-calendar/google-calendar", name: "search_events", risk: "write" };
+  expect(isReadonlyConnectorRead(legacy)).toBe(true);
+  expect(isReadonlyConnectorRead({ ...legacy, risk: "destructive", readOnly: true })).toBe(false);
+  expect(isReadonlyConnectorRead({ ...legacy, annotations: { readOnlyHint: true, destructiveHint: true } })).toBe(false);
+  expect(isReadonlyConnectorRead({ ...legacy, annotations: { readOnlyHint: false } })).toBe(false);
+  expect(isReadonlyConnectorRead({ ...legacy, name: "create_event" })).toBe(false);
+  const [namespace] = pluginDynamicNamespaces([connection("a", {
+    toolSnapshot: [{ name: "search_events", risk: "destructive" }],
+  })], names);
+  expect(namespace!.tools[0]!.readOnly).toBe(false);
+  expect(isReadonlyConnectorRead(namespace!.tools[0]!)).toBe(false);
+});
 
 test("namespaces carry the account and a not-ready reason, never saved instructions", () => {
   const [ready, signedOut] = pluginDynamicNamespaces([

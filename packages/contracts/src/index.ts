@@ -10,6 +10,9 @@ import type { NotificationRouting } from "./notification-presence";
 export type { SystemActivityView } from "./system-activity";
 import { withReferenceContract, referenceTool } from "./tool-contracts";
 import { Schema } from "effect";
+import { AssetRef } from "./asset-ref";
+export * from "./asset-ref";
+import { OutcomePlanMode, OutcomeThreadPurposeSchema, TurnAccessMode } from "./outcome-plan";
 import { BOT_AVATAR_COLOR_NAMES } from "./bot-avatar";
 export { validateProcessSecretName } from "./process-secrets";
 import {
@@ -299,22 +302,6 @@ export const RuntimeInlineImage = Schema.Struct({
   alt: Schema.optional(Schema.String.pipe(Schema.maxLength(2_000))),
 });
 export type RuntimeInlineImage = typeof RuntimeInlineImage.Type;
-
-export const AssetKind = Schema.Literal("image", "video", "audio", "pdf", "text", "file");
-export type AssetKind = typeof AssetKind.Type;
-
-/** Canonical persisted reference to bytes owned by OutcomeGo's content-addressed asset store. */
-export const AssetRef = Schema.Struct({
-  assetId: Schema.String.pipe(Schema.pattern(/^[a-f0-9]{64}$/)),
-  fileName: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
-  mimeType: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(120)),
-  byteSize: Schema.Number.pipe(Schema.int(), Schema.between(0, 200 * 1024 * 1024)),
-  kind: AssetKind,
-  width: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.greaterThan(0))),
-  height: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.greaterThan(0))),
-  alt: Schema.optional(Schema.String.pipe(Schema.maxLength(2_000))),
-});
-export type AssetRef = typeof AssetRef.Type;
 
 export const UploadAssetInput = Schema.Struct({
   fileName: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(255)),
@@ -1579,7 +1566,6 @@ export const ComputerTurnRequest = Schema.Struct({
   connectorInstructions: Schema.optional(Schema.String),
   agentProfileSnapshot: Schema.optional(Schema.Unknown),
   todoUpdate: Schema.optional(Schema.NullOr(Schema.String)),
-  todoTurnMode: Schema.optional(Schema.Literal("owner", "wake", "automation")),
   resetSelfSummaryCount: Schema.optional(Schema.Boolean),
   requestSource: Schema.optional(RuntimeRequestSource),
   /** Set by the worker only for an Outcome sub-thread; routine and ordinary turns omit it. */
@@ -1589,7 +1575,9 @@ export const ComputerTurnRequest = Schema.Struct({
     Schema.Struct({
       threadId: Schema.String,
       outcomeId: Schema.String,
-      purpose: Schema.Literal("plan", "owner_message", "replan", "review", "review_task", "inspection"),
+      purpose: OutcomeThreadPurposeSchema,
+      planMode: Schema.optional(OutcomePlanMode),
+      outcomeRevision: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.positive())),
     })
   ),
   channelId: Schema.String,
@@ -1597,10 +1585,11 @@ export const ComputerTurnRequest = Schema.Struct({
   runtimeProfile: Schema.optional(Schema.Literal("agent", "subagent")),
   subagentType: Schema.optional(SubagentType),
   taskConfiguration: Schema.optional(Schema.Unknown),
-  readOnly: Schema.optional(Schema.Boolean),
+  accessMode: TurnAccessMode,
+  borrowedBotId: Schema.optional(Schema.UUID),
   /** The user's IANA time zone; the computer sets the box clock to it before the turn runs. */
   timeZone: Schema.optional(Schema.String),
-  /** Goal management is an opt-in module; without it the turn gets no Outcome or Explore tools. */
+  /** Goal management is an opt-in module; without it the turn gets no Outcome tools. */
   outcomesEnabled: Schema.optional(Schema.Boolean),
   /** A member's turn in a group chat: the turn gets the group task board tools (specs/010-群任务看板). */
   groupTasksEnabled: Schema.optional(Schema.Boolean),
@@ -2145,6 +2134,7 @@ export class ApiError extends Error {
 export * from "./external-draft";
 export * from "./messages-send";
 export * from "./outcomes";
+export * from "./outcome-plan";
 export * from "./group-tasks";
 export * from "./bot-recipe";
 
@@ -2216,4 +2206,3 @@ export * from "./reply-preview";
 export * from "./outcome-inbox";
 export * from "./knowledge";
 export * from "./human-work";
-export * from "./explore";

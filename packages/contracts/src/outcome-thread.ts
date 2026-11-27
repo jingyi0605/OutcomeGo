@@ -1,9 +1,21 @@
 import { JSONSchema, Schema } from "effect";
 import type { OutcomeThreadTurnModelView } from "./inference";
-import { OUTCOME_CHAT_INPUTS } from "./outcome-chat";
+import {
+  OutcomePlanMode,
+  OutcomeTriageChildKind,
+  OutcomeTriageKind,
+  OutcomeTriageMemoryFacts,
+  PlanAdviceFields,
+  PlanSummary,
+  type OutcomePlanAdvice,
+  type OutcomeThreadPurpose,
+  type OutcomeTriageResult,
+} from "./outcome-plan";
 import {
   CancelOutcomeInput,
   CreateContractRevisionInput,
+  CreateOutcomeFields,
+  ListOutcomesFilterInput,
   OUTCOME_LIMITS,
   OutcomeBudgetInput,
   PLAN_ESTIMATE_MINUTES,
@@ -11,7 +23,11 @@ import {
   PLAN_TASK_NATURES,
   PREREVIEW_SUGGESTIONS,
   Uuid,
+  validateCreateOutcomeFields,
+  validateOutcomeDateRange,
 } from "./outcomes";
+
+export { OUTCOME_THREAD_PURPOSES, OutcomeThreadPurposeSchema, type OutcomeThreadPurpose } from "./outcome-plan";
 
 /**
  * A goal's own Agent thread (specs/004.8, 004.9). The owner's words go to the bot as they are; the bot decides what
@@ -20,35 +36,32 @@ import {
  */
 export const OUTCOME_THREAD_ROLES = ["planner", "reviewer"] as const;
 export type OutcomeThreadRole = (typeof OUTCOME_THREAD_ROLES)[number];
-export const OUTCOME_THREAD_PURPOSES = ["plan", "owner_message", "replan", "review", "review_task", "inspection"] as const;
-export type OutcomeThreadPurpose = (typeof OUTCOME_THREAD_PURPOSES)[number];
-export const OUTCOME_THREAD_TURN_STATUSES = ["queued", "running", "completed", "failed"] as const;
+export const OUTCOME_THREAD_TURN_STATUSES = ["queued", "running", "completed", "failed", "cancelled"] as const;
 export type OutcomeThreadTurnStatus = (typeof OUTCOME_THREAD_TURN_STATUSES)[number];
 
 export const OUTCOME_THREAD_TEXT_CHARS = 8_000;
 const ClientRequestId = CancelOutcomeInput.fields.clientRequestId;
 const Text = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_THREAD_TEXT_CHARS));
+const RevisionNumber = Schema.Number.pipe(Schema.int(), Schema.positive());
 
 /** The owner's words about a goal; they reach the bot unchanged. */
-export const SendOutcomeThreadMessageInput = Schema.Struct({ text: Text, clientRequestId: ClientRequestId });
+export const SendOutcomeThreadMessageInput = Schema.Struct({
+  text: Text,
+  mode: Schema.optional(OutcomePlanMode),
+  clientRequestId: ClientRequestId,
+});
 export type SendOutcomeThreadMessageInput = typeof SendOutcomeThreadMessageInput.Type;
 
-export const RequestOutcomeInspectionInput = Schema.Struct({
+export const RequestOutcomePlanInput = Schema.Struct({
+  mode: Schema.optional(OutcomePlanMode),
+  prompt: Schema.optional(Text),
+  expectedRevision: Schema.optional(RevisionNumber),
+  workItemId: Schema.optional(Uuid),
   clientRequestId: ClientRequestId,
 });
-export type RequestOutcomeInspectionInput = typeof RequestOutcomeInspectionInput.Type;
+export type RequestOutcomePlanInput = typeof RequestOutcomePlanInput.Type;
 
-/** A new goal described in the owner's own words; the chosen bot plans it. */
-export const CreateOutcomeThreadInput = Schema.Struct({
-  text: Text,
-  botId: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100)),
-  exploreIdeaId: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(100))),
-  postToChat: Schema.optional(Schema.Boolean),
-  clientRequestId: ClientRequestId,
-});
-export type CreateOutcomeThreadInput = typeof CreateOutcomeThreadInput.Type;
-
-export interface OutcomeThreadTurnView {
+interface OutcomeThreadTurnFields {
   id: string;
   purpose: OutcomeThreadPurpose;
   /** The owner's words, as sent, or system trigger description. */
@@ -57,14 +70,19 @@ export interface OutcomeThreadTurnView {
   /** The bot's final message for the turn. */
   reply: string | null;
   error: { code: string; message: string } | null;
+  skipReason?: string | null;
   runId: string | null;
   model?: OutcomeThreadTurnModelView | null;
   workItemId?: string | null;
-  inspectionSource?: "manual" | "automatic";
-  result?: unknown | null;
+  outcomeRevision: number | null;
   createdAt: string;
   updatedAt: string;
 }
+export type OutcomeThreadTurnView = OutcomeThreadTurnFields & (
+  | { planMode: "triage"; result?: OutcomeTriageResult | null }
+  | { planMode: "advice"; result?: OutcomePlanAdvice | null }
+  | { planMode: "contract_plan" | null; result?: unknown }
+);
 export interface OutcomeThreadView {
   threadId: string | null;
   turns: OutcomeThreadTurnView[];
@@ -73,7 +91,50 @@ export interface OutcomeThreadView {
 }
 
 const contractFields = CreateContractRevisionInput.fields.contract.fields;
-const RevisionNumber = Schema.Number.pipe(Schema.int(), Schema.positive());
+
+export const GetOutcomeInput = Schema.Struct({
+  outcomeId: Uuid,
+  revision: Schema.optional(CreateContractRevisionInput.fields.baseRevision),
+  workItemId: Schema.optional(Uuid),
+  before: Schema.optional(RevisionNumber),
+  limit: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.between(1, OUTCOME_LIMITS.listPageSizeMax))),
+});
+
+export const QueryOutcomesInput = ListOutcomesFilterInput.pipe(Schema.filter(validateOutcomeDateRange));
+
+const classificationFields = CreateOutcomeFields.pick(
+  "title", "description", "botId", "tags", "urgency", "dueAt", "scheduledAt", "prepareAt", "prepareInstruction", "followUpAt", "budget",
+);
+const classificationResultFields = {
+  summary: PlanSummary,
+  memoryFacts: Schema.optional(OutcomeTriageMemoryFacts),
+  clientRequestId: ClientRequestId,
+};
+const SingleOutcomeClassification = Schema.Struct({
+  ...classificationResultFields,
+  strategy: Schema.Literal("single_convert"),
+  outcome: Schema.Struct({ kind: OutcomeTriageKind, ...classificationFields.fields }),
+});
+const SplitOutcomeClassification = Schema.Struct({
+  ...classificationResultFields,
+  strategy: Schema.Literal("split_from_note"),
+  sourceNote: Schema.optional(Schema.partial(classificationFields.pick("title", "description", "tags"))),
+  children: Schema.Array(Schema.Struct({ kind: OutcomeTriageChildKind, ...classificationFields.fields })).pipe(Schema.minItems(1)),
+});
+export const ClassifyOutcomeInput = Schema.Union(SingleOutcomeClassification, SplitOutcomeClassification).pipe(
+  Schema.filter((input) => {
+    const items = input.strategy === "single_convert" ? [input.outcome] : input.children;
+    for (const item of items) {
+      const validation = validateCreateOutcomeFields({ ...item, clientRequestId: input.clientRequestId }, { requireBot: false });
+      if (validation) return validation;
+    }
+    return true;
+  }),
+);
+export type ClassifyOutcomeInput = typeof ClassifyOutcomeInput.Type;
+
+export const SavePlanAdviceInput = Schema.Struct({ ...PlanAdviceFields.fields, clientRequestId: ClientRequestId });
+export type SavePlanAdviceInput = typeof SavePlanAdviceInput.Type;
 
 export const PlanTaskInputSchema = Schema.Struct({
   key: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(PLAN_LIMITS.keyChars)),
@@ -126,6 +187,8 @@ export const composeConclusion = (items: readonly string[]): string =>
   items.length === 1 ? items[0]!.trim() : items.map((item, index) => `${index + 1}. ${item.trim()}`).join("\n");
 
 const GoalThreadInputs = {
+  ClassifyOutcome: ClassifyOutcomeInput,
+  SavePlanAdvice: SavePlanAdviceInput,
   SaveOutcomeContract: Schema.Struct({
     /** Required for a goal's first contract; ignored afterwards. */
     title: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.titleChars))),
@@ -187,8 +250,8 @@ const GoalThreadInputs = {
     note: Schema.optional(Schema.String.pipe(Schema.maxLength(PLAN_LIMITS.noteChars))),
     clientRequestId: ClientRequestId,
   }),
-  GetOutcome: OUTCOME_CHAT_INPUTS.GetOutcome,
-  ListOutcomes: OUTCOME_CHAT_INPUTS.ListOutcomes,
+  GetOutcome: GetOutcomeInput,
+  ListOutcomes: QueryOutcomesInput,
   AcceptOutcome: Schema.Struct({
     outcomeId: Uuid,
     expectedRevision: RevisionNumber,
@@ -205,7 +268,7 @@ const GoalThreadInputs = {
     ),
     clientRequestId: ClientRequestId,
   }),
-  CancelOutcome: OUTCOME_CHAT_INPUTS.CancelOutcome,
+  CancelOutcome: Schema.Struct({ outcomeId: Uuid, ...CancelOutcomeInput.fields }),
 } as const;
 
 export type SaveOutcomeContractInput = typeof GoalThreadInputs.SaveOutcomeContract.Type;
@@ -217,27 +280,38 @@ export type RequestOutcomeReworkInput = typeof GoalThreadInputs.RequestOutcomeRe
 export type OutcomeThreadToolName = keyof typeof GoalThreadInputs;
 export const OUTCOME_GOAL_THREAD_TOOL_NAMES = Object.keys(GoalThreadInputs) as OutcomeThreadToolName[];
 
+const researchTools = ["GetOutcome", "ListOutcomes", "SavePlanAdvice"] as const;
+
 export const OUTCOME_THREAD_TOOLS_BY_PURPOSE: Record<OutcomeThreadPurpose, readonly OutcomeThreadToolName[]> = {
-  plan: ["SaveOutcomeContract", "SavePlan", "CancelOutcome", "GetOutcome", "ListOutcomes"],
+  plan: ["SaveOutcomeContract", "SavePlan", "CancelOutcome", ...researchTools],
   owner_message: [
     "SaveOutcomeContract",
     "SavePlan",
     "AcceptOutcome",
     "RequestOutcomeRework",
     "CancelOutcome",
-    "GetOutcome",
-    "ListOutcomes",
+    ...researchTools,
   ],
-  replan: ["SaveOutcomeContract", "SavePlan", "CancelOutcome", "GetOutcome", "ListOutcomes"],
+  replan: ["SaveOutcomeContract", "SavePlan", "CancelOutcome", ...researchTools],
   review: ["GetOutcome", "SubmitPrereview"],
   review_task: ["GetOutcome", "ReviewTaskResult"],
-  inspection: ["GetOutcome"],
 };
 
-export const goalThreadToolsForPurpose = (purpose: OutcomeThreadPurpose): readonly OutcomeThreadToolName[] =>
-  OUTCOME_THREAD_TOOLS_BY_PURPOSE[purpose];
+export function goalThreadToolsForPurpose(
+  purpose: OutcomeThreadPurpose,
+  mode?: OutcomePlanMode | null,
+): readonly OutcomeThreadToolName[] {
+  if (purpose === "review" || purpose === "review_task") return OUTCOME_THREAD_TOOLS_BY_PURPOSE[purpose];
+  if (mode === "triage") return [...researchTools, "ClassifyOutcome"];
+  if (mode === "advice") return researchTools;
+  return OUTCOME_THREAD_TOOLS_BY_PURPOSE[purpose];
+}
 
 const descriptions: Record<OutcomeThreadToolName, string> = {
+  ClassifyOutcome:
+    "Classify the current intake without changing its identity. Use single_convert with one outcome, or split_from_note with one or more children and optional sourceNote edits. Preserve the original content and attachments; the server links children to the source note. Include scheduledAt and execution instructions in description for scheduled_once. Give a short summary and optional memoryFacts, each at most 500 characters. Reuse clientRequestId for identical retries.",
+  SavePlanAdvice:
+    "Save the current Outcome's research brief. Provide a short summary, verified facts with specific sources, gaps for unavailable or stale information, and recommendations marked when they need owner confirmation. Optionally suggest a different Outcome kind; this does not convert the Outcome or execute any recommendation. Reuse clientRequestId for identical retries.",
   SaveOutcomeContract:
     "Write this goal's contract yourself and save it for the owner's approval: goal statements, acceptance criteria and scope boundaries, optional budget. The first call also needs a title. Later calls replace the pending contract with a new revision; unchanged content is refused. The owner approves in the app: never approve it, never ask them to approve it elsewhere. Write for the owner to read: concrete, no filler. Reuse clientRequestId for identical retries.",
   SavePlan:
@@ -247,9 +321,9 @@ const descriptions: Record<OutcomeThreadToolName, string> = {
   ReviewTaskResult:
     "Record your task-level review verdict (pass or reject) for one completed deliverable work item. Default to pass. Reject only for serious errors or omissions backed by a required criterion covered by the task or an explicit contract boundary, with a clear reason. Each task can be rejected at most once. Notes are for holistic review only and are never sent to the executing bot. Reuse clientRequestId for identical retries.",
   GetOutcome:
-    "Read this goal's facts: current contract and revision, Work items, Outputs, Evidence and Reviews. Output contentRef paths point into /workspace. Use Read or a read-only Shell command to inspect referenced files before judging their contents. Use it before changing anything.",
+    "Read the Outcome's original content and attachments, latest advice, and any contract, Work Items, Outputs, Evidence and Reviews. Output contentRef paths point into /workspace. Use Read or a read-only Shell command to inspect referenced files before judging their contents. Use it before changing anything.",
   ListOutcomes:
-    "Find native goals by text or status. Read-only.",
+    "Find related Outcomes by kind, text, tag, status, or date range. Read-only.",
   AcceptOutcome:
     "Accept and complete this goal (status -> accepted) when it is in review_pending and the owner's words in this turn confirm acceptance or completion. Pass expectedRevision of the current approved contract. Only allowed in owner-initiated turns; refuses if required work, decisions, or human receipts remain open. Reuse clientRequestId for identical retries.",
   RequestOutcomeRework:

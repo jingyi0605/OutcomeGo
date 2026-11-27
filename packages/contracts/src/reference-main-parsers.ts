@@ -228,6 +228,8 @@ function isValidSchedule(schedule, minimumIntervalMs) {
 
 var automationSchedule = external_exports.string().trim().min(1).refine(isValidSchedule, {
   message: "Schedule must be a valid cron expression or @every interval."
+}).refine((schedule) => !/^\d+ \d+ \d+ \d+ \*$/.test(splitScheduleTimeZone(schedule).schedule), {
+  message: "Use a scheduled_once Outcome for a single future date."
 });
 
 function recoverTriggerModelSentAsJsonEncodedString(value) {
@@ -246,15 +248,6 @@ var cronTriggerMember = external_exports.object({
   schedule: automationSchedule.describe(
     `A 5-field cron expression in the user's local time ("0 7 * * *"), or a shorthand (@hourly/@daily/@weekly/@monthly, "@every 30m"). Calendar shorthands take their clock fields from the routine's creation time, and unphased @every intervals anchor to creation. A clock time the user names is saved as named, so "8am" is "0 8 * * *" and "daily at 2" is "0 2 * * *"; only an ask that names no time takes the current minute off the <timestamp>, so asked at 1:32 "hourly" is "32 * * * *".`
   )
-});
-
-var onceTriggerMember = external_exports.object({
-  type: external_exports.literal("once"),
-  runAt: external_exports.string().datetime({ offset: true }).describe("The one future time when this routine runs."),
-  preparation: external_exports.object({
-    at: external_exports.string().datetime({ offset: true }).describe("Optional earlier time to prepare facts."),
-    instruction: external_exports.string().trim().min(1).max(20000).describe("What to prepare privately before the scheduled run.")
-  }).optional()
 });
 
 var slackListener2 = external_exports.object({
@@ -455,7 +448,6 @@ var triggerMember = external_exports.discriminatedUnion("type", [
 var automationTriggerShape = external_exports.union([
   external_exports.discriminatedUnion("type", [
     cronTriggerMember,
-    onceTriggerMember,
     slackListener2,
     githubListener2,
     originListener2,
@@ -582,7 +574,6 @@ var AUTOMATION_TRIGGER_SHAPE_LINES = [
   '  { "type": "cron", "schedule": "0 8 * * 1-5" }, a schedule written as a listener, in the same format as schedule. It belongs in a group, so one prompt fires both on time and on events; on its own, pass schedule instead.',
   "A bare array of listeners, [ { ... }, { ... } ], is shorthand for the group form.",
   'A microsoftTeams trigger also takes "teamId": "<one Graph API team id>" in place of teamIds, "messageContainsIsRegex": true to read messageContains as a regular expression, and "blockUnauthenticatedTeamsUsers": true to ignore messages from unauthenticated Teams users.',
-  '  { "type": "once", "runAt": "<ISO 8601 timestamp with UTC offset>", "preparation"?: { "at": "<earlier timestamp with UTC offset>", "instruction": "<private preparation instructions>" } } (standalone only)',
 ];
 var INVALID_AUTOMATION_TRIGGER_MESSAGE = ["Not a valid trigger. Trigger shapes:", ...AUTOMATION_TRIGGER_SHAPE_LINES].join("\n");
 var automationTriggerWithInvalidMessage = external_exports.unknown().transform((value, ctx) => {
@@ -1774,28 +1765,6 @@ function describeCronMatcher(matcher) {
   return `${englishEvery(time4.every)}${on}${window2}`;
 }
 
-function describeOneShotSchedule(schedule) {
-  const normalized = normalizeSchedule(schedule);
-  if (parseEveryIntervalMs(normalized) != null) return null;
-  if (splitScheduleTimeZone(normalized).schedule.startsWith("@")) return null;
-  const matcher = compileCronMatcher(normalized);
-  if (matcher == null || matcher.month.size !== 1 || !matcher.isDayOfMonthRestricted || matcher.dayOfMonth.size !== 1 || matcher.isDayOfWeekRestricted || matcher.hour.size !== 1 || matcher.minute.size !== 1) {
-    return null;
-  }
-  const [month] = matcher.month;
-  const [day] = matcher.dayOfMonth;
-  const [hour] = matcher.hour;
-  const [minute] = matcher.minute;
-  if (month == null || day == null || hour == null || minute == null) return null;
-  if (!isCalendarDate({ month, day })) return null;
-  return `${MONTHS[month - 1]} ${day} at ${formatClock(hour, minute)}`;
-}
-
-function isCalendarDate({ month, day }) {
-  const date6 = new Date(2e3, month - 1, day);
-  return date6.getMonth() === month - 1 && date6.getDate() === day;
-}
-
 function describeSchedule(schedule) {
   const normalized = normalizeSchedule(schedule);
   const intervalMs = parseEveryIntervalMs(normalized);
@@ -1809,8 +1778,7 @@ function describeSchedule(schedule) {
   }
   const matcher = compileCronMatcher(normalized);
   if (matcher == null) return normalized;
-  const oneShot = describeOneShotSchedule(normalized);
-  const prose = oneShot != null ? `Once ${oneShot}` : describeCronMatcher(matcher);
+  const prose = describeCronMatcher(matcher);
   if (prose == null) return normalized;
   return matcher.timeZone == null ? prose : `${prose} (${matcher.timeZone})`;
 }
@@ -1964,8 +1932,6 @@ function describeListener(listener) {
     }
     case "webhook":
       return "When a webhook fires";
-    case "once":
-      return `Once at ${new Date(listener.runAt).toLocaleString()}`;
   }
 }
 

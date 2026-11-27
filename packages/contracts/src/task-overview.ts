@@ -1,13 +1,14 @@
 import { MISSED_SCHEDULE_REASON_CODE } from "./outcome-inbox-categories";
-import type { TodoAttentionItem, TodoDigest } from "./todo";
 import type {
   AgentWorkItemStatus,
   HumanWorkItemStatus,
   OutcomeStatus,
+  OutcomeStatusFor,
+  OutcomeSummary,
+  OutcomeUrgency,
   WorkItemExecutorType,
   WorkItemStatus,
 } from "./outcomes";
-import type { TodoDisplayState } from "./todo";
 
 /**
  * Display states shared by the activity view, the "needs me" queue, the goal timeline, the calendar and
@@ -164,7 +165,7 @@ export function isWorkItemOverdue(
 // Routines
 // ---------------------------------------------------------------------------
 
-export type RoutineDisplayState = "running" | "failed" | "skipped" | "paused" | "idle" | "preparing";
+export type RoutineDisplayState = "running" | "failed" | "skipped" | "paused" | "idle";
 export type RoutineExecutionState = "queued" | "running" | "completed" | "failed" | "cancelled" | "skipped";
 
 /** The latest execution decides first; a pause never hides a failure or a run in flight. */
@@ -198,13 +199,76 @@ export function localDateOf(instant: Date, timeZone: string): string {
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
+export type OutcomeTodoAttention = "overdue" | "today" | "follow_up" | "suggested";
+export type OutcomeTodoDisplayState = OutcomeStatusFor<"todo"> | "today" | "this_week" | "upcoming" | "unscheduled" | "snoozed" | "follow_up";
+
+export interface OutcomeTodoDigest {
+  date: string;
+  counts: Record<OutcomeTodoAttention, number>;
+  titles: string[];
+}
+
+export interface OutcomeTodoAttentionItem {
+  key: string;
+  attention: OutcomeTodoAttention;
+  urgency: OutcomeUrgency;
+  since: string;
+  outcome: OutcomeSummary;
+}
+
+const ATTENTION_RANK: Record<OutcomeTodoAttention, number> = { overdue: 0, today: 1, follow_up: 1, suggested: 2 };
+const URGENCY_RANK: Record<OutcomeUrgency, number> = { high: 0, normal: 1, low: 2 };
+
+type OutcomeTodoAttentionOrder = Pick<OutcomeTodoAttentionItem, "key" | "attention" | "urgency" | "since">;
+
+export function compareOutcomeTodoAttention(left: OutcomeTodoAttentionOrder, right: OutcomeTodoAttentionOrder): number {
+  return ATTENTION_RANK[left.attention] - ATTENTION_RANK[right.attention] ||
+    URGENCY_RANK[left.urgency] - URGENCY_RANK[right.urgency] ||
+    left.since.localeCompare(right.since) || left.key.localeCompare(right.key);
+}
+
+interface OutcomeTodoSchedule {
+  status: OutcomeStatusFor<"todo">;
+  dueAt: Date | null;
+  scheduledAt: Date | null;
+  snoozeUntil: Date | null;
+  followUpAt: Date | null;
+}
+
+export function deriveOutcomeTodoAttention(input: OutcomeTodoSchedule & { expiresAt: Date | null }, now: Date, timeZone: string): OutcomeTodoAttention | null {
+  const { status, dueAt, followUpAt, expiresAt } = input;
+  if (input.snoozeUntil && input.snoozeUntil > now) return null;
+  if (status === "suggested") return expiresAt && expiresAt <= now ? null : "suggested";
+  if (status !== "open" && status !== "waiting") return null;
+  if (isOverdue(dueAt, now, false)) return "overdue";
+  if (status === "waiting" && followUpAt && followUpAt <= now) return "follow_up";
+  const date = dueAt ?? (status === "open" ? input.scheduledAt : null);
+  return date && localDateOf(date, timeZone) === localDateOf(now, timeZone) ? "today" : null;
+}
+
+export function deriveOutcomeTodoDisplayState(input: OutcomeTodoSchedule, now: Date, timeZone: string): { displayState: OutcomeTodoDisplayState; overdue: boolean } {
+  const { status, dueAt, scheduledAt, snoozeUntil, followUpAt } = input;
+  const overdue = isOverdue(dueAt, now, status !== "open" && status !== "waiting");
+  if (status === "accepted" || status === "cancelled") return { displayState: status, overdue };
+  if (snoozeUntil && snoozeUntil > now) return { displayState: "snoozed", overdue };
+  if (status === "suggested") return { displayState: "suggested", overdue };
+  if (status === "waiting") return { displayState: followUpAt && followUpAt <= now ? "follow_up" : "waiting", overdue };
+  const date = dueAt ?? scheduledAt;
+  if (!date) return { displayState: "unscheduled", overdue };
+  const today = localDateOf(now, timeZone);
+  const target = localDateOf(date, timeZone);
+  const weekEnd = new Date(`${today}T00:00:00Z`);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + (7 - weekEnd.getUTCDay()) % 7);
+  return { displayState: target <= today ? "today" : target <= weekEnd.toISOString().slice(0, 10) ? "this_week" : "upcoming", overdue };
+}
+
 // ---------------------------------------------------------------------------
 // Shared read models (types only; sources are added by later tasks)
 // ---------------------------------------------------------------------------
 
-export const TIME_ITEM_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run", "scheduled_once", "external_event"] as const;
+export const CALENDAR_FEED_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run", "scheduled_once", "note"] as const;
+export const TIME_ITEM_KINDS = [...CALENDAR_FEED_KINDS, "external_event"] as const;
 export type TimeItemKind = (typeof TIME_ITEM_KINDS)[number];
-export const CALENDAR_FEED_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run"] as const;
 export type CalendarFeedKind = (typeof CALENDAR_FEED_KINDS)[number];
 
 export interface CreateCalendarFeedInput {
@@ -273,17 +337,17 @@ export interface TimeItem {
   end: string | null;
   allDay: boolean;
   timeBasis: "actual" | "scheduled" | "estimated" | "due";
-  state: DisplayState | OutcomeStatus | TodoDisplayState;
+  state: DisplayState | OutcomeStatus | OutcomeTodoDisplayState;
   overdue: boolean;
   owner: "me" | "bot" | "external";
   botId?: string;
   outcomeId?: string;
-  link: { type: "outcome" | "work_item" | "todo" | "conversation" | "channel" | "routine" | "external"; id: string };
+  link: { type: "outcome" | "work_item" | "conversation" | "channel" | "routine" | "external"; id: string };
   editable: boolean;
   updatedAt: string;
 }
 
-export type ActivityItemType = "request" | "routine" | "goal_task";
+export type ActivityItemType = "request" | "routine" | "goal_task" | "scheduled_once";
 
 export interface ActivityItem {
   /** Stable: `<type>:<source id>`. */
@@ -291,7 +355,7 @@ export interface ActivityItem {
   type: ActivityItemType;
   botId: string;
   title: string;
-  state: DisplayState;
+  state: DisplayState | "preparing";
   /** Why it is blocked or waiting. Bot-written text: render as plain text and label it as written by the bot. */
   reason: string | null;
   doing: string | null;
@@ -382,8 +446,8 @@ export interface NeedsMeItem {
 
 export interface NeedsMeResponse {
   items: NeedsMeItem[];
-  todos?: TodoAttentionItem[];
-  todoDigest?: TodoDigest | null;
+  todos?: OutcomeTodoAttentionItem[];
+  todoDigest?: OutcomeTodoDigest | null;
 }
 
 const ZONE_RANK: Record<NeedsMeZone, number> = { exception: 0, blocked: 1 };

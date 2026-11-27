@@ -1,9 +1,16 @@
 import { JSONSchema, Schema } from "effect";
-import { OUTCOME_LIMITS, OUTCOME_STATUSES, REVIEW_RESULTS, type OutcomeStatus, type ReviewResult } from "./outcome-view";
+import { ListOutcomesFilterInput, validateOutcomeDateRange } from "./outcome-input";
+import {
+  OUTCOME_LIMITS, REVIEW_RESULTS, OutcomeBudgetInput, Uuid, parseOffsetTimestamp,
+  type OutcomeSourceRef, type OutcomeStatus, type OutcomeStatusFor, type OutcomeSummary, type ReviewResult,
+} from "./outcome-view";
+import type { OutcomePlanAdvice } from "./outcome-plan";
+import type { OutcomeThreadTurnView } from "./outcome-thread";
 // Type-only: erased at build time, so it does not create a runtime cycle with index.ts (which re-exports this file).
 import type { RunStatus } from "./index";
 
 export * from "./outcome-view";
+export * from "./outcome-input";
 
 /**
  * Outcome planning, contract, execution and review contracts (specs/004.2).
@@ -22,7 +29,7 @@ export type OutcomePlanningDimension = (typeof OUTCOME_PLANNING_DIMENSIONS)[numb
 // ---------------------------------------------------------------------------
 
 /** Highest first; the server derives Outcome status from facts in this order (design §42.3). */
-export const OUTCOME_STATUS_PRIORITY: readonly OutcomeStatus[] = [
+export const OUTCOME_STATUS_PRIORITY: readonly OutcomeStatusFor<"standard">[] = [
   "cancelled",
   "accepted",
   "paused",
@@ -37,7 +44,7 @@ export const OUTCOME_STATUS_PRIORITY: readonly OutcomeStatus[] = [
   "draft",
 ];
 
-export const OUTCOME_TERMINAL_STATUSES: readonly OutcomeStatus[] = ["accepted", "cancelled"];
+export const OUTCOME_TERMINAL_STATUSES: readonly OutcomeStatus[] = ["accepted", "cancelled", "archived"];
 
 export const CONTRACT_REVISION_STATUSES = ["draft", "pending_approval", "approved", "superseded", "closed"] as const;
 export type ContractRevisionStatus = (typeof CONTRACT_REVISION_STATUSES)[number];
@@ -85,9 +92,6 @@ export type WorkItemExecutorType = (typeof WORK_ITEM_EXECUTOR_TYPES)[number];
 
 export const WORK_ITEM_KINDS = ["initial", "rework", "supplement", "human_action"] as const;
 export type WorkItemKind = (typeof WORK_ITEM_KINDS)[number];
-
-export const PLANNING_DRAFT_STATUSES = ["ready", "failed", "consumed", "expired"] as const;
-export type PlanningDraftStatus = (typeof PLANNING_DRAFT_STATUSES)[number];
 
 export const VERIFICATION_METHODS = ["human_review", "deterministic_check"] as const;
 export type VerificationMethod = (typeof VERIFICATION_METHODS)[number];
@@ -314,22 +318,6 @@ export interface PlanTask {
   estimateMinutes?: number;
 }
 
-const OFFSET_TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/;
-
-/** Parses an ISO 8601 timestamp that carries a UTC offset. Returns null for anything else, including impossible dates. */
-export function parseOffsetTimestamp(value: unknown): Date | null {
-  if (typeof value !== "string") return null;
-  const match = OFFSET_TIMESTAMP.exec(value);
-  if (!match) return null;
-  const [, year, month, day, hour, minute, second] = match.map(Number) as number[];
-  if (month! < 1 || month! > 12 || day! < 1 || hour! > 23 || minute! > 59 || second! > 59) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
-  // Date accepts "02-30" and rolls it forward; reject it by checking the calendar day survived.
-  const daysInMonth = new Date(Date.UTC(year!, month!, 0)).getUTCDate();
-  return day! > daysInMonth ? null : parsed;
-}
-
 /**
  * The schedule columns a work item gets from its plan task. Both places that create tasks from a plan use this,
  * so the three fields are always copied the same way. Absent fields become null.
@@ -530,11 +518,6 @@ export const OUTCOME_ERROR_CODES = {
   outcome_not_found: 404,
   contract_revision_not_found: 404,
   work_item_not_found: 404,
-  planning_draft_not_found: 404,
-  planning_generation_failed: 502,
-  planning_draft_expired: 409,
-  planning_option_not_found: 409,
-  planning_option_limit_exceeded: 400,
   planning_input_too_large: 400,
   planning_conflict: 409,
   superseded_revision: 409,
@@ -569,6 +552,14 @@ export const OUTCOME_ERROR_CODES = {
   defer_limit_reached: 409,
   schedule_not_editable: 409,
   outcome_not_open: 409,
+  invalid_outcome_kind: 400,
+  outcome_bot_required: 400,
+  outcome_revision_conflict: 409,
+  outcome_conversion_invalid: 409,
+  planner_unavailable: 409,
+  readonly_mcp_tool_required: 403,
+  readonly_action_forbidden: 403,
+  todo_authorization_required: 403,
 } as const;
 export type OutcomeErrorCode = keyof typeof OUTCOME_ERROR_CODES;
 
@@ -590,23 +581,6 @@ export class OutcomeError extends Error {
 // Planning
 // ---------------------------------------------------------------------------
 
-export interface PlanningOption {
-  id: string;
-  text: string;
-  recommended?: boolean;
-  reason?: string;
-  /** Acceptance options: whether the model proposed the criterion as required. */
-  required?: boolean;
-  /** Boundary options: included or excluded scope. */
-  kind?: "included" | "excluded";
-}
-
-export interface PlanningDimensionView {
-  options: PlanningOption[];
-  selectedOptionIds: string[];
-  customEntries: string[];
-}
-
 export interface PlanningConflict {
   code: PlanningConflictCode;
   severity: "blocking" | "informational";
@@ -614,23 +588,6 @@ export interface PlanningConflict {
   message: string;
   resolutionHint?: string;
 }
-
-export interface PlanningDraftView {
-  planId: string;
-  status: PlanningDraftStatus;
-  sourceText: string;
-  botId: string;
-  goal: PlanningDimensionView;
-  acceptance: PlanningDimensionView;
-  boundaries: PlanningDimensionView;
-  conflicts: PlanningConflict[];
-  generatedAt: string;
-  expiresAt: string;
-  error?: { code: string; retryable: boolean };
-}
-
-/** Stable option IDs within one draft snapshot: `goal-1`, `acceptance-2`, `boundaries-1`. */
-export const planningOptionId = (dimension: OutcomePlanningDimension, index: number) => `${dimension}-${index + 1}`;
 
 export interface ConfirmedAcceptanceCriterion {
   statement: string;
@@ -685,75 +642,6 @@ export interface OutcomeResultChart {
   unit: string;
   points: { label: string; row?: string; value: number; citation: number }[];
 }
-
-const normalizeText = (text: string) => text.replace(/\s+/g, " ").trim();
-
-const confirmedTextLength = (contract: ConfirmedContract) =>
-  [
-    ...contract.goal,
-    ...contract.acceptance.map((criterion) => criterion.statement),
-    ...contract.boundaries.included,
-    ...contract.boundaries.excluded,
-  ].reduce((total, text) => total + text.length, 0);
-
-/**
- * Resolves a user's selections against the server-held draft snapshot (004.2 design §17).
- * Option IDs that are not in the snapshot are rejected; client-supplied option text is never read.
- */
-export function resolvePlanningSelections(
-  draft: Pick<PlanningDraftView, "goal" | "acceptance" | "boundaries">,
-  selections: Record<OutcomePlanningDimension, { selectedOptionIds: readonly string[]; customEntries: readonly string[] }>,
-  budget: OutcomeBudget | null = null
-): ConfirmedContract {
-  const picked = {} as Record<OutcomePlanningDimension, PlanningOption[]>;
-  const custom = {} as Record<OutcomePlanningDimension, string[]>;
-  for (const dimension of OUTCOME_PLANNING_DIMENSIONS) {
-    const selection = selections[dimension];
-    if (selection.selectedOptionIds.length > OUTCOME_LIMITS.selectedPerDimension)
-      throw new OutcomeError("planning_option_limit_exceeded", `Select at most ${OUTCOME_LIMITS.selectedPerDimension} ${dimension} options`, { dimension });
-    if (selection.customEntries.length > OUTCOME_LIMITS.customEntriesPerDimension)
-      throw new OutcomeError("planning_option_limit_exceeded", `Add at most ${OUTCOME_LIMITS.customEntriesPerDimension} custom ${dimension} entries`, { dimension });
-    const byId = new Map(draft[dimension].options.map((option) => [option.id, option]));
-    picked[dimension] = [...new Set(selection.selectedOptionIds)].map((id) => {
-      const option = byId.get(id);
-      if (!option) throw new OutcomeError("planning_option_not_found", `Option ${id} is not part of this plan`, { dimension, optionId: id });
-      return option;
-    });
-    custom[dimension] = selection.customEntries.map((entry) => {
-      const text = normalizeText(entry);
-      if (text.length > OUTCOME_LIMITS.customEntryChars)
-        throw new OutcomeError("planning_input_too_large", `A custom ${dimension} entry exceeds ${OUTCOME_LIMITS.customEntryChars} characters`, { dimension });
-      return text;
-    }).filter(Boolean);
-  }
-  const contract: ConfirmedContract = {
-    goal: [...picked.goal.map((option) => option.text), ...custom.goal],
-    acceptance: [
-      ...picked.acceptance.map((option) => ({ statement: option.text, required: option.required !== false, verificationMethod: "human_review" as const })),
-      // A criterion the user wrote is one they want met.
-      ...custom.acceptance.map((statement) => ({ statement, required: true, verificationMethod: "human_review" as const })),
-    ],
-    boundaries: {
-      included: [
-        ...picked.boundaries.filter((option) => option.kind !== "excluded").map((option) => option.text),
-        ...custom.boundaries.filter((entry) => !isExclusion(entry)),
-      ],
-      excluded: [
-        ...picked.boundaries.filter((option) => option.kind === "excluded").map((option) => option.text),
-        ...custom.boundaries.filter(isExclusion).map(stripExclusion),
-      ],
-    },
-    budget,
-  };
-  if (confirmedTextLength(contract) > OUTCOME_LIMITS.confirmedTextChars)
-    throw new OutcomeError("planning_input_too_large", `The confirmed contract exceeds ${OUTCOME_LIMITS.confirmedTextChars} characters`);
-  return contract;
-}
-
-// A custom boundary written as "不…/禁止…/do not…/no …" excludes scope.
-const EXCLUSION = /^(?:不|禁止|不得|不要|排除|do not\b|don't\b|no\b|never\b|exclude\b)/i;
-const isExclusion = (text: string) => EXCLUSION.test(text);
-const stripExclusion = (text: string) => text.replace(/^(?:exclude\b:?\s*)/i, "").trim() || text;
 
 /** Planning conflicts the server can detect without a model (004.2 design §16.3). */
 export function detectPlanningConflicts(contract: ConfirmedContract): PlanningConflict[] {
@@ -961,31 +849,19 @@ export interface ReviewView {
   reviewedAt: string;
 }
 
-export interface OutcomeSummary {
-  id: string;
-  title: string;
-  status: OutcomeStatus;
-  botId: string;
-  currentRevision: number | null;
-  updatedAt: string;
-  /** Task-board items registered by a Bot; absent on payloads from older servers. */
-  trackingMode?: OutcomeTrackingMode;
-  /** The Bot's holistic prereview is running. The owner has no action yet. */
-  prereviewStatus?: "pending" | "stale" | "unreviewed";
-}
-
-export interface OutcomeDetail extends OutcomeSummary {
-  /** Present when this independent delivery was created from an Explore planning draft. */
-  sourceExploreId?: string | null;
+export type OutcomeDetail = OutcomeSummary & {
   description: string;
   resumeStatus: OutcomeStatus | null;
+  sourceRef: OutcomeSourceRef | null;
+  prepareAt: string | null;
+  prepareInstruction: string | null;
+  dedupeKey: string | null;
+  createdBy: string;
   createdAt: string;
   acceptedAt: string | null;
-  /** Owner-set deadline. Null when none; absent on payloads from older servers. */
-  dueAt?: string | null;
-  /** Set when the Bot closed a tracked item without owner acceptance. */
-  autoClosedAt?: string | null;
-  closeSummary?: string | null;
+  cancelledAt: string | null;
+  autoClosedAt: string | null;
+  closeSummary: string | null;
   inspectionEnabled?: boolean;
   currentRevisionView: ContractRevisionView | null;
   revisions: Array<
@@ -997,9 +873,13 @@ export interface OutcomeDetail extends OutcomeSummary {
   evidence: EvidenceView[];
   reviews: ReviewView[];
   plan?: OutcomePlanView | null;
+  latestAdvice?: OutcomePlanAdvice | null;
+  planTurns?: OutcomeThreadTurnView[];
+  reviewTurns?: OutcomeThreadTurnView[];
+  runs?: RunSegmentView[];
+  children?: OutcomeSummary[];
   prereview?: OutcomePrereviewView | null;
-  prereviewStatus?: "pending" | "stale" | "unreviewed";
-}
+};
 
 export interface OutcomeListPage {
   items: OutcomeSummary[];
@@ -1011,7 +891,6 @@ export interface OutcomeListPage {
 // ---------------------------------------------------------------------------
 
 const ClientRequestId = Schema.String.pipe(Schema.minLength(8), Schema.maxLength(200));
-export const Uuid = Schema.String.pipe(Schema.pattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i));
 const RevisionNumber = Schema.Number.pipe(Schema.int(), Schema.positive());
 const OptionalText = (max: number) => Schema.optional(Schema.String.pipe(Schema.maxLength(max)));
 
@@ -1033,36 +912,6 @@ export const SetOutcomeDueInput = Schema.Struct({
   clientRequestId: ClientRequestId,
 });
 export type SetOutcomeDueInput = typeof SetOutcomeDueInput.Type;
-
-const PlanningSelection = Schema.Struct({
-  selectedOptionIds: Schema.Array(Schema.String.pipe(Schema.maxLength(40))).pipe(Schema.maxItems(OUTCOME_LIMITS.optionsPerDimension)),
-  customEntries: Schema.Array(Schema.String.pipe(Schema.maxLength(OUTCOME_LIMITS.customEntryChars))).pipe(
-    Schema.maxItems(OUTCOME_LIMITS.customEntriesPerDimension)
-  ),
-});
-
-export const OutcomeBudgetInput = Schema.Struct({
-  timeLimitMinutes: Schema.NullOr(Schema.Number.pipe(Schema.int(), Schema.positive(), Schema.lessThanOrEqualTo(60 * 24 * 365))),
-  costLimit: Schema.NullOr(Schema.Number.pipe(Schema.positive(), Schema.lessThanOrEqualTo(1_000_000_000))),
-});
-
-export const CreateOutcomePlanInput = Schema.Struct({
-  sourceText: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.sourceTextChars)),
-  context: Schema.Struct({ botId: Uuid }),
-  clientRequestId: ClientRequestId,
-});
-export type CreateOutcomePlanInput = typeof CreateOutcomePlanInput.Type;
-
-export const CreateOutcomeInput = Schema.Struct({
-  planId: Uuid,
-  goal: PlanningSelection,
-  acceptance: PlanningSelection,
-  boundaries: PlanningSelection,
-  title: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.titleChars)),
-  budget: Schema.optional(Schema.NullOr(OutcomeBudgetInput)),
-  clientRequestId: ClientRequestId,
-});
-export type CreateOutcomeInput = typeof CreateOutcomeInput.Type;
 
 const ContractText = Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.customEntryChars));
 
@@ -1177,83 +1026,32 @@ export type AdoptPrereviewInput = typeof AdoptPrereviewInput.Type;
 export const CancelOutcomeInput = Schema.Struct({ clientRequestId: ClientRequestId });
 export type CancelOutcomeInput = typeof CancelOutcomeInput.Type;
 
-/** How much of the owner a Bot-registered task needs (specs/004.7). */
-export const OUTCOME_OWNER_NEEDS = ["none", "decision", "approval"] as const;
-export type OutcomeOwnerNeed = (typeof OUTCOME_OWNER_NEEDS)[number];
-export const OUTCOME_TRACKING_MODES = ["standard", "tracked"] as const;
-export type OutcomeTrackingMode = (typeof OUTCOME_TRACKING_MODES)[number];
-
-const TrackDecisionOption = Schema.Struct({
-  label: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.optionTextChars)),
-  consequence: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.optionTextChars)),
-  recommended: Schema.optional(Schema.Boolean),
-  reason: Schema.optional(Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.optionReasonChars))),
-});
-
-/** Registers a task-board item without planning. `decision` is required exactly when `ownerNeed` is "decision". */
-export const TrackOutcomeInput = Schema.Struct({
-  title: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.titleChars)),
-  goal: ContractText,
-  acceptance: Schema.optional(Schema.Array(ContractText).pipe(Schema.minItems(1), Schema.maxItems(5))),
-  ownerNeed: Schema.optional(Schema.Literal(...OUTCOME_OWNER_NEEDS)),
-  decision: Schema.optional(
-    Schema.Struct({
-      problemSummary: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.commentChars)),
-      options: Schema.Array(TrackDecisionOption).pipe(Schema.minItems(1), Schema.maxItems(4)),
-    })
-  ),
-  clientRequestId: ClientRequestId,
-}).pipe(
-  Schema.filter((input) =>
-    (input.ownerNeed === "decision") === (input.decision !== undefined)
-      ? undefined
-      : "decision is required when ownerNeed is decision, and only then"
-  )
-);
-export type TrackOutcomeInput = typeof TrackOutcomeInput.Type;
-
-/** A Bot closes a tracked task it handled itself; never valid for owner-accepted Outcomes. */
-export const CloseOutcomeInput = Schema.Struct({
-  resultSummary: Schema.String.pipe(Schema.minLength(1), Schema.maxLength(OUTCOME_LIMITS.changeSummaryChars)),
-  clientRequestId: ClientRequestId,
-});
-export type CloseOutcomeInput = typeof CloseOutcomeInput.Type;
-
-export interface ListOutcomesQuery {
-  statuses: OutcomeStatus[];
-  query?: string;
-  botId?: string;
-  trackingMode?: OutcomeTrackingMode;
+export interface ListOutcomesQuery extends Omit<ListOutcomesFilterInput, "kinds" | "statuses" | "cursor" | "limit"> {
+  kinds: NonNullable<ListOutcomesFilterInput["kinds"]>;
+  statuses: NonNullable<ListOutcomesFilterInput["statuses"]>;
   cursor: { updatedAt: string; id: string } | null;
   limit: number;
 }
 
 /** Parses `GET /api/v0/outcomes` query parameters; the cursor is `<updatedAt ISO>|<id>` in base64url. */
 export function parseListOutcomesQuery(params: URLSearchParams): ListOutcomesQuery {
-  const statuses = params.getAll("status").flatMap((value) => value.split(",")).filter(Boolean);
-  for (const status of statuses)
-    if (!(OUTCOME_STATUSES as readonly string[]).includes(status))
-      throw new OutcomeError("invalid_outcome_query", `Unknown status ${status}`, { field: "status" });
-  const rawLimit = params.get("limit");
-  const limit = rawLimit === null ? OUTCOME_LIMITS.listPageSize : Number(rawLimit);
-  const query = params.get("query")?.trim();
-  const botId = params.get("botId");
-  const trackingMode = params.get("trackingMode");
-  if (trackingMode !== null && trackingMode !== "standard" && trackingMode !== "tracked")
-    throw new OutcomeError("invalid_outcome_query", "trackingMode is invalid", { field: "trackingMode" });
-  if (botId !== null && !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(botId))
-    throw new OutcomeError("invalid_outcome_query", "botId is invalid", { field: "botId" });
-  if (query && query.length > 200)
-    throw new OutcomeError("invalid_outcome_query", "query must be at most 200 characters", { field: "query" });
-  if (!Number.isInteger(limit) || limit < 1) throw new OutcomeError("invalid_outcome_query", "limit must be a positive integer", { field: "limit" });
-  return {
-    statuses: statuses as OutcomeStatus[],
-    ...(query ? { query } : {}),
-    ...(botId ? { botId } : {}),
-    ...(trackingMode ? { trackingMode } : {}),
-    cursor: decodeOutcomeCursor(params.get("cursor")),
-    limit: Math.min(limit, OUTCOME_LIMITS.listPageSizeMax),
-  };
+  const list = (field: string) => [...new Set(params.getAll(field).flatMap((value) => value.split(",").map((item) => item.trim())).filter(Boolean))];
+  const parseBoolean = (value: string) => value === "true" ? true : value === "false" ? false : value;
+  const filters: Record<string, unknown> = Object.fromEntries(params);
+  for (const field of ["kinds", "statuses", "tags"]) {
+    if (params.has(field)) filters[field] = list(field);
+  }
+  if (params.has("includeArchived")) filters.includeArchived = parseBoolean(params.get("includeArchived")!);
+  if (params.has("limit")) {
+    const limit = Number(params.get("limit"));
+    filters.limit = Number.isInteger(limit) ? Math.min(limit, OUTCOME_LIMITS.listPageSizeMax) : limit;
+  }
+  const result = Schema.decodeUnknownEither(ListOutcomesFilterInput)(filters);
+  if (result._tag === "Left") throw new OutcomeError("invalid_outcome_query", result.left.message);
+  const { kinds = [], statuses = [], limit = OUTCOME_LIMITS.listPageSize, cursor, ...options } = result.right;
+  const rangeError = validateOutcomeDateRange(options);
+  if (rangeError) throw new OutcomeError("invalid_outcome_query", rangeError.message, { field: "to" });
+  return { ...options, kinds, statuses, cursor: decodeOutcomeCursor(cursor ?? null), limit };
 }
 
 // Cursor parts are ASCII (ISO time and UUID), so btoa/atob work in Bun and browsers alike.
@@ -1271,7 +1069,7 @@ export const encodeOutcomeCursor = (updatedAt: string, id: string) => toBase64Ur
 export function decodeOutcomeCursor(value: string | null): ListOutcomesQuery["cursor"] {
   if (!value) return null;
   const [updatedAt, id, extra] = fromBase64Url(value).split("|");
-  if (extra !== undefined || !updatedAt || !id || Number.isNaN(Date.parse(updatedAt)) || !/^[0-9a-f-]{36}$/i.test(id))
+  if (extra !== undefined || !updatedAt || !parseOffsetTimestamp(updatedAt) || !id || !Schema.is(Uuid)(id))
     throw new OutcomeError("invalid_outcome_query", "cursor is invalid", { field: "cursor" });
   return { updatedAt, id };
 }

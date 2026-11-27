@@ -291,49 +291,51 @@ describe("API contracts", () => {
 
 
   test("carries subagent runtime profiles and media attachments to the computer", () => {
-    expect(
-      Schema.decodeUnknownSync(ComputerTurnRequest)({
-        runId: "run-1",
-        botId: "bot-1",
-        contextSessionId: "context-1",
-        screenBotId: "parent-bot-1",
-        conversationId: "conversation-1",
-        sessionPath: null,
-        content: "Review the attached media",
-        clientMessageId: "message-1",
-        cwd: "/workspace/bots/reviewer",
-        instructions: "Review carefully",
-        todoUpdate: "- **IN_PROGRESS**: Review parity (id: audit)",
-        resetSelfSummaryCount: false,
-        requestSource: "event",
-        channelId: "channel-1",
-        deliveryId: null,
-        runtimeProfile: "subagent",
-        subagentType: "computerUse",
-        model: "openai-codex/gpt-5.5",
-        reasoning: "high",
-        fileAttachments: ["/workspace/shared/clip.mp4"],
-        images: [{ url: "data:image/webp;base64,UklGRg==" }],
-        dynamicNamespaces: [
-          {
-            name: "utility_default",
-            description: "Fixture tools",
-            namespaceStatus: "ready",
-            tools: [
-              {
-                connectionId: "connection-1",
-                name: "echo",
-                description: "Echo text",
-                inputSchema: { type: "object" },
-                source: "utility/fixture",
-              },
-            ],
-          },
-        ],
-      })
-    ).toMatchObject({
+    const request = {
+      runId: "run-1",
+      botId: "bot-1",
+      contextSessionId: "context-1",
+      screenBotId: "parent-bot-1",
+      conversationId: "conversation-1",
+      sessionPath: null,
+      content: "Review the attached media",
+      clientMessageId: "message-1",
+      cwd: "/workspace/bots/reviewer",
+      instructions: "Review carefully",
+      todoUpdate: "- **IN_PROGRESS**: Review parity (id: audit)",
+      resetSelfSummaryCount: false,
+      requestSource: "event",
+      channelId: "channel-1",
+      deliveryId: null,
       runtimeProfile: "subagent",
       subagentType: "computerUse",
+      accessMode: "readonly_strict",
+      model: "openai-codex/gpt-5.5",
+      reasoning: "high",
+      fileAttachments: ["/workspace/shared/clip.mp4"],
+      images: [{ url: "data:image/webp;base64,UklGRg==" }],
+      dynamicNamespaces: [
+        {
+          name: "utility_default",
+          description: "Fixture tools",
+          namespaceStatus: "ready",
+          tools: [
+            {
+              connectionId: "connection-1",
+              name: "echo",
+              description: "Echo text",
+              inputSchema: { type: "object" },
+              source: "utility/fixture",
+            },
+          ],
+        },
+      ],
+    };
+    const decode = Schema.decodeUnknownSync(ComputerTurnRequest);
+    expect(decode(request)).toMatchObject({
+      runtimeProfile: "subagent",
+      subagentType: "computerUse",
+      accessMode: "readonly_strict",
       model: "openai-codex/gpt-5.5",
       reasoning: "high",
       screenBotId: "parent-bot-1",
@@ -344,6 +346,12 @@ describe("API contracts", () => {
       requestSource: "event",
       dynamicNamespaces: [{ name: "utility_default" }],
     });
+    const borrowedBotId = "842f766b-63f6-4d63-97d7-1fb197d81f01";
+    expect(decode({ ...request, accessMode: "research_readonly", borrowedBotId, goalThread: {
+      threadId: "thread-1", outcomeId: "outcome-1", purpose: "plan", planMode: "advice", outcomeRevision: 1,
+    } })).toMatchObject({ accessMode: "research_readonly", borrowedBotId, goalThread: { planMode: "advice", outcomeRevision: 1 } });
+    expect(() => decode({ ...request, accessMode: undefined, readOnly: true })).toThrow();
+    expect(() => decode({ ...request, accessMode: "readOnly" })).toThrow();
   });
 
   test("validates bounded graphical computer actions", () => {
@@ -868,8 +876,6 @@ describe("API contracts", () => {
     expect(renderControlResult("UpdateRoutine", created, { action: "update", id: "brief" })).not.toContain("Give the user");
     expect(renderControlResult("UpdateRoutine", created, { action: "resume", id: "brief" }).split("\n")[0]).toBe('Updated routine "Brief" (folder brief): Every day at 8:00 AM.');
     expect(renderControlResult("UpdateRoutine", { ...created, enabled: false, next_run_at: null }, { action: "delete", id: "brief" })).toBe('Deleted routine "Brief" (folder brief).');
-    expect(renderControlResult("UpdateRoutine", { ...created, trigger: { type: "cron", schedule: "36 10 21 10 *" } }, { action: "create" }).split("\n")[0])
-      .toBe('Saved routine "Brief" (folder brief): Once October 21 at 10:36 AM.');
     const saved = { target: "routine", action: "get", name: "Brief", folder: "brief", enabled: true, prompt: "Summarize my inbox.\nPost it here." };
     expect(renderControlResult("UpdateRoutine", { ...saved, trigger: { type: "cron", schedule: "0 8 * * *" } }, { action: "get", id: "brief" })).toBe(
       'Routine "Brief" (folder brief), enabled.\nTrigger: Every day at 8:00 AM\nschedule: "0 8 * * *" (leave it out of an update unless the time itself changes)\nSaved prompt:\nSummarize my inbox.\nPost it here.'
