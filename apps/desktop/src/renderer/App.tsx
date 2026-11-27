@@ -100,6 +100,7 @@ import { useFeatureSettings } from "./hooks/use-feature-settings";
 import { useOutcomeThreadNotices } from "./hooks/use-outcome-thread-notices";
 import { useBotDockSync } from "./hooks/use-bot-dock-sync";
 import { useOutcomeActionCounts } from "./hooks/use-outcome-action-counts";
+import { useTodayCalendarCount } from "./hooks/use-today-calendar-count";
 import { useOutcomeGo } from "./state/use-outcomego";
 import { MessagesGrantsPrompt } from "./components/outcomego/settings/messages-permissions-dialog";
 
@@ -399,6 +400,7 @@ export default function App() {
   const appReady = Boolean(snapshot);
   const { outcomesEnabled, loaded: featureSettingsLoaded } = useFeatureSettings();
   const outcomeBadges = useOutcomeActionCounts(outcomesEnabled);
+  const calendarTodayCount = useTodayCalendarCount(outcomesEnabled);
   // The floating Bot capsule shows the same unread messages and waiting goals, per Bot.
   useBotDockSync(snapshot, outcomeBadges.approvalByBot, outcomesEnabled, outcomeBadges);
 
@@ -1608,6 +1610,7 @@ export default function App() {
             }
             outcomesActive={Boolean(outcomeTarget)}
             outcomeBadges={outcomeBadges}
+            calendarTodayCount={calendarTodayCount}
             onSelect={selectSidebarChannel}
             pendingBot={pendingBot}
             preferences={sidebarPreferences}

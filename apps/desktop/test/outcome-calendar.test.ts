@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import type { TimeItem } from "@outcomego/contracts/task-overview";
+import { countTodayCalendarItems } from "../src/renderer/lib/outcome-counts";
 import { calendarDays, dayStart, defaultCalendarKinds, itemsByDay } from "../src/renderer/components/outcomego/outcomes/calendar/calendar-dates";
 import {
   computeCalendarMetrics,
@@ -73,3 +74,31 @@ for (const [zone, date, following, hours] of [
     expect(calendarDays(date, "month").length % 7).toBe(0);
   });
 }
+
+test("countTodayCalendarItems counts unfinished goals and to-dos deduplicated by outcome id", () => {
+  const base: Omit<TimeItem, "id" | "kind" | "state" | "outcomeId"> = {
+    title: "Item",
+    start: "2026-11-27T09:00:00.000Z",
+    end: null,
+    allDay: false,
+    timeBasis: "scheduled",
+    overdue: false,
+    owner: "me",
+    link: { type: "outcome", id: "x" },
+    editable: true,
+    updatedAt: "2026-11-27T08:00:00.000Z",
+  };
+  const items: TimeItem[] = [
+    { ...base, id: "goal_due:g1", kind: "goal_due", state: "running", outcomeId: "g1" },
+    { ...base, id: "goal_due:g2", kind: "goal_due", state: "accepted", outcomeId: "g2" }, // finished -> excluded
+    { ...base, id: "scheduled_once:s1", kind: "scheduled_once", state: "scheduled", outcomeId: "s1" },
+    { ...base, id: "scheduled_once:s2", kind: "scheduled_once", state: "cancelled", outcomeId: "s2" }, // cancelled -> excluded
+    { ...base, id: "todo:t1", kind: "todo", state: "today", outcomeId: "t1" },
+    { ...base, id: "todo:t1:due", kind: "todo", state: "today", outcomeId: "t1" }, // duplicate outcomeId -> deduplicated
+    { ...base, id: "todo:t2", kind: "todo", state: "waiting", outcomeId: "t2" },
+    { ...base, id: "todo:t3", kind: "todo", state: "accepted", outcomeId: "t3" }, // finished -> excluded
+    { ...base, id: "work_item:w1", kind: "work_item", state: "queued", outcomeId: "g1" }, // non-goal/todo -> excluded
+    { ...base, id: "routine_run:r1:1", kind: "routine_run", state: "scheduled" }, // routine -> excluded
+  ];
+  expect(countTodayCalendarItems(items)).toBe(4); // g1 + s1 + t1 + t2
+});

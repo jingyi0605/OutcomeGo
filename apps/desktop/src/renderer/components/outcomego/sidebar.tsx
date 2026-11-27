@@ -2196,6 +2196,7 @@ function CompactSidebarContent({
   onOpenCalendar,
   outcomesActive,
   outcomeBadges,
+  calendarTodayCount,
 }: {
   groups: Array<{ id: string; rows: ChannelRowData[] }>;
   botById: ReadonlyMap<string, BotView>;
@@ -2208,6 +2209,7 @@ function CompactSidebarContent({
   onOpenCalendar?: () => void;
   outcomesActive?: boolean;
   outcomeBadges?: OutcomeActionCounts;
+  calendarTodayCount?: number;
 }) {
   const { t } = useI18n();
   const scrollRef = useRef<HTMLElement>(null);
@@ -2278,6 +2280,7 @@ function CompactSidebarContent({
           onOpen={onOpenOutcomes}
           onOpenCalendar={onOpenCalendar}
           badges={outcomeBadges}
+          calendarTodayCount={calendarTodayCount}
         />
       )}
       <div className="relative flex min-h-0 flex-1">
@@ -2411,6 +2414,7 @@ export const Sidebar = memo(function Sidebar({
   newIdeaActive = false,
   outcomesActive = false,
   outcomeBadges,
+  calendarTodayCount,
   onSelect,
   onNewBot,
   onNewGroup,
@@ -2442,6 +2446,7 @@ export const Sidebar = memo(function Sidebar({
   newIdeaActive?: boolean;
   outcomesActive?: boolean;
   outcomeBadges?: OutcomeActionCounts;
+  calendarTodayCount?: number;
   onSelect: (id: string, focusComposer?: boolean) => void;
   onNewBot: () => void;
   onNewGroup: () => void;
@@ -3024,6 +3029,7 @@ export const Sidebar = memo(function Sidebar({
               onOpenCalendar={onOpenCalendar}
               outcomesActive={outcomesActive}
               outcomeBadges={outcomeBadges}
+              calendarTodayCount={calendarTodayCount}
               onSelect={onSelect}
               selectedId={selectedId}
               unreadIds={preferences.unreadIds}
@@ -3055,6 +3061,7 @@ export const Sidebar = memo(function Sidebar({
                     onNewIdea={onNewIdea}
                     ideaActive={newIdeaActive}
                     badges={outcomeBadges}
+                    calendarTodayCount={calendarTodayCount}
                   />
                 </div>
               )}

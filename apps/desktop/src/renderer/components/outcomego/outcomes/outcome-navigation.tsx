@@ -58,6 +58,29 @@ function OutcomeBadges({
   );
 }
 
+/** Corner count badge for today's unfinished goals + to-dos on the calendar button. */
+function CalendarTodayBadge({
+  count,
+  compact,
+}: {
+  count: number;
+  compact: boolean;
+}) {
+  if (count <= 0) return null;
+  return (
+    <span
+      aria-hidden="true"
+      data-calendar-badge="today"
+      className={cn(
+        "pointer-events-none absolute inline-flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-semibold leading-none tabular-nums text-background shadow-[0_0_0_1.5px_var(--sidebar)]",
+        compact ? "right-1.5 top-1.5" : "right-0.5 top-[3px]"
+      )}
+    >
+      {badgeLabel(count)}
+    </span>
+  );
+}
+
 export function OutcomeNavigation({
   active,
   compact = false,
@@ -66,6 +89,7 @@ export function OutcomeNavigation({
   onNewIdea,
   ideaActive = false,
   badges = NO_BADGES,
+  calendarTodayCount = 0,
 }: {
   active: boolean;
   compact?: boolean;
@@ -73,6 +97,8 @@ export function OutcomeNavigation({
   onOpenCalendar?: () => void;
   /** Goals waiting for the owner's approval or acceptance, shown as colored count badges. */
   badges?: OutcomeActionCounts;
+  /** Today's unfinished goals and to-dos count shown as a corner badge on the calendar button. */
+  calendarTodayCount?: number;
   /** Expanded sidebar only: shows the artistic "Go" quick-capture button beside "Outcome". */
   onNewIdea?: () => void;
   /** True while the quick-capture window is open, so its button shows the same selected state as the entry. */
@@ -87,6 +113,15 @@ export function OutcomeNavigation({
   ]
     .filter(Boolean)
     .join(", ");
+  const calendarLabel =
+    calendarTodayCount > 0
+      ? `${t("Calendar")}, ${t("Today's goals & to-dos")}: ${calendarTodayCount}`
+      : t("Calendar");
+  const calendarTooltip =
+    calendarTodayCount > 0
+      ? `${t("Calendar")} · ${t("Today's goals & to-dos")}: ${calendarTodayCount}`
+      : t("Calendar");
+
   const outcomeButton = (
     <button
       type="button"
@@ -126,14 +161,15 @@ export function OutcomeNavigation({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                aria-label={t("Calendar")}
+                aria-label={calendarLabel}
                 onClick={onOpenCalendar}
-                className={cn(rowButtonClass(false), "mx-auto grid size-12 place-items-center")}
+                className={cn(rowButtonClass(false), "relative mx-auto grid size-12 place-items-center")}
               >
                 <CalendarDays aria-hidden="true" className="size-[17px]" strokeWidth={1.6} />
+                <CalendarTodayBadge count={calendarTodayCount} compact />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right">{t("Calendar")}</TooltipContent>
+            <TooltipContent side="right">{calendarTooltip}</TooltipContent>
           </Tooltip>
         )}
       </div>
@@ -174,17 +210,18 @@ export function OutcomeNavigation({
           <TooltipTrigger asChild>
             <button
               type="button"
-              aria-label={t("Calendar")}
+              aria-label={calendarLabel}
               onClick={onOpenCalendar}
               className={cn(
                 rowButtonClass(false),
-                "ml-auto grid size-9 shrink-0 place-items-center"
+                "relative ml-auto grid size-9 shrink-0 place-items-center"
               )}
             >
               <CalendarDays aria-hidden="true" className="size-[15px]" strokeWidth={1.6} />
+              <CalendarTodayBadge count={calendarTodayCount} compact={false} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">{t("Calendar")}</TooltipContent>
+          <TooltipContent side="bottom">{calendarTooltip}</TooltipContent>
         </Tooltip>
       )}
     </div>

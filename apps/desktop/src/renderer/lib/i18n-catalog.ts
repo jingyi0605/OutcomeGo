@@ -3759,6 +3759,7 @@ export const sourceTranslations: Record<string, string> = {
   "Previous period": "上一个时间段",
   "Next period": "下一个时间段",
   "Calendar view": "日历视图",
+  "Today's goals & to-dos": "今日目标与待办",
   "Day": "日",
   "Week": "周",
   "Month": "月",
