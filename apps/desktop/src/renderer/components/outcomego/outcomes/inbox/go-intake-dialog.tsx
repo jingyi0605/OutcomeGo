@@ -41,10 +41,10 @@ export default function GoIntakeDialog({
             if (!turn) {
               toast.warning(t("Saved as a note. Automatic sorting is unavailable right now."), { action });
             } else {
-              toast.success(t("Sent to the Outcome inbox"), { action });
+              toast.success(t("Saved. Sorting in the background — check All or Notes."), { action });
             }
           }}
-          onError={() => toast.error(t("Could not send this to the Outcome inbox. Try again."))}
+          onError={() => toast.error(t("Could not save this. Try again."))}
         />
       </DialogContent>
     </Dialog>

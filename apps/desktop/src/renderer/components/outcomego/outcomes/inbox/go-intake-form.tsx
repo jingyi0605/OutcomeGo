@@ -6,6 +6,7 @@ import type { OutcomeClient, OutcomePlanned } from "../../../../client/outcome-a
 import { api } from "../../../../client/outcomego-api";
 import { mentionHandleFor, type MentionOption } from "../../../../lib/mentions";
 import { useI18n } from "../../../../lib/i18n";
+import { refreshOutcomeViews } from "../../../../lib/outcome-events";
 import { MentionEditor } from "../../mention-editor";
 import { OutcomeButton } from "../outcome-button";
 import { OutcomeRequestIds, outcomeErrorMessage } from "../planning/outcome-client";
@@ -136,6 +137,7 @@ export function GoIntakeForm({
       for (const item of files) attachments.push(await api.uploadAsset(item.file, item.fileName, item.file.type));
       const planned = await client.intake({ ...input, ...(attachments.length > 0 ? { attachments } : {}), clientRequestId: requestId });
       ids.current.complete("intake");
+      refreshOutcomeViews();
       onCompleted?.(planned);
     } catch (cause) {
       setError(outcomeErrorMessage(cause));
@@ -186,7 +188,7 @@ export function GoIntakeForm({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <OutcomeButton type="button" variant="ghost" onClick={() => fileInputRef.current?.click()} disabled={busy}>{t("Add files")}</OutcomeButton>
-          <span className="text-xs text-foreground-secondary">{t("Go sends it to the Outcome inbox for sorting.")}</span>
+          <span className="text-xs text-foreground-secondary">{t("Saved immediately and sorted into goals, to-dos, schedules, ideas or notes.")}</span>
         </div>
         <OutcomeButton variant="default" type="submit" disabled={busy || (!draft && files.length === 0)}>{t("Go")}</OutcomeButton>
       </div>

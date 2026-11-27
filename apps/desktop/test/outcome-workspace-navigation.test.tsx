@@ -256,7 +256,7 @@ async function click(text: string, scope: ParentNode = document.body) {
 }
 async function showAllGoals() {
   const tab = [...host.querySelectorAll<HTMLButtonElement>('nav[aria-label="Outcome sections"] button')]
-    .find((button) => button.textContent === "All goals")!;
+    .find((button) => button.textContent === "All")!;
   await act(async () => {
     tab.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
   });
@@ -683,7 +683,7 @@ test("dashboard section links switch to the full lists and unified In progress l
   expect(
     host.querySelector('nav[aria-label="Outcome sections"] button[aria-current="page"]')
       ?.textContent
-  ).toBe("All goals");
+  ).toBe("All");
   expect(host.querySelectorAll(".outcome-row").length).toBe(7);
 });
 
@@ -708,7 +708,7 @@ test("workspace opens a full page with all goals, Bot names and execution status
   expect(
     host.querySelector('nav[aria-label="Outcome sections"] button[aria-current="page"]')
       ?.textContent
-  ).toBe("All goals");
+  ).toBe("All");
 });
 
 test("goal rows open goal details without exposing execution transcript controls", async () => {
@@ -755,32 +755,32 @@ test("all-goals status filtering queries the server and discards an obsolete res
   expect(host.textContent).toContain("Only paused goal");
 });
 
-test("the goal list marks bot-registered rows and filters them without losing the status filter", async () => {
+test("the goal list marks bot-registered rows and filters by visible category pills without losing the status filter", async () => {
   const tracked = { ...outcomeFixture, title: "Alpha goal", kind: "tracked", status: "running" } as const;
-  const standard = { ...outcomeFixture, id: "standard", title: "Beta goal" } as const;
-  list = async (query) => ({
-    items: new URLSearchParams(query).get("kinds") === "tracked" ? [tracked] : [tracked, standard],
-    nextCursor: null,
-  });
+  const note = { ...outcomeFixture, id: "note-1", title: "Meeting note", kind: "note", botId: null, status: "active", currentRevision: null, tags: ["ops"] } as const;
+  list = async (query) => {
+    const kinds = new URLSearchParams(query).get("kinds");
+    return {
+      items: kinds === "note" ? [note] : kinds === "standard,tracked" ? [tracked] : [tracked, note],
+      nextCursor: null,
+    };
+  };
   await mount(<OutcomeList client={outcomes} bots={bots} onSelect={() => {}} onCreate={() => {}} />);
   const rows = [...host.querySelectorAll(".outcome-row")];
   expect(rows.map((row) => row.textContent?.includes("Bot-registered"))).toEqual([true, false]);
-  await input(host.querySelector("select")!, "approved");
-  const kindFilter = host.querySelector<HTMLSelectElement>('#outcome-kind-filter')!;
-  await input(kindFilter, "tracked");
-  expect(calls.at(-1)!.path).toBe("/api/outcomes?kinds=tracked&statuses=approved");
+  await input(host.querySelector("select")!, "active");
+  const filterBar = host.querySelector('nav[aria-label="Outcome type"]')!;
+  await click("Notes", filterBar);
+  expect(calls.at(-1)!.path).toBe("/api/outcomes?kinds=note&statuses=active");
   expect(host.querySelectorAll(".outcome-row")).toHaveLength(1);
+  expect(host.textContent).toContain("Meeting note");
+  expect(host.textContent).toContain("#ops");
+  expect(host.textContent).not.toContain("Alpha goal");
+  await click("Goals", filterBar);
+  expect(calls.at(-1)!.path).toBe("/api/outcomes?kinds=standard%2Ctracked&statuses=active");
   expect(host.textContent).toContain("Alpha goal");
-  expect(host.textContent).not.toContain("Beta goal");
-  list = async () => ({ items: [standard], nextCursor: null });
-  await act(async () => {
-    host.querySelector('button[aria-label="Refresh from server"]')!
-      .dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-  });
-  expect(host.textContent).toContain("Beta goal");
-  list = async () => ({ items: [tracked, standard], nextCursor: null });
-  await input(kindFilter, "all");
-  expect(calls.at(-1)!.path).toBe("/api/outcomes?statuses=approved");
+  await click("All", filterBar);
+  expect(calls.at(-1)!.path).toBe("/api/outcomes?statuses=active");
   expect(host.querySelectorAll(".outcome-row")).toHaveLength(2);
 });
 
@@ -840,16 +840,19 @@ test("goal list errors offer a working retry and empty goals offer creation", as
   expect(created).toBe(true);
 });
 
-test("attention and all goals sections navigate cleanly without a separate Explore tab, and Ideas filter works in All goals", async () => {
+test("attention, notes and all sections navigate cleanly without a separate Explore tab, and Ideas filter works in All", async () => {
   await mount(page());
   const nav = host.querySelector('nav[aria-label="Outcome sections"]')!;
   expect(nav.textContent).not.toContain("Explore ideas");
+  expect(nav.textContent).toContain("Notes");
   await click("Needs attention", nav);
   expect(host.textContent).toContain(inboxFixture.title);
   expect(host.textContent).toContain(inboxFixture.next);
-  await click("All goals", nav);
+  await click("Notes", nav);
+  expect(calls.at(-1)?.path).toBe("/api/outcomes?kinds=note");
+  await click("All", nav);
   expect(host.textContent).toContain("Backup comparison");
-  await input(host.querySelector("#outcome-kind-filter")!, "explore_idea");
+  await click("Ideas", host.querySelector('nav[aria-label="Outcome type"]')!);
   expect(host.textContent).toContain(exploreFixture.title);
   expect(host.querySelector('[role="dialog"]')).toBeNull();
 });
@@ -979,6 +982,6 @@ test("Escape closes a goal modal; inspecting the saved plan inside does not dism
     document.dispatchEvent(event);
   });
   expect(document.querySelector('[role="dialog"]')).toBeNull();
-  expect(host.textContent).toContain("All goals");
+  expect(host.textContent).toContain("All");
   expect(calls.every((call) => !call.body)).toBe(true);
 });

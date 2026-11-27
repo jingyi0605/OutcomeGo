@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { CalendarDays, Inbox, LayoutDashboard, ListChecks, Target } from "lucide-react";
+import { CalendarDays, Inbox, LayoutDashboard, ListChecks, StickyNote, Target } from "lucide-react";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import { api } from "../../../../client/outcomego-api";
 import { useFeatureSettings } from "../../../../hooks/use-feature-settings";
@@ -25,6 +25,7 @@ const CalendarPage = lazy(() =>
 type Route =
   | { kind: "overview" }
   | { kind: "all" }
+  | { kind: "notes" }
   | { kind: "new" }
   | { kind: "inbox" }
   | { kind: "calendar" }
@@ -32,7 +33,7 @@ type Route =
   | { kind: "outcome"; id: string; reviewRevision?: number }
   | { kind: "human"; id: string };
 type Section = OutcomeWorkspaceSection;
-const SECTIONS: readonly Section[] = ["overview", "all", "inbox", "calendar"];
+const SECTIONS: readonly Section[] = ["overview", "all", "notes", "inbox", "calendar"];
 const isSection = (kind: string): kind is Section => (SECTIONS as readonly string[]).includes(kind);
 const sectionFor = (target: DesktopOutcomeTarget): Section =>
   target.section && isSection(target.section)
@@ -141,7 +142,8 @@ export default function OutcomeWorkspace({
           {(
             [
               { kind: "overview", label: "Dashboard", icon: LayoutDashboard },
-              { kind: "all", label: "All goals", icon: ListChecks },
+              { kind: "all", label: "All", icon: ListChecks },
+              { kind: "notes", label: "Notes", icon: StickyNote },
               { kind: "inbox", label: "Needs attention", icon: Inbox },
               { kind: "calendar", label: "Calendar", icon: CalendarDays },
             ] as const
@@ -220,6 +222,17 @@ export default function OutcomeWorkspace({
             )}
             {tab === "all" && (
               <OutcomeList
+                client={api.outcomes}
+                bots={bots}
+                onSelect={review}
+                onCreate={() => setGoOpen(true)}
+                refreshVersion={version}
+              />
+            )}
+            {tab === "notes" && (
+              <OutcomeList
+                key="notes"
+                fixedKind="note"
                 client={api.outcomes}
                 bots={bots}
                 onSelect={review}
