@@ -193,7 +193,7 @@ export class ScheduleService {
       where: { requestNextCheckAt: { gte: query.from, lt: query.to }, requestStoppedAt: null,
         requestProgress: { path: ["state"], equals: "waiting" }, origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
         ...(query.botId ? { botId: query.botId } : {}) },
-      select: { id: true, botId: true, conversationId: true, channelId: true, userMessageId: true,
+      select: { id: true, botId: true, conversationId: true, channelId: true, userMessageId: true, outcomeId: true,
         requestNextCheckAt: true, requestReconciliations: true, updatedAt: true },
       orderBy: [{ requestNextCheckAt: "asc" }, { id: "asc" }], ...take,
     });
@@ -207,6 +207,7 @@ export class ScheduleService {
         start: instant.toISOString(), end: null, allDay: false, timeBasis: "scheduled",
         state: deriveRequestDisplayState({ state: "waiting", nextCheckAt: instant, reconciliations: row.requestReconciliations }, now, { checkOverdueMinutes }),
         overdue: false, owner: "bot", botId: row.botId, link: conversationLink(row), editable: false, updatedAt: row.updatedAt.toISOString(),
+        ...(row.outcomeId ? { relatedOutcomeId: row.outcomeId } : {}),
       };
     });
   }

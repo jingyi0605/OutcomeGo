@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import type { TimeItem } from "@outcomego/contracts/task-overview";
 import { countTodayCalendarItems } from "../src/renderer/lib/outcome-counts";
-import { calendarDays, dayStart, defaultCalendarKinds, itemsByDay } from "../src/renderer/components/outcomego/outcomes/calendar/calendar-dates";
+import { calendarDays, dayStart, defaultCalendarKinds, itemsByDay, nestFollowUps } from "../src/renderer/components/outcomego/outcomes/calendar/calendar-dates";
 import {
   computeCalendarMetrics,
   isSameMonth,
@@ -101,4 +101,21 @@ test("countTodayCalendarItems counts unfinished goals and to-dos deduplicated by
     { ...base, id: "routine_run:r1:1", kind: "routine_run", state: "scheduled" }, // routine -> excluded
   ];
   expect(countTodayCalendarItems(items)).toBe(4); // g1 + s1 + t1 + t2
+});
+
+test("a request follow-up is listed under the same day's to-do it works on", () => {
+  const item = (id: string, kind: TimeItem["kind"], extra: Partial<TimeItem> = {}): TimeItem => ({
+    id, kind, title: id, start: "2026-11-27T06:00:00.000Z", end: null, allDay: false, timeBasis: "scheduled",
+    state: "waiting", overdue: false, owner: "bot", link: { type: "channel", id: "c" }, editable: false,
+    updatedAt: "2026-11-27T01:00:00.000Z", ...extra,
+  });
+  const shape = (items: TimeItem[]) => nestFollowUps(items).map((entry) => [entry.item.id, entry.followUps.map((followUp) => followUp.id)]);
+  const linked = item("check", "follow_up", { relatedOutcomeId: "t1" });
+  const scheduled = item("todo", "todo", { outcomeId: "t1" });
+  const due = item("todo:due", "todo", { outcomeId: "t1" });
+
+  expect(shape([linked, scheduled, due])).toEqual([["todo", ["check"]], ["todo:due", []]]);
+  // Without that to-do on the day (another day, or filtered out) the follow-up stands on its own.
+  expect(shape([linked, item("other", "todo", { outcomeId: "t2" })])).toEqual([["check", []], ["other", []]]);
+  expect(shape([item("unlinked", "follow_up"), scheduled])).toEqual([["unlinked", []], ["todo", []]]);
 });

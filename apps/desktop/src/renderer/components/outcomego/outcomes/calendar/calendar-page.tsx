@@ -39,6 +39,7 @@ import {
   itemsByDay,
   movePeriod,
   moveToCalendarDate,
+  nestFollowUps,
   shiftDate,
   type CalendarView,
 } from "./calendar-dates";
@@ -167,6 +168,19 @@ function isItemDone(item: TimeItem): boolean {
   return DONE_STATES.has(item.state);
 }
 
+/** Entries as one list for the grids, each nested follow-up directly after its to-do. */
+function dayRows(items: readonly TimeItem[]) {
+  const entries = nestFollowUps(items);
+  return {
+    count: entries.length,
+    heads: entries.map((entry) => entry.item),
+    rows: entries.flatMap(({ item, followUps }) => [
+      { item, nested: false },
+      ...followUps.map((followUp) => ({ item: followUp, nested: true })),
+    ]),
+  };
+}
+
 function CalendarItemCard({
   item,
   timeZone,
@@ -174,6 +188,7 @@ function CalendarItemCard({
   botName,
   metrics,
   forceDetailed = false,
+  nested = false,
   onDragStart,
   onOpen,
 }: {
@@ -183,6 +198,8 @@ function CalendarItemCard({
   botName?: string;
   metrics: CalendarMetrics;
   forceDetailed?: boolean;
+  /** A follow-up shown as one indented line under its to-do. */
+  nested?: boolean;
   onDragStart: (item: TimeItem) => void;
   onOpen: () => void;
 }) {
@@ -207,6 +224,7 @@ function CalendarItemCard({
       data-cal-overdue={item.overdue ? "true" : undefined}
       data-cal-done={isItemDone(item) ? "true" : undefined}
       data-density={density}
+      data-nested={nested ? "true" : undefined}
       draggable={item.editable}
       onDragStart={(event) => {
         event.dataTransfer.setData("application/x-outcomego-calendar", item.id);
@@ -215,7 +233,14 @@ function CalendarItemCard({
       onClick={onOpen}
       title={itemTooltip(item, time, botName, t)}
     >
-      {density === "compact" ? (
+      {nested ? (
+        <span className="outcome-calendar-item-row">
+          <KindIcon aria-hidden="true" className="outcome-calendar-kind-icon size-[10px]" strokeWidth={2} />
+          <span className="outcome-calendar-item-title">
+            {[time, t("Follow-up"), item.title].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+      ) : density === "compact" ? (
         <>
           <span className="outcome-calendar-item-title">{item.title || t("Untitled")}</span>
           {showTime && !item.allDay && (
@@ -309,9 +334,10 @@ function DayItemsPopover({
           </button>
         </div>
         <div className="max-h-72 space-y-1.5 overflow-y-auto pr-0.5">
-          {entries.map((item) => (
+          {dayRows(entries).rows.map(({ item, nested }) => (
             <CalendarItemCard
               key={item.id}
+              nested={nested}
               item={item}
               timeZone={timeZone}
               locale={locale}
@@ -396,8 +422,9 @@ function MonthGrid({
           const isToday = date === today;
           const outside = !isSameMonth(date, selectedDate);
           const weekend = isWeekend(date);
-          const visibleCount = visibleCountForCell(entries.length, metrics);
-          const overflow = entries.length - visibleCount;
+          const { count, heads, rows } = dayRows(entries);
+          const visibleCount = visibleCountForCell(rows.length, metrics);
+          const overflow = rows.length - visibleCount;
           const dayNumber = Number(date.slice(8, 10));
           const showMonthPrefix = metrics.density !== "minimal" && isFirstOfMonth(date);
           const dateLabel = showMonthPrefix
@@ -455,8 +482,8 @@ function MonthGrid({
                     <span className="outcome-calendar-today-pill">{t("Today")}</span>
                   )}
                 </div>
-                {metrics.density !== "minimal" && entries.length > 0 && (
-                  <span className="outcome-calendar-day-count">{entries.length}</span>
+                {metrics.density !== "minimal" && count > 0 && (
+                  <span className="outcome-calendar-day-count">{count}</span>
                 )}
               </div>
 
@@ -477,9 +504,9 @@ function MonthGrid({
                       <button
                         type="button"
                         className="outcome-calendar-dots-btn"
-                        aria-label={t("{count} items", { count: entries.length })}
+                        aria-label={t("{count} items", { count })}
                       >
-                        {entries.slice(0, 4).map((item) => (
+                        {heads.slice(0, 4).map((item) => (
                           <span
                             key={item.id}
                             className="outcome-calendar-dot"
@@ -487,9 +514,9 @@ function MonthGrid({
                             data-cal-overdue={item.overdue ? "true" : undefined}
                           />
                         ))}
-                        {entries.length > 4 && (
+                        {count > 4 && (
                           <span className="text-[9px] font-medium leading-none text-foreground-secondary tabular-nums">
-                            +{entries.length - 4}
+                            +{count - 4}
                           </span>
                         )}
                       </button>
@@ -498,9 +525,10 @@ function MonthGrid({
                 )
               ) : (
                 <div className="outcome-calendar-cell-items">
-                  {entries.slice(0, visibleCount).map((item) => (
+                  {rows.slice(0, visibleCount).map(({ item, nested }) => (
                     <CalendarItemCard
                       key={item.id}
+                      nested={nested}
                       item={item}
                       timeZone={timeZone}
                       locale={locale}
@@ -579,8 +607,9 @@ function WeekGrid({
         const entries = items.get(date) ?? [];
         const isToday = date === today;
         const weekend = isWeekend(date);
-        const visibleCount = visibleCountForCell(entries.length, metrics);
-        const overflow = entries.length - visibleCount;
+        const { count, heads, rows } = dayRows(entries);
+        const visibleCount = visibleCountForCell(rows.length, metrics);
+        const overflow = rows.length - visibleCount;
         const dayNumber = Number(date.slice(8, 10));
 
         return (
@@ -650,9 +679,9 @@ function WeekGrid({
                       <button
                         type="button"
                         className="outcome-calendar-dots-btn mx-auto"
-                        aria-label={t("{count} items", { count: entries.length })}
+                        aria-label={t("{count} items", { count })}
                       >
-                        {entries.slice(0, 5).map((item) => (
+                        {heads.slice(0, 5).map((item) => (
                           <span
                             key={item.id}
                             className="outcome-calendar-dot"
@@ -660,9 +689,9 @@ function WeekGrid({
                             data-cal-overdue={item.overdue ? "true" : undefined}
                           />
                         ))}
-                        {entries.length > 5 && (
+                        {count > 5 && (
                           <span className="text-[9px] font-medium text-foreground-secondary tabular-nums">
-                            +{entries.length - 5}
+                            +{count - 5}
                           </span>
                         )}
                       </button>
@@ -671,9 +700,10 @@ function WeekGrid({
                 )
               ) : (
                 <>
-                  {entries.slice(0, visibleCount).map((item) => (
+                  {rows.slice(0, visibleCount).map(({ item, nested }) => (
                     <CalendarItemCard
                       key={item.id}
+                      nested={nested}
                       item={item}
                       timeZone={timeZone}
                       locale={locale}
@@ -741,8 +771,11 @@ function DayBoard({
 }) {
   const { t } = useI18n();
   const isToday = date === today;
-  const allDayItems = entries.filter((item) => item.allDay);
-  const timedItems = entries.filter((item) => !item.allDay);
+  const dayEntries = nestFollowUps(entries);
+  const followUpsById = new Map(dayEntries.map(({ item, followUps }) => [item.id, followUps]));
+  const heads = dayEntries.map((entry) => entry.item);
+  const allDayItems = heads.filter((item) => item.allDay);
+  const timedItems = heads.filter((item) => !item.allDay);
   const splitColumns = metrics.dayColumns === 2 && allDayItems.length > 0 && timedItems.length > 0;
   const nowMs = now.getTime();
 
@@ -817,11 +850,31 @@ function DayBoard({
       </button>
     );
 
-    if (!showRail) return <Fragment key={item.id}>{card}</Fragment>;
+    const followUps = followUpsById.get(item.id) ?? [];
+    const body = followUps.length === 0 ? card : (
+      <div className="outcome-calendar-day-group">
+        {card}
+        {followUps.map((followUp) => (
+          <CalendarItemCard
+            key={followUp.id}
+            item={followUp}
+            timeZone={timeZone}
+            locale={locale}
+            botName={bots.find((bot) => bot.id === followUp.botId)?.name}
+            metrics={metrics}
+            nested
+            onDragStart={onDragStart}
+            onOpen={() => onOpen(followUp)}
+          />
+        ))}
+      </div>
+    );
+
+    if (!showRail) return <Fragment key={item.id}>{body}</Fragment>;
     return (
       <div key={item.id} className="outcome-calendar-day-row">
         <span className="outcome-calendar-day-rail">{time}</span>
-        {card}
+        {body}
       </div>
     );
   };
@@ -872,7 +925,7 @@ function DayBoard({
           )}
         </div>
         <span className="text-xs text-foreground-secondary tabular-nums">
-          {t("{count} items", { count: entries.length })}
+          {t("{count} items", { count: heads.length })}
         </span>
       </header>
       <div className="outcome-calendar-day-body">

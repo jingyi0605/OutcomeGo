@@ -342,6 +342,8 @@ export interface TimeItem {
   owner: "me" | "bot" | "external";
   botId?: string;
   outcomeId?: string;
+  /** The to-do a request follow-up works on; views list the follow-up under it. It opens through `link`. */
+  relatedOutcomeId?: string;
   link: { type: "outcome" | "work_item" | "conversation" | "channel" | "routine" | "external"; id: string };
   editable: boolean;
   updatedAt: string;

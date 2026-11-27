@@ -3,6 +3,7 @@ import { ACTIVITY_LIST_LIMIT, ACTIVITY_TITLE_LIMIT } from "@outcomego/contracts/
 import { ensureRequestForTask, notifyRequestsNeedingOwner, settleRequestProgress, updateFeatureSettings } from "@outcomego/messaging";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
 import { ActivityService } from "../src/services/activity-service";
+import { ScheduleService } from "../src/services/schedule-service";
 
 // Specs/004.10 task 4.1 (requirements A1, A2): the owner's list of unfinished requests across every bot, and the detail
 // of one. Needs a disposable PostgreSQL database; skipped without OUTCOMEGO_TEST_DATABASE_URL. Fixtures are
@@ -164,6 +165,21 @@ describe.skipIf(!url)("the owner's activity list (specs/004.10 task 4.1)", () =>
     expect(titles.get(`request:${unsent.id}`)).toBe("Summarize the report");
     expect(titles.get(`request:${hidden.id}`)).toBe("");
     expect((await t.service.requestDetail(typed.id))?.title).toBe("Check the figures again");
+
+    // The calendar follow-up reads the same title and names the to-do the request is linked to.
+    const todo = await t.h.db.outcome.create({ data: { botId: t.h.bot.id, kind: "todo", status: "open", title: "Reconcile figures" } });
+    const checkAt = hours(2);
+    await t.h.db.run.update({ where: { id: typed.id }, data: { requestNextCheckAt: checkAt, requestProgress: { state: "waiting" }, outcomeId: todo.id } });
+    await t.h.db.run.update({ where: { id: unsent.id }, data: { requestNextCheckAt: checkAt, requestProgress: { state: "waiting" } } });
+    const schedule = await new ScheduleService(t.h.db).collect("local",
+      { from: hours(1), to: hours(3), kinds: ["follow_up"], botId: t.h.bot.id }, new Date(), "UTC");
+    const followUps = new Map(schedule.items.map((item) => [item.id, item]));
+    expect(followUps.get(`follow_up:request:${typed.id}`)).toMatchObject({
+      title: "Check the figures again", relatedOutcomeId: todo.id, link: { type: "channel", id: t.h.channel.id },
+    });
+    // The link only groups the entry; opening the follow-up still opens the conversation.
+    expect(followUps.get(`follow_up:request:${typed.id}`)?.outcomeId).toBeUndefined();
+    expect(followUps.get(`follow_up:request:${unsent.id}`)).not.toHaveProperty("relatedOutcomeId");
   });
 
   test("a long message is cut to the title limit, and the cut is marked", async () => {

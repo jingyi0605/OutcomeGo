@@ -78,3 +78,29 @@ export function itemsByDay(items: readonly TimeItem[], timeZone: string): Map<st
   for (const entries of grouped.values()) entries.sort((left, right) => (left.start ?? left.end ?? "").localeCompare(right.start ?? right.end ?? ""));
   return grouped;
 }
+
+export interface CalendarEntry {
+  item: TimeItem;
+  /** Request follow-ups listed under this to-do. */
+  followUps: TimeItem[];
+}
+
+/** Lists a request follow-up under the same day's to-do it works on, so one matter reads as one entry. */
+export function nestFollowUps(items: readonly TimeItem[]): CalendarEntry[] {
+  const todos = new Map<string, TimeItem[]>();
+  for (const item of items) if (item.kind === "todo" && item.outcomeId && !todos.has(item.outcomeId)) todos.set(item.outcomeId, []);
+  const entries: CalendarEntry[] = [];
+  const placed = new Set<string>();
+  for (const item of items) {
+    const siblings = item.relatedOutcomeId ? todos.get(item.relatedOutcomeId) : undefined;
+    if (siblings) {
+      siblings.push(item);
+      continue;
+    }
+    // A to-do listed twice on one day (scheduled and due) takes its follow-ups once.
+    const key = item.kind === "todo" ? item.outcomeId : undefined;
+    entries.push({ item, followUps: key && !placed.has(key) ? todos.get(key)! : [] });
+    if (key) placed.add(key);
+  }
+  return entries;
+}

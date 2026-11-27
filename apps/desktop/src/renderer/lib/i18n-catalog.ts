@@ -3714,6 +3714,7 @@ export const sourceTranslations: Record<string, string> = {
   "Human tasks": "人工任务",
   "Bot tasks": "机器人任务",
   "Follow-ups": "跟进时间",
+  "Follow-up": "跟进",
   "Upcoming work": "即将执行",
   "Preparing": "准备中",
   "Preparation": "事前准备",
