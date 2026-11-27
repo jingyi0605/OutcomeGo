@@ -80,8 +80,9 @@ requireText(release, "name: macos-engine-components", "macOS engine component in
 requireText(release, "bun apps/cli/scripts/sign-release.ts \"$asset\"", "macOS engine signature");
 requireText(release, "engine-components-macos.json", "macOS engine notice inventory");
 requireText(release, "Expected two macOS runtime assets", "macOS engine architecture coverage");
-requireText(release, "runner: macos-15", "macOS arm64 desktop runner");
-requireText(release, "runner: macos-15-intel", "macOS x64 desktop runner");
+requireText(release, "{ architecture: arm64, runner: macos-26 }", "macOS arm64 desktop runner");
+requireText(release, "{ architecture: x64, runner: macos-15-intel }", "macOS x64 desktop runner");
+requireText(release, 'hdiutil verify "apps/desktop/release/OutcomeGo-$VERSION-mac-$ARCHITECTURE.dmg"', "versioned macOS disk image verification");
 if (release.includes("aiteamos-") || release.includes("create-legacy-cli-aliases")) {
   fail("the next release must not generate legacy aiteamos-* CLI assets");
 }
