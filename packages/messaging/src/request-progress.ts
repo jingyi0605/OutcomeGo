@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { ApiError } from "@outcomego/contracts";
 import {
-  validateTaskProgress,
+  validateRequestProgress,
   type RequestProgressInput,
   type TaskProgress,
+  type TaskProgressInput,
 } from "@outcomego/contracts/task-progress";
 import { Prisma, type PrismaClient } from "@outcomego/db";
 import type { AgentMessaging, ToolContext } from "./index";
@@ -15,9 +16,43 @@ const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.Inp
 /** Runs from these origins have their own tracking (routines, goal work) and never join request progress. */
 export const INDEPENDENT_RUN_ORIGINS = ["routine", "outcome"] as const;
 const independentOrigins = INDEPENDENT_RUN_ORIGINS;
-/** A scoped worker a request started counts as still working in these states. */
+/** A scoped worker a request started counts as still open in these states. */
 export const OPEN_REQUEST_WORKER_STATUSES = ["provisioning", "queued", "running", "waiting"] as const;
 const openWorkers = OPEN_REQUEST_WORKER_STATUSES;
+/**
+ * Workers that are still actively executing or scheduled for a future check.
+ * A `waiting` worker with `nextCheckAt: null` is parked/blocked and has handed control back to the parent,
+ * so it must not count as an active helper or block request reconciliation forever.
+ */
+export const ACTIVE_REQUEST_WORKER_WHERE: Prisma.SubagentWhereInput = {
+  OR: [
+    { status: { in: ["provisioning", "queued", "running"] } },
+    { status: "waiting", nextCheckAt: { not: null } },
+  ],
+};
+/**
+ * Shared filter for runs whose tracked request is still alive, aligned with `requestIsStopped` and `canContinueRequest`:
+ * not stopped, not cancelled (except priority peer interrupt), active bot, and non-archived channel.
+ */
+export function activeRequestRunWhere(...extra: Prisma.RunWhereInput[]): Prisma.RunWhereInput {
+  return {
+    requestStoppedAt: null,
+    origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
+    bot: { status: "active" },
+    AND: [
+      {
+        OR: [
+          { status: { not: "cancelled" } },
+          { status: "cancelled", error: { path: ["code"], equals: "priority_peer_interrupt" } },
+        ],
+      },
+      {
+        OR: [{ channelId: null }, { channel: { archivedAt: null } }],
+      },
+      ...extra,
+    ],
+  };
+}
 const lock = (tx: Prisma.TransactionClient, botId: string) =>
   tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`bot-run-claim:${botId}`}))`;
 
@@ -169,6 +204,44 @@ async function cancelQueuedChecks(tx: Prisma.TransactionClient, rootId: string) 
     });
 }
 
+async function closeParkedRequestWorkers(
+  tx: Prisma.TransactionClient,
+  requestRunId: string,
+  now: Date
+) {
+  const parked = await tx.subagent.findMany({
+    where: { requestRunId, status: "waiting", nextCheckAt: null },
+    select: { id: true },
+  });
+  if (!parked.length) return 0;
+  const ids = parked.map((worker) => worker.id);
+  await tx.subagent.updateMany({
+    where: { id: { in: ids }, status: "waiting", nextCheckAt: null },
+    data: { status: "stopped", stoppedAt: now, completedAt: now, nextCheckAt: null },
+  });
+  await tx.subagentAttempt.updateMany({
+    where: { subagentId: { in: ids }, status: { in: [...openWorkers] } },
+    data: { status: "stopped", stoppedAt: now, completedAt: now },
+  });
+  for (const worker of parked) {
+    const wakes = await tx.inboxEvent.findMany({
+      where: { status: "pending", idempotencyKey: { startsWith: `task-progress:${worker.id}:` } },
+      select: { runId: true },
+    });
+    if (wakes.length) {
+      await tx.run.updateMany({
+        where: { id: { in: wakes.map((w) => w.runId) }, status: "queued" },
+        data: { status: "cancelled", completedAt: now },
+      });
+      await tx.inboxEvent.updateMany({
+        where: { status: "pending", idempotencyKey: { startsWith: `task-progress:${worker.id}:` } },
+        data: { status: "completed", completedAt: now },
+      });
+    }
+  }
+  return parked.length;
+}
+
 export async function reportRequestProgress(
   prisma: PrismaClient,
   context: ToolContext,
@@ -226,7 +299,7 @@ export async function reportRequestProgress(
         );
       return receipt.response;
     }
-    validateTaskProgress(milestone);
+    validateRequestProgress(milestone);
     if (input.state === "working" && !input.remaining.length)
       throw new ApiError(
         400,
@@ -235,10 +308,49 @@ export async function reportRequestProgress(
       );
     if (taskProgress(root.requestProgress)?.state === "complete")
       throw new ApiError(409, "request_finished", "This request is already complete");
+    if (input.state === "stopped") {
+      const now = new Date();
+      const revision = root.requestRevision + 1;
+      await cancelQueuedChecks(tx, root.id);
+      await closeParkedRequestWorkers(tx, root.id, now);
+      await tx.run.update({
+        where: { id: root.id },
+        data: {
+          requestStoppedAt: now,
+          requestNextCheckAt: null,
+          requestRevision: revision,
+          requestReconciliations: 0,
+        },
+      });
+      const response = json({
+        request_run_id: root.id,
+        stopped: true,
+        deferred: false,
+        ended: false,
+      });
+      await tx.idempotencyRecord.create({
+        data: {
+          scope,
+          key: input.key,
+          requestHash,
+          status: "completed",
+          response,
+          expiresAt: new Date(Date.now() + 30 * 86400_000),
+        },
+      });
+      await tx.event.create({
+        data: {
+          topic: "request.stopped",
+          entityId: root.id,
+          payload: { botId: context.botId, requestRunId: root.id, revision, summary: input.summary },
+        },
+      });
+      return response;
+    }
     if (
       ["complete", "waiting"].includes(input.state) &&
       (await tx.subagent.count({
-        where: { requestRunId: root.id, status: { in: [...openWorkers] } },
+        where: { requestRunId: root.id, ...ACTIVE_REQUEST_WORKER_WHERE },
       }))
     )
       throw new ApiError(
@@ -255,11 +367,12 @@ export async function reportRequestProgress(
         "outcomeId must name one of the user's existing to-dos. Omit it for any other request."
       );
     const progress: TaskProgress = {
-      ...milestone,
+      ...(milestone as TaskProgressInput),
       runId: root.id,
       revision: root.requestRevision + 1,
     };
     await cancelQueuedChecks(tx, root.id);
+    if (input.state === "complete") await closeParkedRequestWorkers(tx, root.id, new Date());
     await tx.run.update({
       where: { id: root.id },
       data: {
@@ -363,7 +476,7 @@ export async function settleRequestProgress(
       await cancelQueuedChecks(tx, id);
       continue;
     }
-    if (await tx.subagent.count({ where: { requestRunId: id, status: { in: [...openWorkers] } } }))
+    if (await tx.subagent.count({ where: { requestRunId: id, ...ACTIVE_REQUEST_WORKER_WHERE } }))
       continue;
     if (
       await tx.inboxEvent.count({

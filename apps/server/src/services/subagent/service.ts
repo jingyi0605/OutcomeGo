@@ -492,6 +492,14 @@ export class SubagentService {
     return { stopped_all: true, stopped: of("stopped"), already_finished: of("finished"), failed: of("failed"), delegated };
   }
 
+  /** Stop every open subagent owned by one tracked request (both active and waiting workers). */
+  async stopRequestWorkers(parentBotId: string, requestRunId: string, callId: string): Promise<number> {
+    const outcomes = await this.stopRunningSubagents(parentBotId, callId, { requestRunId }, true);
+    if (outcomes.some((entry) => entry.outcome === "failed"))
+      throw new ApiError(503, "request_stop_incomplete", "Some workers for this request could not be stopped. Try again.", { retryable: true });
+    return outcomes.filter((entry) => entry.outcome === "stopped").length;
+  }
+
   private async outcomeOwnedParentRuns(workers: readonly { parentRunId: string; requestRunId?: string | null }[]) {
     const ids = [...new Set(workers.flatMap(worker => [worker.parentRunId, ...(worker.requestRunId ? [worker.requestRunId] : [])]))];
     if (!ids.length) return new Set<string>();

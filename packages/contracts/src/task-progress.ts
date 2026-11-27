@@ -16,6 +16,7 @@ export const TaskProgressInput = Schema.Struct({
 export type TaskProgressInput = typeof TaskProgressInput.Type;
 export const RequestProgressInput = Schema.Struct({
   ...TaskProgressInput.fields,
+  state: Schema.Literal("working", "waiting", "blocked", "complete", "stopped"),
   request_run_id: Schema.optional(Schema.UUID),
   /** The owner's existing to-do this request works on. */
   outcomeId: Schema.optional(Schema.UUID),
@@ -77,6 +78,27 @@ export function validateTaskProgress(input: TaskProgressInput, now = Date.now())
     throw new Error("Only an actual tool block may include toolError");
 }
 
+export function validateRequestProgress(
+  input: Omit<RequestProgressInput, "request_run_id" | "outcomeId">,
+  now = Date.now()
+): void {
+  if (input.state !== "stopped") {
+    validateTaskProgress(input as TaskProgressInput, now);
+    return;
+  }
+  if (JSON.stringify(input).length > 32000)
+    throw new Error(
+      "Task progress must fit within 32000 characters; keep references instead of transcripts"
+    );
+  if (![input.key, input.summary, ...input.evidence, ...input.remaining].every((s) => s.trim()))
+    throw new Error("Progress values cannot be blank");
+  if (input.checkAt !== undefined) throw new Error("Only waiting work can schedule a check");
+  if (input.deadline !== undefined) throw new Error("Stopped work cannot set a deadline");
+  if (input.blockSource !== undefined) throw new Error("Only blocked work may name a block source");
+  if (input.toolError !== undefined) throw new Error("Only an actual tool block may include toolError");
+  if (input.remaining.length) throw new Error("Stopped work cannot leave obligations unresolved");
+}
+
 /** Extension to the captured worker surface; WakeParent retains its terminating automation semantics. */
 export const REPORT_TASK_PROGRESS_TOOL = {
   name: "ReportTaskProgress",
@@ -120,11 +142,12 @@ export const REPORT_TASK_PROGRESS_TOOL = {
 export const REPORT_REQUEST_PROGRESS_TOOL = {
   ...REPORT_TASK_PROGRESS_TOOL,
   name: "ReportRequestProgress",
-  description: "Keep the user's requested outcome owned across scoped subtasks, approval replies and waits. This parent-only record is separate from TodoWrite and worker progress. Task automatically starts tracking new work and returns request_run_id; acknowledgements need no progress call. Omit request_run_id to start tracking the current request; use the returned request_run_id for every related Task and progress update, including after approval replies. Different user requests keep separate IDs. State complete ends THIS TURN and requires evidence that the requested outcome was verified and delivered, with no unfinished obligations or active workers. Deliver any other ready results before this call. A completed narrow worker step is not completion of the broader request. If the outside outcome is pending, use waiting with remaining work, nextAction and checkAt before any known deadline; the host schedules one private continuation and ends this turn. Read/check only within the user's existing scope; get fresh approval before any additional outgoing action that exceeds the previous approval. If further progress actually needs a decision, ask it and save blocked with its source, rather than offering to continue an already requested task. Never claim a tool refusal without its actual error. Every unfinished state requires nextAction. Use stable milestone keys only for identical retries; any content or check-time change needs a new key. Use evidence references rather than copied transcripts, and no passwords, PINs or tokens. This tool grants no permission and does not revive cancelled work. No routine is needed for this request's saved check.",
+  description: "Keep the user's requested outcome owned across scoped subtasks, approval replies and waits. This parent-only record is separate from TodoWrite and worker progress. Task automatically starts tracking new work and returns request_run_id; acknowledgements need no progress call. Omit request_run_id to start tracking the current request; use the returned request_run_id for every related Task and progress update, including after approval replies. Different user requests keep separate IDs. State complete ends THIS TURN and requires evidence that the requested outcome was verified and delivered, with no unfinished obligations or active workers. Deliver any other ready results before this call. A completed narrow worker step is not completion of the broader request. Use state stopped with its request_run_id when the user explicitly cancels, abandons, or asks to remove or dismiss a tracked request; this marks the request stopped and closes its unfinished workers without claiming the outcome was delivered (evidence and remaining may be empty, and it does not end this turn). If the outside outcome is pending, use waiting with remaining work, nextAction and checkAt before any known deadline; the host schedules one private continuation and ends this turn. Read/check only within the user's existing scope; get fresh approval before any additional outgoing action that exceeds the previous approval. If further progress actually needs a decision, ask it and save blocked with its source, rather than offering to continue an already requested task. Never claim a tool refusal without its actual error. Every unfinished state requires nextAction. Use stable milestone keys only for identical retries; any content or check-time change needs a new key. Use evidence references rather than copied transcripts, and no passwords, PINs or tokens. This tool grants no permission and does not revive cancelled work. No routine is needed for this request's saved check.",
   inputSchema: {
     ...REPORT_TASK_PROGRESS_TOOL.inputSchema,
     properties: {
       ...REPORT_TASK_PROGRESS_TOOL.inputSchema.properties,
+      state: { type: "string", enum: ["working", "waiting", "blocked", "complete", "stopped"] },
       request_run_id: { type: "string", format: "uuid", description: "The original request_run_id returned when tracking this user request; keep it across approval replies and worker changes." },
       outcomeId: { type: "string", format: "uuid", description: "Set this whenever the request works on one of the user's existing to-dos: that to-do's id from QueryOutcomes or GetOutcome, so the calendar lists this request's check under it. It only links the two; it never changes or completes the to-do. The link stays on later updates. Omit it when no existing to-do is involved." },
     },
