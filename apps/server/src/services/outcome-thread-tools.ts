@@ -226,7 +226,7 @@ export class OutcomeThreadTools {
         if (!triggeredByOwner(turn.triggerBy))
           throw new ApiError(403, "cancel_requires_owner", "Only the owner's words in this thread can cancel the goal");
         const { outcomeId: _outcomeId, ...rest } = input;
-        const outcome = await run(this.outcomes.cancel(outcomeId, rest, actor), signal);
+        const outcome = await run(this.outcomes.cancel(outcomeId, rest, actor, { ownerId: turn.thread.outcome.ownerId }), signal);
         return { outcome, nextStep: "The goal is cancelled and its history is kept. Tell the owner in your final message." };
       }
       case "GetOutcome": {

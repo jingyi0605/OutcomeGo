@@ -18,7 +18,7 @@ import {
   type AgentMessaging,
 } from "@outcomego/messaging";
 import { outcomeApiError } from "./outcome-service";
-import { assertOutcomeAccess, outcomePrincipal } from "./outcome-lifecycle";
+import { assertOutcomeAccess, outcomePrincipal, type OutcomeActorContext } from "./outcome-lifecycle";
 import { lockOutcome, mapOutcomeError, outcomeWrite } from "./outcome-write";
 
 type Tx = Prisma.TransactionClient;
@@ -93,20 +93,21 @@ export class OutcomeThreadService {
     private readonly recompute: (tx: Tx, outcomeId: string, actor: ActorRef) => Promise<unknown> = recomputeOutcomeStatus
   ) {}
 
-  async plan(outcomeId: string, input: RequestOutcomePlanInput, actor: ActorRef): Promise<OutcomeThreadTurnView> {
+  async plan(outcomeId: string, input: RequestOutcomePlanInput, actor: ActorRef, context: OutcomeActorContext = {}): Promise<OutcomeThreadTurnView> {
     await this.requireEnabled();
     return outcomeWrite(this.prisma, `outcome-thread-plan:${actor}:${outcomeId}`, input.clientRequestId, input,
-      (tx) => this.planInTransaction(tx, outcomeId, input, actor));
+      (tx) => this.planInTransaction(tx, outcomeId, input, actor, context));
   }
 
   async planInTransaction(
     tx: Tx,
     outcomeId: string,
     input: RequestOutcomePlanInput,
-    actor: ActorRef
+    actor: ActorRef,
+    context: OutcomeActorContext = {},
   ): Promise<OutcomeThreadTurnView> {
     const outcome = await lockOutcome(tx, outcomeId);
-    assertOutcomeAccess(outcome, outcomePrincipal(actor), true);
+    assertOutcomeAccess(outcome, outcomePrincipal(actor, context), true);
     try {
       const { turn, created } = await enqueueOutcomePlan(tx, this.messaging, { ...input, outcomeId, actor });
       if (created && turn.planMode === "contract_plan") await this.recompute(tx, outcomeId, actor);
@@ -115,12 +116,12 @@ export class OutcomeThreadService {
   }
 
   /** The owner's words, as sent, delivered to the goal's planner thread. Returns at once. */
-  async send(outcomeId: string, input: SendOutcomeThreadMessageInput, actor: ActorRef): Promise<OutcomeThreadTurnView> {
+  async send(outcomeId: string, input: SendOutcomeThreadMessageInput, actor: ActorRef, context: OutcomeActorContext = {}): Promise<OutcomeThreadTurnView> {
     await this.requireEnabled();
     if (!input.text.trim()) throw new ApiError(400, "invalid_request", "Write a message");
     return outcomeWrite(this.prisma, `outcome-thread-message:${actor}:${outcomeId}`, input.clientRequestId, input, async (tx) => {
       const outcome = await lockOutcome(tx, outcomeId);
-      assertOutcomeAccess(outcome, outcomePrincipal(actor), true);
+      assertOutcomeAccess(outcome, outcomePrincipal(actor, context), true);
       if (OUTCOME_TERMINAL_STATUSES.includes(outcome.status))
         throw outcomeApiError("invalid_outcome_transition", `This goal is ${outcome.status}`, { currentStatus: outcome.status });
       const { turn, created } = await enqueueOutcomePlan(tx, this.messaging, {

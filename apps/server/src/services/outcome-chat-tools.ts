@@ -41,6 +41,7 @@ export class OutcomeChatTools {
     private readonly outcomes: OutcomeService,
     private readonly cards?: OutcomeChatCards,
     private readonly planner?: OutcomeThreadPlanner,
+    private readonly authMode: "required" | "disabled" = "disabled",
   ) {}
 
   execute = async (
@@ -129,6 +130,8 @@ export class OutcomeChatTools {
     };
 
     try {
+      const ownerId = await this.outcomes.ownerForBotTurn(this.authMode);
+      const ownerContext = { ownerId };
       switch (request.tool) {
         case "CreateOutcome": {
           const args = input("CreateOutcome");
@@ -136,7 +139,7 @@ export class OutcomeChatTools {
           const createInput = ownerMessageRef
             ? { ...fields, sourceRef: { kind: "owner_message_ref", id: ownerMessageRef } }
             : fields;
-          return await detail(this.outcomes.create(createInput, actor, { runId: context.runId }));
+          return await detail(this.outcomes.create(createInput, actor, { ownerId, runId: context.runId }));
         }
         case "UpdateOutcome": {
           const { outcomeId, targetKind, ...args } = input("UpdateOutcome");
@@ -148,9 +151,9 @@ export class OutcomeChatTools {
               ...(scheduledAt !== undefined ? { scheduledAt: scheduledAt ?? undefined } : {}),
               expectedRevision,
               clientRequestId,
-            }, actor));
+            }, actor, ownerContext));
           }
-          return await detail(this.outcomes.update(outcomeId, args, actor));
+          return await detail(this.outcomes.update(outcomeId, args, actor, ownerContext));
         }
         case "QueryOutcomes": {
           const args = input("QueryOutcomes");
@@ -160,11 +163,11 @@ export class OutcomeChatTools {
             statuses: [...(args.statuses ?? [])],
             limit: args.limit ?? 20,
             cursor: decodeOutcomeCursor(args.cursor ?? null),
-          }, actor));
+          }, actor, ownerContext));
         }
         case "GetOutcome": {
           const args = input("GetOutcome");
-          const result = await detail(this.outcomes.get(args.outcomeId, actor));
+          const result = await detail(this.outcomes.get(args.outcomeId, actor, ownerContext));
           return {
             ...result,
             ...(args.revision ? { revision: await run(this.outcomes.getRevision(args.outcomeId, args.revision)) } : {}),
@@ -175,14 +178,14 @@ export class OutcomeChatTools {
         }
         case "ActOnOutcome": {
           const { outcomeId, ...args } = input("ActOnOutcome");
-          return await detail(this.outcomes.act(outcomeId, args, actor, { runId: context.runId }));
+          return await detail(this.outcomes.act(outcomeId, args, actor, { ownerId, runId: context.runId }));
         }
         case "PlanOutcome": {
           if (!this.planner) throw new ApiError(503, "planner_unavailable", "Outcome planning is not configured", { retryable: true });
           const args = input("PlanOutcome");
           const { outcomeId, mode, ...planInput } = args;
-          const turn = await this.planner.plan(outcomeId, { ...planInput, ...(mode ? { mode } : {}) }, actor);
-          const outcome = await run(this.outcomes.get(outcomeId, actor));
+          const turn = await this.planner.plan(outcomeId, { ...planInput, ...(mode ? { mode } : {}) }, actor, ownerContext);
+          const outcome = await run(this.outcomes.get(outcomeId, actor, ownerContext));
           return { outcome, turn, url: outcomeDeepLink(outcome.id), nextStep: nextStep(outcome) };
         }
         default:

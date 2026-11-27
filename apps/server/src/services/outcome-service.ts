@@ -145,7 +145,7 @@ export class OutcomeService {
       const outcome = await this.idempotent(`outcome-unified-create:${principal.ownerId}:${actor}`, input.clientRequestId, input,
         (tx) => this.createInTransaction(tx, input, actor, context));
       return input.kind === "standard" && input.autoPlan !== false && this.lifecycle.enqueuePlan
-        ? this.planAfterCommit(outcome, actor, input.clientRequestId)
+        ? this.planAfterCommit(outcome, actor, input.clientRequestId, { ownerId: principal.ownerId })
         : { outcome, turn: null };
     });
 
@@ -162,7 +162,7 @@ export class OutcomeService {
     return this.idempotent(`${scope}:enqueue`, input.clientRequestId, { outcomeId: outcome.id }, async (tx) => {
       try {
         if (!this.lifecycle.enqueuePlan) throw outcomeApiError("planner_unavailable", "No Outcome planner is available");
-        return await this.enqueueCommittedPlan(outcome, "triage", actor, input.clientRequestId);
+        return await this.enqueueCommittedPlan(outcome, "triage", actor, input.clientRequestId, { ownerId: principal.ownerId });
       } catch (error) {
         const row = await this.lockOutcome(tx, outcome.id);
         const meta = metadataRecord(row.kindMeta);
@@ -176,16 +176,22 @@ export class OutcomeService {
     });
   });
 
-  private async enqueueCommittedPlan(outcome: OutcomeDetail, mode: OutcomePlanMode, actor: ActorRef, requestId: string): Promise<{ outcome: OutcomeDetail; turn: OutcomeThreadTurnView }> {
+  private async enqueueCommittedPlan(
+    outcome: OutcomeDetail,
+    mode: OutcomePlanMode,
+    actor: ActorRef,
+    requestId: string,
+    context: OutcomeActorContext = {},
+  ): Promise<{ outcome: OutcomeDetail; turn: OutcomeThreadTurnView }> {
     const turn = await this.lifecycle.enqueuePlan!(outcome.id, {
       mode, expectedRevision: outcome.revision, clientRequestId: `outcome:${mode}:${hashRequest({ requestId, id: outcome.id, revision: outcome.revision })}`,
-    }, actor);
+    }, actor, context);
     return { outcome, turn };
   }
 
-  private planAfterCommit(outcome: OutcomeDetail, actor: ActorRef, requestId: string) {
+  private planAfterCommit(outcome: OutcomeDetail, actor: ActorRef, requestId: string, context: OutcomeActorContext = {}) {
     return this.idempotent(`outcome-contract-plan:${outcome.id}:${outcome.revision}`, requestId, { actor },
-      () => this.enqueueCommittedPlan(outcome, "contract_plan", actor, requestId));
+      () => this.enqueueCommittedPlan(outcome, "contract_plan", actor, requestId, context));
   }
 
   createInTransaction(tx: Tx, input: CreateOutcomeInput, actor: ActorRef, context: OutcomeActorContext = {}) {
@@ -264,13 +270,14 @@ export class OutcomeService {
 
   convert = (outcomeId: string, input: ConvertOutcomeInput, actor: ActorRef, context: OutcomeActorContext = {}) =>
     serviceEffect(async () => {
-      const effect = this.mutateLifecycle("convert", outcomeId, input, actor, context, (tx, row, principal, now) => {
-        assertOutcomeOwner(principal);
+      const principal = outcomePrincipal(actor, context);
+      const effect = this.mutateLifecycle("convert", outcomeId, input, actor, context, (tx, row, rowPrincipal, now) => {
+        assertOutcomeOwner(rowPrincipal);
         return this.conversionData(tx, row, input, actor, now);
       });
       const outcome = await runEffect(effect);
       return input.targetKind === "standard" && input.autoPlan !== false && this.lifecycle.enqueuePlan
-        ? this.planAfterCommit(outcome, actor, input.clientRequestId)
+        ? this.planAfterCommit(outcome, actor, input.clientRequestId, { ownerId: principal.ownerId })
         : { outcome, turn: null };
     });
 

@@ -268,7 +268,7 @@ export class AppService {
     this.outcomeThreads = new OutcomeThreadService(this.prisma, this.messaging);
     this.outcomes = new OutcomeService(this.prisma, this.messaging, this.runs, withdrawSupersededDecisions,
       (outcome) => this.outcomeBriefs.warm(outcome),
-      { enqueuePlan: (id, input, actor) => this.outcomeThreads.plan(id, input, actor) }
+      { enqueuePlan: (id, input, actor, context) => this.outcomeThreads.plan(id, input, actor, context) }
     );
     this.channels = new ChannelService(
       this.prisma,
@@ -411,6 +411,7 @@ export class AppService {
       this.outcomes,
       new OutcomeChatCards(this.prisma, this.messaging),
       this.outcomeThreads,
+      authMode,
     );
     this.internalTools = new InternalToolService(
       this.prisma,

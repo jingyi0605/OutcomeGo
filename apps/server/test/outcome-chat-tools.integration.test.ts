@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { Effect } from "effect";
 import type { DynamicToolCallRequest } from "@outcomego/contracts";
 import { outcomeThreadFixture } from "../../../packages/messaging/test/fixtures/outcome-thread";
 import { OutcomeChatTools } from "../src/services/outcome-chat-tools";
@@ -40,7 +41,7 @@ describe.skipIf(!databaseUrl)("unified Outcome chat tools", () => {
       undefined,
       undefined,
       undefined,
-      { enqueuePlan: (id, input, actor) => threads.plan(id, input, actor) },
+      { enqueuePlan: (id, input, actor, context) => threads.plan(id, input, actor, context) },
     );
     const tools = new OutcomeChatTools(
       outcomes,
@@ -145,5 +146,102 @@ describe.skipIf(!databaseUrl)("unified Outcome chat tools", () => {
       tool: "TrackOutcome",
       arguments: {},
     } as DynamicToolCallRequest, context)).rejects.toMatchObject({ code: "invalid_request" });
+  });
+
+  test("resolves the authenticated deployment owner when authMode is required", async () => {
+    const fixture = await outcomeThreadFixture();
+    const user = await fixture.db.user.create({
+      data: {
+        id: crypto.randomUUID(),
+        email: `owner-${crypto.randomUUID()}@example.invalid`,
+        name: "Owner",
+        emailVerified: true,
+      },
+    });
+    const createdIds: string[] = [];
+    cleanups.push(async () => {
+      if (createdIds.length > 0) {
+        await fixture.db.memoryFact.deleteMany({ where: { sourceOutcomeId: { in: createdIds } } });
+        await fixture.db.event.deleteMany({ where: { entityId: { in: createdIds } } });
+        await fixture.db.outcome.deleteMany({ where: { id: { in: createdIds } } });
+      }
+      await fixture.db.user.deleteMany({ where: { id: user.id } });
+      await fixture.cleanup();
+    });
+    await fixture.db.featureSettings.upsert({
+      where: { id: "global" },
+      create: { id: "global", outcomesEnabled: true },
+      update: { outcomesEnabled: true },
+    });
+
+    const threads = new OutcomeThreadService(fixture.db, fixture.messaging);
+    const outcomes = new OutcomeService(
+      fixture.db,
+      fixture.messaging,
+      undefined,
+      undefined,
+      undefined,
+      { enqueuePlan: (id, input, actor, ctx) => threads.plan(id, input, actor, ctx) },
+    );
+    const createdTodo = await Effect.runPromise(
+      outcomes.create(
+        {
+          kind: "todo",
+          title: "整理采购订单待办",
+          botId: fixture.bot.id,
+          clientRequestId: requestId(),
+        },
+        `user:${user.id}`,
+      ),
+    );
+    createdIds.push(createdTodo.outcome.id);
+
+    const tools = new OutcomeChatTools(outcomes, undefined, threads, "required");
+    const context = {
+      runId: "",
+      botId: fixture.bot.id,
+      conversationId: fixture.bot.conversation!.id,
+      channelId: fixture.channel.id,
+      deliveryId: null,
+      origin: "user" as const,
+      callId: requestId(),
+      timeZone: null,
+      replyToMessageId: null,
+      isFork: false,
+    };
+    const call = (tool: string, args: Record<string, unknown>) =>
+      tools.execute(
+        {
+          runId: "",
+          botId: fixture.bot.id,
+          conversationId: context.conversationId,
+          channelId: context.channelId,
+          deliveryId: null,
+          callId: requestId(),
+          tool,
+          arguments: args,
+        } as DynamicToolCallRequest,
+        context,
+      );
+
+    const queried = (await call("QueryOutcomes", { kinds: ["todo"] })) as {
+      items: Array<{ id: string; title: string }>;
+    };
+    expect(queried.items.some((item) => item.id === createdTodo.outcome.id)).toBe(true);
+
+    const fetched = (await call("GetOutcome", { outcomeId: createdTodo.outcome.id })) as {
+      outcome: { id: string; title: string };
+    };
+    expect(fetched.outcome.id).toBe(createdTodo.outcome.id);
+    expect(fetched.outcome.title).toBe("整理采购订单待办");
+
+    const planned = (await call("PlanOutcome", {
+      outcomeId: createdTodo.outcome.id,
+      mode: "advice",
+      expectedRevision: 1,
+      clientRequestId: requestId(),
+    })) as { outcome: { id: string }; turn: { planMode: string; status: string } };
+    expect(planned.outcome.id).toBe(createdTodo.outcome.id);
+    expect(planned.turn).toMatchObject({ planMode: "advice", status: "queued" });
   });
 });

@@ -18,7 +18,12 @@ export interface OutcomeActorContext {
 }
 
 export interface OutcomeLifecycleOptions {
-  enqueuePlan?: (outcomeId: string, input: { mode: OutcomePlanMode; expectedRevision: number; clientRequestId: string }, actor: ActorRef) => Promise<OutcomeThreadTurnView>;
+  enqueuePlan?: (
+    outcomeId: string,
+    input: { mode: OutcomePlanMode; expectedRevision: number; clientRequestId: string },
+    actor: ActorRef,
+    context?: OutcomeActorContext,
+  ) => Promise<OutcomeThreadTurnView>;
 }
 
 type Principal = { ownerId: string; actor: ActorRef; botId: string | null };
