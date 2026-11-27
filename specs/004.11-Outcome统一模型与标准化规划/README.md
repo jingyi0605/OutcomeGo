@@ -38,7 +38,7 @@
 | 阶段 1 | 统一数据模型与契约定义 | 重构 `Outcome` Prisma Schema 与 `packages/contracts` 统一契约，删除旧表模型 |
 | 阶段 2 | 统一 Outcome 服务、笔记记忆同步与排期调度 | 整合 `OutcomeService`（覆盖 6 种 `kind`、原地演进、`note` 共享记忆双向同步、Todo 自动接受规则、`scheduled_once` 与到期自动巡检调度器），剥离 `Routine` 一次性分支 |
 | 阶段 3 | 标准化 Plan 引擎、收件自动分诊与 `research_readonly` 运行时 | 统一 `OutcomeThread` 规划管线（`triage` / `advice` / `contract_plan` + 多模态附件透传）、Worker/Server 借用目标 Bot 只读 MCP 与记忆/对话权、Computer 方案 B 权限档位、收敛 `inspection` |
-| 阶段 4 | 统一 HTTP API、Agent 工具与清理旧代码 | 统一 `/api/v0/outcomes`（含 `/intake` 与附件上传）路由、统一对话工具（含 `note` 增改查）、更新活动/日历/订阅读模型、彻底移除旧路由与旧服务 |
+| 阶段 4 | 统一 HTTP API、Agent 工具与清理旧代码 | 统一 `/api/v0/outcomes`（含 `/intake`，复用 `/api/assets` 附件能力）路由、统一对话工具（含 `note` 增改查）、更新活动/日历/订阅读模型、彻底移除旧路由与旧服务 |
 | 阶段 5 | 多端适配（SDK / Desktop / Android / iOS） | 改造 `client-core`、Desktop 统一「Go / 随便记点什么」收件弹窗/工作区/「笔记」筛选/统一详情与 Plan 面板/日历、Android & iOS 迁至统一 Outcome 接口 |
 | 阶段 6 | 全链路验证与远端 Computer 同步 | 隔离 DB 集成测试、桌面/移动端构建验证、征得同意后同步并重建远端 Debug Computer |
 

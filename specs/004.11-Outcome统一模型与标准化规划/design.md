@@ -116,7 +116,7 @@ sequenceDiagram
    - 若当前 `revision` 下已存在同 `mode` 且 `status in ("queued", "running")` 的回合，直接幂等返回该回合；若上次失败或 `revision` 已递增，则创建新回合。
 2. 角色解析统一调用 `resolveOutcomeRole(tx, "planner", outcome.botId)`：
    - 优先使用配置的活跃 `plannerBotId` 与 `plannerModel`；
-   - 若配置的规划 Bot 不可用，记录 `fallbackReason` 并统一回退至 `outcome.botId`；若 `outcome.botId` 也为空，返回 `409 planner_unavailable`。
+   - 若配置的规划 Bot 不可用，记录 `fallbackReason` 并统一回退至 `outcome.botId`；若为独立模型模式（`status === "model_only"`）且 `outcome.botId` 为空，可在 `triage` 场景下回退至首个活跃默认 Bot 承载执行上下文；若仍无可用执行 Bot，普通 `plan` 请求返回 `409 planner_unavailable`，而「Go」收件（`intake`）在源 `note` 已落盘的前提下记录 `triageStatus = "failed"` 且不回滚。
 3. Worker 领取后，标记 `accessMode = "research_readonly"`，并把 `borrowedBotId = outcome.botId && outcome.botId !== plannerBotId ? outcome.botId : null` 与源 `Outcome.attachments`（多模态图片与文件引用）一并传入本次回合的上下文加载与 `ComputerTurnRequest`。
 4. Computer 运行 pi-agent 调研后：
    - `triage` 模式调用 `ClassifyOutcome`：单落点时原地 `convert` 源 `Outcome`（若为 `standard` 自动续发 `contract_plan`）；多条拆分时保留源 `Outcome` 为 `kind="note"`（写入整理后的标题/正文/记忆摘要）并创建 1..N 条子 `Outcome`（`parentOutcomeId = sourceOutcome.id`，其中判为 `todo` 时因源记录 `createdVia === "owner_go_inbox"` 直接置为 `status = "open"`）。
@@ -125,23 +125,23 @@ sequenceDiagram
 
 #### 2.3.3 `scheduled_once` 定时准备、到点执行与到期主动巡检
 
-1. `scheduled_once` 记录 `scheduledAt`（正式执行时间）、可选 `prepareAt`（早于 `scheduledAt`）和 `prepareInstruction`、`scheduleState`（`scheduled | paused | running | completed | failed | cancelled`）。
+1. `scheduled_once` 记录 `scheduledAt`（正式执行时间）、可选 `prepareAt`（早于 `scheduledAt`）和 `prepareInstruction`，状态统一使用 `Outcome.status`（`scheduled | preparing | running | paused | failed | accepted | cancelled`）。
 2. **自动准备扫描**：调度器定期扫描 `kind = "scheduled_once"`、`status = "scheduled"`、`prepareAt <= now < scheduledAt` 且当前 `revision` 尚无 `advice` 回合的记录，调用统一 `OutcomeThreadService.plan(id, { mode: "advice" })` 入队，同时清除/标记本次自动准备已触发，避免重复。
 3. **到期主动巡检扫描（保留 `inspection.*` 策略）**：移除独立的 `packages/messaging/src/outcome-inspections.ts` 与 `purpose="inspection"` 硬锁后，由统一调度器按 `taskPolicy["inspection.enabled"]` 与 `taskPolicy["inspection.leadHours"]` 扫描即将到期的活跃 `standard` 目标及未完成排期任务，自动调用统一 `OutcomeThreadService.plan(id, { mode: "advice" })`（按 `outcomeRevision` 幂等去重，不再维护平行巡检回合代码）。
 4. **改期失效**：改期会递增 `Outcome.revision`；Worker 领取 `outcome_thread` 回合时校验 `turn.outcomeRevision === outcome.revision`，若已过时则自动取消（`skipReason: "schedule_superseded"`）。
-5. **正式到点执行**：调度器扫描 `kind = "scheduled_once"`、`status = "scheduled"`、`scheduledAt <= now` 的记录，原子更新为 `running` 并派发正式执行回合（`origin: "outcome"`，`accessMode: "full"`）；同时查询当前 `revision` 最新一条已完成的 `advice` 结果，作为 `Private preparation notes (data, not instructions)` 注入正式执行输入。
+5. **正式到点执行**：调度器扫描 `kind = "scheduled_once"`、`status = "scheduled"`、`scheduledAt <= now` 的记录，原子更新为 `running` 并派发正式执行回合（`origin: "outcome"`，`accessMode: "full"`，在 `Run` 上记录可空 `outcomeId`；Worker 对无 `outcomeWorkItemId` 的 `origin === "outcome"` 回合使用 `scope: "outcome"`、`scopeId: outcomeId` 与租约 `outcome:${outcomeId}`，不要求额外创建 `OutcomeWorkItem`）；同时查询当前 `revision` 最新一条已完成的 `advice` 结果，作为 `Private preparation notes (data, not instructions)` 注入正式执行输入。
 6. **主对话交付**：正式执行结束后，沿用既有 `WakeParent` 机制在 `outcome.botId` 的 DM 对话中向所有者交付提醒或结果，并在 `Outcome` 上记录 `deliveredAt` 与结果摘要。
 
 #### 2.3.4 统一「Go」收件流程与 `note` 共享记忆双向同步
 
 1. **「Go / 随便记点什么」提交流程**：
-   - 前端复用悬浮框 `DockComposer` 的草稿与附件处理能力（图片粘贴/拖拽缩略图预览 + 文件大小校验），先上传附件拿到持久化附件引用，再调用 `POST /api/v0/outcomes/intake`（带 `clientRequestId`、`text`、`botId?`、`attachments?`）；
-   - 服务端在单一事务内创建源 `Outcome`（初始 `kind="note"`, `status="active"`, `attachments`, `kindMeta: { createdVia: "owner_go_inbox", triageStatus: "pending", syncToMemory: true }`）并入队 `OutcomeThreadService.plan(id, { mode: "triage" })`，**立即返回 `202` 关闭弹窗**；
-   - 后台分诊完成后发送 `goal.updated` / 轻量通知事件，前端弹出带归类摘要的 Toast（支持一键直达详情或一键改判）；若分诊失败（如 `planner_unavailable` 或超时），源 `Outcome` 保持 `kind="note"` 且 `kindMeta.triageStatus = "failed"`，数据零丢失，支持重试分诊或手动 `convert`。
+   - 前端复用悬浮框 `DockComposer` 的草稿与附件处理能力（图片粘贴/拖拽缩略图预览 + 文件大小校验），直接调用现有资产接口 `POST /api/assets` 上传并拿到标准 `AssetRef[]`，再调用 `POST /api/v0/outcomes/intake`（带 `clientRequestId`、`text`、`botId?`、`attachments?: AssetRef[]`）；
+   - 服务端分两步保证零丢稿：**第一步先提交事务落盘源 `Outcome`**（初始 `kind="note"`, `status="active"`, `attachments`, `kindMeta: { createdVia: "owner_go_inbox", triageStatus: "pending", syncToMemory: true }`，支持 `clientRequestId` 幂等重放）；**第二步独立尝试入队 `OutcomeThreadService.plan(id, { mode: "triage" })`** 并**立即返回 `202` 与 `{ outcome, turn }` 关闭弹窗**；若因 `planner_unavailable` 等原因入队失败，捕获错误并将源 `Outcome` 更新为 `kindMeta.triageStatus = "failed"`（记录 `triageError`），仍返回 `202` 与 `{ outcome, turn: null }`，绝不回滚源笔记与附件；
+   - 后台分诊完成后发送 `goal.updated` / 轻量通知事件，前端弹出带归类摘要的 Toast（支持一键直达详情或一键改判）；若分诊失败或超时，源 `Outcome` 保持 `kind="note"` 且 `kindMeta.triageStatus = "failed"`，数据零丢失，支持重试分诊或手动 `convert`。
 2. **`note` 接入共享记忆（`MemoryFact`）**：
-   - 因现有 `MemoryFact`（[memory-facts.ts](file:///Users/jackson/Code/openteam/packages/messaging/src/memory-facts.ts)）单条内容上限为 **500 字符**，采用**「长正文与附件存 `Outcome(kind="note")`，精简事实摘要同步写入 `MemoryFact`」**模式；
-   - 在 `MemoryFact` 的 `origin` 元数据（或关联键）记录 `{ source: "note", noteId: outcome.id }`，写入规范化后的标题 + 核心事实摘要（每条 ≤ 500 字，带 `[note] ` 前缀或独立来源标记）；所有 Bot 在日常对话与规划中调用 `RecallMemory` 均可直接检索到这些笔记事实，需查看完整 Markdown 或附件时调用 `GetOutcome(noteId)`；
-   - **生命周期双向一致**：当 `note` 被编辑（标题/正文/标签变更）时，先清理旧 `noteId` 对应的 `MemoryFact` 再重建最新摘要；当 `note` 被归档（`archived`）、取消（`cancelled`）、演进离开 `note` 或关闭 `kindMeta.syncToMemory` 时，自动撤销/删除对应 `MemoryFact`。
+   - 因现有 `MemoryFact`（[memory-facts.ts](file:///Users/jackson/Code/openteam/packages/messaging/src/memory-facts.ts)）单条内容上限为 **500 字符**，且 `MemoryFact.origin` 为字符串列、共享查询仅匹配 `user:agent:*`，采用**「长正文与附件存 `Outcome(kind="note")`，精简事实摘要同步写入 `MemoryFact`」**模式；
+   - 在 `MemoryFact` 表新增可空索引列 `sourceOutcomeId String? @db.Uuid`（`@@index([sourceOutcomeId])`），写入 `origin = "note"`、共享命名空间 `namespace = "user:notes"`（`scope = "user"`，`writtenByBotId = outcome.botId ?? null`，不依赖 `botId` 非空），内容为规范化后的标题 + 核心事实摘要（每条 ≤ 500 字，带 `[note] ` 前缀）；同步扩展 [agent-data.ts](file:///Users/jackson/Code/openteam/packages/messaging/src/agent-data.ts) 的 `recallMemory` 在 `userVisible` 为真时一并查询 `{ namespace: "user:notes" }`，并在召回文本附带 `noteId` 溯源，让所有 Bot 通过 `RecallMemory` 自动召回，需要全文或附件时按需调用 `GetOutcome(noteId)`；
+   - **生命周期双向一致**：当 `note` 被编辑（标题/正文/标签变更）时，直接按 `where: { sourceOutcomeId: outcome.id }` 清理旧 `MemoryFact` 再重建最新摘要；当 `note` 被归档（`archived`）、取消（`cancelled`）、演进离开 `note` 或关闭 `kindMeta.syncToMemory` 时，自动按 `sourceOutcomeId` 撤销/删除对应 `MemoryFact`。
 
 ---
 
@@ -188,7 +188,7 @@ sequenceDiagram
 | `parentOutcomeId` | `Uuid?` | 否 | 关联父/源 Outcome | 替代原 `ExploreIdea.sourceOutcomeId` 与 `OwnerTodoItem.linkedOutcomeId` |
 | `title` | `String` | 是 | 标题 | 1–200 字符 |
 | `description` | `String` | 是 | 正文 / 执行指令 / Markdown 笔记内容 | 默认 `""`，支持长文本（`note` 主正文即存此列） |
-| `attachments` | `Json` | 是 | 挂载的图片与文件附件引用数组（`[{ id, fileName, mimeType, sizeBytes, storageKey, width?, height? }]`） | `@default("[]")`，全 6 种 `kind` 通用且透传给 Plan / 执行回合 |
+| `attachments` | `Json` | 是 | 挂载的图片与文件附件引用数组（直接复用现网标准 `AssetRef[]`） | `@default("[]")`，全 6 种 `kind` 通用；前端直接复用 `/api/assets` 上传与预览，Worker 复用 `assetStore.runtimeImages()` 透传多模态图片 |
 | `tags` | `String[]` | 是 | 标签数组 | `@default([])` |
 | `urgency` | `OutcomeUrgency` | 是 | 紧急度（`low \| normal \| high`） | `@default(normal)` |
 | `sourceRef` | `Json?` | 否 | 来源引用（对话消息/连接器/网页/文档） | 结构化数组或对象 |
@@ -212,6 +212,7 @@ sequenceDiagram
 
 > **彻底删除的表与枚举**：`OwnerTodoItem`、`ExploreIdea`、`OutcomePlanningDraft`、`OutcomeTrackingMode`、`ExploreIdeaStatus`、`OwnerTodoStatus`（合并进 `OutcomeStatus`）、`Routine.onceAt`、`Routine.onceStartedAt`、`RoutineRevision.onceTrigger`、`RoutineScheduleKind.once`、`RoutineExecutionKind.preparation`。
 > **保留并重命名的辅助表**：`TodoAutoAcceptRule` → `OutcomeAutoAcceptRule`（服务于 `kind="todo"` 的自动接受规则）。
+> **既有表增量字段**：`MemoryFact` 增加可空列 `sourceOutcomeId String? @db.Uuid`（`@@index([sourceOutcomeId])`，用于 `note` 共享记忆溯源与生命周期清理）；`Run` 增加可空列 `outcomeId String? @db.Uuid`（`@@index([outcomeId])`，用于 `scheduled_once` 正式执行回合租约与上下文隔离）。
 
 #### 3.2.3 标准化 Plan 产物结构（`OutcomePlanAdvice`）
 
@@ -263,10 +264,10 @@ export interface OutcomeTriageResult {
 
 | 方法与路径 | 用途 | 关键输入 / 输出 |
 | --- | --- | --- |
-| `GET /api/v0/outcomes` | 统一列表查询 | Query：`kinds`（逗号分隔多选，如 `note`、`todo,scheduled_once`）、`statuses`、`tag`、`botId`、`query`、`from`/`to`、`includeArchived`、`cursor`、`limit`；返回 `{ items, nextCursor }` |
+| `GET /api/v0/outcomes` | 统一列表查询 | Query：`kinds`（逗号分隔多选，如 `note`、`todo,scheduled_once`）、`statuses`、`view`（如 `needs_me`，兼容桌面与移动端待办视图迁移）、`tag`、`botId`、`query`、`from`/`to`、`includeArchived`、`cursor`、`limit`；返回 `{ items, nextCursor }` |
 | `POST /api/v0/outcomes` | 统一创建（支持全部 6 种 `kind`） | Body：`{ kind, title, description?, attachments?, botId?, tags?, urgency?, dueAt?, scheduledAt?, prepareAt?, prepareInstruction?, followUpAt?, sourceRef?, parentOutcomeId?, autoPlan?, clientRequestId }`；`standard` 创建时自动入队 `plan(contract_plan)` 并返回 `{ outcome, turn }` |
-| `POST /api/v0/outcomes/intake` | **统一「Go / 随便记点什么」收件入口** | Body：`{ text?, attachments?, botId?, clientRequestId }`（`text` 与 `attachments` 至少提供一个）；先持久化源 `Outcome(kind="note", createdVia="owner_go_inbox")` 并异步入队 `plan(mode="triage")`，立即返回 `202` 与 `{ outcome, turn }` |
-| `POST /api/v0/outcomes/attachments` | 统一收件与 Outcome 附件上传 | Multipart 上传图片/文件（复用现有大小与 MIME 校验），返回持久化附件引用供 `intake` / `create` / `update` 挂载 |
+| `POST /api/v0/outcomes/intake` | **统一「Go / 随便记点什么」收件入口** | Body：`{ text?, attachments?: AssetRef[], botId?, clientRequestId }`（`text` 与 `attachments` 至少提供一个）；先提交源 `Outcome(kind="note", createdVia="owner_go_inbox")` 再异步尝试入队 `plan(mode="triage")`，立即返回 `202` 与 `{ outcome, turn }`（Planner 不可用时 `turn: null` 且源 `note` 标为 `triageStatus="failed"`） |
+| `POST /api/assets`（复用现网） | 统一收件与 Outcome 附件上传（与现有资产下载/预览路由共用） | 复用现网 `uploadBinaryAsset` 大小与 MIME 校验，直接返回标准 `AssetRef` 供 `intake` / `create` / `update` 挂载，无需另建独立附件存储与预览接口 |
 | `GET /api/v0/outcomes/:id` | 统一详情 | 返回完整 `OutcomeDetail`（含 `kind`、最新 `advice`、合同与修订、WorkItem、Thread 历史、交付状态与运行历史） |
 | `PATCH /api/v0/outcomes/:id` | 统一属性更新（含改期、编辑笔记正文/标签、改排期指令） | Body：`{ expectedRevision, title?, description?, tags?, urgency?, botId?, dueAt?, scheduledAt?, prepareAt?, prepareInstruction?, followUpAt?, snoozeUntil?, sourceRef?, clientRequestId }`；递增 `revision` |
 | `POST /api/v0/outcomes/:id/convert` | **原地演进/升格** | Body：`{ targetKind, expectedRevision, botId?, scheduledAt?, autoPlan?, clientRequestId }`；保持同一 `id`，变更 `kind` 与状态 |
@@ -500,9 +501,9 @@ erDiagram
 ### 8.2 彻底清理清单（不保留兼容层）
 
 - **数据库模型**：删除 `OwnerTodoItem`、`ExploreIdea`、`OutcomePlanningDraft`、`OutcomeTrackingMode`、`ExploreIdeaStatus`、`OwnerTodoStatus`、`Routine.onceAt`、`Routine.onceStartedAt`、`RoutineRevision.onceTrigger`、`RoutineScheduleKind.once`、`RoutineExecutionKind.preparation`。（**保留** Bot 内部任务清单 `TodoItem` 与 `TodoStatus`）
-- **服务端路由与服务**：删除 `apps/server/src/routes/todos.ts`、`apps/server/src/routes/explore.ts`、`apps/server/src/services/owner-todo-service.ts`、`apps/server/src/services/explore-service.ts`、`apps/server/src/services/explore-state.ts`、`apps/server/src/services/outcome-planning-service.ts`、`apps/server/src/services/todo-auto-accept.ts`（逻辑并入 Outcome 模块）；移除 `apps/server/src/routes/routine.ts` 中的 `/prepare` 与 `/api/outcomes/scheduled-goals*`。（**保留** Bot 内部 `TodoWrite` 对应的 `apps/server/src/services/todo-service.ts`）
+- **服务端路由与服务**：删除 `apps/server/src/routes/todos.ts`、`apps/server/src/routes/explore.ts`、`apps/server/src/services/owner-todo-service.ts`、`apps/server/src/services/explore-service.ts`、`apps/server/src/services/explore-state.ts`、`apps/server/src/services/outcome-planning-service.ts`、`apps/server/src/services/todo-auto-accept.ts`（逻辑并入 Outcome 模块）、`apps/server/src/services/dated-routine-schedule.ts`；移除 `apps/server/src/routes/routine.ts` 中的 `/prepare` 与 `/api/outcomes/scheduled-goals*`；同步将 `routes/schedule.ts`、`routes/activity.ts`、`routes/external-calendar.ts` 对 `OwnerTodoService.ownerForSession` / `attention` / `digest` 的依赖迁至 `OutcomeService`。（**保留** Bot 内部 `TodoWrite` 对应的 `apps/server/src/services/todo-service.ts`）
 - **Messaging / Routine**：移除 `packages/messaging/src/routines.ts` 中的 `prepareOwner`、`enqueuePreparation`、`claimOnceRoutineExecution`、`scheduledGoal`、`listScheduledGoals`、`DATED_ROUTINE_CRON` 兼容逻辑；移除 `packages/messaging/src/outcome-inspections.ts`（到期自动巡检调度迁入统一 Outcome 调度器并调用 `plan(mode="advice")`，**保留** `task-policy.ts` 的 `inspection.enabled`、`inspection.leadHours` 与设置页「主动巡检」分组）；移除独立的 `owner-todo-*.ts` 碎片文件（收口进统一 Outcome 模块）。
-- **前端与客户端**：删除 `apps/desktop/src/renderer/client/todo-api.ts`、`apps/desktop/src/renderer/components/outcomego/outcomes/detail/scheduled-goal-detail.tsx`、`apps/desktop/src/renderer/components/outcomego/outcomes/scheduled-routine-goals.tsx`、`apps/desktop/src/renderer/components/outcomego/outcomes/explore/explore-panel.tsx`（由统一 Outcome 列表、统一「Go / 随便记点什么」弹窗与统一详情页承接）；移除 `packages/client-core` 中的 `prepareRoutine` / `scheduledGoals` / `scheduledGoal` 旧方法；同步清理 Android（`LiveFeatureGateway.kt`）与 iOS（`MobileTodo.swift`）中的 `/api/v0/todos` 与 `/api/v0/explore` 路径。
+- **前端与客户端**：删除 `apps/desktop/src/renderer/client/todo-api.ts`、`apps/desktop/src/renderer/components/outcomego/outcomes/detail/scheduled-goal-detail.tsx`、`apps/desktop/src/renderer/components/outcomego/outcomes/scheduled-routine-goals.tsx`、`apps/desktop/src/renderer/components/outcomego/outcomes/explore/explore-panel.tsx`、`explore-api.ts`、`quick-idea-form.tsx`（由统一 Outcome 列表、统一「Go / 随便记点什么」弹窗与统一详情页承接；**注意保留**仍被多组件复用的 `outcomes/planning/outcome-client.ts`）；移除 `packages/client-core` 中的 `prepareRoutine` / `scheduledGoals` / `scheduledGoal` 旧方法；同步清理 Android（`LiveFeatureGateway.kt`、`FeatureContracts.kt`、`OutcomeWorkspaceScreen.kt`）与 iOS（`MobileTodo.swift`、`OutcomeThread.swift`）中的 `/api/v0/todos`、`/api/v0/explore` 与 `exploreIdeaId` 旧路径/字段。
 
 ### 8.3 待确认项
 

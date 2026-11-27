@@ -87,9 +87,9 @@
 
 #### 验收标准
 
-1. WHEN Bot 建议待办或所有者创建待办时 THEN System SHALL 写入 `Outcome(kind="todo")`，完整保留 `suggested / open / waiting / done / dismissed` 状态、`executor`（`owner` / `bot`）、`urgency`、`dueAt`、`scheduledAt`、`followUpAt`、`snoozeUntil`、`dedupeKey`、来源授权校验（无有效所有者消息引用仅可创建 `suggested`，命中自动接受规则除外）以及自动接受规则（`OutcomeAutoAcceptRule`）。
+1. WHEN Bot 建议待办或所有者创建待办时 THEN System SHALL 写入 `Outcome(kind="todo")`，完整保留 `suggested / open / waiting / accepted（UI 展示已完成）/ cancelled（UI 展示已忽略）` 状态、`executor`（`owner` / `bot`）、`urgency`、`dueAt`、`scheduledAt`、`followUpAt`、`snoozeUntil`、`dedupeKey`、来源授权校验（无有效所有者消息引用仅可创建 `suggested`，命中自动接受规则除外）以及自动接受规则（`OutcomeAutoAcceptRule`）。
 2. WHEN 所有者对待办执行接受、延后（snooze）、完成、忽略、恢复或「交给 Bot（Handoff）」操作时 THEN System SHALL 通过统一的 Outcome 接口完成状态变更并更新活动视图与日历。
-3. WHEN 所有者或 Bot 创建探索想法时 THEN System SHALL 写入 `Outcome(kind="explore_idea")`，支持 `draft / exploring / discarded` 状态流转以及关联 `sourceOutcomeId`、`sourceRef`、`budget`。
+3. WHEN 所有者或 Bot 创建探索想法时 THEN System SHALL 写入 `Outcome(kind="explore_idea")`，支持 `draft / exploring / cancelled（UI 展示已丢弃）` 状态流转以及关联 `parentOutcomeId`、`sourceRef`、`budget`。
 4. WHEN 所有者对 `todo` 或 `explore_idea` 点击「升级为正式目标」时 THEN System SHALL 在同一 `Outcome` 记录上原地演进为 `kind="standard"` 并启动标准 Plan 流程，不再保留独立 `OwnerTodoItem` / `ExploreIdea` 表及其跨表关联字段。
 
 ### 需求 5：标准化可复用的 Plan 流程与统一输入输出
@@ -143,7 +143,7 @@
 
 1. WHEN 用户使用桌面端目标工作区或侧栏快速记录时 THEN System SHALL 将目标页右上角原「+ 新建目标」、概览工具栏「记录想法」与侧栏快速记录小灯泡整合为统一入口（目标页右上角按钮文案为 **`Go`**），点击后打开标题为 **「随便记点什么」** 的模态框；概览页「进行中」空状态不显示新建目标按钮。
 2. WHEN 用户在「随便记点什么」模态框中输入内容时 THEN System SHALL 复用悬浮框（`DockComposer`）交互能力，支持纯文本、`@Bot` 可选指定归属/执行机器人、图片粘贴/拖拽/选择（带缩略图预览）与通用文件附件，支持无文本仅图片/附件提交；按下 `Enter`（非输入法组合态）或点击模态框内的 **`Go`** 按钮即可提交。
-3. WHEN 用户提交「Go」内容时 THEN System SHALL 携带 `clientRequestId` 幂等键，先上传并绑定附件、持久化源记录（初始为 `Outcome(kind="note", status="active", kindMeta.createdVia="owner_go_inbox")`）并**立即关闭弹窗**，随后在后台异步触发标准 Planner 回合（`planMode: "triage"`，将文本与多模态图片/附件透传给 Pi Agent）。
+3. WHEN 用户提交「Go」内容时 THEN System SHALL 携带 `clientRequestId` 幂等键，复用现有资产上传接口（`POST /api/assets` / `AssetRef`）绑定附件、**先提交持久化源记录**（初始为 `Outcome(kind="note", status="active", kindMeta.createdVia="owner_go_inbox")`）并**立即关闭弹窗**，随后在后台异步触发标准 Planner 回合（`planMode: "triage"`，将文本与多模态图片/附件透传给 Pi Agent）；即使 Planner 不可用也不得回滚已提交的源记录。
 4. WHEN Plan Pi Agent 执行 `triage` 分诊时 THEN System SHALL 不硬编码关键词规则，由 Agent 自主判断并调用 `ClassifyOutcome` 完成以下落盘之一：
    - **单落点**：将源 `Outcome` 原地 `convert` 为 `note` / `todo` / `explore_idea` / `standard`（自动串联一次 `contract_plan`） / `scheduled_once`；
    - **同源多条拆分**：保留源 `Outcome` 为 `kind="note"`（保存完整原始内容与附件并同步共享记忆），同时创建 1..N 条子 `Outcome`（`todo` / `standard` / `explore_idea` / `scheduled_once`），全部设置 `parentOutcomeId = sourceOutcome.id` 以关联同一源记录。
