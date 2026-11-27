@@ -76,6 +76,8 @@ export function DeployProgressPanel({
   const fraction = deployFraction(progress);
   const position = stages.indexOf(active) + 1;
   const counting = active === "pull" && progress.total ? progress.total : 0;
+  const retry = active === "pull" ? progress.imageRetry : undefined;
+  const note = retry ? t("Retrying image download ({attempt}/{total})…", retry) : t(copy.note);
   return (
     <div className="deploy-progress">
       <div className="deploy-head" role="status">
@@ -84,7 +86,7 @@ export function DeployProgressPanel({
           <CrossFade value={t(copy.title)} />
         </strong>
         <p>
-          <CrossFade value={t(copy.note)} />
+          <CrossFade value={note} />
         </p>
       </div>
       <div

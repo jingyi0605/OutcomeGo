@@ -283,6 +283,12 @@ test("the image step shows the source being tested, then the one in use", async 
   expect(Array.from(document.querySelectorAll(".deploy-sources li")).map(item => item.getAttribute("data-state"))).toEqual(["idle", "active", "idle"]);
   await entry.publish({ ...envelope, type: "log", stage: "pull", message: "Pulling worker from m.daocloud.io." });
   expect(Array.from(document.querySelectorAll(".deploy-sources li")).map(item => item.getAttribute("data-state"))).toEqual(["idle", "used", "active"]);
+  await entry.publish({ ...envelope, type: "stage", stage: "pull", status: "progress", current: 5, total: 6 });
+  await entry.publish({ ...envelope, type: "pull-retry", stage: "pull", attempt: 1, total: 2 });
+  expect(document.querySelector("[role=status]")!.textContent).toContain("Retrying image download (1/2)");
+  expect(document.querySelector(".deploy-meta")!.textContent).toContain("5 of 6 images downloaded");
+  await entry.publish({ ...envelope, type: "stage", stage: "pull", status: "progress", current: 6, total: 6 });
+  expect(document.querySelector(".deploy-meta")!.textContent).toContain("6 of 6 images downloaded");
 });
 
 test("with an engine of your own the images follow its settings and no mirror list is shown", async () => {

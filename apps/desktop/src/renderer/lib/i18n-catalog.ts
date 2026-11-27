@@ -134,6 +134,7 @@ export const sourceTranslations: Record<string, string> = {
   "Images come from your engine's own settings. OutcomeGo changes nothing in Docker.": "镜像来自你的引擎自身的设置，OutcomeGo 不会改动 Docker。",
   "Step {step} of {total}": "第 {step} 步，共 {total} 步",
   "{current} of {total} images downloaded": "已下载 {current}/{total} 个镜像",
+  "Retrying image download ({attempt}/{total})…": "正在自动重试下载镜像（{attempt}/{total}）…",
   "{time} elapsed": "已用时 {time}",
   "All steps": "全部步骤",
   "Already done": "已完成",

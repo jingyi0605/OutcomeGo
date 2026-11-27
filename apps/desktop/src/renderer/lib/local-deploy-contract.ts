@@ -33,6 +33,7 @@ export type EngineProbes = { external: EngineProbe; managed: EngineProbe | null;
 export type DeploymentResult = { url: string; username: string; directory: string; version: string; engine: EngineKind };
 export type DeployPayload =
   | { type: "stage"; stage: Stage; status: (typeof statuses)[number]; current?: number; total?: number }
+  | { type: "pull-retry"; stage: "pull"; attempt: number; total: number }
   | { type: "log"; stage?: Stage }
   | { type: "action-required"; action: Action }
   | { type: "error"; stage: Stage; code: Code; retryable: boolean; field?: (typeof fields)[number]; action?: Action }
