@@ -1,14 +1,10 @@
 // The posters shown beside a running deployment: what OutcomeGo can do, one thing each, in as few
 // words as it takes. The order and the titles are the product owner's.
+import { type PosterCopy, scrollDirection, wrapPoster } from "./poster-showcase";
 
 export type PosterId = "assistant" | "team" | "computer" | "decide" | "outcome" | "dock" | "routines" | "connect" | "yours";
 
-export interface Poster {
-  id: PosterId;
-  /** English copy; callers translate it. */
-  title: string;
-  body: string;
-}
+export type Poster = PosterCopy<PosterId>;
 
 export const POSTERS: readonly Poster[] = [
   {
@@ -63,11 +59,8 @@ export const POSTER_MS = 7_000;
 
 /** The poster `step` away from `index`, wrapping around at both ends. */
 export const stepPoster = (index: number, step: number, count = POSTERS.length): number =>
-  (((index + step) % count) + count) % count;
+  wrapPoster(index, step, count);
 
 /** Which way to scroll between two posters: the short way round, so last to first runs forward. */
-export const posterDirection = (from: number, to: number, count = POSTERS.length): "forward" | "back" => {
-  if (count > 2 && from === count - 1 && to === 0) return "forward";
-  if (count > 2 && from === 0 && to === count - 1) return "back";
-  return to < from ? "back" : "forward";
-};
+export const posterDirection = (from: number, to: number, count = POSTERS.length): "forward" | "back" =>
+  scrollDirection(from, to, count);

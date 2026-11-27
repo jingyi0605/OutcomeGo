@@ -4,11 +4,6 @@
  */
 export const localDeployShowcaseTranslations: Record<string, string> = {
   "Get to know OutcomeGo": "认识 OutcomeGo",
-  "Poster {current} of {total}: {title}": "第 {current} 页，共 {total} 页：{title}",
-  "Previous poster": "上一页",
-  "Next poster": "下一页",
-  "Pause posters": "暂停播放",
-  "Play posters": "继续播放",
 
   "An assistant that knows you, and is yours": "做懂你的、属于你的个人助理",
   "It remembers your preferences, projects and ways of working.": "记住你的偏好、项目和工作习惯，不用每次从头交代。",

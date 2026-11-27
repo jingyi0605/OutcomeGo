@@ -1,4 +1,6 @@
-/* The posters beside a running deployment (local-deploy-showcase.tsx, local-deploy-scenes.tsx).
+/* Poster carousels (poster-showcase.tsx): the room, the frame and the glass every carousel
+   shares, then the deployment posters' pictures (local-deploy-scenes.tsx). The goal posters add
+   their own on top (outcomes/showcase/goal-showcase.css).
    One room, one light, one glass: every poster shares the same air and the same three colours
    (ice, periwinkle, lilac), and holds a single object and two lines of words. Pictures are drawn
    on a 720 × 440 canvas and scaled to the stage. Stories arrive with transitions ([data-on]);
@@ -43,7 +45,7 @@
   opacity: 0;
 }
 
-.deploy-showcase {
+.poster-showcase {
   --ink: #1b2044;
   --muted: #5a6188;
   --ice: #8accff;
@@ -92,7 +94,7 @@
   color: var(--ink);
   container: showcase / size;
 }
-:root[data-theme="dark"] .deploy-showcase {
+:root[data-theme="dark"] .poster-showcase {
   --ink: #f5f6ff;
   --muted: #a4abcf;
   --pearl: #e6eaff;
@@ -241,10 +243,10 @@
 /* Pages pass like windows in space: the old one slips back and aside as the new one comes
    forward, always a page apart; the words fade between them. What arrives doesn't hold its last
    frame (backwards, not both): a held opacity would cut the glass off from what is behind it. */
-.deploy-showcase {
+.poster-showcase {
   --shift: 1;
 }
-.deploy-showcase[data-direction="back"] {
+.poster-showcase[data-direction="back"] {
   --shift: -1;
 }
 .showcase-poster[data-state="entering"] > .showcase-scene {
@@ -362,7 +364,7 @@
 .showcase-arrow {
   opacity: 0;
 }
-.deploy-showcase:hover .showcase-arrow,
+.poster-showcase:hover .showcase-arrow,
 .showcase-nav:has(:focus-visible) .showcase-arrow {
   opacity: 1;
 }
@@ -2364,9 +2366,9 @@
 
 /* Paused posters hold their endless motion; stories hold their beat (see useBeat). Page turns
    still run, so a page picked while paused arrives. */
-.deploy-showcase[data-paused] .showcase-canvas *,
-.deploy-showcase[data-paused] .showcase-canvas *::before,
-.deploy-showcase[data-paused] .showcase-canvas *::after {
+.poster-showcase[data-paused] .showcase-canvas *,
+.poster-showcase[data-paused] .showcase-canvas *::before,
+.poster-showcase[data-paused] .showcase-canvas *::after {
   animation-play-state: paused;
 }
 
