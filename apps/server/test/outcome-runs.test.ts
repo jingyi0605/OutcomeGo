@@ -41,6 +41,29 @@ test("role-run cancellation selects only the target goal and keeps each Bot's sh
   expect(shells).toEqual(roleRuns.map(run => ({ path: COMPUTER_API_PATHS.backgroundShellRunsStop(run.botId), runIds: [run.id] })));
 });
 
+test("role-run cancellation excludes the calling run when requested", async () => {
+  const goalId = "goal-for-stop";
+  const stopped: string[] = [];
+  const prisma = {
+    run: {
+      findMany: async ({ where }: { where: unknown }) => {
+        expect(where).toEqual({ outcomeThread: { outcomeId: goalId }, id: { notIn: ["plan-run"] } });
+        return [{ id: "review-run", botId: "reviewer" }];
+      },
+    },
+    $transaction: async (run: (tx: unknown) => Promise<unknown>) => run({
+      $executeRaw: async () => 0,
+      subagent: { findMany: async () => [] },
+    }),
+    subagent: { count: async () => 0 },
+    botRunLease: { deleteMany: async () => ({ count: 0 }) },
+  };
+  const service = new RunService(prisma as never, async () => new Response("{}"));
+  service.cancel = (id) => Effect.sync(() => { stopped.push(id); return { ok: true, status: "cancelled" }; });
+  await expect(Effect.runPromise(service.cancelOutcomeRoleRuns(goalId, ["plan-run"]))).resolves.toEqual({ ok: true });
+  expect(stopped).toEqual(["review-run"]);
+});
+
  test("work-thread stop validates membership and does not pass other work items to the runtime", async () => {
   const stopped: string[][] = [];
   const service = new OutcomeService({ outcomeWorkItem: {

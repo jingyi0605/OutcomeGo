@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { Effect } from "effect";
+import { OutcomeService } from "../src/services/outcome-service";
 import { OutcomeThreadService } from "../src/services/outcome-thread-service";
 import { OutcomeThreadTools, triggeredByOwner } from "../src/services/outcome-thread-tools";
 
@@ -122,11 +123,11 @@ test("an existing draft starts one contract planning turn without rewriting the 
 
 // --- tools -----------------------------------------------------------------------------------------------
 
-function tools(options: { triggerBy?: string; botId?: string; enabled?: boolean; purpose?: string } = {}) {
+function tools(options: { triggerBy?: string; botId?: string; enabled?: boolean; purpose?: string; ownerId?: string } = {}) {
   const calls: Array<[string, unknown]> = [];
   const outcomes = {
     saveAgentContract: (id: string, input: unknown, actor: string) => (calls.push(["save", { id, input, actor }]), Effect.succeed({ id, currentRevisionView: { status: "pending_approval" } })),
-    cancel: (id: string, input: unknown, actor: string) => (calls.push(["cancel", { id, input, actor }]), Effect.succeed({ id, status: "cancelled" })),
+    cancel: (id: string, input: unknown, actor: string, context?: unknown) => (calls.push(["cancel", { id, input, actor, context }]), Effect.succeed({ id, status: "cancelled" })),
     get: () => Effect.succeed({ currentRevisionView: { id: "revision-1" } }),
   };
   const prisma = {
@@ -138,7 +139,7 @@ function tools(options: { triggerBy?: string; botId?: string; enabled?: boolean;
     outcomeThreadTurn: {
       findUnique: async ({ where }: Row) =>
         where.runId === "run-1"
-          ? { purpose: options.purpose ?? "owner_message", triggerBy: options.triggerBy ?? OWNER, thread: { outcomeId: GOAL, botId: options.botId ?? "bot-1", outcome: { ownerId: "local" } } }
+          ? { purpose: options.purpose ?? "owner_message", triggerBy: options.triggerBy ?? OWNER, thread: { outcomeId: GOAL, botId: options.botId ?? "bot-1", outcome: { ownerId: options.ownerId ?? "local" } } }
           : null,
     },
   };
@@ -173,15 +174,182 @@ test("the bot writes the contract itself, as the bot, and it only ever asks for 
 });
 
 test("a goal's thread cancels only its own goal, and only on the owner's words", async () => {
-  const owner = tools();
+  const owner = tools({ triggerBy: "user:owner-42", ownerId: "owner-42" });
   await owner.call("CancelOutcome", { outcomeId: GOAL, clientRequestId: "cancel-key-1" });
-  expect(owner.calls[0]![0]).toBe("cancel");
+  expect(owner.calls[0]).toEqual([
+    "cancel",
+    {
+      id: GOAL,
+      input: { clientRequestId: "cancel-key-1" },
+      actor: "user:owner-42",
+      context: { ownerId: "owner-42", runId: "run-1" },
+    },
+  ]);
   await expect(owner.call("CancelOutcome", { outcomeId: OTHER_GOAL, clientRequestId: "cancel-key-2" })).rejects.toMatchObject({ code: "outcome_thread_scope" });
   const system = tools({ triggerBy: "system:outcome-thread" });
   await expect(system.call("CancelOutcome", { outcomeId: GOAL, clientRequestId: "cancel-key-3" })).rejects.toMatchObject({ code: "cancel_requires_owner" });
   expect(system.calls).toHaveLength(0);
   expect(triggeredByOwner("user:abc")).toBe(true);
   expect(triggeredByOwner("bot:abc")).toBe(false);
+});
+
+test("CancelOutcome through real OutcomeService succeeds for authenticated owners and does not self-cancel the calling turn", async () => {
+  const updatedTurnWheres: Row[] = [];
+  const roleStopCalls: Array<{ outcomeId: string; excludeRunIds?: readonly string[] }> = [];
+  const now = new Date();
+  const outcomeRow: Row = {
+    id: GOAL,
+    ownerId: "user-123",
+    botId: "bot-executor",
+    kind: "standard",
+    status: "pending_approval",
+    resumeStatus: null,
+    title: "Procurement skill",
+    description: "",
+    revision: 3,
+    currentRevisionId: null,
+    currentRevision: null,
+    parentOutcomeId: null,
+    attachments: [],
+    tags: [],
+    urgency: "normal",
+    executor: "bot",
+    kindMeta: {},
+    sourceRef: null,
+    dueAt: null,
+    scheduledAt: null,
+    prepareAt: null,
+    prepareInstruction: null,
+    followUpAt: null,
+    snoozeUntil: null,
+    dedupeKey: null,
+    createdBy: "user:user-123",
+    createdAt: now,
+    updatedAt: now,
+    acceptedAt: null,
+    cancelledAt: null,
+    autoClosedAt: null,
+    closeSummary: null,
+    inspectionEnabled: true,
+    workItems: [],
+    revisions: [],
+    decisions: [],
+    outputs: [],
+    evidence: [],
+    reviews: [],
+    childOutcomes: [],
+    threads: [],
+  };
+  const idempotency = new Map<string, Row>();
+  const tx: Row = {
+    $executeRaw: async () => 0,
+    idempotencyRecord: {
+      findUnique: async ({ where }: Row) => idempotency.get(`${where.scope_key.scope}:${where.scope_key.key}`) ?? null,
+      create: async ({ data }: Row) => void idempotency.set(`${data.scope}:${data.key}`, data),
+      update: async ({ where, data }: Row) => {
+        const key = `${where.scope_key.scope}:${where.scope_key.key}`;
+        idempotency.set(key, { ...idempotency.get(key), ...data });
+      },
+    },
+    outcome: {
+      findUnique: async ({ where }: Row) => (where.id === GOAL ? outcomeRow : null),
+      findUniqueOrThrow: async () => outcomeRow,
+      update: async ({ data }: Row) => {
+        if (data.cancelledAt) outcomeRow.cancelledAt = data.cancelledAt;
+        if (data.status) outcomeRow.status = data.status;
+        if (data.resumeStatus !== undefined) outcomeRow.resumeStatus = data.resumeStatus;
+        if (data.revision?.increment) outcomeRow.revision += data.revision.increment;
+        return outcomeRow;
+      },
+    },
+    outcomeThreadTurn: {
+      updateMany: async ({ where }: Row) => {
+        updatedTurnWheres.push(where);
+        return { count: 1 };
+      },
+      count: async () => 0,
+    },
+    outcomeWorkItem: {
+      findMany: async () => [],
+    },
+    outcomeEvent: {
+      create: async () => ({}),
+    },
+    event: {
+      create: async () => ({}),
+    },
+    outcomeContractRevision: {
+      findMany: async () => [],
+    },
+    outcomeDecision: {
+      findMany: async () => [],
+    },
+    outcomeHumanActionCard: {
+      findMany: async () => [],
+    },
+    outcomeOutput: {
+      findMany: async () => [],
+    },
+    outcomeReview: {
+      findMany: async () => [],
+    },
+  };
+  const prisma: Row = {
+    $transaction: async (fn: (client: Row) => Promise<unknown>) => fn(tx),
+    idempotencyRecord: tx.idempotencyRecord,
+    featureSettings: { findUnique: async () => ({ outcomesEnabled: true }) },
+    outcomeWorkItem: { findMany: async () => [] },
+    outcomeThreadTurn: {
+      findUnique: async ({ where }: Row) =>
+        where.runId === "run-cancel-1"
+          ? {
+              purpose: "owner_message",
+              planMode: "contract_plan",
+              triggerBy: "user:user-123",
+              thread: { outcomeId: GOAL, botId: "bot-planner", outcome: { ownerId: "user-123" } },
+            }
+          : where.runId === "run-wrong-owner"
+            ? {
+                purpose: "owner_message",
+                planMode: "contract_plan",
+                triggerBy: "user:other-user",
+                thread: { outcomeId: GOAL, botId: "bot-planner", outcome: { ownerId: "user-123" } },
+              }
+            : null,
+    },
+  };
+  const outcomes = new OutcomeService(prisma as never, undefined, {
+    cancel: () => Effect.succeed({ ok: true, status: "cancelled" }),
+    cancelOutcomeRoleRuns: (outcomeId, excludeRunIds) =>
+      Effect.sync(() => {
+        roleStopCalls.push({ outcomeId, excludeRunIds });
+        return { ok: true };
+      }),
+  });
+  const threadTools = new OutcomeThreadTools(prisma as never, outcomes as never);
+
+  await expect(
+    threadTools.execute(
+      { tool: "CancelOutcome", arguments: { outcomeId: GOAL, clientRequestId: "cancel-wrong-owner" } } as never,
+      { runId: "run-wrong-owner", botId: "bot-planner" } as never
+    )
+  ).rejects.toMatchObject({ code: "outcome_action_forbidden" });
+
+  const result = (await threadTools.execute(
+    { tool: "CancelOutcome", arguments: { outcomeId: GOAL, clientRequestId: "cancel-auth-1" } } as never,
+    { runId: "run-cancel-1", botId: "bot-planner" } as never
+  )) as Row;
+
+  expect(result.outcome.status).toBe("cancelled");
+  expect(outcomeRow.cancelledAt).toBeInstanceOf(Date);
+  expect(updatedTurnWheres).toEqual([
+    {
+      thread: { outcomeId: GOAL },
+      status: { in: ["queued", "running"] },
+      OR: [{ runId: null }, { runId: { not: "run-cancel-1" } }],
+    },
+  ]);
+  expect(roleStopCalls).toEqual([{ outcomeId: GOAL, excludeRunIds: ["run-cancel-1"] }]);
 });
 
 test("AcceptOutcome and RequestOutcomeRework only work for the goal's own owner_message turns", async () => {
@@ -376,4 +544,105 @@ test("Plan routes to the configured planner without changing outcome.botId; list
   expect(listed.reviewerThreadId).toBe("thread-reviewer");
   expect(listed.reviewTurns).toHaveLength(1);
   expect(listed.reviewTurns?.[0]?.result).toEqual({ summary: "ok" });
+});
+
+test("SavePlanAdvice and SubmitPrereview return field-specific errors when progressive-disclosure limits are exceeded", async () => {
+  const makeTools = (turn: { purpose: string; planMode: string | null }) => {
+    const prisma: Row = {
+      featureSettings: { findUnique: async () => ({ outcomesEnabled: true }) },
+      outcomeThreadTurn: {
+        findUnique: async () => ({
+          id: "turn-1",
+          runId: "run-1",
+          purpose: turn.purpose,
+          planMode: turn.planMode,
+          triggerBy: "owner:local",
+          thread: { outcomeId: GOAL, botId: "bot-role", outcome: { ownerId: "local" } },
+        }),
+      },
+    };
+    return new OutcomeThreadTools(
+      prisma as never,
+      {} as never,
+      undefined,
+      { submitPrereview: async () => ({} as never), reviewTaskResult: async () => ({} as never) }
+    );
+  };
+  const ctx = {
+    runId: "run-1",
+    botId: "bot-role",
+    channelId: "dm-1",
+    conversationId: "conv-1",
+    callId: "call-1",
+    isFork: false,
+    replyToMessageId: null,
+    deliveryId: null,
+    origin: "outcome_thread",
+  } as const;
+
+  const adviceTools = makeTools({ purpose: "plan", planMode: "advice" });
+  await expect(
+    adviceTools.execute(
+      {
+        tool: "SavePlanAdvice",
+        arguments: {
+          summary: "x".repeat(161),
+          facts: [],
+          gaps: [],
+          recommendations: [],
+          clientRequestId: "adv-1",
+        },
+      } as never,
+      ctx
+    )
+  ).rejects.toThrow("summary must be <= 160 characters");
+
+  await expect(
+    adviceTools.execute(
+      {
+        tool: "SavePlanAdvice",
+        arguments: {
+          summary: "Short summary",
+          facts: Array.from({ length: 7 }, (_, i) => ({ statement: `Fact ${i}`, source: "src" })),
+          gaps: [],
+          recommendations: [],
+          clientRequestId: "adv-2",
+        },
+      } as never,
+      ctx
+    )
+  ).rejects.toThrow("facts cannot exceed 6 items");
+
+  const reviewTools = makeTools({ purpose: "review", planMode: null });
+  await expect(
+    reviewTools.execute(
+      {
+        tool: "SubmitPrereview",
+        arguments: {
+          expectedRevision: 1,
+          results: [{ criterionId: GOAL, suggestion: "likely_pass", reason: "ok" }],
+          conclusion: ["x".repeat(51)],
+          attention: [],
+          clientRequestId: "rev-1",
+        },
+      } as never,
+      ctx
+    )
+  ).rejects.toThrow("conclusion[0] must be <= 50 characters");
+
+  await expect(
+    reviewTools.execute(
+      {
+        tool: "SubmitPrereview",
+        arguments: {
+          expectedRevision: 1,
+          results: [{ criterionId: GOAL, suggestion: "likely_pass", reason: "ok" }],
+          conclusion: ["Short item one.", "x".repeat(31)],
+          attention: [],
+          clientRequestId: "rev-2",
+        },
+      } as never,
+      ctx
+    )
+  ).rejects.toThrow("conclusion[1] must be <= 30 characters");
 });

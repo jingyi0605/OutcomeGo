@@ -221,6 +221,11 @@ const EVENT_BLOCKS: Record<AutomationEvent["source"], string> = {
   plugin: "plugin_event",
   webhook: "webhook_event",
 };
+/** Queue backlog belongs only to the routine revision that existed when its event arrived. */
+export const eventPredatesRoutineRevision = (event: AutomationEvent, revisionCreatedAt: Date) =>
+  event.source === "plugin" && event.plugin === "whatsapp" && event.receivedAt !== undefined &&
+  Date.parse(event.receivedAt) < revisionCreatedAt.getTime();
+
 const eventBlock = (event: AutomationEvent) => {
   const tag = EVENT_BLOCKS[event.source];
   return `<${tag}>\n${JSON.stringify(event).replace(/</g, "\\u003c")}\n</${tag}>`;
@@ -1199,6 +1204,8 @@ export class RoutineService {
           "This routine needs to be saved again before it can run"
         );
       }
+      if (event && eventPredatesRoutineRevision(event, revision.createdAt))
+        throw new ApiError(409, "routine_event_inactive", "Routine no longer accepts this event");
       const execution = await tx.routineExecution.create({
         data: {
           routineId: routine.id,

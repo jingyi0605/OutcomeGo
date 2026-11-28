@@ -666,7 +666,11 @@ export class OutcomeService {
         this.assertOpen(outcome.status);
         await tx.outcome.update({ where: { id: outcomeId }, data: { cancelledAt: new Date(), revision: { increment: 1 } } });
         await tx.outcomeThreadTurn.updateMany({
-          where: { thread: { outcomeId }, status: { in: ["queued", "running"] } },
+          where: {
+            thread: { outcomeId },
+            status: { in: ["queued", "running"] },
+            ...(context.runId ? { OR: [{ runId: null }, { runId: { not: context.runId } }] } : {}),
+          },
           data: { status: "failed", error: { code: "cancelled_by_user", message: "Goal ended by the user" } },
         });
         if (this.onRevisionCreated) await this.onRevisionCreated(tx, outcomeId, actor);
@@ -683,7 +687,7 @@ export class OutcomeService {
       const items = await this.prisma.outcomeWorkItem.findMany({ where: { outcomeId, executorType: "agent", rootRunId: { not: null } }, select: { id: true } });
       const stops: Array<Promise<unknown>> = [];
       if (this.runService?.cancelOutcomeRoleRuns)
-        stops.push(runEffect(this.runService.cancelOutcomeRoleRuns(outcomeId)));
+        stops.push(runEffect(this.runService.cancelOutcomeRoleRuns(outcomeId, context.runId ? [context.runId] : undefined)));
       if (items.length) {
         stops.push(this.runService?.cancelOutcomeWorkItems
           ? runEffect(this.runService.cancelOutcomeWorkItems(items.map(item => item.id)))

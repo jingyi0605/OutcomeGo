@@ -85,6 +85,22 @@ test("writes credentials once through stdin, reconstructs half-lines, and redact
   expect(JSON.stringify(entry.events)).not.toContain(password);
 });
 
+test("forwards valid image retry progress from the CLI", async () => {
+  const entry = fixture();
+  entry.start();
+  entry.prepare.resolve("/stable/outcomego");
+  await entry.spawn.promise;
+  const retry = { type: "pull-retry", stage: "pull", attempt: 1, total: 2 };
+  entry.send({ ...event, ...retry, attempt: 0 });
+  entry.send({ ...event, ...retry, attempt: 3 });
+  entry.send({ ...event, ...retry, stage: "start" });
+  entry.send({ ...event, ...retry });
+  entry.send(result);
+  entry.child.emit("close", 0);
+  await Promise.resolve();
+  expect(entry.events).toEqual([expect.objectContaining(retry), expect.objectContaining({ type: "result" })]);
+});
+
 test("unknown event schema terminates the child and reports CLI_VERSION_MISMATCH", async () => {
   const entry = fixture();
   entry.start();

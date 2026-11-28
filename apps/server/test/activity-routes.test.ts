@@ -16,11 +16,12 @@ const context = (path: string, init?: RequestInit, required = false) =>
   }) as RouteContext;
 const recentWindow = TASK_POLICY_FIELDS.find((field) => field.key === "activity.recentCompletedHours")!;
 
-const service = (overrides: Partial<Record<"list" | "requestDetail" | "needsMe", (...args: any[]) => unknown>> = {}) =>
+const service = (overrides: Partial<Record<"list" | "requestDetail" | "needsMe" | "stopRequest", (...args: any[]) => unknown>> = {}) =>
   ({
     list: async () => ({ items: [], truncated: false }),
     requestDetail: async () => null,
     needsMe: async () => ({ items: [] }),
+    stopRequest: async (requestRunId: string) => ({ stopped: true, requestRunId, stoppedWorkers: 0 }),
     ...overrides,
   }) as unknown as ActivityService;
 
@@ -118,5 +119,26 @@ describe("activity routes", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     expect(await response.json()).toEqual({ items: [] });
+  });
+
+  test("stopping a tracked request is owner-only POST, validates UUID, and returns no-store result", async () => {
+    let called = 0;
+    const route = createActivityRoutes(
+      service({
+        stopRequest: async (requestRunId: string) => {
+          called += 1;
+          return { stopped: true, requestRunId, stoppedWorkers: 2 };
+        },
+      })
+    );
+    await expect(route(context(`/api/activity/requests/${id}/stop`, { method: "POST" }, true))).rejects.toMatchObject({ status: 401 });
+    expect(called).toBe(0);
+    expect(await route(context(`/api/activity/requests/${id}/stop`, { method: "GET" }))).toBeUndefined();
+    await expect(route(context("/api/activity/requests/not-a-uuid/stop", { method: "POST" }))).rejects.toMatchObject({ status: 400 });
+    const response = (await route(context(`/api/activity/requests/${id}/stop`, { method: "POST" })))!;
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({ stopped: true, requestRunId: id, stoppedWorkers: 2 });
+    expect(called).toBe(1);
   });
 });

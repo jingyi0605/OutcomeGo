@@ -56,6 +56,28 @@ describe("the activity area", () => {
     expect(render([item()], { showAll: false })).toMatch(/aria-pressed="false"[^>]*>Show all</);
     expect(render([item()], { showAll: true })).toMatch(/aria-pressed="true"[^>]*>Show less</);
   });
+
+  test("a collapsible section keeps its heading and count while hiding items when collapsed", () => {
+    const collapsedHtml = render([item({ title: "Finished work", state: "completed" })], {
+      title: "Recently completed",
+      showAllToggle: false,
+      collapsed: true,
+      onToggleCollapsed: () => undefined,
+    });
+    expect(collapsedHtml).toContain("Recently completed");
+    expect(collapsedHtml).toContain("<span>1</span>");
+    expect(collapsedHtml).toMatch(/aria-expanded="false"[^>]*>Expand/);
+    expect(collapsedHtml).not.toContain("Finished work");
+
+    const expandedHtml = render([item({ title: "Finished work", state: "completed" })], {
+      title: "Recently completed",
+      showAllToggle: false,
+      collapsed: false,
+      onToggleCollapsed: () => undefined,
+    });
+    expect(expandedHtml).toMatch(/aria-expanded="true"[^>]*>Collapse/);
+    expect(expandedHtml).toContain("Finished work");
+  });
 });
 
 describe("cards or a table, by the owner's limit", () => {
@@ -134,6 +156,24 @@ describe("opening an item", () => {
     const closed = render([item({ title: "Goes nowhere" })], { canOpen: () => false });
     expect(closed).not.toMatch(/<button[^>]*class="outcome-activity-card"/);
     expect(closed).toContain("Goes nowhere");
+  });
+
+  test("removable request items render a remove button in both cards and table without nesting buttons", () => {
+    const activeReq = item({ id: "request:1", type: "request", state: "in_progress", title: "Active req" });
+    const doneReq = item({ id: "request:2", type: "request", state: "completed", title: "Done req" });
+    const goalTask = item({ id: "goal_task:1", type: "goal_task", state: "running", title: "Goal work" });
+    const cards = render([activeReq, doneReq, goalTask], { cardMaxItems: 5, onRemove: () => undefined });
+    expect(cards).toContain('data-activity-remove="request:1"');
+    expect(cards).toContain('aria-label="Stop and remove this record"');
+    expect(cards).toContain('data-activity-remove="request:2"');
+    expect(cards).toContain('aria-label="Remove this record"');
+    expect(cards).not.toContain('data-activity-remove="goal_task:1"');
+
+    const table = render([activeReq, doneReq, goalTask], { cardMaxItems: 1, onRemove: () => undefined });
+    expect(table).toContain("<table");
+    expect(table).toContain('data-activity-remove="request:1"');
+    expect(table).toContain('data-activity-remove="request:2"');
+    expect(table).not.toContain('data-activity-remove="goal_task:1"');
   });
 });
 

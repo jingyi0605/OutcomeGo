@@ -3,10 +3,11 @@ import { inflateSync } from "node:zlib";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { createToolValidator } from "@outcomego/plugin-sdk/json-schema";
 import { WhatsAppAccount } from "../account";
+import { WhatsAppInboundEvents } from "../inbound-events";
 import { settings } from "../process";
 import { whatsappTools } from "../tools";
 import { pairingPng } from "../png";
@@ -66,6 +67,31 @@ test("pairing PNG has intact chunks, grayscale scanlines, and a white quiet zone
   const rows = inflateSync(Buffer.concat(data)); expect(rows.length).toBe((width + 1) * height);
   expect([...rows.subarray(1, width + 1)].every((byte) => byte === 255)).toBe(true);
   expect(rows.includes(0)).toBe(true);
+});
+
+test("MCP discovery exposes incoming-event polling only as a host-only tool", async () => {
+  const home = await mkdtemp("/tmp/wa-mcp-events-");
+  const configuration = settings({ OPENTEAM_PLUGIN_ACCOUNT_ID: "event-tool-account" }, home);
+  await mkdir(configuration.store, { recursive: true });
+  const account = new WhatsAppAccount({
+    execute: async () => ({ success: true, data: { authenticated: false }, error: null }),
+    follow: () => { throw new Error("Unexpected sync"); },
+  }, configuration, new WhatsAppInboundEvents(configuration.store));
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const server = await serveWhatsApp(account, serverTransport);
+  const client = new Client({ name: "whatsapp-event-test", version: "1.0.0" });
+  try {
+    await client.connect(clientTransport);
+    const eventTool = (await client.listTools()).tools.find((tool) => tool.name === "whatsapp_poll_events");
+    expect(eventTool?._meta).toMatchObject({ "outcomego/hostOnly": true, "openteam/hostOnly": true });
+    const result = await client.callTool({ name: "whatsapp_poll_events", arguments: { cursor: null, waitSeconds: 0 } });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toEqual({ events: [], cursor: null });
+  } finally {
+    await client.close();
+    await server.close();
+    await rm(home, { recursive: true, force: true });
+  }
 });
 
 test("MCP discovery and calls validate schemas and report tool errors through the protocol", async () => {

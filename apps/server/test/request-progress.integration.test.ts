@@ -726,3 +726,29 @@ test.skipIf(!url)("an arbitrary request ID cannot cross agents or conversations"
     ).rejects.toThrow("conversation");
   })
 );
+
+test.skipIf(!url)("a parked waiting worker without nextCheckAt does not block completion or reconciliation, and bot state stopped closes the request", () =>
+  fixture(async (f) => {
+    await f.db.$transaction((tx) => ensureRequestForTask(tx, f.owner.id, f.context.runId));
+    await f.service.task(f.context, {
+      request_run_id: f.context.runId,
+      description: "Parked helper",
+      prompt: "Check docs",
+    });
+    const child = await f.db.subagent.findFirstOrThrow({ where: { requestRunId: f.context.runId } });
+    await f.db.subagent.update({ where: { id: child.id }, data: { status: "waiting", nextCheckAt: null } });
+
+    const stopped = (await reportRequestProgress(f.db, f.context, {
+      key: "user-cancelled",
+      state: "stopped",
+      summary: "User cancelled this request",
+      evidence: [],
+      remaining: [],
+      request_run_id: f.context.runId,
+    })) as Record<string, unknown>;
+    expect(stopped).toMatchObject({ request_run_id: f.context.runId, stopped: true, ended: false, deferred: false });
+    expect((await f.db.run.findUniqueOrThrow({ where: { id: f.context.runId } })).requestStoppedAt).not.toBeNull();
+    expect((await f.db.subagent.findUniqueOrThrow({ where: { id: child.id } })).status).toBe("stopped");
+    expect(await requestProgressSnapshot(f.db, f.owner.id, f.channel.id)).toEqual([]);
+  })
+);

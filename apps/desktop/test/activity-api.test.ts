@@ -21,3 +21,13 @@ test("each filter is sent as asked, and 'show all' only when it is on", async ()
   await client.activity!({ includeAll: false });
   expect(calls).toEqual(["/api/activity?botId=bot%2Fone&includeAll=true&recentHours=48", "/api/activity"]);
 });
+
+test("stopRequest posts to /api/activity/requests/:id/stop", async () => {
+  const requests: Array<{ path: string; method?: string }> = [];
+  const client = createOutcomeApi(async <T>(path: string, init?: RequestInit) => {
+    requests.push({ path, method: init?.method });
+    return { stopped: true, requestRunId: "req-1", stoppedWorkers: 0 } as T;
+  });
+  await client.stopRequest!("req/1");
+  expect(requests).toEqual([{ path: "/api/activity/requests/req%2F1/stop", method: "POST" }]);
+});

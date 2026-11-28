@@ -42,7 +42,14 @@ export const createActivityRoutes = (activity: ActivityService, todos?: Pick<Out
   const { request, path, authMode, authenticatedSessionId, url } = context;
   const list = path === "/api/activity";
   const detail = path.match(/^\/api\/activity\/requests\/([^/]+)$/);
+  const stop = path.match(/^\/api\/activity\/requests\/([^/]+)\/stop$/);
   const needsMe = path === "/api/needs-me";
+  if (stop && request.method === "POST") {
+    if (authMode === "required" && !authenticatedSessionId) throw new ApiError(401, "unauthorized", "Sign in to OutcomeGo to continue");
+    const requestRunId = stop[1]!;
+    if (!UUID.test(requestRunId)) throw badRequest("Expected a UUID");
+    return json(await activity.stopRequest(requestRunId), 200, { "cache-control": "no-store" });
+  }
   if ((!list && !detail && !needsMe) || request.method !== "GET") return undefined;
   if (authMode === "required" && !authenticatedSessionId) throw new ApiError(401, "unauthorized", "Sign in to OutcomeGo to continue");
   const ownerId = await todos?.ownerForSession(authMode, authenticatedSessionId);

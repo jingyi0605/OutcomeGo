@@ -61,6 +61,7 @@ interface Options {
   steps?: unknown[];
   /** Replaces the call; null models a server that has no such call. */
   needsMe?: (() => Promise<unknown>) | null;
+  stopRequest?: (id: string) => Promise<{ stopped: true; requestRunId: string }>;
 }
 async function mount(options: Options = {}) {
   const { OutcomeDashboard } = await import("../src/renderer/components/outcomego/outcomes/dashboard/outcome-dashboard");
@@ -69,6 +70,7 @@ async function mount(options: Options = {}) {
   const outcomes = {
     list: async () => ({ items: [], nextCursor: null }),
     ...(options.needsMe === null ? {} : { needsMe: options.needsMe ?? (async () => ({ items: options.requests ?? [] })) }),
+    ...(options.stopRequest ? { stopRequest: options.stopRequest } : {}),
   };
   const inbox = { list: async () => ({ items: options.steps ?? [], nextCursor: null }), decision: async () => null, resolve: async () => null };
   host = dom.document.createElement("div");
@@ -152,5 +154,25 @@ describe("requests in the owner's queue", () => {
   test("with nothing waiting the dashboard says so", async () => {
     await mount({ requests: [] });
     expect(text()).toContain("You're all caught up.");
+  });
+
+  test("clicking Remove on a needs-me request stops it and removes it from the queue", async () => {
+    const req = asked({ key: "request:11111111-1111-4111-8111-111111111111", title: "Stale decision" });
+    let items = [req];
+    const stopped: string[] = [];
+    await mount({
+      needsMe: async () => ({ items }),
+      stopRequest: async (id) => {
+        stopped.push(id);
+        items = [];
+        return { stopped: true, requestRunId: id };
+      },
+    });
+    const removeButton = queue().querySelector<HTMLButtonElement>(`[data-request-remove="${req.key}"]`)!;
+    expect(removeButton).not.toBeNull();
+    await click(removeButton);
+    await act(async () => void (await Promise.resolve()));
+    expect(stopped).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(rows()).toEqual([]);
   });
 });

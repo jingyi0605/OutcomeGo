@@ -39,8 +39,11 @@ export class RunService {
     return this.cancelRunGroups(runs);
   });
 
-  cancelOutcomeRoleRuns = (outcomeId: string) => serviceEffect(async () => {
-    const runs = await this.prisma.run.findMany({ where: { outcomeThread: { outcomeId } } });
+  cancelOutcomeRoleRuns = (outcomeId: string, excludeRunIds?: readonly string[]) => serviceEffect(async () => {
+    const where: Prisma.RunWhereInput = excludeRunIds?.length
+      ? { outcomeThread: { outcomeId }, id: { notIn: [...excludeRunIds] } }
+      : { outcomeThread: { outcomeId } };
+    const runs = await this.prisma.run.findMany({ where });
     return this.cancelRunGroups(runs);
   });
 

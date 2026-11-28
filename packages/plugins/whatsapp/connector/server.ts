@@ -8,17 +8,36 @@ import { parseArgs } from "node:util";
 import { ToolContent } from "../../_shared/google";
 import { ResultStore } from "../../_shared/results";
 import { WhatsAppAccount } from "./account";
+import { WhatsAppInboundEvents } from "./inbound-events";
 import { installExecutable, prepareStore, settings, WacliProcess } from "./process";
 import { whatsappTools } from "./tools";
 
 export async function serveWhatsApp(account: WhatsAppAccount, transport: Transport = new StdioServerTransport()) {
   const results = new ResultStore("whatsapp", account.settings.accountId);
   const tools = [...whatsappTools(account), results.tool()];
+  const eventTool = {
+    name: "whatsapp_poll_events", description: "Read the account's incoming message events for the host.",
+    inputSchema: { type: "object" as const, properties: {
+      cursor: { type: ["integer", "null"], minimum: 0 },
+      waitSeconds: { type: "integer", minimum: 0, maximum: 20 },
+    }, additionalProperties: false },
+    _meta: { "outcomego/hostOnly": true, "openteam/hostOnly": true },
+  };
+  const validateEvents = createToolValidator(eventTool.inputSchema);
   const entries = new Map(tools.map((entry) => [entry.name, { entry, validate: createToolValidator(entry.inputSchema) }]));
-  const server = new Server({ name: "openteam-whatsapp", version: "1.0.12" }, { capabilities: { tools: {} } });
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: tools.map(({ run, ...definition }) => definition) }));
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const server = new Server({ name: "openteam-whatsapp", version: "1.0.13" }, { capabilities: { tools: {} } });
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [...tools.map(({ run, ...definition }) => definition), ...(account.inboundEvents ? [eventTool] : [])],
+  }));
+  server.setRequestHandler(CallToolRequestSchema, async (request, { signal }) => {
     try {
+      if (request.params.name === eventTool.name && account.inboundEvents) {
+        const args = request.params.arguments ?? {};
+        const validation = validateEvents(args);
+        if (!validation.valid) throw new Error(`Invalid tool arguments: ${validation.errorMessage}`);
+        const batch = await account.inboundEvents.poll(args.cursor, Number(args.waitSeconds ?? 0) * 1000, signal);
+        return { content: [], structuredContent: batch };
+      }
       const match = entries.get(request.params.name);
       if (!match) throw new Error("Unknown WhatsApp tool");
       const args = request.params.arguments ?? {};
@@ -47,12 +66,17 @@ export async function runServer() {
   const configuration = settings(process.env, undefined, { readOnly: values["read-only"], maxMessages: values["max-messages"] });
   await prepareStore(configuration);
   const executable = await installExecutable(fileURLToPath(new URL("..", import.meta.url)));
-  const account = new WhatsAppAccount(new WacliProcess(executable, configuration), configuration);
+  const account = new WhatsAppAccount(new WacliProcess(executable, configuration), configuration, new WhatsAppInboundEvents(configuration.store));
   const stop = () => { void account.close().finally(() => process.exit(0)); };
   process.once("SIGTERM", stop);
   process.once("SIGINT", stop);
-  await account.initialize();
-  await serveWhatsApp(account);
+  try {
+    await account.initialize();
+    await serveWhatsApp(account);
+  } catch (error) {
+    await account.close();
+    throw error;
+  }
 }
 
 if (import.meta.main) {

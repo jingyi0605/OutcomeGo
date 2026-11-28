@@ -32,6 +32,12 @@ An explicit new pairing after a recorded remote logout archives revoked session 
 
 Add another OpenTeam account for a different WhatsApp number. Account names can change without changing the stored account ID or linked session. Do not point multiple connectors at one manually shared store.
 
+## 新消息例程
+
+WhatsApp 会通过实时 `message.received` 插件事件唤醒事件例程。请告诉机器人要监听的 WhatsApp 账户和范围：一个或多个私聊/群聊 JID、跨聊天的联系人发送者 JID；只有明确要求时，才监听所选账户的所有新消息。机器人保存例程前会从该账户的 `connection_status` 读取 `subscription_account_key`。例程新建或更新前已经收到的排队消息不会触发当前订阅版本。
+
+同步 Webhook 仅监听 loopback 地址，并通过每进程独立的 HMAC 密钥验签；事件队列保存在连接器本地，最多保留 24 小时。消息正文属于不可信外部输入，不会自动授权回复；例程应按用户保存的指令处理消息，任何单独的外发操作仍须符合其授权范围。
+
 ## Skills and provenance
 
 The canonical [OpenClaw WhatsApp skill](https://github.com/openclaw/openclaw/blob/c321c038b59c1e67f4729023b5e680d3c061c9ca/extensions/whatsapp/skills/wacli/SKILL.md) covers contact lookup, search, verification, backfill, and sends. Its original bytes and MIT license are preserved under `upstream/`, pinned and hashed in `upstream.json`. The upstream [wacli repository skill](https://github.com/openclaw/wacli/blob/535a8b969cc83c3aad57f66be77e8fd4a7fcaaa3/.agents/skills/wacli/SKILL.md) was also reviewed; it focuses on repository/store maintenance. The installed OpenTeam skills adapt the useful workflows to account-scoped MCP tools, without the global CLI installation, OpenClaw chat-routing assumptions, or repository release instructions. Existing user authorization governs sends; only unresolved recipient/content ambiguity needs clarification.
@@ -42,7 +48,7 @@ Maintainers can restore and verify those binaries with `python3 packages/plugins
 
 ## Limits and removal
 
-Messages describe retained local history, not a complete WhatsApp archive. Cursor reads may be invalidated by live changes. Phone-supplied history, expired attachments, passkey-gated pairing, and delivery receipts have upstream limitations. Successful sends indicate server acceptance rather than recipient delivery. There are no incoming routine triggers, group-administration tools, status broadcasts, automatic replies, or bulk-send workflows in this version.
+Messages describe retained local history, not a complete WhatsApp archive. Cursor reads may be invalidated by live changes. Phone-supplied history, expired attachments, passkey-gated pairing, and delivery receipts have upstream limitations. Successful sends indicate server acceptance rather than recipient delivery. Group-administration tools, status broadcasts, and bulk-send workflows are not included.
 
 Text sends to the linked account's own number require explicit `allow_self: true`. WhatsApp can acknowledge them without delivering them, so receipt needs verification on the phone. Use another authorized recipient for outgoing delivery tests. Messages from the phone's official Message Yourself chat can test incoming sync.
 

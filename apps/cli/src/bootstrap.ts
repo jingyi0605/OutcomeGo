@@ -15,7 +15,7 @@ import { checkDeployResources } from "./deploy-resources";
 import { ComposeProject } from "./docker";
 import { probeComputerCapabilities } from "./engine/computer-capabilities";
 import { ExternalEngine } from "./engine/external";
-import { hasImageSources, imageSourcesPath, type rankImageSources, registrySources } from "./engine/image-sources";
+import { hasImageSources, imageSourcesPath, type rankImageSources } from "./engine/image-sources";
 import { pullFastestImage, releaseImages as readReleaseImages } from "./engine/image-pull";
 import { managedEngine, selectEngine } from "./engine/select";
 import { ManagedEngine } from "./engine/managed";
@@ -181,9 +181,9 @@ export const bootstrapCommand = async (
     if (fresh && !originals.has(path)) originals.set(path, existsSync(path) ? readFileSync(path, "utf8") : null);
     writeFileAtomic(path, contents);
   };
-  const compose = async (args: string[], code: DeployErrorCode, input?: string, useImageSources = true) => {
+  const compose = async (args: string[], code: DeployErrorCode, input?: string) => {
     cancelled();
-    const invocation = project!.invocation(args, undefined, useImageSources);
+    const invocation = project!.invocation(args);
     const pending = (dependencies.stream ?? runStreaming)(invocation.command, invocation.args, {
       cwd: invocation.cwd, env: invocation.env, signal, input,
       ...(input === undefined ? { onStdoutLine: record, onStderrLine: record } : {}),
@@ -332,16 +332,16 @@ export const bootstrapCommand = async (
         const overrides: Record<string, { image: string }> = Object.create(null);
         for (const [image, services] of images) {
           if (image !== computer || !cached) {
-            const [official] = engine instanceof ManagedEngine ? registrySources(image) : [];
-            if (engine instanceof ManagedEngine && official) {
-              const selected = await pullFastestImage(image, services[0]!, { engine, project: project! }, {
-                signal, rank: dependencies.rankSources, stream: dependencies.stream, record, cancelled,
-                interrupted: () => { throw new BootstrapError("CANCELLED"); },
-              });
-              if (!selected) throw new BootstrapError("IMAGE_PULL_FAILED");
-              if (image === computer) computerReference = selected;
-              if (selected !== image) for (const service of services) overrides[service] = { image: selected };
-            } else await compose(["pull", services[0]!], "IMAGE_PULL_FAILED", undefined, false);
+            const selected = await pullFastestImage(image, services[0]!, {
+              engine: engine instanceof ManagedEngine ? engine : undefined, project: project!,
+            }, {
+              signal, rank: dependencies.rankSources, stream: dependencies.stream, record, cancelled,
+              onRetry: (attempt, total) => emit({ type: "pull-retry", stage: "pull", attempt, total }),
+              interrupted: () => { throw new BootstrapError("CANCELLED"); },
+            });
+            if (!selected) throw new BootstrapError("IMAGE_PULL_FAILED");
+            if (image === computer) computerReference = selected;
+            if (selected !== image) for (const service of services) overrides[service] = { image: selected };
           }
           emit({ type: "stage", stage, status: "progress", current: ++current, total: images.size });
         }

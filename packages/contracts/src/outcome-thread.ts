@@ -1,11 +1,12 @@
 import { JSONSchema, Schema } from "effect";
 import type { OutcomeThreadTurnModelView } from "./inference";
 import {
+  ConcisePlanAdviceFields,
   OutcomePlanMode,
   OutcomeTriageChildKind,
   OutcomeTriageKind,
   OutcomeTriageMemoryFacts,
-  PlanAdviceFields,
+  PLAN_ADVICE_LIMITS,
   PlanSummary,
   type OutcomePlanAdvice,
   type OutcomeThreadPurpose,
@@ -133,7 +134,7 @@ export const ClassifyOutcomeInput = Schema.Union(SingleOutcomeClassification, Sp
 );
 export type ClassifyOutcomeInput = typeof ClassifyOutcomeInput.Type;
 
-export const SavePlanAdviceInput = Schema.Struct({ ...PlanAdviceFields.fields, clientRequestId: ClientRequestId });
+export const SavePlanAdviceInput = Schema.Struct({ ...ConcisePlanAdviceFields.fields, clientRequestId: ClientRequestId });
 export type SavePlanAdviceInput = typeof SavePlanAdviceInput.Type;
 
 export const PlanTaskInputSchema = Schema.Struct({
@@ -311,13 +312,13 @@ const descriptions: Record<OutcomeThreadToolName, string> = {
   ClassifyOutcome:
     "Classify the current intake without changing its identity. Use single_convert with one outcome, or split_from_note with one or more children and optional sourceNote edits. Preserve the original content and attachments; the server links children to the source note. Include scheduledAt and execution instructions in description for scheduled_once. Give a short summary and optional memoryFacts, each at most 500 characters. Reuse clientRequestId for identical retries.",
   SavePlanAdvice:
-    "Save the current Outcome's research brief. Provide a short summary, verified facts with specific sources, gaps for unavailable or stale information, and recommendations marked when they need owner confirmation. Optionally suggest a different Outcome kind; this does not convert the Outcome or execute any recommendation. Reuse clientRequestId for identical retries.",
+    `Save the current Outcome's progressive-disclosure brief. Layer 1 (shown first to the owner): \`summary\` (1-2 plain-language sentences, <=${PLAN_ADVICE_LIMITS.summaryChars} chars, no file paths, code expressions, IDs or tool names) and \`recommendations\` (up to ${PLAN_ADVICE_LIMITS.maxRecommendations}; each \`action\` <=${PLAN_ADVICE_LIMITS.recommendationActionChars} chars, set \`needsOwnerConfirm\` when the owner must decide). Layer 2 (collapsed until expanded): \`facts\` (only decision-driving verified facts, up to ${PLAN_ADVICE_LIMITS.maxFacts}, \`statement\` <=${PLAN_ADVICE_LIMITS.factStatementChars} chars, put paths/commits/IDs/tool provenance in \`source\` <=${PLAN_ADVICE_LIMITS.factSourceChars} chars), \`gaps\` (up to ${PLAN_ADVICE_LIMITS.maxGaps}, <=${PLAN_ADVICE_LIMITS.gapChars} chars each), and \`recommendations[].reason\` (<=${PLAN_ADVICE_LIMITS.recommendationReasonChars} chars). Optionally suggest a different Outcome kind without converting or executing. Reuse clientRequestId for identical retries.`,
   SaveOutcomeContract:
     "Write this goal's contract yourself and save it for the owner's approval: goal statements, acceptance criteria and scope boundaries, optional budget. The first call also needs a title. Later calls replace the pending contract with a new revision; unchanged content is refused. The owner approves in the app: never approve it, never ask them to approve it elsewhere. Write for the owner to read: concrete, no filler. Reuse clientRequestId for identical retries.",
   SavePlan:
     "Save the executable task plan for the current contract revision. Each task requires a unique key, title, self-contained instructions, assigned botId, covered acceptance criterion ids, and nature (deliverable or action; never omit nature). A task may also carry optional scheduling: startAt (ISO 8601 with a UTC offset; the task does not start earlier, and a time already in the past simply means it is due), dueAt (when it should be done; display only, it never stops anything) and estimateMinutes (your estimate, display only). Leave these out unless you are sure. Before approval, replaces the plan on the pending revision; after approval, may only add tasks or modify/remove unstarted queued tasks without touching started or finished tasks. Reuse clientRequestId for identical retries.",
   SubmitPrereview:
-    "Record your holistic preliminary review for every acceptance criterion of the current revision. Inspect the saved outputs however you need (GetOutcome, Read, read-only Shell). `conclusion` is what the owner reads first: either one complete sentence of at most 50 characters, or 2-5 complete items of at most 30 characters each (the app numbers them). Every sentence or item states a subject, a concrete recorded fact with its figure, and what it means for the decision; no fragments, no process detail. Put reasons per criterion in `results`, owner questions in `attention` (only for likely_fail or unclear required criteria), and optional charts in `charts`. A chart point cites either an `evidenceId` or a saved output `file` path, plus the exact excerpt that contains its label, value and unit; the app checks the excerpt exists and shows where it came from. Advisory only: never approves or accepts the goal. Reuse clientRequestId for identical retries.",
+    "Record your holistic preliminary review for every acceptance criterion of the current revision using progressive disclosure. Inspect the saved outputs however you need (GetOutcome, Read, read-only Shell). Layer 1 (shown first to the owner): `conclusion` (one complete sentence <=50 characters, or 2-5 complete items <=30 characters each; the app numbers them; every item names its subject, concrete recorded fact with figure, and decision impact, with no fragments, paths, IDs or process detail) and `attention` (one short concrete question per `likely_fail` or `unclear` required criterion that needs owner input). Layer 2 (collapsed until expanded): detailed per-criterion rationale in `results[].reason` with `evidenceIds`. Include up to two optional `charts` when comparable figures help; each point cites either `evidenceId` or a saved output `file` path plus the exact excerpt containing its label, value and unit. Advisory only: never approves or accepts the goal. Reuse clientRequestId for identical retries.",
   ReviewTaskResult:
     "Record your task-level review verdict (pass or reject) for one completed deliverable work item. Default to pass. Reject only for serious errors or omissions backed by a required criterion covered by the task or an explicit contract boundary, with a clear reason. Each task can be rejected at most once. Notes are for holistic review only and are never sent to the executing bot. Reuse clientRequestId for identical retries.",
   GetOutcome:

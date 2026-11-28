@@ -13,7 +13,7 @@ export {
   lockDraftNotifications,
   prepareDraftNotification,
 } from "./draft-notifications";
-export { INDEPENDENT_RUN_ORIGINS, OPEN_REQUEST_WORKER_STATUSES, ensureRequestForTask, reportRequestProgress, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, stopRequestProgress, requestProgressSnapshot, requestWakeAllowed, requestIsStopped } from "./request-progress";
+export { INDEPENDENT_RUN_ORIGINS, OPEN_REQUEST_WORKER_STATUSES, ACTIVE_REQUEST_WORKER_WHERE, activeRequestRunWhere, ensureRequestForTask, reportRequestProgress, settleRequestProgress, recoverRequestProgress, dispatchRequestChecks, stopRequestProgress, requestProgressSnapshot, requestWakeAllowed, requestIsStopped } from "./request-progress";
 import { requestProgressSnapshot } from "./request-progress";
 export { publishRequestNotification, notifyRequestsNeedingOwner } from "./request-notifications";
 export { assertBackgroundRequestDeliveryAllowed } from "./background-request-delivery";

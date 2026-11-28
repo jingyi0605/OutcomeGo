@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -103,7 +103,43 @@ test("pulls nothing that is already on the engine, and gives up when every regis
   const failed = fixture(undefined, { prefer: [NANJING, OFFICIAL] });
   failed.failing.add(at(server, NANJING)).add("service:server");
   expect(await pullFastestImage(server, "server", failed, failed.hooks)).toBeUndefined();
-  expect(failed.pulled).toEqual([at(server, NANJING), "service:server"]);
+  expect(failed.pulled).toEqual(Array.from({ length: 3 }, () => [at(server, NANJING), "service:server"]).flat());
+});
+
+test("re-ranks sources when none worked, so a recovered mirror can serve the retry", async () => {
+  const entry = fixture();
+  const mirror = at(server, NANJING);
+  entry.failing.add("service:server");
+  let rounds = 0;
+  const retries: Array<[number, number]> = [];
+  expect(await pullFastestImage(server, "server", entry, {
+    ...entry.hooks,
+    rank: async () => ++rounds === 1 ? [server] : [mirror, server],
+    onRetry: (attempt, total) => retries.push([attempt, total]),
+  })).toBe(mirror);
+  expect(entry.pulled).toEqual(["service:server", mirror]);
+  expect(retries).toEqual([[1, 2]]);
+});
+
+test("a pull deadline is a failure, so a timed-out official registry can fall back", async () => {
+  const entry = fixture(undefined, { prefer: [OFFICIAL, NANJING] });
+  const deadline = new AbortController();
+  const timeout = spyOn(AbortSignal, "timeout").mockImplementationOnce(() => deadline.signal);
+  try {
+    expect(await pullFastestImage(server, "server", entry, {
+      ...entry.hooks,
+      stream: async (command, args, options) => {
+        if (command === "compose") {
+          expect(options?.signal).toBe(deadline.signal);
+          deadline.abort();
+          return { status: 130 };
+        }
+        return entry.hooks.stream!(command, args, options);
+      },
+    })).toBe(at(server, NANJING));
+    expect(timeout).toHaveBeenNthCalledWith(1, 30 * 60_000);
+    expect(entry.lines).toContain("Image pull timed out for server.");
+  } finally { timeout.mockRestore(); }
 });
 
 test("an interrupted pull stops the update instead of trying the next registry", async () => {

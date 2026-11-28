@@ -1,5 +1,5 @@
 import type { ActivityItem } from "@outcomego/contracts/task-overview";
-import { ChevronRight, Target } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Target, X } from "lucide-react";
 import { Fragment, type ReactNode, type RefObject } from "react";
 import { useI18n } from "../../../../lib/i18n";
 import {
@@ -25,6 +25,12 @@ export interface ActivitySectionProps {
   onOpen: (item: ActivityItem) => void;
   /** Whether an item leads anywhere in this window. One that does not is shown as text only. */
   canOpen: (item: ActivityItem) => boolean;
+  /** Optional owner action to stop/remove an item that no longer needs to be kept. */
+  onRemove?: (item: ActivityItem) => void;
+  /** Whether an item can be manually stopped/removed by the owner. */
+  canRemove?: (item: ActivityItem) => boolean;
+  /** Item IDs currently being removed. */
+  removingIds?: ReadonlySet<string>;
   /** Optional section title key (defaults to "Activity"). */
   title?: string;
   /** Optional subtitle key; pass null to hide. */
@@ -37,6 +43,9 @@ export interface ActivitySectionProps {
   showAllToggle?: boolean;
   /** Optional secondary heading action (e.g. "View all >"). */
   viewAllAction?: { label: string; onClick: () => void };
+  /** When defined, renders an Expand/Collapse toggle in the heading and hides the body while collapsed. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
   sectionRef?: RefObject<HTMLElement | null>;
 }
 
@@ -104,12 +113,17 @@ export function ActivitySection({
   onToggleAll,
   onOpen,
   canOpen,
+  onRemove,
+  canRemove,
+  removingIds,
   title = "Activity",
   description = "What your bots are doing right now.",
   emptyLabel = "No bot is working right now.",
   emptyAction,
   showAllToggle = true,
   viewAllAction,
+  collapsed,
+  onToggleCollapsed,
   sectionRef,
 }: ActivitySectionProps) {
   const { t } = useI18n();
@@ -117,6 +131,13 @@ export function ActivitySection({
   const visible = visibleActivity(items);
   const groups = groupActivityByBot(visible, botName);
   const presentation = activityPresentation(visible.length, cardMaxItems);
+  const removable = (item: ActivityItem) => Boolean(onRemove && (canRemove ? canRemove(item) : item.type === "request"));
+  const hasRemovable = visible.some(removable);
+  const removeTitle = (item: ActivityItem) =>
+    t(item.state === "completed" ? "Remove this record" : "Stop and remove this record");
+  const collapsible = collapsed !== undefined && onToggleCollapsed !== undefined;
+  const isCollapsed = Boolean(collapsible && collapsed);
+  const CollapseChevron = isCollapsed ? ChevronDown : ChevronUp;
 
   return (
     <section ref={sectionRef} aria-label={t(title)} className="outcome-dash-section outcome-activity">
@@ -125,7 +146,7 @@ export function ActivitySection({
           {t(title)}
           {visible.length > 0 && <span>{visible.length}</span>}
         </h2>
-        {(showAllToggle || viewAllAction) && (
+        {(showAllToggle || viewAllAction || collapsible) && (
           <div className="outcome-dash-heading-actions">
             {showAllToggle && (
               <button type="button" data-dash="" aria-pressed={showAll} onClick={onToggleAll}>
@@ -138,11 +159,17 @@ export function ActivitySection({
                 <ChevronRight aria-hidden="true" className="size-3" />
               </button>
             )}
+            {collapsible && (
+              <button type="button" data-dash="" aria-expanded={!isCollapsed} onClick={onToggleCollapsed}>
+                {t(isCollapsed ? "Expand" : "Collapse")}
+                <CollapseChevron aria-hidden="true" className="size-3" />
+              </button>
+            )}
           </div>
         )}
       </div>
-      {description && <p className="outcome-activity-description">{t(description)}</p>}
-      {groups.length === 0 && (
+      {!isCollapsed && description && <p className="outcome-activity-description">{t(description)}</p>}
+      {!isCollapsed && groups.length === 0 && (
         <div className="outcome-dash-empty" role="status">
           <Target aria-hidden="true" className="size-4" strokeWidth={1.6} />
           {t(emptyLabel)}
@@ -150,7 +177,7 @@ export function ActivitySection({
         </div>
       )}
 
-      {presentation === "cards" &&
+      {!isCollapsed && presentation === "cards" &&
         groups.map((group) => (
           <div key={group.botId} className="outcome-activity-group">
             <h3>
@@ -159,6 +186,8 @@ export function ActivitySection({
             </h3>
             <ul className="outcome-activity-cards">
               {group.items.map((item) => {
+                const showRemove = removable(item);
+                const removing = Boolean(removingIds?.has(item.id));
                 const body = (
                   <>
                     <StateBadge state={item.state} />
@@ -170,13 +199,27 @@ export function ActivitySection({
                   </>
                 );
                 return (
-                  <li key={item.id}>
+                  <li key={item.id} className={showRemove ? "outcome-activity-card-item" : undefined}>
                     {canOpen(item) ? (
                       <button type="button" className="outcome-activity-card" onClick={() => onOpen(item)}>
                         {body}
                       </button>
                     ) : (
                       <div className="outcome-activity-card">{body}</div>
+                    )}
+                    {showRemove && (
+                      <button
+                        type="button"
+                        className="outcome-activity-remove"
+                        data-activity-remove={item.id}
+                        disabled={removing}
+                        aria-label={removeTitle(item)}
+                        title={removeTitle(item)}
+                        onClick={() => onRemove?.(item)}
+                      >
+                        <X aria-hidden="true" className="size-3" />
+                        <span>{t("Remove")}</span>
+                      </button>
                     )}
                   </li>
                 );
@@ -185,7 +228,7 @@ export function ActivitySection({
           </div>
         ))}
 
-      {presentation === "table" && (
+      {!isCollapsed && presentation === "table" && (
         <table className="outcome-activity-table">
           <thead>
             <tr>
@@ -193,34 +236,57 @@ export function ActivitySection({
               <th scope="col">{t("Status")}</th>
               <th scope="col">{t("Last activity")}</th>
               <th scope="col">{t("Next check")}</th>
+              {hasRemovable && <th scope="col" aria-label={t("Actions")} />}
             </tr>
           </thead>
           {groups.map((group) => (
             <tbody key={group.botId}>
               <tr className="outcome-activity-grouprow">
-                <th scope="rowgroup" colSpan={4}>
+                <th scope="rowgroup" colSpan={hasRemovable ? 5 : 4}>
                   {group.name}
                   <Summary group={group} />
                 </th>
               </tr>
-              {group.items.map((item) => (
-                <Fragment key={item.id}>
-                  <tr>
-                    <td>
-                      {canOpen(item) ? (
-                        <button type="button" className="outcome-activity-link" onClick={() => onOpen(item)}>
+              {group.items.map((item) => {
+                const showRemove = removable(item);
+                const removing = Boolean(removingIds?.has(item.id));
+                return (
+                  <Fragment key={item.id}>
+                    <tr>
+                      <td>
+                        {canOpen(item) ? (
+                          <button type="button" className="outcome-activity-link" onClick={() => onOpen(item)}>
+                            <Facts item={item} />
+                          </button>
+                        ) : (
                           <Facts item={item} />
-                        </button>
-                      ) : (
-                        <Facts item={item} />
+                        )}
+                      </td>
+                      <td><StateBadge state={item.state} /></td>
+                      <td>{new Date(item.lastActivityAt).toLocaleString()}</td>
+                      <td>{item.nextCheckAt ? new Date(item.nextCheckAt).toLocaleString() : "—"}</td>
+                      {hasRemovable && (
+                        <td className="outcome-activity-table-act">
+                          {showRemove && (
+                            <button
+                              type="button"
+                              className="outcome-activity-remove outcome-activity-remove-inline"
+                              data-activity-remove={item.id}
+                              disabled={removing}
+                              aria-label={removeTitle(item)}
+                              title={removeTitle(item)}
+                              onClick={() => onRemove?.(item)}
+                            >
+                              <X aria-hidden="true" className="size-3" />
+                              <span>{t("Remove")}</span>
+                            </button>
+                          )}
+                        </td>
                       )}
-                    </td>
-                    <td><StateBadge state={item.state} /></td>
-                    <td>{new Date(item.lastActivityAt).toLocaleString()}</td>
-                    <td>{item.nextCheckAt ? new Date(item.nextCheckAt).toLocaleString() : "—"}</td>
-                  </tr>
-                </Fragment>
-              ))}
+                    </tr>
+                  </Fragment>
+                );
+              })}
             </tbody>
           ))}
         </table>

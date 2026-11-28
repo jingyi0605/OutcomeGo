@@ -762,6 +762,36 @@ label.outcome-card:has(> input[type="radio"]:checked) {
   text-overflow: ellipsis;
   white-space: pre;
 }
+.outcome-dash-request-item {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.outcome-dash-request-item > .outcome-row {
+  min-width: 0;
+  flex: 1;
+}
+.outcome-dash-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--foreground-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.outcome-dash-remove:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--foreground);
+}
+.outcome-dash-remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .outcome-dash-lane-empty {
   border: 0.5px dashed var(--border);
   border-radius: 12px;
@@ -2387,6 +2417,43 @@ button.outcome-activity-card:hover {
 button.outcome-activity-card:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--ring) 40%, transparent);
   outline-offset: 1px;
+}
+.outcome-activity-card-item {
+  position: relative;
+}
+.outcome-activity-card-item > .outcome-activity-card {
+  padding-top: 0.625rem;
+}
+.outcome-activity-remove {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground-secondary);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.outcome-activity-remove:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--foreground);
+}
+.outcome-activity-remove:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.outcome-activity-remove-inline {
+  position: static;
+}
+.outcome-activity-table-act {
+  white-space: nowrap;
+  text-align: right;
 }
 .outcome-activity-title {
   font-weight: 600;

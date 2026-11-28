@@ -1162,6 +1162,61 @@ export const resourcesSetExtendedCommand = async (
   }
 
   const engineChanging = parsedEngineMemoryBytes !== undefined || parsedEngineCpu !== undefined;
+
+  // Validate container limits against engine capacity.
+  // When either engine memory or computer memory is being updated, check that the
+  // resulting computer limit does not exceed the engine's available memory.
+  // The 75% threshold reserves headroom for engine overhead, kernel, and system processes.
+  if (parsedEngineMemoryBytes !== undefined || options.computerMemory !== undefined) {
+    const snapshot = await collectResourceSnapshot(paths, runner, dependencies);
+    const effectiveEngineMemory = parsedEngineMemoryBytes ?? snapshot.engine.memoryBytes;
+    if (effectiveEngineMemory !== null) {
+      const threshold = Math.floor(effectiveEngineMemory * 0.75);
+      if (computerBytes > threshold) {
+        const formatBytes = (bytes: number): string => {
+          const gib = bytes / (1024 ** 3);
+          return gib >= 1 ? `${gib.toFixed(1)} GiB` : `${Math.round(bytes / (1024 ** 2))} MiB`;
+        };
+        throw new EngineError(
+          "INVALID_INPUT",
+          cliTranslate(
+            "Container memory limit ({computer}) exceeds 75% of engine memory ({engine}). Reduce container memory or increase engine memory to at least {required}.",
+            {
+              computer: nextComputerMemory,
+              engine: formatBytes(effectiveEngineMemory),
+              required: formatBytes(Math.ceil(computerBytes / 0.75)),
+            }
+          )
+        );
+      }
+    }
+  }
+
+  // Validate container CPU against engine capacity.
+  // When either engine CPU or computer CPU is being updated, check that the
+  // resulting computer CPU limit does not exceed the engine's available cores.
+  const effectiveComputerCpu =
+    parsedComputerCpu !== undefined
+      ? parsedComputerCpu
+      : parsedEngineCpu !== undefined
+        ? readLocalComputerCpu(paths)
+        : undefined;
+  if ((parsedEngineCpu !== undefined || parsedComputerCpu !== undefined) && effectiveComputerCpu != null) {
+    const snapshot = await collectResourceSnapshot(paths, runner, dependencies);
+    const effectiveEngineCpu = parsedEngineCpu ?? snapshot.engine.cpuCores;
+    if (effectiveEngineCpu != null && effectiveComputerCpu > effectiveEngineCpu) {
+      throw new EngineError(
+        "INVALID_INPUT",
+        cliTranslate(
+          "Container CPU limit ({computerCpu}) exceeds engine CPU cores ({engineCpu}). Reduce container CPU or increase engine CPU.",
+          {
+            computerCpu: effectiveComputerCpu,
+            engineCpu: effectiveEngineCpu,
+          }
+        )
+      );
+    }
+  }
   if (engineChanging) {
     if (manifest.engine.kind === "external") {
       throw new EngineError(

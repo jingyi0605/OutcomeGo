@@ -40,7 +40,8 @@ test("installed WhatsApp adapter uses shared QR projection across cancellation, 
   try {
     const inventory = await manager.discover(accountId, input, generation);
     const hidden = connectorHostTools(connector);
-    expect(hidden).toHaveLength(5);
+    expect(hidden).toHaveLength(6);
+    expect(hidden).toContain("whatsapp_poll_events");
     for (const name of hidden) {
       const meta = inventory.find((t: any) => t.name === name)?._meta;
       expect(meta?.["outcomego/hostOnly"]).toBe(true);

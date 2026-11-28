@@ -581,8 +581,12 @@ export class InternalToolService {
         if (childIdentity || backgroundRun) throw new ApiError(403, "request_progress_unavailable", "Only the user-facing parent may track a request");
         const input = Schema.decodeUnknownSync(RequestProgressInput)(request.arguments);
         const ownerId = input.outcomeId ? await this.outcomeChatTools?.ownerId() : undefined;
-        const result = await reportRequestProgress(this.prisma, context, input, ownerId);
-        return { ...(result as Record<string, unknown>), requests: await requestProgressSnapshot(this.prisma, request.botId, request.channelId) };
+        const result = (await reportRequestProgress(this.prisma, context, input, ownerId)) as Record<string, unknown>;
+        if (result.stopped === true && typeof result.request_run_id === "string") {
+          const stoppedWorkers = await this.subagents.stopRequestWorkers(request.botId, result.request_run_id, request.callId);
+          return { ...result, stopped_workers: stoppedWorkers, requests: await requestProgressSnapshot(this.prisma, request.botId, request.channelId) };
+        }
+        return { ...result, requests: await requestProgressSnapshot(this.prisma, request.botId, request.channelId) };
       }
       if (request.tool === "ReportTaskProgress") {
         if (!childIdentity) throw new ApiError(403, "task_progress_unavailable", "Only a delegated worker may report task progress");

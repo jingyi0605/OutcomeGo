@@ -743,9 +743,35 @@ test("dashboard section links switch to the full lists and unified In progress l
   expect(host.querySelectorAll(".outcome-row").length).toBe(7);
 });
 
-test("dashboard Go button opens the intake dialog", async () => {
+test("workspace header hosts the brand-styled Go button with refresh to its left, without duplicating them in the dashboard", async () => {
+  let listCalls = 0;
+  list = async () => {
+    listCalls += 1;
+    return { items: [outcomeFixture], nextCursor: null };
+  };
   await mount(page());
-  await click("Go", host);
+  const titlebar = host.querySelector(".outcome-page-titlebar")!;
+  const dashTopbar = host.querySelector(".outcome-dash-topbar")!;
+  expect(dashTopbar.querySelector('button[aria-label="Refresh from server"]')).toBeNull();
+  expect([...dashTopbar.querySelectorAll("button")].some((button) => button.textContent?.includes("Go"))).toBe(false);
+
+  const headerButtons = [...titlebar.querySelectorAll<HTMLButtonElement>("button")];
+  expect(headerButtons).toHaveLength(2);
+  const [refreshButton, goButton] = headerButtons;
+  expect(refreshButton!.getAttribute("aria-label")).toBe("Refresh from server");
+  expect(goButton!.getAttribute("aria-label")).toBe("Go");
+  expect(goButton!.textContent).toBe("Go");
+  expect(goButton!.className).toContain("outcome-brand-go-button");
+  expect(goButton!.querySelector(".outcome-brand-go-text")?.textContent).toBe("Go");
+  expect(goButton!.querySelector("svg")).not.toBeNull();
+
+  const beforeRefresh = listCalls;
+  await act(async () => {
+    refreshButton!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  expect(listCalls).toBeGreaterThan(beforeRefresh);
+
+  await click("Go", titlebar);
   for (let attempt = 0; attempt < 100 && !document.body.querySelector('[role="dialog"]'); attempt++) {
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));

@@ -38,6 +38,10 @@ export interface AutomationEvent {
   /** `plugin` source only. The host sets these from the installation and connection, never the connector. */
   plugin?: string;
   account?: string;
+  /** Stable, host-stamped subscription key for a WhatsApp connection. */
+  accountKey?: string;
+  messageId?: string;
+  receivedAt?: string;
   /** What the event is about, for example a session ID. Subscriptions filter on it. */
   resourceId?: string;
 }
@@ -93,6 +97,9 @@ export function parseAutomationEvent(raw: unknown): AutomationEvent {
     "plugin",
     "account",
     "resourceId",
+    "accountKey",
+    "messageId",
+    "receivedAt",
   ] as const) {
     if (input[key] !== undefined) {
       if (typeof input[key] !== "string" || input[key].length > 512)
@@ -110,7 +117,8 @@ export function parseAutomationEvent(raw: unknown): AutomationEvent {
       throw new Error("Invalid event PR");
     event.pr = input.pr;
   }
-  if (event.occurredAt && !Number.isFinite(Date.parse(event.occurredAt)))
+  if ((event.occurredAt && !Number.isFinite(Date.parse(event.occurredAt))) ||
+      (event.receivedAt !== undefined && !Number.isFinite(Date.parse(event.receivedAt))))
     throw new Error("Invalid event timestamp");
   return event;
 }
@@ -225,10 +233,10 @@ export function matchesAutomationEvent(
       return trigger.requireAuthPass === false || event.authenticatedUser === true;
     }
     case "plugin":
-      // The host fixes event.plugin from the installation. A subscription must name
-      // resources or actors, so an empty filter here never means "everything".
+      // The host stamps the plugin and (for WhatsApp) the account key.
       return (
         trigger.plugin === event.plugin &&
+        (event.plugin !== "whatsapp" || (typeof trigger.accountKey === "string" && trigger.accountKey === event.accountKey)) &&
         member(trigger.events, event.kind) &&
         member(trigger.resourceIds, event.resourceId) &&
         member(trigger.actors, event.actor)

@@ -100,6 +100,7 @@ interface Progress {
   action?: Action;
   current?: number;
   total?: number;
+  imageRetry?: { attempt: number; total: number };
   /** Stages that finished, or were already satisfied. */
   done: Partial<Record<Stage, StageDone>>;
   /** Image sources in the order they were used; the last one is downloading now. */
@@ -111,15 +112,16 @@ export const emptyProgress = (): Progress => ({ stage: "detect", busy: true, iss
 export const deployProgress = (state: Progress, event: DeployProgress): Progress => {
   switch (event.type) {
     case "stage": return {
-      ...state, stage: event.stage, current: event.current, total: event.total,
+      ...state, stage: event.stage, current: event.current, total: event.total, imageRetry: undefined,
       done: event.status === "completed" || event.status === "skipped" ? { ...state.done, [event.stage]: event.status } : state.done,
     };
+    case "pull-retry": return { ...state, imageRetry: { attempt: event.attempt, total: event.total } };
     case "log": {
       const source = sourceOfLog(event.message);
       return source && state.sources.at(-1) !== source ? { ...state, sources: [...state.sources, source].slice(-8) } : state;
     }
     case "action-required": return { ...state, action: event.action };
-    case "error": return { ...state, busy: false, issue: event, action: event.action ?? state.action };
+    case "error": return { ...state, busy: false, imageRetry: undefined, issue: event, action: event.action ?? state.action };
     default: return state;
   }
 };

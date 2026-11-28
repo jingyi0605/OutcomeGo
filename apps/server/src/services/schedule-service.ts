@@ -8,7 +8,7 @@ import {
   type ScheduleQuery, type ScheduleResponse, type TimeItem, type TimeItemKind,
 } from "@outcomego/contracts/task-overview";
 import type { PrismaClient } from "@outcomego/db";
-import { INDEPENDENT_RUN_ORIGINS, inferRoutineScheduleAnchor, nextRoutineTriggerRun, readFeatureSettings, readUserTimeZone } from "@outcomego/messaging";
+import { activeRequestRunWhere, inferRoutineScheduleAnchor, nextRoutineTriggerRun, readFeatureSettings, readUserTimeZone } from "@outcomego/messaging";
 import { readRequestTitles } from "./request-titles";
 
 type Window = Omit<ScheduleQuery, "from" | "to"> & { from: Date; to: Date };
@@ -190,9 +190,10 @@ export class ScheduleService {
 
   private async requestChecks(query: Window, now: Date, take: { take?: number }): Promise<LocatedItem[]> {
     const rows = await this.db.run.findMany({
-      where: { requestNextCheckAt: { gte: query.from, lt: query.to }, requestStoppedAt: null,
-        requestProgress: { path: ["state"], equals: "waiting" }, origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
-        ...(query.botId ? { botId: query.botId } : {}) },
+      where: activeRequestRunWhere(
+        { requestNextCheckAt: { gte: query.from, lt: query.to }, requestProgress: { path: ["state"], equals: "waiting" } },
+        ...(query.botId ? [{ botId: query.botId }] : []),
+      ),
       select: { id: true, botId: true, conversationId: true, channelId: true, userMessageId: true, outcomeId: true,
         requestNextCheckAt: true, requestReconciliations: true, updatedAt: true },
       orderBy: [{ requestNextCheckAt: "asc" }, { id: "asc" }], ...take,

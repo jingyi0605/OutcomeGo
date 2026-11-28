@@ -266,6 +266,8 @@ const decode = (value: unknown, clean: (text: string) => string, directory: stri
   let payload: DeployPayload;
   if (event.type === "stage" && stage && member(statuses, event.status)) {
     payload = { type: "stage", stage, status: event.status, ...(count(event.current) && count(event.total) && event.current <= event.total ? { current: event.current, total: event.total } : {}) };
+  } else if (event.type === "pull-retry" && stage === "pull" && count(event.attempt) && count(event.total) && event.attempt > 0 && event.attempt <= event.total) {
+    payload = { type: "pull-retry", stage, attempt: event.attempt, total: event.total };
   } else if (event.type === "log") {
     payload = { type: "log", stage };
   } else if (event.type === "action-required") {

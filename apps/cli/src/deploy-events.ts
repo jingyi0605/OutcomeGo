@@ -50,6 +50,7 @@ export interface DeployAction {
 
 type DeployEventBody =
   | { type: "stage"; stage: DeployStage; status: "started" | "progress" | "completed" | "skipped" | "failed"; current?: number; total?: number }
+  | { type: "pull-retry"; stage: "pull"; attempt: number; total: number }
   | { type: "log"; stage?: DeployStage }
   | { type: "action-required"; action: DeployAction }
   | { type: "error"; stage: DeployStage; code: DeployErrorCode; retryable: boolean; field?: "username" | "password" | "apiPort" | "stdin"; action?: DeployAction }

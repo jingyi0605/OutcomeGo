@@ -6,6 +6,7 @@ import {
   ACTIVITY_STATE_STYLE,
   activityBucket,
   activityPresentation,
+  completedActivityItems,
   groupActivityByBot,
   mergeInProgressItems,
   styleForActivity,
@@ -97,6 +98,23 @@ describe("merging bot activity and in-progress goals", () => {
     );
     expect(merged.map((entry) => entry.id)).toEqual(["outcome:g1", "outcome:g2"]);
   });
+
+  test("splits completed activity items out of In progress into Recently completed", () => {
+    const active = item({ id: "request:active", state: "in_progress", lastActivityAt: "2026-11-25T11:00:00.000Z" });
+    const waiting = item({ id: "request:waiting", state: "waiting", lastActivityAt: "2026-11-25T10:30:00.000Z" });
+    const doneOlder = item({ id: "request:done-1", state: "completed", lastActivityAt: "2026-11-25T09:00:00.000Z" });
+    const doneNewer = item({ id: "request:done-2", state: "completed", lastActivityAt: "2026-11-25T12:00:00.000Z" });
+    const doneNeedsOwner = item({ id: "request:done-3", state: "completed", needsOwner: true });
+
+    expect(mergeInProgressItems([active, waiting, doneOlder, doneNewer, doneNeedsOwner], [], []).map((entry) => entry.id)).toEqual([
+      "request:active",
+      "request:waiting",
+    ]);
+    expect(completedActivityItems([active, waiting, doneOlder, doneNewer, doneNeedsOwner]).map((entry) => entry.id)).toEqual([
+      "request:done-2",
+      "request:done-1",
+    ]);
+  });
 });
 
 describe("how a state is shown", () => {
@@ -126,6 +144,6 @@ describe("how a state is shown", () => {
   });
 
   test("every label has a Chinese translation", () => {
-    expect(missingKeys(Object.values(ACTIVITY_STATE_STYLE).map((style) => style.label))).toEqual([]);
+    expect(missingKeys([...Object.values(ACTIVITY_STATE_STYLE).map((style) => style.label), "Recently completed", "Expand", "Collapse"])).toEqual([]);
   });
 });

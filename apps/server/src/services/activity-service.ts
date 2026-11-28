@@ -1,3 +1,4 @@
+import { ApiError } from "@outcomego/contracts";
 import { truncatePreviewText } from "@outcomego/contracts/message-preview";
 import { parseOutcomeWorkItemProgress } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
@@ -19,7 +20,14 @@ import {
   type RequestProgressState,
 } from "@outcomego/contracts/task-overview";
 import { Prisma, type PrismaClient } from "@outcomego/db";
-import { INDEPENDENT_RUN_ORIGINS, OPEN_REQUEST_WORKER_STATUSES, readFeatureSettings } from "@outcomego/messaging";
+import {
+  ACTIVE_REQUEST_WORKER_WHERE,
+  INDEPENDENT_RUN_ORIGINS,
+  OPEN_REQUEST_WORKER_STATUSES,
+  activeRequestRunWhere,
+  readFeatureSettings,
+  stopRequestProgress,
+} from "@outcomego/messaging";
 import { readRequestTitles } from "./request-titles";
 
 /** What the runtime keeps in `Run.requestProgress`: written by the bot, bounded by its tool. */
@@ -77,7 +85,11 @@ type RequestRow = Prisma.RunGetPayload<{ select: typeof requestRows }>;
  * never exposed to a bot tool, so what one bot wrote cannot reach another bot through it.
  */
 export class ActivityService {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(
+    private readonly prisma: PrismaClient,
+    private readonly stopRequestWorkers?: (botId: string, requestRunId: string, callId: string) => Promise<number>,
+    private readonly cancelRun?: (runId: string) => Promise<void>,
+  ) {}
 
   async list(query: ActivityQuery, now = new Date()): Promise<ActivityResponse> {
     const policy = await this.policy();
@@ -128,12 +140,10 @@ export class ActivityService {
     const { checkOverdueMinutes } = await this.policy();
     // Only a blocked or a waiting request can need the owner; the rest are left in the database.
     const rows = await this.prisma.run.findMany({
-      where: {
-        requestProgress: { not: Prisma.DbNull },
-        requestStoppedAt: null,
-        origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
-        OR: [{ requestProgress: { path: ["state"], equals: "blocked" } }, { requestProgress: { path: ["state"], equals: "waiting" } }],
-      },
+      where: activeRequestRunWhere(
+        { requestProgress: { not: Prisma.DbNull } },
+        { OR: [{ requestProgress: { path: ["state"], equals: "blocked" } }, { requestProgress: { path: ["state"], equals: "waiting" } }] },
+      ),
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
       take: ACTIVITY_LIST_LIMIT + 1,
       select: requestRows,
@@ -184,19 +194,65 @@ export class ActivityService {
     };
   }
 
+  /**
+   * Owner action to stop and remove a tracked request (including active, blocked, waiting, or completed records).
+   * Idempotent when already stopped.
+   */
+  async stopRequest(requestRunId: string): Promise<{ stopped: true; requestRunId: string; stoppedWorkers: number }> {
+    const row = await this.prisma.run.findFirst({
+      where: {
+        id: requestRunId,
+        requestProgress: { not: Prisma.DbNull },
+        origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
+      },
+      select: { id: true, botId: true, status: true },
+    });
+    if (!row) throw new ApiError(404, "request_not_found", "No tracked request has this ID");
+    await this.prisma.$transaction((tx) => stopRequestProgress(tx, row.botId, row.id));
+    let stoppedWorkers = 0;
+    if (this.stopRequestWorkers) {
+      stoppedWorkers = await this.stopRequestWorkers(row.botId, row.id, `owner-stop:request:${row.id}`);
+    } else {
+      const now = new Date();
+      stoppedWorkers = await this.prisma.$transaction(async (tx) => {
+        const workers = await tx.subagent.findMany({
+          where: { requestRunId: row.id, status: { in: [...OPEN_REQUEST_WORKER_STATUSES] } },
+          select: { id: true },
+        });
+        if (!workers.length) return 0;
+        const ids = workers.map((worker) => worker.id);
+        await tx.subagent.updateMany({
+          where: { id: { in: ids }, status: { in: [...OPEN_REQUEST_WORKER_STATUSES] } },
+          data: { status: "stopped", stoppedAt: now, completedAt: now, nextCheckAt: null },
+        });
+        await tx.subagentAttempt.updateMany({
+          where: { subagentId: { in: ids }, status: { in: [...OPEN_REQUEST_WORKER_STATUSES] } },
+          data: { status: "stopped", stoppedAt: now, completedAt: now },
+        });
+        return workers.length;
+      });
+    }
+    if (["queued", "running"].includes(row.status) && this.cancelRun) {
+      await this.cancelRun(row.id).catch(async (error) => {
+        const current = await this.prisma.run.findUnique({ where: { id: row.id }, select: { status: true } });
+        if (current && ["completed", "failed", "cancelled", "interrupted"].includes(current.status)) return;
+        throw error;
+      });
+    }
+    return { stopped: true, requestRunId: row.id, stoppedWorkers };
+  }
+
   /** Unfinished requests, with the executors each one started folded in as a count. */
   private async requestItems(query: ActivityQuery, cutoff: Date, now: Date, checkOverdueMinutes: number): Promise<ActivityItem[]> {
     const rows = await this.prisma.run.findMany({
-      where: {
-        requestProgress: { not: Prisma.DbNull },
-        requestStoppedAt: null,
-        origin: { notIn: [...INDEPENDENT_RUN_ORIGINS] },
-        ...(query.botId ? { botId: query.botId } : {}),
+      where: activeRequestRunWhere(
+        { requestProgress: { not: Prisma.DbNull } },
+        ...(query.botId ? [{ botId: query.botId }] : []),
         // Finished work leaves the list after the window; everything unfinished stays however old it is.
         ...(query.includeAll
-          ? {}
-          : { OR: [{ NOT: { requestProgress: { path: ["state"], equals: "complete" } } }, { updatedAt: { gte: cutoff } }] }),
-      },
+          ? []
+          : [{ OR: [{ NOT: { requestProgress: { path: ["state"], equals: "complete" } } }, { updatedAt: { gte: cutoff } }] }]),
+      ),
       orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
       take: ACTIVITY_LIST_LIMIT + 1,
       select: requestRows,
@@ -226,7 +282,7 @@ export class ActivityService {
     if (!requestRunIds.length) return new Map();
     const groups = await this.prisma.subagent.groupBy({
       by: ["requestRunId"],
-      where: { requestRunId: { in: [...requestRunIds] }, status: { in: [...OPEN_REQUEST_WORKER_STATUSES] } },
+      where: { requestRunId: { in: [...requestRunIds] }, ...ACTIVE_REQUEST_WORKER_WHERE },
       _count: { _all: true },
     });
     return new Map(groups.flatMap((group) => (group.requestRunId ? [[group.requestRunId, group._count._all] as const] : [])));

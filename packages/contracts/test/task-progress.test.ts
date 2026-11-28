@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import { Schema } from "effect";
 import {
+  REPORT_REQUEST_PROGRESS_TOOL,
+  RequestProgressInput,
   TaskProgressInput,
+  validateRequestProgress,
   validateTaskProgress,
   replaceTaskProgressContext,
 } from "../src/task-progress";
@@ -87,4 +90,27 @@ test("progress records cannot grow into unbounded transcripts", () => {
   expect(() =>
     validateTaskProgress({ ...milestone(), evidence: Array(20).fill("x".repeat(2000)) }, now)
   ).toThrow("32000");
+});
+test("stopped request progress allows empty evidence and remaining while rejecting active-state fields", () => {
+  const stopped = Schema.decodeUnknownSync(RequestProgressInput)({
+    key: "cancel-1",
+    state: "stopped",
+    summary: "User cancelled the request",
+    evidence: [],
+    remaining: [],
+  });
+  expect(() => validateRequestProgress(stopped, now)).not.toThrow();
+  expect(REPORT_REQUEST_PROGRESS_TOOL.inputSchema.properties.state.enum).toContain("stopped");
+  expect(() =>
+    validateRequestProgress({ ...stopped, remaining: ["still pending"] }, now)
+  ).toThrow("unresolved");
+  expect(() =>
+    validateRequestProgress({ ...stopped, checkAt: new Date(now + 3600_000).toISOString() }, now)
+  ).toThrow("waiting");
+  expect(() =>
+    validateRequestProgress({ ...stopped, blockSource: "user" }, now)
+  ).toThrow("blocked");
+  expect(() =>
+    validateRequestProgress({ ...stopped, deadline: new Date(now + 3600_000).toISOString() }, now)
+  ).toThrow("deadline");
 });

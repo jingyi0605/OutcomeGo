@@ -237,6 +237,77 @@ describe("CLI resources set validation and rollback", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("rejects container memory > 75% of engine memory", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "outcomego-res-engine-limit-"));
+    try {
+      const paths = setupInstall(dir);
+      const runner = new ResourcesRunner();
+
+      // Engine has 16 GiB (from ResourcesRunner mock), 75% = 12 GiB
+      // Requesting 13g for computer should fail
+      await expect(
+        resourcesSetExtendedCommand(
+          paths,
+          { computerMemory: "13g", desktopMemory: "10g", yes: true },
+          runner,
+          { hostMemoryBytes: () => 32 * GIB, hostCpuCores: () => 8 }
+        )
+      ).rejects.toThrow("exceeds 75%");
+
+      // Requesting 12.5g should also fail
+      await expect(
+        resourcesSetExtendedCommand(
+          paths,
+          { computerMemory: "12800m", desktopMemory: "10g", yes: true },
+          runner,
+          { hostMemoryBytes: () => 32 * GIB, hostCpuCores: () => 8 }
+        )
+      ).rejects.toThrow("exceeds 75%");
+
+      // Within limits should succeed: 12g computer (= 75% threshold, allowed), 10g desktop
+      await resourcesSetExtendedCommand(
+        paths,
+        { computerMemory: "12g", desktopMemory: "10g", yes: true },
+        runner,
+        { hostMemoryBytes: () => 32 * GIB, hostCpuCores: () => 8 }
+      );
+      let env = parseEnvironment(readFileSync(paths.environment, "utf8"));
+      expect(env.get("OUTCOMEGO_COMPUTER_MEMORY_LIMIT")).toBe("12g");
+
+      // 10g computer (< 12g threshold) with 4 CPU (< 8) should also succeed
+      await resourcesSetExtendedCommand(
+        paths,
+        { computerMemory: "10g", desktopMemory: "8g", computerCpu: "4", yes: true },
+        runner,
+        { hostMemoryBytes: () => 32 * GIB, hostCpuCores: () => 8 }
+      );
+      env = parseEnvironment(readFileSync(paths.environment, "utf8"));
+      expect(env.get("OUTCOMEGO_COMPUTER_MEMORY_LIMIT")).toBe("10g");
+      expect(readLocalComputerCpu(paths)).toBe(4);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects reducing engine CPU below the existing container CPU limit", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "outcomego-res-engine-cpu-"));
+    try {
+      const paths = setupInstall(dir);
+      writeFileAtomic(paths.localCompose, "services:\n  computer:\n    cpus: 6\n");
+
+      await expect(
+        resourcesSetExtendedCommand(
+          paths,
+          { engineCpu: "4", yes: true },
+          new ResourcesRunner(),
+          { hostMemoryBytes: () => 32 * GIB, hostCpuCores: () => 8 }
+        )
+      ).rejects.toThrow("exceeds engine CPU cores");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("Windows .wslconfig safe backup and incremental update", () => {

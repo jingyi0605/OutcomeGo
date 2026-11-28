@@ -86,6 +86,8 @@ export interface OutcomeClient {
   setDue?(id: string, input: SetOutcomeDueInput): Promise<OutcomeDetail>;
   /** What every bot is doing (specs/004.10). Absent on a server that has no such call. */
   activity?(query?: { botId?: string; includeAll?: boolean; recentHours?: number }): Promise<ActivityResponse>;
+  /** Stops and removes a tracked request (active, blocked, waiting, or completed) and any open subagents. */
+  stopRequest?(requestRunId: string): Promise<{ stopped: true; requestRunId: string; stoppedWorkers?: number }>;
   /** The requests that wait on the owner (specs/004.10). Absent on a server that has no such call. */
   needsMe?(): Promise<NeedsMeResponse>;
   workThreads?(botId: string, query: { archived?: boolean; cursor?: string; signal?: AbortSignal }): Promise<OutcomeWorkThreadPage>;
@@ -141,6 +143,8 @@ export function createOutcomeApi(
       outcomePut(`${outcomePath(id)}/work-items/${encodeURIComponent(workItemId)}/schedule`, input),
     setDue: (id, input) => outcomePut(`${outcomePath(id)}/due`, input),
     needsMe: () => request("/api/needs-me"),
+    stopRequest: (requestRunId) =>
+      request(`/api/activity/requests/${encodeURIComponent(requestRunId)}/stop`, { method: "POST" }),
     activity: (query = {}) => {
       const params = new URLSearchParams();
       if (query.botId) params.set("botId", query.botId);
