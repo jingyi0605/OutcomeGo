@@ -60,6 +60,12 @@ export const activityBucket = (state: string): ActivityBucket => BUCKETS[state] 
 /** What is drawn here: everything not already on the owner's "needs me" list, so nothing shows twice. */
 export const visibleActivity = (items: readonly ActivityItem[]): ActivityItem[] => items.filter((item) => !item.needsOwner);
 
+/** Finished work that belongs in "Recently completed" rather than "In progress". */
+export const isCompletedActivity = (item: ActivityItem): boolean => item.state === "completed" || item.state === "accepted";
+
+const compareActivityByRecency = (a: ActivityItem, b: ActivityItem): number =>
+  a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : a.id < b.id ? -1 : 1;
+
 export interface ActivityGroup {
   botId: string;
   name: string;
@@ -93,8 +99,10 @@ export function groupActivityByBot(items: readonly ActivityItem[], botName: (bot
 export const activityPresentation = (count: number, cardMaxItems: number): "cards" | "table" => (count <= cardMaxItems ? "cards" : "table");
 
 /**
- * Merges bot activity items with active/paused/failed outcomes into one deduplicated "In progress" stream:
+ * Merges active/waiting/blocked bot activity items with active/paused/failed outcomes into one deduplicated
+ * "In progress" stream:
  * - Items already on the owner's "Needs your action" list stay out of this stream.
+ * - Completed activity items stay out of "In progress" and are shown in "Recently completed" instead.
  * - Outcomes in planning/approved/running that are already represented by a live goal_task activity row are skipped
  *   so the same goal never shows twice.
  * - Paused and failed outcomes are always included (unless already on the owner's list) so stalled work is never hidden.
@@ -104,7 +112,7 @@ export function mergeInProgressItems(
   outcomes: readonly OutcomeSummary[],
   attention: readonly AttentionRow[],
 ): ActivityItem[] {
-  const base = visibleActivity(activity ?? []);
+  const base = visibleActivity(activity ?? []).filter((item) => !isCompletedActivity(item));
   const attentionIds = new Set(attention.map((row) => row.outcomeId));
   const coveredOutcomeIds = new Set(
     base
@@ -133,7 +141,10 @@ export function mergeInProgressItems(
       link: { type: "outcome", id: outcome.id },
     });
   }
-  return [...base, ...synthesized].sort((a, b) =>
-    a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : a.id < b.id ? -1 : 1,
-  );
+  return [...base, ...synthesized].sort(compareActivityByRecency);
+}
+
+/** Completed bot activity items for the collapsible "Recently completed" section. */
+export function completedActivityItems(activity: readonly ActivityItem[] | null | undefined): ActivityItem[] {
+  return visibleActivity(activity ?? []).filter(isCompletedActivity).sort(compareActivityByRecency);
 }

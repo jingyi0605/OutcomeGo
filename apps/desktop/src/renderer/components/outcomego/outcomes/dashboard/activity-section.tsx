@@ -1,5 +1,5 @@
 import type { ActivityItem } from "@outcomego/contracts/task-overview";
-import { ChevronRight, Target, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronUp, Target, X } from "lucide-react";
 import { Fragment, type ReactNode, type RefObject } from "react";
 import { useI18n } from "../../../../lib/i18n";
 import {
@@ -43,6 +43,9 @@ export interface ActivitySectionProps {
   showAllToggle?: boolean;
   /** Optional secondary heading action (e.g. "View all >"). */
   viewAllAction?: { label: string; onClick: () => void };
+  /** When defined, renders an Expand/Collapse toggle in the heading and hides the body while collapsed. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
   sectionRef?: RefObject<HTMLElement | null>;
 }
 
@@ -119,6 +122,8 @@ export function ActivitySection({
   emptyAction,
   showAllToggle = true,
   viewAllAction,
+  collapsed,
+  onToggleCollapsed,
   sectionRef,
 }: ActivitySectionProps) {
   const { t } = useI18n();
@@ -130,6 +135,9 @@ export function ActivitySection({
   const hasRemovable = visible.some(removable);
   const removeTitle = (item: ActivityItem) =>
     t(item.state === "completed" ? "Remove this record" : "Stop and remove this record");
+  const collapsible = collapsed !== undefined && onToggleCollapsed !== undefined;
+  const isCollapsed = Boolean(collapsible && collapsed);
+  const CollapseChevron = isCollapsed ? ChevronDown : ChevronUp;
 
   return (
     <section ref={sectionRef} aria-label={t(title)} className="outcome-dash-section outcome-activity">
@@ -138,7 +146,7 @@ export function ActivitySection({
           {t(title)}
           {visible.length > 0 && <span>{visible.length}</span>}
         </h2>
-        {(showAllToggle || viewAllAction) && (
+        {(showAllToggle || viewAllAction || collapsible) && (
           <div className="outcome-dash-heading-actions">
             {showAllToggle && (
               <button type="button" data-dash="" aria-pressed={showAll} onClick={onToggleAll}>
@@ -151,11 +159,17 @@ export function ActivitySection({
                 <ChevronRight aria-hidden="true" className="size-3" />
               </button>
             )}
+            {collapsible && (
+              <button type="button" data-dash="" aria-expanded={!isCollapsed} onClick={onToggleCollapsed}>
+                {t(isCollapsed ? "Expand" : "Collapse")}
+                <CollapseChevron aria-hidden="true" className="size-3" />
+              </button>
+            )}
           </div>
         )}
       </div>
-      {description && <p className="outcome-activity-description">{t(description)}</p>}
-      {groups.length === 0 && (
+      {!isCollapsed && description && <p className="outcome-activity-description">{t(description)}</p>}
+      {!isCollapsed && groups.length === 0 && (
         <div className="outcome-dash-empty" role="status">
           <Target aria-hidden="true" className="size-4" strokeWidth={1.6} />
           {t(emptyLabel)}
@@ -163,7 +177,7 @@ export function ActivitySection({
         </div>
       )}
 
-      {presentation === "cards" &&
+      {!isCollapsed && presentation === "cards" &&
         groups.map((group) => (
           <div key={group.botId} className="outcome-activity-group">
             <h3>
@@ -214,7 +228,7 @@ export function ActivitySection({
           </div>
         ))}
 
-      {presentation === "table" && (
+      {!isCollapsed && presentation === "table" && (
         <table className="outcome-activity-table">
           <thead>
             <tr>

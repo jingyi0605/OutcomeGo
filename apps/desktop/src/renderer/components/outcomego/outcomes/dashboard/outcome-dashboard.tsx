@@ -37,7 +37,7 @@ import {
   type AttentionRow,
 } from "./dashboard-state";
 import { ActivitySection } from "./activity-section";
-import { mergeInProgressItems, styleForActivity } from "./activity-state";
+import { completedActivityItems, mergeInProgressItems, styleForActivity } from "./activity-state";
 import { GoalFocusDetail, type GoalFocusClient } from "./goal-focus";
 import { QuickDecision } from "./quick-decision";
 import { actOnTodoItem, TodoRow, todoAttentionLabels, updateTodoFollowUp, type TodoActionRequest } from "./todo-panel";
@@ -319,6 +319,7 @@ export function OutcomeDashboard({
   const { t } = useI18n();
   const cardMaxItems = activityPolicy?.cardMaxItems ?? (DEFAULT_POLICY["activity.cardMaxItems"] as number);
   const [showAll, setShowAll] = useState(false);
+  const [completedExpanded, setCompletedExpanded] = useState(false);
   const [data, setData] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState(false);
@@ -384,6 +385,12 @@ export function OutcomeDashboard({
   const rowLimit = DASHBOARD_ROW_LIMIT - 1;
   const visibleQueue = allQueue ? queue : queue.slice(0, rowLimit);
   const inProgressItems = mergeInProgressItems(data?.activity, goals, attention);
+  const completedItems = completedActivityItems(data?.activity);
+  const toggleShowAll = () => {
+    const next = !showAll;
+    setShowAll(next);
+    setCompletedExpanded(next);
+  };
   const attentionCount = data ? `${formatCount(entries.length)}${data.moreSteps ? "+" : ""}` : "–";
   const value = (count: number) => (data ? formatCount(count) : "–");
   const open = (row: AttentionRow) => (row.step ? onSelectStep(row.step) : onSelectOutcome(row.outcomeId));
@@ -579,7 +586,7 @@ export function OutcomeDashboard({
         cardMaxItems={cardMaxItems}
         showAll={showAll}
         showAllToggle={data?.activity != null}
-        onToggleAll={() => setShowAll((previous) => !previous)}
+        onToggleAll={toggleShowAll}
         viewAllAction={stats.total > 0 ? { label: t("View all"), onClick: onShowGoals } : undefined}
         onOpen={openActivity}
         canOpen={canOpenActivity}
@@ -605,6 +612,26 @@ export function OutcomeDashboard({
             ))}
           </ul>
         </section>
+      )}
+
+      {completedItems.length > 0 && (
+        <ActivitySection
+          title="Recently completed"
+          description={null}
+          items={completedItems}
+          botName={(botId) => bots.find((bot) => bot.id === botId)?.name ?? t("Bot")}
+          cardMaxItems={cardMaxItems}
+          showAll={false}
+          showAllToggle={false}
+          onToggleAll={() => undefined}
+          collapsed={!completedExpanded}
+          onToggleCollapsed={() => setCompletedExpanded((previous) => !previous)}
+          onOpen={openActivity}
+          canOpen={canOpenActivity}
+          onRemove={outcomes.stopRequest ? (item) => void removeRequest(item.id) : undefined}
+          canRemove={(item) => item.type === "request" && Boolean(outcomes.stopRequest)}
+          removingIds={removingIds}
+        />
       )}
     </section>
   );

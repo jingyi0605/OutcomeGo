@@ -56,6 +56,28 @@ describe("the activity area", () => {
     expect(render([item()], { showAll: false })).toMatch(/aria-pressed="false"[^>]*>Show all</);
     expect(render([item()], { showAll: true })).toMatch(/aria-pressed="true"[^>]*>Show less</);
   });
+
+  test("a collapsible section keeps its heading and count while hiding items when collapsed", () => {
+    const collapsedHtml = render([item({ title: "Finished work", state: "completed" })], {
+      title: "Recently completed",
+      showAllToggle: false,
+      collapsed: true,
+      onToggleCollapsed: () => undefined,
+    });
+    expect(collapsedHtml).toContain("Recently completed");
+    expect(collapsedHtml).toContain("<span>1</span>");
+    expect(collapsedHtml).toMatch(/aria-expanded="false"[^>]*>Expand/);
+    expect(collapsedHtml).not.toContain("Finished work");
+
+    const expandedHtml = render([item({ title: "Finished work", state: "completed" })], {
+      title: "Recently completed",
+      showAllToggle: false,
+      collapsed: false,
+      onToggleCollapsed: () => undefined,
+    });
+    expect(expandedHtml).toMatch(/aria-expanded="true"[^>]*>Collapse/);
+    expect(expandedHtml).toContain("Finished work");
+  });
 });
 
 describe("cards or a table, by the owner's limit", () => {

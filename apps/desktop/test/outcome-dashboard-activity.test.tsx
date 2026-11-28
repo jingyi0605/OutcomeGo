@@ -224,3 +224,69 @@ describe("removing unwanted request records", () => {
     expect(host.textContent).not.toContain("Stale delegated search");
   });
 });
+
+describe("recently completed section", () => {
+  test("excludes completed items from In progress and its metric, showing them in a collapsed Recently completed section", async () => {
+    const active = activity({ id: "request:active", state: "in_progress", title: "Still working" });
+    const done = activity({ id: "request:done", state: "completed", title: "Already finished" });
+    await mount({ items: [active, done] });
+
+    const metrics = [...host.querySelectorAll<HTMLButtonElement>(".outcome-dash-metric")].map((pill) => pill.textContent);
+    expect(metrics).toContain("1In progress");
+
+    const inProgress = section("In progress")!;
+    expect(inProgress.textContent).toContain("Still working");
+    expect(inProgress.textContent).not.toContain("Already finished");
+
+    const completed = section("Recently completed")!;
+    expect(completed).not.toBeNull();
+    expect(completed.textContent).toContain("Recently completed1");
+    expect(completed.textContent).not.toContain("Already finished");
+
+    const expandBtn = completed.querySelector<HTMLButtonElement>('button[aria-expanded="false"]')!;
+    expect(expandBtn).not.toBeNull();
+    await click(expandBtn);
+    expect(section("Recently completed")!.textContent).toContain("Already finished");
+
+    const collapseBtn = section("Recently completed")!.querySelector<HTMLButtonElement>('button[aria-expanded="true"]')!;
+    await click(collapseBtn);
+    expect(section("Recently completed")!.textContent).not.toContain("Already finished");
+  });
+
+  test("toggling Show all expands Recently completed and Show less collapses it again", async () => {
+    const done = activity({ id: "request:done-all", state: "completed", title: "Done yesterday" });
+    const { calls } = await mount({ items: [done] });
+
+    expect(section("In progress")!.textContent).toContain("No goals in progress.");
+    expect(section("Recently completed")!.textContent).not.toContain("Done yesterday");
+
+    const toggle = () => Array.from(host.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent === "Show all" || b.textContent === "Show less")!;
+    await click(toggle());
+    expect(calls.at(-1)).toEqual({ includeAll: true });
+    expect(section("Recently completed")!.textContent).toContain("Done yesterday");
+
+    await click(toggle());
+    expect(calls.at(-1)).toEqual({ includeAll: false });
+    expect(section("Recently completed")!.textContent).not.toContain("Done yesterday");
+  });
+
+  test("removing the last completed item hides Recently completed", async () => {
+    const done = activity({ id: "request:33333333-3333-4333-8333-333333333333", state: "completed", title: "Finished request" });
+    let items = [done];
+    const stopped: string[] = [];
+    await mount({
+      activity: async () => ({ items, truncated: false }),
+      stopRequest: async (id) => {
+        stopped.push(id);
+        items = [];
+        return { stopped: true, requestRunId: id };
+      },
+    });
+    await click(section("Recently completed")!.querySelector<HTMLButtonElement>('button[aria-expanded="false"]')!);
+    const removeButton = section("Recently completed")!.querySelector<HTMLButtonElement>(`[data-activity-remove="${done.id}"]`)!;
+    await click(removeButton);
+    await act(async () => void (await Promise.resolve()));
+    expect(stopped).toEqual(["33333333-3333-4333-8333-333333333333"]);
+    expect(section("Recently completed")).toBeNull();
+  });
+});
