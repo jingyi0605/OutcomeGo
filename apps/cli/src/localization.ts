@@ -83,6 +83,8 @@ const simplifiedChinese: Record<string, string> = {
   "Memory limit must be an integer size of at least 1 GiB (for example 4g or 3584m).": "内存上限必须为不小于 1 GiB 的整数大小（例如 4g 或 3584m）。",
   "Both memory limits must be integer sizes of at least 1 GiB (for example 4g or 3584m).": "两项内存上限均必须为不小于 1 GiB 的整数大小（例如 4g 或 3584m）。",
   "Desktop memory limit must be strictly less than computer memory limit.": "桌面内存上限必须严格小于云电脑内存上限。",
+  "Container memory limit ({computer}) exceeds 75% of engine memory ({engine}). Reduce container memory or increase engine memory to at least {required}.": "容器内存上限（{computer}）超过引擎内存（{engine}）的 75%。请减少容器内存或将引擎内存增至 {required}。",
+  "Container CPU limit ({computerCpu}) exceeds engine CPU cores ({engineCpu}). Reduce container CPU or increase engine CPU.": "容器 CPU 上限（{computerCpu}）超过引擎 CPU 核心数（{engineCpu}）。请减少容器 CPU 或增加引擎 CPU。",
   "Engine CPU and memory cannot be modified for an external container engine.": "外部容器引擎不支持通过此处修改 CPU 与内存上限。",
   "Changing resource limits restarts affected local services and interrupts running tasks.": "修改资源限额将重启受影响的本地服务并中断进行中的任务。",
   "Proxy host is invalid.": "代理主机地址无效。",
