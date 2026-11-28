@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test";
 import { ComputerTurnRequest } from "@outcomego/contracts";
-import { GROUP_TASK_TOOL_NAMES } from "@outcomego/contracts/group-tasks";
+import { CHECK_GROUP_TASK_WORK, GROUP_TASK_TOOL_NAMES } from "@outcomego/contracts/group-tasks";
 import { Schema } from "effect";
 import { ComputerRuntime } from "../../src/runtime";
+import { RuntimeTools } from "../../src/runtime/tools";
+import type { ActiveTurn } from "../../src/runtime/types";
 
 const tools = () => (new ComputerRuntime() as unknown as {
   tools: { dynamicCatalog(active: unknown): Array<{ name: string; tools: Array<{ name: string }> }> };
@@ -36,6 +38,38 @@ test("workers, routines, goal threads and read-only runs never get the board too
 
 test("the board tools do not depend on the optional goal management module", () => {
   expect(groupTools({ groupTasksEnabled: true, outcomesEnabled: false })).toEqual(GROUP_TASK_TOOL_NAMES);
+});
+
+test("a group turn checks its live claim before local work, even after a prior success", async () => {
+  const actions: string[] = [];
+  let allowed = false;
+  const runtime = Object.assign(Object.create(RuntimeTools.prototype), {
+    privateControl: async (_active: ActiveTurn, _callId: string, tool: string) => {
+      actions.push(tool);
+      return { allowed };
+    },
+    processSecrets: async () => ({}),
+    nativeToolExecutor: {
+      shell: async () => {
+        actions.push("Shell");
+        return { content: [], details: {} };
+      },
+    },
+    callControlPlaneTool: async (_active: ActiveTurn, _callId: string, tool: string) => {
+      actions.push(tool);
+      return { content: [], details: {} };
+    },
+  }) as { executeScopedTool: (active: ActiveTurn, callId: string, tool: string, args: unknown) => Promise<unknown> };
+  const active = { runtimeProfile: "agent", groupTasksEnabled: true, groupTurn: true, channelId: "room" } as ActiveTurn;
+  const execute = (tool: string, args: unknown) => runtime.executeScopedTool(active, "call", tool, args);
+  await execute("SendToUser", { type: "text", content: "Could you clarify the scope?" });
+  await expect(execute("Shell", { command: "pwd" })).rejects.toThrow("verify the active group task claim");
+  allowed = true;
+  await execute("Shell", { command: "pwd" });
+  allowed = false;
+  await expect(execute("Shell", { command: "pwd" })).rejects.toThrow("verify the active group task claim");
+  await expect(execute("SendToUser", { type: "text", content: "Handoff", to: "dm" })).rejects.toThrow("verify the active group task claim");
+  expect(actions).toEqual(["SendToUser", CHECK_GROUP_TASK_WORK, CHECK_GROUP_TASK_WORK, "Shell", CHECK_GROUP_TASK_WORK, CHECK_GROUP_TASK_WORK]);
 });
 
 test("the turn contract carries the optional group marker", () => {

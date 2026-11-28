@@ -135,6 +135,42 @@ suite("group task board", () => {
     expect(created.map((result) => result.task.number).sort()).toEqual([1, 2, 3]);
   });
 
+  test("one group request has one root across responders, with work allowed only for the active owner", async () => {
+    const { tasks, group, a, b } = await fixture();
+    const requestId = crypto.randomUUID();
+    const start = async (botId: string) => {
+      const conversation = await db.conversation.create({ data: { botId } });
+      const run = await db.run.create({ data: {
+        botId, channelId: group.id, conversationId: conversation.id, userMessageId: crypto.randomUUID(),
+        origin: "group", status: "running",
+      } });
+      return { runId: run.id, requestId };
+    };
+    const [first, second] = await Promise.all([start(a.id), start(b.id)]);
+    expect(await code(tasks.assertWorkClaim(group.id, a.id, first.runId))).toBe("group_task_claim_required");
+    const contenders = [{ bot: a, scope: first, title: "Research pricing" }, { bot: b, scope: second, title: "Investigate costs" }];
+    const results = await Promise.allSettled(contenders.map(({ bot, scope, title }) =>
+      tasks.create(group.id, bot.id, { title, assignTo: "me" }, scope)));
+    const winner = results.findIndex((result) => result.status === "fulfilled");
+    expect(winner).toBeGreaterThanOrEqual(0);
+    const loserResult = results[1 - winner]!;
+    expect(loserResult).toMatchObject({ status: "rejected", reason: { code: "group_task_duplicate" } });
+    const owner = contenders[winner]!;
+    const other = contenders[1 - winner]!;
+    const [task] = (await tasks.list(group.id, user)).tasks;
+    expect(task?.assignee?.id).toBe(owner.bot.id);
+    await tasks.assertWorkClaim(group.id, owner.bot.id, owner.scope.runId);
+    expect(await code(tasks.assertWorkClaim(group.id, other.bot.id, other.scope.runId))).toBe("group_task_claim_required");
+    expect(await code(tasks.create(group.id, other.bot.id, { title: "Duplicate subtask", parent: task!.number }, other.scope))).toBe("group_task_forbidden");
+    await tasks.userAct(group.id, task!.number, { action: "release", expectedRevision: task!.revision });
+    expect(await code(tasks.assertWorkClaim(group.id, owner.bot.id, owner.scope.runId))).toBe("group_task_claim_required");
+    await tasks.claim(group.id, other.bot.id, task!.number, undefined, other.scope);
+    await tasks.assertWorkClaim(group.id, other.bot.id, other.scope.runId);
+    await tasks.update(group.id, { kind: "bot", botId: other.bot.id }, task!.number, { status: "done", note: "Verified" }, other.scope);
+    expect(await code(tasks.assertWorkClaim(group.id, other.bot.id, other.scope.runId))).toBe("group_task_claim_required");
+    expect(await code(tasks.create(group.id, owner.bot.id, { title: "Try again" }, owner.scope))).toBe("group_task_duplicate");
+  });
+
   test("owner moves through the states; others are refused; finished tasks stay finished", async () => {
     const { tasks, group, a, b } = await fixture();
     const A = { kind: "bot", botId: a.id } as const;
