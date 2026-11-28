@@ -375,8 +375,9 @@ export function ReviewPanel({
   const needsAttention = ({ criterion, result }: (typeof suggestions)[number]) =>
     criterion.required && result.suggestion !== "likely_pass";
   const attentionResults = suggestions.filter(needsAttention);
+  const attentionRationales = attentionResults.filter(({ result }) => Boolean(result.reason.trim()));
   const otherSuggestions = suggestions.filter((item) => !needsAttention(item));
-  const renderSuggestions = (items: typeof suggestions) => (
+  const renderSuggestions = (items: typeof suggestions, includeReason = true) => (
     <ul className="outcome-brief-list">
       {items.map(({ criterion, result }) => (
         <li key={criterion.id}>
@@ -385,7 +386,7 @@ export function ReviewPanel({
             <span className="outcome-prereview-badge" data-suggestion={result.suggestion}>
               {translateCurrent(PREREVIEW_LABELS[result.suggestion])}
             </span>
-            {result.reason}
+            {includeReason ? result.reason : null}
           </p>
         </li>
       ))}
@@ -436,7 +437,22 @@ export function ReviewPanel({
           !currentReview && reviewStatus !== "pending" && revision && loadResultSummary ? (
             <OutcomeResultReport outcomeId={outcome.id} revision={revision} load={loadResultSummary} useCache={useCache} onReady={onReady} hideWhenEmpty={reviewStatus === "stale"} />
           ) : null}
-        {outcome.prereview && revision && (
+        {outcome.prereview && revision && (() => {
+          const isStalePrereview = outcome.prereview.revision !== revision.revision;
+          const canAdoptPrereview =
+            !isStalePrereview &&
+            editable &&
+            outcome.status === "review_pending" &&
+            Boolean(onAdoptPrereview) &&
+            outcome.prereview.results.some((r) => r.suggestion === "likely_pass");
+          const hasPrereviewBody =
+            isStalePrereview ||
+            !currentReview?.report ||
+            canAdoptPrereview ||
+            attentionResults.length > 0 ||
+            otherSuggestions.length > 0;
+          if (!hasPrereviewBody) return null;
+          return (
           <section
             aria-label={translateCurrent("Preliminary review summary")}
             className="outcome-card mt-3 space-y-2"
@@ -447,11 +463,7 @@ export function ReviewPanel({
                   revision: outcome.prereview.revision,
                 })}
               </p>
-              {outcome.prereview.revision === revision.revision &&
-                editable &&
-                outcome.status === "review_pending" &&
-                onAdoptPrereview &&
-                outcome.prereview.results.some((r) => r.suggestion === "likely_pass") && (
+              {canAdoptPrereview && onAdoptPrereview && (
                   <OutcomeButton
                     variant="default"
                     disabled={busy}
@@ -461,7 +473,7 @@ export function ReviewPanel({
                   </OutcomeButton>
                 )}
             </div>
-            {outcome.prereview.revision !== revision.revision ? (
+            {isStalePrereview ? (
               <p role="alert" className="text-xs text-amber-600 dark:text-amber-400">
                 {translateCurrent(
                   "This preliminary review is from revision {prerev} and cannot be adopted on revision {rev}. Review criteria individually.",
@@ -471,13 +483,6 @@ export function ReviewPanel({
             ) : (
               <>
                 {!currentReview?.report && <p className="outcome-result-conclusion whitespace-pre-wrap">{outcome.prereview.summary}</p>}
-                {attentionResults.length > 0 && renderSuggestions(attentionResults)}
-                {otherSuggestions.length > 0 && (
-                  <details className="outcome-technical">
-                    <summary>{translateCurrent("Other review suggestions")}</summary>
-                    {renderSuggestions(otherSuggestions)}
-                  </details>
-                )}
                 {!currentReview?.report && outcome.prereview.attention.length > 0 && (
                   <div className="outcome-result-attention">
                     <strong className="outcome-result-attention-title">
@@ -490,10 +495,28 @@ export function ReviewPanel({
                     </ul>
                   </div>
                 )}
+                {attentionResults.length > 0 && renderSuggestions(attentionResults, false)}
+                {attentionRationales.length > 0 && (
+                  <details className="outcome-technical">
+                    <summary>
+                      {translateCurrent("Review rationale")} · {translateCurrent("{count} items", { count: attentionRationales.length })}
+                    </summary>
+                    {renderSuggestions(attentionRationales, true)}
+                  </details>
+                )}
+                {otherSuggestions.length > 0 && (
+                  <details className="outcome-technical">
+                    <summary>
+                      {translateCurrent("Other review suggestions")} · {translateCurrent("{count} items", { count: otherSuggestions.length })}
+                    </summary>
+                    {renderSuggestions(otherSuggestions, true)}
+                  </details>
+                )}
               </>
             )}
           </section>
-        )}
+          );
+        })()}
         {!receiptReview &&
           reviewStatus !== "pending" &&
           current &&

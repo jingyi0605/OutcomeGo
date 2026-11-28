@@ -37,6 +37,45 @@ test("ReviewPanel renders preliminary review summary, attention questions, and A
   expect(html).toContain("Adopt likely-pass items");
 });
 
+test("ReviewPanel keeps attention criterion rationales collapsed under Review rationale", () => {
+  const html = renderToStaticMarkup(
+    createElement(I18nProvider, {
+      children: createElement(ReviewPanel, {
+        outcome: {
+          ...outcomeFixture,
+          status: "review_pending",
+          prereview: {
+            turnId: "turn-pre-2",
+            revision: 1,
+            summary: "Main output is ready; one verification check is still missing.",
+            attention: [{ criterionId: "criterion-1", question: "Did the device test pass on Android?" }],
+            results: [
+              {
+                criterionId: "criterion-1",
+                suggestion: "unclear",
+                reason: "Detailed technical audit log citing ChatScreen.kt:509 and missing adb device receipt.",
+                evidenceIds: [],
+              },
+            ],
+            createdAt: new Date().toISOString(),
+          },
+        },
+        busy: false,
+        onSubmit: () => {},
+        onAdoptPrereview: () => {},
+        onRework: () => {},
+      }),
+    })
+  );
+  const [layer1, layer2 = ""] = html.split('<details class="outcome-technical">');
+  expect(layer1).toContain("Main output is ready; one verification check is still missing.");
+  expect(layer1).toContain("Did the device test pass on Android?");
+  expect(layer1).toContain("AI prereview: needs check");
+  expect(layer1).not.toContain("Detailed technical audit log citing ChatScreen.kt:509");
+  expect(layer2).toContain("Review rationale");
+  expect(layer2).toContain("Detailed technical audit log citing ChatScreen.kt:509");
+});
+
 test("ReviewPanel blocks Adopt button and warns when prereview revision is stale", () => {
   const html = renderToStaticMarkup(
     createElement(I18nProvider, {
