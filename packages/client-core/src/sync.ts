@@ -4,6 +4,7 @@ import type {
   ClientBootstrapView,
   ProductEvent,
 } from "@outcomego/contracts";
+import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/group-tasks";
 import type { ProductEventHandlers } from "./events";
 
 export const LIVE_SYNC_DEBOUNCE_MS = 50;
@@ -14,7 +15,7 @@ export const LIVE_SYNC_DEGRADED_FALLBACK_MS = 15_000;
 export const RUNTIME_REFRESH_MS = 30_000;
 
 export const shouldRefreshForEvent = (event: ProductEvent): boolean => {
-  if (event.topic === "message.delta" || event.topic === "conversation.attached" || event.topic === "goal.progress.updated" || event.topic === "goal.status.changed" || event.topic === "goal.thread.updated" || event.topic === "goal.schedule.changed") return false;
+  if (event.topic === "message.delta" || event.topic === "conversation.attached" || event.topic === "goal.progress.updated" || event.topic === "goal.status.changed" || event.topic === "goal.thread.updated" || event.topic === "goal.schedule.changed" || event.topic === GROUP_TASK_CHANGED_TOPIC) return false;
   if (event.topic === "run_item.started" || event.topic === "run_item.completed") {
     const item = (event.payload as { item?: { type?: string } } | null)?.item;
     return !item?.type || !["agentMessage", "reasoning", "plan"].includes(item.type);

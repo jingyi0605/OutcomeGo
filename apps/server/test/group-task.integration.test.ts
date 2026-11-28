@@ -1,9 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { ApiError, type DynamicToolCallRequest } from "@outcomego/contracts";
-import type { GroupTaskView } from "@outcomego/contracts/group-tasks";
+import { GROUP_TASK_CHANGED_TOPIC, type GroupTaskView } from "@outcomego/contracts/group-tasks";
 import { createPrismaClient } from "@outcomego/db";
 import { GroupTaskService, releaseGroupTasksForBots, type ToolContext } from "@outcomego/messaging";
 import { GroupTaskTools } from "../src/services/group-task-tools";
+import { ActivityService } from "../src/services/activity-service";
+import { ScheduleService } from "../src/services/schedule-service";
 
 // specs/010-群任务看板: needs a disposable database that already has the current schema.
 const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL;
@@ -169,6 +171,27 @@ suite("group task board", () => {
     await tasks.update(group.id, { kind: "bot", botId: other.bot.id }, task!.number, { status: "done", note: "Verified" }, other.scope);
     expect(await code(tasks.assertWorkClaim(group.id, other.bot.id, other.scope.runId))).toBe("group_task_claim_required");
     expect(await code(tasks.create(group.id, owner.bot.id, { title: "Try again" }, owner.scope))).toBe("group_task_duplicate");
+  });
+
+  test("Outcome activity and calendar project the same task and current status", async () => {
+    const { tasks, group, a } = await fixture();
+    const { task } = await tasks.create(group.id, a.id, { title: "Shared work", assignTo: "me" });
+    const id = `group_task:${task.id}`;
+    const link = { type: "channel", id: group.id };
+    const activity = new ActivityService(db);
+    const schedule = new ScheduleService(db);
+    const instant = Date.parse(task.createdAt);
+    const calendar = () => schedule.list("local", {
+      from: new Date(instant - 60_000).toISOString(), to: new Date(instant + 60_000).toISOString(), kinds: ["group_task"], botId: a.id,
+    }, new Date(), "UTC");
+    expect((await activity.list({ botId: a.id })).items).toContainEqual(expect.objectContaining({ id, link, state: "in_progress" }));
+    expect((await calendar()).items).toEqual([expect.objectContaining({
+      id, link, state: "in_progress", start: task.createdAt.slice(0, 10), allDay: true, editable: false,
+    })]);
+    await tasks.update(group.id, { kind: "bot", botId: a.id }, task.number, { status: "done", note: "Completed" });
+    expect((await activity.list({ botId: a.id })).items).toContainEqual(expect.objectContaining({ id, link, state: "completed" }));
+    expect((await calendar()).items).toEqual([expect.objectContaining({ id, link, state: "completed" })]);
+    expect(await db.event.count({ where: { topic: GROUP_TASK_CHANGED_TOPIC, entityId: group.id } })).toBe(2);
   });
 
   test("owner moves through the states; others are refused; finished tasks stay finished", async () => {

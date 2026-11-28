@@ -48,6 +48,7 @@
 [data-cal-kind="goal_due"] { --cal-item-color: var(--cal-kind-goal_due, #2563eb); }
 [data-cal-kind="human_task"] { --cal-item-color: var(--cal-kind-human_task, #d97706); }
 [data-cal-kind="work_item"] { --cal-item-color: var(--cal-kind-work_item, #7c3aed); }
+[data-cal-kind="group_task"] { --cal-item-color: var(--cal-kind-work_item, #7c3aed); }
 [data-cal-kind="todo"] { --cal-item-color: var(--cal-kind-todo, #059669); }
 [data-cal-kind="follow_up"] { --cal-item-color: var(--cal-kind-follow_up, #0284c7); }
 [data-cal-kind="scheduled_once"] { --cal-item-color: var(--cal-kind-scheduled_once, #0d9488); }

@@ -4,6 +4,38 @@ import { ActivityService } from "../src/services/activity-service";
 import { ScheduleService } from "../src/services/schedule-service";
 
 describe("ActivityService and ScheduleService request filtering & owner stop", () => {
+  test("a group task keeps its identity and creation date as its live status changes", async () => {
+    const task = {
+      id: "shared-task", channelId: "room", channel: { name: "Team" }, number: 3, title: "Verify the release",
+      status: "in_progress", note: null, assigneeBotId: "bot",
+      createdAt: new Date("2026-11-27T23:30:00Z"), updatedAt: new Date("2026-11-28T00:00:00Z"),
+    };
+    const prisma = {
+      featureSettings: { findUnique: async () => null },
+      run: { findMany: async () => [] },
+      routine: { findMany: async () => [] },
+      outcomeWorkItem: { findMany: async () => [] },
+      outcome: { findMany: async () => [] },
+      groupTask: { findMany: async () => [task] },
+    } as never;
+    const activity = new ActivityService(prisma);
+    const schedule = new ScheduleService(prisma);
+    const now = new Date("2026-11-28T01:00:00Z");
+    const calendar = () => schedule.list("local", {
+      from: "2026-11-27T16:00:00Z", to: "2026-11-28T16:00:00Z", kinds: ["group_task"],
+    }, now, "Asia/Singapore");
+    const shared = { id: "group_task:shared-task", title: "Team · #3 Verify the release", link: { type: "channel", id: "room" } };
+    expect((await activity.list({}, now)).items).toEqual([expect.objectContaining({ ...shared, state: "in_progress" })]);
+    expect((await calendar()).items).toEqual([expect.objectContaining({
+      ...shared, state: "in_progress", start: "2026-11-28", allDay: true, editable: false,
+    })]);
+    task.status = "done";
+    expect((await activity.list({}, now)).items).toEqual([expect.objectContaining({ ...shared, state: "completed" })]);
+    expect((await calendar()).items).toEqual([expect.objectContaining({
+      ...shared, state: "completed", start: "2026-11-28",
+    })]);
+  });
+
   test("needsMe and list use the aligned active-request filter and active-worker filter", async () => {
     const runQueries: unknown[] = [];
     const subagentQueries: unknown[] = [];
@@ -39,6 +71,7 @@ describe("ActivityService and ScheduleService request filtering & owner stop", (
         },
       },
       routine: { findMany: async () => [] },
+      groupTask: { findMany: async () => [] },
       outcomeWorkItem: { findMany: async () => [] },
       outcome: { findMany: async () => [] },
     } as never;

@@ -294,6 +294,7 @@ export function OutcomeDashboard({
   onShowSteps,
   onShowGoals,
   onOpenChannel,
+  onOpenGroupTasks,
   onOpenRoutine,
   activityPolicy,
   refreshVersion = 0,
@@ -310,6 +311,7 @@ export function OutcomeDashboard({
   onCreateIdea?: () => void;
   /** Opens a channel's conversation: where a request or a channel routine leads. Without it those rows are text only. */
   onOpenChannel?: (channelId: string) => void;
+  onOpenGroupTasks?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId: string) => void;
   /** The owner's choices for the activity area; each falls back to the policy's initial value. */
   activityPolicy?: { cardMaxItems?: number | undefined };
@@ -445,12 +447,14 @@ export function OutcomeDashboard({
       });
     }
   }
+  const channelOpener = (item: ActivityItem) =>
+    item.type === "group_task" ? onOpenGroupTasks ?? onOpenChannel : onOpenChannel;
   const canOpenActivity = (item: ActivityItem) =>
-    item.link.type === "outcome" || (item.link.type === "channel" && onOpenChannel !== undefined) ||
+    item.link.type === "outcome" || (item.link.type === "channel" && channelOpener(item) !== undefined) ||
       (item.link.type === "routine" && onOpenRoutine !== undefined);
   const openActivity = (item: ActivityItem) => {
     if (item.link.type === "outcome") onSelectOutcome(item.link.id);
-    else if (item.link.type === "channel") onOpenChannel?.(item.link.id);
+    else if (item.link.type === "channel") channelOpener(item)?.(item.link.id);
     else if (item.link.type === "routine") onOpenRoutine?.(item.link.id, item.botId);
   };
   const jumpToInProgress = () => {
@@ -578,7 +582,7 @@ export function OutcomeDashboard({
         description={null}
         emptyLabel="No goals in progress."
         items={inProgressItems}
-        botName={(botId) => bots.find((bot) => bot.id === botId)?.name ?? t("Bot")}
+        botName={(botId) => bots.find((bot) => bot.id === botId)?.name ?? t(botId ? "Bot" : "Unassigned")}
         cardMaxItems={cardMaxItems}
         showAll={showAll}
         showAllToggle={data?.activity != null}
@@ -615,7 +619,7 @@ export function OutcomeDashboard({
           title="Recently completed"
           description={null}
           items={completedItems}
-          botName={(botId) => bots.find((bot) => bot.id === botId)?.name ?? t("Bot")}
+          botName={(botId) => bots.find((bot) => bot.id === botId)?.name ?? t(botId ? "Bot" : "Unassigned")}
           cardMaxItems={cardMaxItems}
           showAll={false}
           showAllToggle={false}
