@@ -24,6 +24,19 @@ const NonBlank = Schema.String.pipe(Schema.pattern(/\S/));
 export const PlanSummary = NonBlank.pipe(Schema.maxLength(2_000));
 export const OutcomeTriageMemoryFacts = Schema.Array(NonBlank.pipe(Schema.maxLength(500)));
 
+/** Progressive-disclosure bounds enforced on new SavePlanAdvice writes while stored records remain readable. */
+export const PLAN_ADVICE_LIMITS = {
+  summaryChars: 160,
+  maxFacts: 6,
+  factStatementChars: 160,
+  factSourceChars: 200,
+  maxGaps: 5,
+  gapChars: 140,
+  maxRecommendations: 5,
+  recommendationActionChars: 120,
+  recommendationReasonChars: 200,
+} as const;
+
 export const PlanAdviceFields = Schema.Struct({
   summary: PlanSummary,
   facts: Schema.Array(Schema.Struct({
@@ -37,6 +50,23 @@ export const PlanAdviceFields = Schema.Struct({
     needsOwnerConfirm: Schema.Boolean,
     reason: Schema.optional(NonBlank),
   })),
+  suggestedKind: Schema.optional(OutcomeTriageKind),
+});
+
+export const ConcisePlanAdviceFields = Schema.Struct({
+  summary: NonBlank.pipe(Schema.maxLength(PLAN_ADVICE_LIMITS.summaryChars)),
+  facts: Schema.Array(Schema.Struct({
+    statement: NonBlank.pipe(Schema.maxLength(PLAN_ADVICE_LIMITS.factStatementChars)),
+    source: NonBlank.pipe(Schema.maxLength(PLAN_ADVICE_LIMITS.factSourceChars)),
+    verifiedAt: Schema.optional(NonBlank),
+  })).pipe(Schema.maxItems(PLAN_ADVICE_LIMITS.maxFacts)),
+  gaps: Schema.Array(NonBlank.pipe(Schema.maxLength(PLAN_ADVICE_LIMITS.gapChars)))
+    .pipe(Schema.maxItems(PLAN_ADVICE_LIMITS.maxGaps)),
+  recommendations: Schema.Array(Schema.Struct({
+    action: NonBlank.pipe(Schema.maxLength(PLAN_ADVICE_LIMITS.recommendationActionChars)),
+    needsOwnerConfirm: Schema.Boolean,
+    reason: Schema.optional(NonBlank.pipe(Schema.maxLength(PLAN_ADVICE_LIMITS.recommendationReasonChars))),
+  })).pipe(Schema.maxItems(PLAN_ADVICE_LIMITS.maxRecommendations)),
   suggestedKind: Schema.optional(OutcomeTriageKind),
 });
 

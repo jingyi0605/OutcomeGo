@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { Schema } from "effect";
-import { OutcomePlanAdvice, OutcomePlanMode, OutcomeTriageResult, TurnAccessMode } from "../src/outcome-plan";
+import { OutcomePlanAdvice, OutcomePlanMode, OutcomeTriageResult, PLAN_ADVICE_LIMITS, TurnAccessMode } from "../src/outcome-plan";
 import {
   decodeOutcomeThreadInput,
   OUTCOME_GOAL_THREAD_TOOLS,
@@ -47,14 +47,35 @@ test("a superseded Plan revision can be returned as cancelled with its skip reas
   expect(OUTCOME_THREAD_TURN_STATUSES).toContain(turn.status);
 });
 
-test("Plan advice requires a sourced result and keeps the storage version separate from agent input", () => {
+test("Plan advice enforces progressive-disclosure write bounds while keeping legacy stored records readable", () => {
   const decodeAdvice = Schema.decodeUnknownSync(OutcomePlanAdvice);
   expect(decodeAdvice({ schemaVersion: 1, ...advice }, strict)).toEqual({ schemaVersion: 1, ...advice });
+  // Stored records created before concise bounds remain readable.
+  const legacyStored = {
+    schemaVersion: 1 as const,
+    summary: "x".repeat(500),
+    facts: Array.from({ length: 8 }, (_, index) => ({ statement: `Fact ${index}`, source: "legacy-log.txt" })),
+    gaps: ["y".repeat(250)],
+    recommendations: [{ action: "z".repeat(180), needsOwnerConfirm: true, reason: "r".repeat(300) }],
+  };
+  expect(decodeAdvice(legacyStored, strict)).toEqual(legacyStored);
   expect(() => decodeAdvice({ schemaVersion: 2, ...advice }, strict)).toThrow();
   expect(decodeOutcomeThreadInput("SavePlanAdvice", { ...advice, clientRequestId })).toEqual({ ...advice, clientRequestId });
   for (const extra of [
-    { summary: "x".repeat(2001) }, { summary: "   " }, { suggestedKind: "tracked" },
-    { schemaVersion: 1 }, { facts: [{ statement: "No source" }] }, { recommendations: [{ action: "Check" }] },
+    { summary: "x".repeat(PLAN_ADVICE_LIMITS.summaryChars + 1) },
+    { summary: "   " },
+    { suggestedKind: "tracked" },
+    { schemaVersion: 1 },
+    { facts: [{ statement: "No source" }] },
+    { facts: Array.from({ length: PLAN_ADVICE_LIMITS.maxFacts + 1 }, (_, i) => ({ statement: `F${i}`, source: "s" })) },
+    { facts: [{ statement: "x".repeat(PLAN_ADVICE_LIMITS.factStatementChars + 1), source: "s" }] },
+    { facts: [{ statement: "ok", source: "x".repeat(PLAN_ADVICE_LIMITS.factSourceChars + 1) }] },
+    { gaps: Array.from({ length: PLAN_ADVICE_LIMITS.maxGaps + 1 }, (_, i) => `G${i}`) },
+    { gaps: ["x".repeat(PLAN_ADVICE_LIMITS.gapChars + 1)] },
+    { recommendations: [{ action: "Check" }] },
+    { recommendations: Array.from({ length: PLAN_ADVICE_LIMITS.maxRecommendations + 1 }, (_, i) => ({ action: `R${i}`, needsOwnerConfirm: false })) },
+    { recommendations: [{ action: "x".repeat(PLAN_ADVICE_LIMITS.recommendationActionChars + 1), needsOwnerConfirm: false }] },
+    { recommendations: [{ action: "Check", needsOwnerConfirm: false, reason: "x".repeat(PLAN_ADVICE_LIMITS.recommendationReasonChars + 1) }] },
   ]) {
     expect(() => decodeOutcomeThreadInput("SavePlanAdvice", { ...advice, clientRequestId, ...extra })).toThrow();
   }

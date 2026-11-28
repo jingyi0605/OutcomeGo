@@ -225,3 +225,21 @@ test("review turns and work-item runs carry no scheduling guidance", async () =>
     expect(ctx).not.toContain("startAt");
   }
 });
+
+test("advice and review turns carry single-pass progressive disclosure guidance", async () => {
+  const adviceDb = makeContextDb("plan");
+  adviceDb.outcomeThreadTurn.findFirst = async () => ({ purpose: "plan", planMode: "advice", workItemId: null });
+  const adviceCtx = await outcomeThreadContext(adviceDb as never, "bot-role", "thread-1");
+  expect(adviceCtx).toContain("## Outcome advice");
+  expect(adviceCtx).toContain("progressive disclosure");
+  expect(adviceCtx).toContain("Layer 1");
+  expect(adviceCtx).toContain("Layer 2");
+  expect(adviceCtx).toContain("Keep internal IDs, tool names, file paths");
+  expect(adviceCtx).toContain("SavePlanAdvice");
+
+  const reviewCtx = await outcomeThreadContext(makeContextDb("review", { withPlanNotes: true }) as never, "bot-role", "thread-1");
+  expect(reviewCtx).toContain("progressive disclosure");
+  expect(reviewCtx).toContain("Layer 1");
+  expect(reviewCtx).toContain("Layer 2");
+  expect(reviewCtx).toContain("results[].reason");
+});

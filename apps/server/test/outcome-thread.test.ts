@@ -377,3 +377,104 @@ test("Plan routes to the configured planner without changing outcome.botId; list
   expect(listed.reviewTurns).toHaveLength(1);
   expect(listed.reviewTurns?.[0]?.result).toEqual({ summary: "ok" });
 });
+
+test("SavePlanAdvice and SubmitPrereview return field-specific errors when progressive-disclosure limits are exceeded", async () => {
+  const makeTools = (turn: { purpose: string; planMode: string | null }) => {
+    const prisma: Row = {
+      featureSettings: { findUnique: async () => ({ outcomesEnabled: true }) },
+      outcomeThreadTurn: {
+        findUnique: async () => ({
+          id: "turn-1",
+          runId: "run-1",
+          purpose: turn.purpose,
+          planMode: turn.planMode,
+          triggerBy: "owner:local",
+          thread: { outcomeId: GOAL, botId: "bot-role", outcome: { ownerId: "local" } },
+        }),
+      },
+    };
+    return new OutcomeThreadTools(
+      prisma as never,
+      {} as never,
+      undefined,
+      { submitPrereview: async () => ({} as never), reviewTaskResult: async () => ({} as never) }
+    );
+  };
+  const ctx = {
+    runId: "run-1",
+    botId: "bot-role",
+    channelId: "dm-1",
+    conversationId: "conv-1",
+    callId: "call-1",
+    isFork: false,
+    replyToMessageId: null,
+    deliveryId: null,
+    origin: "outcome_thread",
+  } as const;
+
+  const adviceTools = makeTools({ purpose: "plan", planMode: "advice" });
+  await expect(
+    adviceTools.execute(
+      {
+        tool: "SavePlanAdvice",
+        arguments: {
+          summary: "x".repeat(161),
+          facts: [],
+          gaps: [],
+          recommendations: [],
+          clientRequestId: "adv-1",
+        },
+      } as never,
+      ctx
+    )
+  ).rejects.toThrow("summary must be <= 160 characters");
+
+  await expect(
+    adviceTools.execute(
+      {
+        tool: "SavePlanAdvice",
+        arguments: {
+          summary: "Short summary",
+          facts: Array.from({ length: 7 }, (_, i) => ({ statement: `Fact ${i}`, source: "src" })),
+          gaps: [],
+          recommendations: [],
+          clientRequestId: "adv-2",
+        },
+      } as never,
+      ctx
+    )
+  ).rejects.toThrow("facts cannot exceed 6 items");
+
+  const reviewTools = makeTools({ purpose: "review", planMode: null });
+  await expect(
+    reviewTools.execute(
+      {
+        tool: "SubmitPrereview",
+        arguments: {
+          expectedRevision: 1,
+          results: [{ criterionId: GOAL, suggestion: "likely_pass", reason: "ok" }],
+          conclusion: ["x".repeat(51)],
+          attention: [],
+          clientRequestId: "rev-1",
+        },
+      } as never,
+      ctx
+    )
+  ).rejects.toThrow("conclusion[0] must be <= 50 characters");
+
+  await expect(
+    reviewTools.execute(
+      {
+        tool: "SubmitPrereview",
+        arguments: {
+          expectedRevision: 1,
+          results: [{ criterionId: GOAL, suggestion: "likely_pass", reason: "ok" }],
+          conclusion: ["Short item one.", "x".repeat(31)],
+          attention: [],
+          clientRequestId: "rev-2",
+        },
+      } as never,
+      ctx
+    )
+  ).rejects.toThrow("conclusion[1] must be <= 30 characters");
+});

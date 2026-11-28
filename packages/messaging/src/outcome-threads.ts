@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { join, posix } from "node:path";
 import { ApiError, type ServerInferenceSettings } from "@outcomego/contracts";
+import { PLAN_ADVICE_LIMITS } from "@outcomego/contracts/outcome-plan";
 import {
   MISSED_SCHEDULE_CONFIRMED_REASON,
   MISSED_SCHEDULE_OPTION_IDS,
@@ -860,7 +861,7 @@ export async function outcomeThreadContext(
       "- For facts about external systems or the real world, only external records, deterministic checks, and human receipts count as evidence—an executing bot's statement alone is never sufficient; mark missing evidence `unclear` (never `likely_pass` or `likely_fail`). For criteria verified via deterministic_check, check that recorded check evidence passed without re-running work yourself.",
       "- Decide for yourself how to gather facts: GetOutcome for the saved records, Read or a read-only Shell for files. Then call SubmitPrereview once with one result per criterion. Its `conclusion` is the owner-facing opening of the report: either one complete sentence of at most 50 characters, or 2 to 5 complete items of at most 30 characters each (the app numbers them; do not number them yourself). Every sentence or item names its subject, states the concrete recorded fact with its figure, and says what it means for the decision. Fragments such as a bare label plus a number are not acceptable. When the goal is quantitative, cover every decision-driving figure, grouping like-for-like readings. When a required criterion is unclear, state its most important unresolved fact in the conclusion itself. Process details, evidence explanations and notes belong in the criterion reasons, not in the conclusion.",
       OWNER_REPORT_GUIDANCE,
-      "- SubmitPrereview is the only submission: its conclusion is the report opening, not a second document. Write each attention item as a concrete question. Cite the evidence IDs behind each criterion.",
+      "- SubmitPrereview is the only submission and follows progressive disclosure: Layer 1 (shown first) is `conclusion` plus `attention`—keep each attention item to one short concrete question for the owner (no logs, file paths or repeated rationale). Layer 2 (collapsed until expanded) is `results[].reason` and `evidenceIds`, where all per-criterion evidence explanations and technical details belong.",
       "- If comparable figures help the owner decide, include up to two charts in the same SubmitPrereview call. Each point cites either an evidenceId or a saved output `file` path, plus the exact excerpt containing its label, its single reading and the unit; the app verifies the excerpt exists in that source and shows where it came from. Never estimate, calculate or invent figures. Omit charts when the records do not support them. If the submission is rejected, read the error, correct that field and submit again.",
       "- You are advisory only: you cannot approve, reject, or accept on behalf of the user.",
     ].join("\n");
@@ -888,10 +889,13 @@ export async function outcomeThreadContext(
     return [
       "## Outcome advice",
       JSON.stringify(contextPayload),
-      "Research this Outcome without executing its work. Use GetOutcome and available read-only tools to report status, verified facts, missing information and time risks. Save the brief with SavePlanAdvice when available, and leave a complete, concise final message.",
+      "Research this Outcome without executing its work. Use GetOutcome and available read-only tools to verify status, key facts, blocking unknowns and risks, then call SavePlanAdvice once.",
       "- This is an analysis pass. Do not change the contract, plan, schedule, task state or external systems.",
-      "- Use only facts present in the saved goal, task, outputs, evidence and progress records. Mark unknown facts as unknown.",
-      "- Keep the result concise and concrete. Mention whether the owner needs to act.",
+      "- Use only verified facts from the saved goal, task, outputs, evidence, progress records or read-only inspection. Mark unknown facts as unknown.",
+      OWNER_REPORT_GUIDANCE,
+      `- Structure SavePlanAdvice for progressive disclosure in this single pass: Layer 1 (shown first to the owner) is \`summary\` (1-2 plain-language sentences, <=${PLAN_ADVICE_LIMITS.summaryChars} chars, stating the core finding and whether the owner must decide) and \`recommendations\` (up to ${PLAN_ADVICE_LIMITS.maxRecommendations}; each \`action\` <=${PLAN_ADVICE_LIMITS.recommendationActionChars} chars, set \`needsOwnerConfirm\` when the owner must decide). Keep file paths, code expressions, commits, UUIDs and tool names out of \`summary\`, \`facts[].statement\`, and \`recommendations[].action\`.`,
+      `- Layer 2 (collapsed until expanded) holds supporting details: \`facts\` (only decision-driving facts, up to ${PLAN_ADVICE_LIMITS.maxFacts}, \`statement\` <=${PLAN_ADVICE_LIMITS.factStatementChars} chars; put file paths, commits, IDs and tool provenance in \`source\` <=${PLAN_ADVICE_LIMITS.factSourceChars} chars), \`gaps\` (blocking unknowns only, up to ${PLAN_ADVICE_LIMITS.maxGaps}, <=${PLAN_ADVICE_LIMITS.gapChars} chars each), and \`recommendations[].reason\` (<=${PLAN_ADVICE_LIMITS.recommendationReasonChars} chars). If SavePlanAdvice rejects a field for length or count, trim that field and resubmit in the same turn.`,
+      "- After SavePlanAdvice succeeds, leave a 1-2 sentence final message summarizing the key conclusion and next step—do not repeat the full brief.",
     ].join("\n");
   }
   return [

@@ -1,6 +1,10 @@
 import { ApiError, type DynamicToolCallRequest } from "@outcomego/contracts";
 import { outcomeDeepLink } from "@outcomego/contracts/app-deep-links";
+import { PLAN_ADVICE_LIMITS } from "@outcomego/contracts/outcome-plan";
 import {
+  CONCLUSION_ITEM_CHARS,
+  CONCLUSION_MAX_ITEMS,
+  CONCLUSION_SENTENCE_CHARS,
   decodeOutcomeThreadInput,
   goalThreadToolsForPurpose,
   OUTCOME_GOAL_THREAD_TOOL_NAMES,
@@ -35,6 +39,133 @@ const nextStep = (outcome: OutcomeDetail) =>
   outcome.currentRevisionView?.status === "pending_approval"
     ? "Saved for the owner's approval in the app. The goal has not started and you cannot approve it. If you have a question or a reply for the owner, put it in your final message."
     : "Saved. Report the server's current status in your final message.";
+
+const inspectSavePlanAdvicePreDecodeError = (args: unknown): ApiError | null => {
+  if (!args || typeof args !== "object" || Array.isArray(args)) return null;
+  const raw = args as Record<string, unknown>;
+  if (typeof raw.summary === "string" && raw.summary.length > PLAN_ADVICE_LIMITS.summaryChars) {
+    return new ApiError(
+      400,
+      "invalid_request",
+      `summary must be <= ${PLAN_ADVICE_LIMITS.summaryChars} characters; keep it to 1-2 short plain-language sentences and put supporting details in facts`,
+      { field: "summary", limit: PLAN_ADVICE_LIMITS.summaryChars }
+    );
+  }
+  if (Array.isArray(raw.facts)) {
+    if (raw.facts.length > PLAN_ADVICE_LIMITS.maxFacts) {
+      return new ApiError(
+        400,
+        "invalid_request",
+        `facts cannot exceed ${PLAN_ADVICE_LIMITS.maxFacts} items; keep only decision-driving facts`,
+        { field: "facts", limit: PLAN_ADVICE_LIMITS.maxFacts }
+      );
+    }
+    for (let index = 0; index < raw.facts.length; index++) {
+      const fact = raw.facts[index];
+      if (!fact || typeof fact !== "object" || Array.isArray(fact)) continue;
+      const row = fact as Record<string, unknown>;
+      if (typeof row.statement === "string" && row.statement.length > PLAN_ADVICE_LIMITS.factStatementChars) {
+        return new ApiError(
+          400,
+          "invalid_request",
+          `facts[${index}].statement must be <= ${PLAN_ADVICE_LIMITS.factStatementChars} characters; put paths, commits and IDs in source`,
+          { field: `facts[${index}].statement`, limit: PLAN_ADVICE_LIMITS.factStatementChars }
+        );
+      }
+      if (typeof row.source === "string" && row.source.length > PLAN_ADVICE_LIMITS.factSourceChars) {
+        return new ApiError(
+          400,
+          "invalid_request",
+          `facts[${index}].source must be <= ${PLAN_ADVICE_LIMITS.factSourceChars} characters`,
+          { field: `facts[${index}].source`, limit: PLAN_ADVICE_LIMITS.factSourceChars }
+        );
+      }
+    }
+  }
+  if (Array.isArray(raw.gaps)) {
+    if (raw.gaps.length > PLAN_ADVICE_LIMITS.maxGaps) {
+      return new ApiError(
+        400,
+        "invalid_request",
+        `gaps cannot exceed ${PLAN_ADVICE_LIMITS.maxGaps} items; keep only blocking unknowns`,
+        { field: "gaps", limit: PLAN_ADVICE_LIMITS.maxGaps }
+      );
+    }
+    for (let index = 0; index < raw.gaps.length; index++) {
+      const gap = raw.gaps[index];
+      if (typeof gap === "string" && gap.length > PLAN_ADVICE_LIMITS.gapChars) {
+        return new ApiError(
+          400,
+          "invalid_request",
+          `gaps[${index}] must be <= ${PLAN_ADVICE_LIMITS.gapChars} characters`,
+          { field: `gaps[${index}]`, limit: PLAN_ADVICE_LIMITS.gapChars }
+        );
+      }
+    }
+  }
+  if (Array.isArray(raw.recommendations)) {
+    if (raw.recommendations.length > PLAN_ADVICE_LIMITS.maxRecommendations) {
+      return new ApiError(
+        400,
+        "invalid_request",
+        `recommendations cannot exceed ${PLAN_ADVICE_LIMITS.maxRecommendations} items`,
+        { field: "recommendations", limit: PLAN_ADVICE_LIMITS.maxRecommendations }
+      );
+    }
+    for (let index = 0; index < raw.recommendations.length; index++) {
+      const rec = raw.recommendations[index];
+      if (!rec || typeof rec !== "object" || Array.isArray(rec)) continue;
+      const row = rec as Record<string, unknown>;
+      if (typeof row.action === "string" && row.action.length > PLAN_ADVICE_LIMITS.recommendationActionChars) {
+        return new ApiError(
+          400,
+          "invalid_request",
+          `recommendations[${index}].action must be <= ${PLAN_ADVICE_LIMITS.recommendationActionChars} characters; put background rationale in reason`,
+          { field: `recommendations[${index}].action`, limit: PLAN_ADVICE_LIMITS.recommendationActionChars }
+        );
+      }
+      if (typeof row.reason === "string" && row.reason.length > PLAN_ADVICE_LIMITS.recommendationReasonChars) {
+        return new ApiError(
+          400,
+          "invalid_request",
+          `recommendations[${index}].reason must be <= ${PLAN_ADVICE_LIMITS.recommendationReasonChars} characters`,
+          { field: `recommendations[${index}].reason`, limit: PLAN_ADVICE_LIMITS.recommendationReasonChars }
+        );
+      }
+    }
+  }
+  return null;
+};
+
+const inspectSubmitPrereviewPreDecodeError = (args: unknown): ApiError | null => {
+  if (!args || typeof args !== "object" || Array.isArray(args)) return null;
+  const raw = args as Record<string, unknown>;
+  if (Array.isArray(raw.conclusion)) {
+    if (raw.conclusion.length === 0 || raw.conclusion.length > CONCLUSION_MAX_ITEMS) {
+      return new ApiError(
+        400,
+        "invalid_request",
+        `conclusion must have 1 to ${CONCLUSION_MAX_ITEMS} items`,
+        { field: "conclusion", limit: CONCLUSION_MAX_ITEMS }
+      );
+    }
+    const maxLen = raw.conclusion.length === 1 ? CONCLUSION_SENTENCE_CHARS : CONCLUSION_ITEM_CHARS;
+    for (let index = 0; index < raw.conclusion.length; index++) {
+      const item = raw.conclusion[index];
+      if (typeof item === "string" && item.length > maxLen) {
+        return new ApiError(
+          400,
+          "invalid_request",
+          raw.conclusion.length === 1
+            ? `conclusion[0] must be <= ${CONCLUSION_SENTENCE_CHARS} characters; put supporting rationale in results[].reason`
+            : `conclusion[${index}] must be <= ${CONCLUSION_ITEM_CHARS} characters when submitting multiple items; put supporting rationale in results[].reason`,
+          { field: `conclusion[${index}]`, limit: maxLen }
+        );
+      }
+    }
+  }
+  return null;
+};
 
 const inspectSavePlanPreDecodeError = (args: unknown): ApiError | null => {
   if (!args || typeof args !== "object" || Array.isArray(args)) return null;
@@ -110,6 +241,8 @@ export class OutcomeThreadTools {
         return this.classifications.classify({ runId: context.runId, botId: context.botId }, decode("ClassifyOutcome"));
       }
       case "SavePlanAdvice": {
+        const preError = inspectSavePlanAdvicePreDecodeError(request.arguments);
+        if (preError) throw preError;
         const { clientRequestId, ...fields } = decode("SavePlanAdvice");
         return outcomeWrite(this.prisma, `outcome-plan-advice:${turn.id}:${outcomeId}`, clientRequestId, fields, async (tx) => {
           const outcome = await lockOutcome(tx, outcomeId);
@@ -146,6 +279,8 @@ export class OutcomeThreadTools {
         if (!this.taskReviews) {
           throw new ApiError(503, "outcome_review_unavailable", "Preliminary review recording is not available");
         }
+        const preError = inspectSubmitPrereviewPreDecodeError(request.arguments);
+        if (preError) throw preError;
         const outcome = await this.taskReviews.submitPrereview(outcomeId, turn.id, decode("SubmitPrereview"), actor);
         return {
           outcome,
