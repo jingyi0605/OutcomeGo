@@ -1195,22 +1195,26 @@ export const resourcesSetExtendedCommand = async (
   // Validate container CPU against engine capacity.
   // When either engine CPU or computer CPU is being updated, check that the
   // resulting computer CPU limit does not exceed the engine's available cores.
-  if (parsedEngineCpu !== undefined || parsedComputerCpu !== undefined) {
-    if (parsedComputerCpu !== null) {
-      const snapshot = await collectResourceSnapshot(paths, runner, dependencies);
-      const effectiveEngineCpu = parsedEngineCpu ?? snapshot.engine.cpuCores;
-      if (effectiveEngineCpu !== null && parsedComputerCpu > effectiveEngineCpu) {
-        throw new EngineError(
-          "INVALID_INPUT",
-          cliTranslate(
-            "Container CPU limit ({computerCpu}) exceeds engine CPU cores ({engineCpu}). Reduce container CPU or increase engine CPU.",
-            {
-              computerCpu: parsedComputerCpu,
-              engineCpu: effectiveEngineCpu,
-            }
-          )
-        );
-      }
+  const effectiveComputerCpu =
+    parsedComputerCpu !== undefined
+      ? parsedComputerCpu
+      : parsedEngineCpu !== undefined
+        ? readLocalComputerCpu(paths)
+        : undefined;
+  if ((parsedEngineCpu !== undefined || parsedComputerCpu !== undefined) && effectiveComputerCpu != null) {
+    const snapshot = await collectResourceSnapshot(paths, runner, dependencies);
+    const effectiveEngineCpu = parsedEngineCpu ?? snapshot.engine.cpuCores;
+    if (effectiveEngineCpu != null && effectiveComputerCpu > effectiveEngineCpu) {
+      throw new EngineError(
+        "INVALID_INPUT",
+        cliTranslate(
+          "Container CPU limit ({computerCpu}) exceeds engine CPU cores ({engineCpu}). Reduce container CPU or increase engine CPU.",
+          {
+            computerCpu: effectiveComputerCpu,
+            engineCpu: effectiveEngineCpu,
+          }
+        )
+      );
     }
   }
   if (engineChanging) {

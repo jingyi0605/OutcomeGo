@@ -235,8 +235,8 @@ test('every tool a managed skill names exists under that name', async () => {
   const outcomeTools = new Set<string>(OUTCOME_CHAT_TOOL_NAMES);
   for (const file of ['calendar', 'docs', 'drive', 'drive-files', 'sheets', 'slides'])
     for (const tool of JSON.parse(await readFile(join(plugins, '_shared/reference', `${file}.json`), 'utf8')) as { name: string }[]) connectorTools.add(tool.name);
-  for (const file of ['email/connector/server.ts'])
-    for (const [, name] of (await readFile(join(plugins, file), 'utf8')).matchAll(/(?:tool\('|name: ")(\w+)['"]/g)) connectorTools.add(name!);
+  for (const file of ['email/connector/server.ts', 'whatsapp/connector/tools.ts'])
+    for (const [, name] of (await readFile(join(plugins, file), 'utf8')).matchAll(/(?:tool\(|name: )['"](\w+)['"]/g)) connectorTools.add(name!);
   const tool = (name: string) => { try { return referenceTool(name); } catch { return undefined; } };
   const argumentNames = new Set(managed.skills.flatMap(s => [...s.content.matchAll(/\b[A-Z][A-Za-z]+\b/g)].flatMap(([name]) => Object.keys(tool(name)?.inputSchema.properties ?? {}))));
   const words = new Set([

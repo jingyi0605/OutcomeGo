@@ -289,6 +289,25 @@ describe("CLI resources set validation and rollback", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("rejects reducing engine CPU below the existing container CPU limit", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "outcomego-res-engine-cpu-"));
+    try {
+      const paths = setupInstall(dir);
+      writeFileAtomic(paths.localCompose, "services:\n  computer:\n    cpus: 6\n");
+
+      await expect(
+        resourcesSetExtendedCommand(
+          paths,
+          { engineCpu: "4", yes: true },
+          new ResourcesRunner(),
+          { hostMemoryBytes: () => 32 * GIB, hostCpuCores: () => 8 }
+        )
+      ).rejects.toThrow("exceeds engine CPU cores");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("Windows .wslconfig safe backup and incremental update", () => {
