@@ -5,7 +5,6 @@ import {
   CircleHelp,
   ClipboardCheck,
   Hand,
-  Lightbulb,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -21,7 +20,7 @@ import { useI18n } from "../../../../lib/i18n";
 import { GOAL_OUTCOME_KINDS } from "../../../../lib/outcome-kinds";
 import type { InboxClient } from "../inbox/inbox-api";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
-import { OutcomeButton, OutcomeRefresh } from "../outcome-ui";
+import { OutcomeButton } from "../outcome-ui";
 import {
   attentionCategoryLabels,
   attentionRows,
@@ -294,11 +293,11 @@ export function OutcomeDashboard({
   onSelectStep,
   onShowSteps,
   onShowGoals,
-  onCreateIdea,
   onOpenChannel,
   onOpenRoutine,
   activityPolicy,
   refreshVersion = 0,
+  onBusyChange,
 }: {
   outcomes: Pick<OutcomeClient, "list" | "activity" | "stopRequest" | "needsMe" | "act" | "update" | "convert"> & GoalFocusClient;
   inbox: Pick<InboxClient, "list" | "decision" | "resolve">;
@@ -308,13 +307,14 @@ export function OutcomeDashboard({
   onShowSteps: () => void;
   onShowGoals: () => void;
   onCreateGoal?: () => void;
-  onCreateIdea: () => void;
+  onCreateIdea?: () => void;
   /** Opens a channel's conversation: where a request or a channel routine leads. Without it those rows are text only. */
   onOpenChannel?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId: string) => void;
   /** The owner's choices for the activity area; each falls back to the policy's initial value. */
   activityPolicy?: { cardMaxItems?: number | undefined };
   refreshVersion?: number;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { t } = useI18n();
   const cardMaxItems = activityPolicy?.cardMaxItems ?? (DEFAULT_POLICY["activity.cardMaxItems"] as number);
@@ -374,6 +374,9 @@ export function OutcomeDashboard({
   useEffect(() => {
     if (refreshVersion > 0) void load();
   }, [refreshVersion]);
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
 
   const goals = data?.outcomes ?? [];
   const stats = summarizeOutcomes(goals);
@@ -482,13 +485,6 @@ export function OutcomeDashboard({
             value={value(stats.total)}
             onClick={onShowGoals}
           />
-        </div>
-        <div className="outcome-toolbar-controls">
-          <OutcomeButton onClick={onCreateIdea}>
-            <Lightbulb aria-hidden="true" className="size-3.5" />
-            {t("Go")}
-          </OutcomeButton>
-          <OutcomeRefresh busy={busy} onRefresh={() => void load()} />
         </div>
       </div>
       {error && (

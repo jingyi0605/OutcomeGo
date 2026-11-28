@@ -68,6 +68,8 @@ export function OutcomeList({
   onCreate,
   fixedKind,
   refreshVersion = 0,
+  showRefresh = true,
+  onBusyChange,
 }: {
   client: OutcomeClient;
   bots: OutcomeExecutionBot[];
@@ -75,6 +77,8 @@ export function OutcomeList({
   onCreate: () => void;
   fixedKind?: "note";
   refreshVersion?: number;
+  showRefresh?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { t } = useI18n();
   const [page, setPage] = useState<OutcomeListPage | null>(null);
@@ -135,6 +139,9 @@ export function OutcomeList({
   useEffect(() => {
     if (refreshVersion > 0) void load();
   }, [refreshVersion]);
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
   const items = page?.items;
   const isNotesOnly = fixedKind === "note";
   const statusOptions: readonly OutcomeStatus[] = isNotesOnly
@@ -178,7 +185,7 @@ export function OutcomeList({
               </option>
             ))}
           </select>
-          <OutcomeRefresh busy={busy} onRefresh={() => void load()} />
+          {showRefresh && <OutcomeRefresh busy={busy} onRefresh={() => void load()} />}
         </div>
       </div>
       {error && (

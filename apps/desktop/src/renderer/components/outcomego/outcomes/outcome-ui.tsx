@@ -7,13 +7,22 @@ import "./outcome-ui.css";
 
 export { OutcomeButton } from "./outcome-button";
 
-export function OutcomeRefresh({ busy, onRefresh }: { busy: boolean; onRefresh: () => void }) {
+export function OutcomeRefresh({
+  busy,
+  onRefresh,
+  className,
+}: {
+  busy: boolean;
+  onRefresh: () => void;
+  className?: string;
+}) {
   const { t } = useI18n();
   return (
     <OutcomeButton
       variant="ghost"
       size="icon-sm"
       iconOnly
+      className={className}
       aria-label={t("Refresh from server")}
       title={t("Refresh from server")}
       disabled={busy}

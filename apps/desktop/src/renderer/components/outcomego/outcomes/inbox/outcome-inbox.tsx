@@ -30,6 +30,8 @@ export function OutcomeInbox({
   onSelect,
   refreshVersion = 0,
   initialPage,
+  showRefresh = true,
+  onBusyChange,
 }: {
   client: InboxClient;
   todos?: TodoClient;
@@ -37,6 +39,8 @@ export function OutcomeInbox({
   onSelect: (item: OutcomeInboxItemView) => void;
   refreshVersion?: number;
   initialPage?: OutcomeInboxPage;
+  showRefresh?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const { t } = useI18n();
   const [category, setCategory] = useState<InboxFilter>("pending");
@@ -97,6 +101,9 @@ export function OutcomeInbox({
       window.clearInterval(interval);
     };
   }, [client, category]);
+  useEffect(() => {
+    onBusyChange?.(category === "todos" ? false : busy);
+  }, [busy, category, onBusyChange]);
   const filters: readonly InboxFilter[] = todos
     ? ["pending", "decision_pending", "acceptance_pending", "human_action_pending", "todos", "completed"]
     : (["pending", ...Object.keys(inboxCategoryLabels)] as InboxFilter[]);
@@ -116,13 +123,15 @@ export function OutcomeInbox({
             </button>
           ))}
         </nav>
-        <OutcomeRefresh
-          busy={busy}
-          onRefresh={() => {
-            if (category === "todos") setTodoRefreshVersion((version) => version + 1);
-            else void load();
-          }}
-        />
+        {showRefresh && (
+          <OutcomeRefresh
+            busy={busy}
+            onRefresh={() => {
+              if (category === "todos") setTodoRefreshVersion((version) => version + 1);
+              else void load();
+            }}
+          />
+        )}
       </div>
       {category === "todos" && todos ? (
         <TodoPanel

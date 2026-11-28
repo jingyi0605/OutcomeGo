@@ -107,6 +107,8 @@ export type CalendarPageProps = {
   onOpenOutcome: (outcomeId: string) => void;
   onOpenChannel?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId?: string) => void;
+  refreshVersion?: number;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 function dateText(
@@ -973,6 +975,8 @@ export function CalendarPage({
   onOpenOutcome,
   onOpenChannel,
   onOpenRoutine,
+  refreshVersion = 0,
+  onBusyChange,
 }: CalendarPageProps) {
   const { t, locale } = useI18n();
   const [timeZone, setTimeZone] = useState(browserTimeZone);
@@ -1100,9 +1104,21 @@ export function CalendarPage({
     }
   }, [mine, selectedBot, selectedDate, selectedKinds, view]);
 
+  const lastRefreshVersion = useRef(refreshVersion);
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (refreshVersion !== lastRefreshVersion.current) {
+      lastRefreshVersion.current = refreshVersion;
+      void load();
+    }
+  }, [refreshVersion, load]);
+
+  useEffect(() => {
+    onBusyChange?.(loading);
+  }, [loading, onBusyChange]);
 
   useEffect(() => {
     const refresh = () => void load();

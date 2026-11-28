@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { CalendarDays, Inbox, LayoutDashboard, ListChecks, StickyNote, Target } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Inbox, LayoutDashboard, ListChecks, StickyNote, Target } from "lucide-react";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
 import { api } from "../../../../client/outcomego-api";
 import { useFeatureSettings } from "../../../../hooks/use-feature-settings";
+import { cn } from "../../../../lib/cn";
 import type { DesktopOutcomeTarget, OutcomeWorkspaceSection } from "../../../../lib/outcome-target";
 import type { OutcomeInboxItemView } from "@outcomego/contracts/outcome-inbox";
 import { OutcomeInbox } from "./outcome-inbox";
@@ -12,7 +13,7 @@ import { OutcomeDashboard } from "../dashboard/outcome-dashboard";
 import { GoalGuide } from "../showcase/goal-guide";
 import type { OutcomeExecutionBot } from "../outcome-execution-card";
 import { NewOutcomeForm } from "../thread/new-outcome-form";
-import { OutcomeButton } from "../outcome-ui";
+import { OutcomeRefresh } from "../outcome-ui";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "../../../ui/dialog";
 
 const OutcomeRouteView = lazy(() =>
@@ -79,6 +80,7 @@ export default function OutcomeWorkspace({
     setRoute(next);
   };
   const [version, setVersion] = useState(0);
+  const [refreshBusy, setRefreshBusy] = useState(false);
   const [botId, setBotId] = useState("");
   const [origin, setOrigin] = useState<Section>(() => sectionFor(target));
   const [goOpen, setGoOpen] = useState(false);
@@ -131,15 +133,33 @@ export default function OutcomeWorkspace({
             />
             {t("Outcomes")}
           </h1>
-          <OutcomeButton
-            className="electron-no-drag"
-            // The Outcome and Go guide points here when the sidebar is too narrow for its own Go.
-            data-guide-target="go"
-            variant="default"
-            onClick={() => setGoOpen(true)}
-          >
-            {t("Go")}
-          </OutcomeButton>
+          <div className="electron-no-drag flex items-center gap-1.5">
+            <OutcomeRefresh
+              className="electron-no-drag"
+              busy={refreshBusy}
+              onRefresh={() => setVersion((value) => value + 1)}
+            />
+            <button
+              type="button"
+              aria-label={t("Go")}
+              aria-pressed={goOpen}
+              title={t("Go")}
+              // The Outcome and Go guide points here when the sidebar is too narrow for its own Go.
+              data-guide-target="go"
+              onClick={() => setGoOpen(true)}
+              className={cn(
+                "electron-no-drag outcome-brand-go-button inline-flex h-9 min-w-9 shrink-0 items-center justify-center gap-px rounded-lg pl-2 pr-1.5 outline-none transition-[background-color,transform] duration-150 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-ring",
+                goOpen ? "bg-selected" : "hover:bg-hover"
+              )}
+            >
+              <span className="outcome-brand-wordmark outcome-brand-go-text text-[18px]">Go</span>
+              <ArrowUpRight
+                aria-hidden="true"
+                className="size-2.5 -translate-y-[3px] shrink-0"
+                strokeWidth={2}
+              />
+            </button>
+          </div>
         </div>
         <nav aria-label={t("Outcome sections")} className="outcome-page-tabs">
           {(
@@ -192,6 +212,8 @@ export default function OutcomeWorkspace({
                     }
                   : undefined
               }
+              refreshVersion={version}
+              onBusyChange={setRefreshBusy}
             />
           </Suspense>
         </div>
@@ -216,13 +238,13 @@ export default function OutcomeWorkspace({
                   setRoute({ kind: "all" });
                 }}
                 onCreateGoal={() => openRoute({ kind: "new" })}
-                onCreateIdea={() => setGoOpen(true)}
                 onOpenChannel={onOpenChannel}
                 onOpenRoutine={onOpenRoutine}
                 activityPolicy={{
                   cardMaxItems: policy["activity.cardMaxItems"] as number,
                 }}
                 refreshVersion={version}
+                onBusyChange={setRefreshBusy}
               />
             )}
             {tab === "all" && (
@@ -232,6 +254,8 @@ export default function OutcomeWorkspace({
                 onSelect={review}
                 onCreate={() => setGoOpen(true)}
                 refreshVersion={version}
+                showRefresh={false}
+                onBusyChange={setRefreshBusy}
               />
             )}
             {tab === "notes" && (
@@ -243,6 +267,8 @@ export default function OutcomeWorkspace({
                 onSelect={review}
                 onCreate={() => setGoOpen(true)}
                 refreshVersion={version}
+                showRefresh={false}
+                onBusyChange={setRefreshBusy}
               />
             )}
             {tab === "inbox" && (
@@ -252,6 +278,8 @@ export default function OutcomeWorkspace({
                 todoHandoff={{ bots, onSelectOutcome: review }}
                 onSelect={select}
                 refreshVersion={version}
+                showRefresh={false}
+                onBusyChange={setRefreshBusy}
               />
             )}
           </div>
