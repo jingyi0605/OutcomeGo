@@ -1,5 +1,7 @@
 import type { ProductEvent } from "./index";
 
+export const GROUP_TASK_CHANGED_TOPIC = "channel.group_tasks.changed";
+
 export const parseProductEvent = (value: unknown): ProductEvent => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Product event must be an object");

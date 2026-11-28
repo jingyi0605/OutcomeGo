@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import type { ProductEvent } from "@outcomego/contracts";
-import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/group-tasks";
+import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/event-protocol";
 import {
   OUTCOME_REFRESH_DEBOUNCE_MS,
   refreshOutcomeViews,

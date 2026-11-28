@@ -5,7 +5,6 @@ import { JSONSchema, Schema } from "effect";
 export const GROUP_TASK_STATUSES = ["open", "in_progress", "blocked", "done", "cancelled"] as const;
 export type GroupTaskStatus = (typeof GROUP_TASK_STATUSES)[number];
 export const GROUP_TASK_ACTIVE_STATUSES = ["open", "in_progress", "blocked"] as const;
-export const GROUP_TASK_CHANGED_TOPIC = "channel.group_tasks.changed";
 export const CHECK_GROUP_TASK_WORK = "CheckGroupTaskWork";
 export const GROUP_TASK_WORK_REQUIRED =
   "Before using work tools in this group, read ListGroupTasks and claim the matching task with ClaimGroupTask, or register and claim it with CreateGroupTask (assignTo: \"me\"). If a teammate owns the work, leave it with them.";

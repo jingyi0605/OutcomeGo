@@ -1,7 +1,7 @@
 import { ApiError } from "@outcomego/contracts";
+import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/event-protocol";
 import {
   GROUP_TASK_ACTIVE_STATUSES,
-  GROUP_TASK_CHANGED_TOPIC,
   GROUP_TASK_LIMITS,
   GROUP_TASK_WORK_REQUIRED,
   GroupTaskRuleError,

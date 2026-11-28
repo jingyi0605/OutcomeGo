@@ -4,7 +4,7 @@ import type {
   ClientBootstrapView,
   ProductEvent,
 } from "@outcomego/contracts";
-import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/group-tasks";
+import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/event-protocol";
 import type { ProductEventHandlers } from "./events";
 
 export const LIVE_SYNC_DEBOUNCE_MS = 50;
