@@ -96,7 +96,7 @@ import { groupRoutineState } from "./group-routine-state";
 import { lockGroupExecution, lockGroupRound, lockGroupDelivery } from "./group-supersession";
 export { lockGroupExecution, supersedeGroupUserTurns } from "./group-supersession";
 export { groupRoutineState } from "./group-routine-state";
-export { GroupTaskService, releaseGroupTasksForBots, type CreateGroupTaskInput, type UpdateGroupTaskInput, type ListGroupTasksInput } from "./group-tasks";
+export { GroupTaskService, releaseGroupTasksForBots, type CreateGroupTaskInput, type UpdateGroupTaskInput, type ListGroupTasksInput, type GroupTaskRunScope } from "./group-tasks";
 import {
   AUTOMATION_DELEGATING_SECTION,
   DELEGATING_SECTION,

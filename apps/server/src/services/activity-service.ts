@@ -1,4 +1,5 @@
 import { ApiError } from "@outcomego/contracts";
+import { GROUP_TASK_ACTIVE_STATUSES } from "@outcomego/contracts/group-tasks";
 import { truncatePreviewText } from "@outcomego/contracts/message-preview";
 import { parseOutcomeWorkItemProgress } from "@outcomego/contracts/outcomes";
 import { resolveTaskPolicy } from "@outcomego/contracts/task-policy";
@@ -29,6 +30,7 @@ import {
   stopRequestProgress,
 } from "@outcomego/messaging";
 import { readRequestTitles } from "./request-titles";
+import { groupTaskOverview, groupTaskOverviewFields } from "./group-task-overview";
 
 /** What the runtime keeps in `Run.requestProgress`: written by the bot, bounded by its tool. */
 interface StoredProgress {
@@ -96,15 +98,16 @@ export class ActivityService {
     const recentHours = query.recentHours ?? policy.recentCompletedHours;
     const cutoff = new Date(now.getTime() - recentHours * 3_600_000);
     // Each source reads its own records; they share the types, the derivation and the limit, and nothing else.
-    const [requests, routines, goalTasks, upcoming] = await Promise.all([
+    const [requests, routines, goalTasks, groupTasks, upcoming] = await Promise.all([
       this.requestItems(query, cutoff, now, policy.checkOverdueMinutes),
       this.routineItems(query, cutoff),
       this.goalTaskItems(query, now),
+      this.groupTaskItems(query, cutoff),
       this.upcoming(query),
     ]);
     // A thing has one id (`<type>:<source id>`), so the same thing seen twice collapses to one row.
     const byId = new Map<string, ActivityItem>();
-    for (const item of [...requests, ...routines, ...goalTasks]) if (!byId.has(item.id)) byId.set(item.id, item);
+    for (const item of [...requests, ...routines, ...goalTasks, ...groupTasks]) if (!byId.has(item.id)) byId.set(item.id, item);
     const merged = [...byId.values()].sort(
       (a, b) => (a.lastActivityAt < b.lastActivityAt ? 1 : a.lastActivityAt > b.lastActivityAt ? -1 : a.id < b.id ? -1 : 1)
     );
@@ -112,6 +115,33 @@ export class ActivityService {
     const items = merged.filter((item) => !upcomingIds.has(item.id));
     return { items: items.slice(0, ACTIVITY_LIST_LIMIT), upcoming: upcoming.slice(0, ACTIVITY_LIST_LIMIT),
       truncated: items.length > ACTIVITY_LIST_LIMIT || upcoming.length > ACTIVITY_LIST_LIMIT };
+  }
+
+  private async groupTaskItems(query: ActivityQuery, cutoff: Date): Promise<ActivityItem[]> {
+    const rows = await this.prisma.groupTask.findMany({
+      where: {
+        channel: { kind: "group", archivedAt: null },
+        assigneeBotId: query.botId,
+        OR: [
+          { status: { in: [...GROUP_TASK_ACTIVE_STATUSES] } },
+          { status: "done", ...(query.includeAll ? {} : { completedAt: { gte: cutoff } }) },
+        ],
+      },
+      select: groupTaskOverviewFields,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: ACTIVITY_LIST_LIMIT + 1,
+    });
+    return rows.map((row) => ({
+      ...groupTaskOverview(row),
+      type: "group_task",
+      botId: row.assigneeBotId ?? "",
+      reason: row.status === "blocked" ? row.note : null,
+      doing: row.status === "done" ? row.note : null,
+      progress: null,
+      lastActivityAt: row.updatedAt.toISOString(),
+      nextCheckAt: null,
+      needsOwner: false,
+    }));
   }
 
   private async upcoming(query: ActivityQuery): Promise<NonNullable<ActivityResponse["upcoming"]>> {
@@ -247,6 +277,7 @@ export class ActivityService {
     const rows = await this.prisma.run.findMany({
       where: activeRequestRunWhere(
         { requestProgress: { not: Prisma.DbNull } },
+        { groupTaskId: null },
         ...(query.botId ? [{ botId: query.botId }] : []),
         // Finished work leaves the list after the window; everything unfinished stays however old it is.
         ...(query.includeAll

@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { Cause, Effect, Exit } from "effect";
 import { renderControlResult } from "@outcomego/contracts/tool-results";
+import { GroupTaskService } from "@outcomego/messaging";
 import { ExternalDeliveryService } from "../../src/services/external-messaging/delivery";
 import { ExternalInboundMessageService } from "../../src/services/external-messaging/inbound";
 import type { CallHostTool } from "../../src/services/external-messaging/poller";
+import { GroupTaskTools } from "../../src/services/group-task-tools";
 import { InternalToolService } from "../../src/services/internal-tool-service";
 import { createHarness, databaseUrl, entry, message, structured, type Harness } from "./fixtures";
 
@@ -12,9 +14,11 @@ const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
   let h: Harness;
   let inbound: ExternalInboundMessageService;
+  let groupTasks: GroupTaskService;
 
   beforeAll(async () => {
     h = await createHarness();
+    groupTasks = new GroupTaskService(h.prisma);
     inbound = new ExternalInboundMessageService({
       prisma: h.prisma, messaging: h.messaging, assets: h.assets, exchange: h.exchange,
       computerFetch: async () => new Response("{}"), interruptRun: async () => {},
@@ -57,7 +61,10 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
     const delivery = new ExternalDeliveryService({ prisma: h.prisma, messaging: h.messaging, assets: h.assets, exchange: h.exchange as never, callHostTool, instanceId: "test" });
     const legacy = { deliverConnectedChannel: fallback ?? (async () => { throw new Error("the older connector path must not be used"); }) };
     const messaging = Object.assign(Object.create(h.messaging), { enqueueChannelDeliveryFailure: async () => (wakes.push("recovery-wake"), "recovery-run") });
-    return new InternalToolService(h.prisma, messaging as never, {} as never, async () => {}, {} as never, {} as never, {} as never, legacy as never, undefined, undefined, undefined, undefined, delivery);
+    return new InternalToolService(
+      h.prisma, messaging as never, {} as never, async () => {}, {} as never, {} as never, {} as never, legacy as never,
+      undefined, undefined, undefined, undefined, delivery, undefined, undefined, undefined, undefined, new GroupTaskTools(groupTasks)
+    );
   };
   /** Runs the tool; a failure is thrown as the original error so its `code` can be checked. */
   const send = async (service: InternalToolService, w: World, args: Record<string, unknown>, from: "external" | "home" = "external", callId = crypto.randomUUID()) => {
@@ -331,6 +338,7 @@ describe.skipIf(!databaseUrl)("SendToUser from and to an external chat", () => {
       const room = await h.prisma.channel.create({ data: { kind: "group", name: "room", members: { create: { botId: bot.id, ordinal: 0 } } } });
       try {
         const run = await h.prisma.run.create({ data: { botId: bot.id, conversationId: bot.conversationId, channelId: room.id, userMessageId: crypto.randomUUID(), status: "running" } });
+        await groupTasks.create(room.id, bot.id, { title: "Prepare a group reply", assignTo: "me" }, { runId: run.id, requestId: run.id });
         const exit = await Effect.runPromiseExit(tools(connector().callHostTool).execute({
           runId: run.id, botId: bot.id, conversationId: bot.conversationId, channelId: room.id, deliveryId: null, tool: "SendToUser",
           arguments: { type: "widget", widget: { prompt: "?", options: [{ label: "Yes" }] }, to: "dm" }, callId: crypto.randomUUID(),

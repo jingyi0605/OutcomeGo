@@ -11,6 +11,7 @@ import {
   planGroupTaskClaim,
   planGroupTaskUpdate,
   renderGroupTaskBoard,
+  requiresGroupTaskClaim,
   type GroupTaskActor,
   type GroupTaskChange,
   type GroupTaskState,
@@ -22,6 +23,13 @@ const BOB = "00000000-0000-4000-8000-00000000000b";
 const CAROL = "00000000-0000-4000-8000-00000000000c";
 const bot = (botId: string): GroupTaskActor => ({ kind: "bot", botId });
 const USER: GroupTaskActor = { kind: "user" };
+
+test("group memory maintenance is available without a claim while work tools still require one", () => {
+  expect(requiresGroupTaskClaim("RecallMemory", { query: "decision" }, "room")).toBe(false);
+  expect(requiresGroupTaskClaim("UpdateMemory", { action: "write", type: "profile", fact: "Group decision" }, "room")).toBe(false);
+  expect(requiresGroupTaskClaim("Shell", { command: "pwd" }, "room")).toBe(true);
+  expect(requiresGroupTaskClaim("SendToUser", { type: "text", content: "Status", to: "dm" }, "room")).toBe(true);
+});
 
 const state = (overrides: Partial<GroupTaskState> = {}): GroupTaskState => ({
   status: "open",

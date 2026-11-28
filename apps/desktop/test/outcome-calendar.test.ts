@@ -11,7 +11,7 @@ import {
 } from "../src/renderer/components/outcomego/outcomes/calendar/calendar-layout";
 
 test("calendar sources include one-time arrangements by default", () => {
-  expect(defaultCalendarKinds).toEqual(["goal_due", "human_task", "work_item", "todo", "follow_up", "scheduled_once"]);
+  expect(defaultCalendarKinds).toEqual(["goal_due", "human_task", "work_item", "group_task", "todo", "follow_up", "scheduled_once"]);
 });
 
 test("calendar density adapts progressively from detailed to minimal based on viewport size", () => {

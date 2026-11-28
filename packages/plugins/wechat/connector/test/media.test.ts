@@ -96,8 +96,10 @@ describe("inbound", () => {
   });
 
   test("the wrong key is a decryption failure and leaves no file", async () => {
-    const media = new WechatMedia(store, cdn({ p1: encrypt(image, key) }).fetchImpl);
-    await expect(media.fetchInbound({ encryptQueryParam: "p1", aesKey: rawKeyParam(randomBytes(16)) }, undefined, "2-0")).rejects.toMatchObject({ code: "wechat_media_decrypt_failed" });
+    const encryptionKey = Buffer.alloc(16, 1);
+    const wrongKey = Buffer.alloc(16, 2);
+    const media = new WechatMedia(store, cdn({ p1: encrypt(image, encryptionKey) }).fetchImpl);
+    await expect(media.fetchInbound({ encryptQueryParam: "p1", aesKey: rawKeyParam(wrongKey) }, undefined, "2-0")).rejects.toMatchObject({ code: "wechat_media_decrypt_failed" });
     expect(await readdir(store.path("exchange", "inbound"))).toEqual([]);
     expect(await readdir(store.path("tmp"))).toEqual([]);
   });

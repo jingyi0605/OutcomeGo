@@ -941,6 +941,8 @@ model Run {
   channel        Channel?     @relation(fields: [channelId], references: [id], onDelete: SetNull)
   deliveryId String?      @unique @db.Uuid
   delivery       ChannelDelivery? @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+  groupTaskId String? @db.Uuid
+  groupTask GroupTask? @relation(fields: [groupTaskId], references: [id], onDelete: SetNull)
   error Json?
   inputDeliveredAt DateTime?
   startedAt DateTime?
@@ -974,6 +976,7 @@ model Run {
   @@index([memoryReviewPending, completedAt], map: "outcomego_run_memory_review_pending_completed_at_idx")
   @@index([conversationId, createdAt], map: "outcomego_run_conversation_id_created_at_idx")
   @@index([channelId, createdAt], map: "outcomego_run_channel_id_created_at_idx")
+  @@index([groupTaskId], map: "outcomego_run_group_task_id_idx")
   @@index([requestNextCheckAt], map: "outcomego_run_request_next_check_at_idx")
   @@index([outcomeId], map: "outcomego_run_outcome_id_idx")
   @@index([outcomeWorkItemId, createdAt], map: "outcomego_run_outcome_work_item_id_created_at_idx")
@@ -2498,6 +2501,8 @@ model GroupTask {
   parentId String? @db.Uuid
   parent GroupTask? @relation("GroupTaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
   subtasks GroupTask[] @relation("GroupTaskSubtasks")
+  requests GroupTaskRequest[]
+  runs Run[]
   title String
   /// Lower-cased, whitespace-collapsed title; a group refuses a second unfinished task with the same key under one parent.
   titleKey String
@@ -2522,4 +2527,13 @@ model GroupTask {
   @@index([channelId, parentId], map: "outcomego_group_task_channel_id_parent_id_idx")
   @@index([assigneeBotId], map: "outcomego_group_task_assignee_bot_id_idx")
   @@map("outcomego_group_task")
+}
+
+model GroupTaskRequest {
+  requestId String @id @db.Uuid
+  taskId String @db.Uuid
+  task GroupTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId], map: "outcomego_group_task_request_task_id_idx")
+  @@map("outcomego_group_task_request")
 }

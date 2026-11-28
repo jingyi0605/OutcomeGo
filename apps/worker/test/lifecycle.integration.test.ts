@@ -624,6 +624,18 @@ test("durable bot mailboxes preserve Pi sessions, agent DMs, and ordered group r
             conversationId: input.conversationId,
             channelId: input.channelId,
             deliveryId: input.deliveryId,
+            tool: "CreateGroupTask",
+            arguments: { title: "Prepare the ordered room status", assignTo: "me" },
+            callId: "group-claim-status",
+          })
+        );
+        await Effect.runPromise(
+          app!.handleDynamicTool({
+            runId: input.runId,
+            botId: input.botId,
+            conversationId: input.conversationId,
+            channelId: input.channelId,
+            deliveryId: input.deliveryId,
             tool: "SendToUser",
             arguments: {
               type: "text",

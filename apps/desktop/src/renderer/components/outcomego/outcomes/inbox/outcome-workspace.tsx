@@ -56,6 +56,7 @@ export default function OutcomeWorkspace({
   onClose,
   bots,
   onOpenChannel,
+  onOpenGroupTasks,
   onOpenRoutine,
 }: {
   target: DesktopOutcomeTarget;
@@ -63,6 +64,7 @@ export default function OutcomeWorkspace({
   bots: OutcomeExecutionBot[];
   /** Opens a channel's conversation, where a request or a channel routine in the activity area leads. */
   onOpenChannel?: (channelId: string) => void;
+  onOpenGroupTasks?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId: string) => void;
 }) {
   const { t } = useI18n();
@@ -205,6 +207,7 @@ export default function OutcomeWorkspace({
                 }
               }}
               onOpenChannel={onOpenChannel}
+              onOpenGroupTasks={onOpenGroupTasks}
               onOpenRoutine={
                 onOpenRoutine
                   ? (routineId, botId) => {
@@ -239,6 +242,7 @@ export default function OutcomeWorkspace({
                 }}
                 onCreateGoal={() => openRoute({ kind: "new" })}
                 onOpenChannel={onOpenChannel}
+                onOpenGroupTasks={onOpenGroupTasks}
                 onOpenRoutine={onOpenRoutine}
                 activityPolicy={{
                   cardMaxItems: policy["activity.cardMaxItems"] as number,

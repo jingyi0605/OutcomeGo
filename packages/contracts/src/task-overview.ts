@@ -267,7 +267,7 @@ export function deriveOutcomeTodoDisplayState(input: OutcomeTodoSchedule, now: D
 // ---------------------------------------------------------------------------
 
 export const CALENDAR_FEED_KINDS = ["goal_due", "work_item", "human_task", "todo", "follow_up", "routine_run", "scheduled_once", "note"] as const;
-export const TIME_ITEM_KINDS = [...CALENDAR_FEED_KINDS, "external_event"] as const;
+export const TIME_ITEM_KINDS = [...CALENDAR_FEED_KINDS, "group_task", "external_event"] as const;
 export type TimeItemKind = (typeof TIME_ITEM_KINDS)[number];
 export type CalendarFeedKind = (typeof CALENDAR_FEED_KINDS)[number];
 
@@ -349,7 +349,7 @@ export interface TimeItem {
   updatedAt: string;
 }
 
-export type ActivityItemType = "request" | "routine" | "goal_task" | "scheduled_once";
+export type ActivityItemType = "request" | "routine" | "goal_task" | "scheduled_once" | "group_task";
 
 export interface ActivityItem {
   /** Stable: `<type>:<source id>`. */
