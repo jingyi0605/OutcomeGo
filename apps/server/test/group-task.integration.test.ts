@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { ApiError, type DynamicToolCallRequest } from "@outcomego/contracts";
-import { GROUP_TASK_CHANGED_TOPIC, type GroupTaskView } from "@outcomego/contracts/group-tasks";
+import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/event-protocol";
+import type { GroupTaskView } from "@outcomego/contracts/group-tasks";
 import { createPrismaClient } from "@outcomego/db";
 import { GroupTaskService, releaseGroupTasksForBots, type ToolContext } from "@outcomego/messaging";
 import { GroupTaskTools } from "../src/services/group-task-tools";

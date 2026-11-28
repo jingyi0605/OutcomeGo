@@ -1,5 +1,5 @@
 import type { ProductEvent } from "@outcomego/contracts";
-import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/group-tasks";
+import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/event-protocol";
 import type { OutcomeKind } from "@outcomego/contracts/outcomes";
 
 export interface OutcomeTriageEvent {
