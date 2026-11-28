@@ -10,6 +10,7 @@ import {
 import type { PrismaClient } from "@outcomego/db";
 import { activeRequestRunWhere, inferRoutineScheduleAnchor, nextRoutineTriggerRun, readFeatureSettings, readUserTimeZone } from "@outcomego/messaging";
 import { readRequestTitles } from "./request-titles";
+import { groupTaskOverview, groupTaskOverviewFields } from "./group-task-overview";
 
 type Window = Omit<ScheduleQuery, "from" | "to"> & { from: Date; to: Date };
 type LocatedItem = TimeItem & { at: number };
@@ -130,6 +131,7 @@ export class ScheduleService {
       ...(hasKind("follow_up") && !query.mine && !query.outcomeId ? [this.requestChecks(query, now, take)] : []),
       ...(hasKind("routine_run") && !query.mine && !query.outcomeId ? [this.routineRuns(query, now, timeZone, take)] : []),
       ...(hasKind("scheduled_once") && !query.mine ? [this.onceItems(ownerId, query, take)] : []),
+      ...(hasKind("group_task") && !query.mine && !query.outcomeId ? [this.groupTaskItems(query, timeZone, take)] : []),
     ]);
     const items: LocatedItem[] = goalRows.map((row) => ({
       at: row.dueAt!.getTime(), id: `goal_due:${row.id}`, kind: "goal_due", title: row.title, start: null,
@@ -141,6 +143,33 @@ export class ScheduleService {
     for (const source of sources) for (const item of source) items.push(item);
     items.sort((left, right) => left.at - right.at || left.id.localeCompare(right.id));
     return { items: items.slice(0, limit ?? undefined).map(({ at, ...item }) => item), truncated: limit !== null && items.length > limit };
+  }
+
+  private async groupTaskItems(query: Window, timeZone: string, take: { take?: number }): Promise<LocatedItem[]> {
+    const rows = await this.db.groupTask.findMany({
+      where: {
+        channel: { kind: "group", archivedAt: null },
+        assigneeBotId: query.botId,
+        createdAt: { gte: query.from, lt: query.to },
+      },
+      select: groupTaskOverviewFields,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      ...take,
+    });
+    return rows.map((row) => ({
+      ...groupTaskOverview(row),
+      at: row.createdAt.getTime(),
+      kind: "group_task",
+      start: localDateOf(row.createdAt, timeZone),
+      end: null,
+      allDay: true,
+      timeBasis: "actual",
+      overdue: false,
+      owner: "bot",
+      ...(row.assigneeBotId ? { botId: row.assigneeBotId } : {}),
+      editable: false,
+      updatedAt: row.updatedAt.toISOString(),
+    }));
   }
 
   private async noteItems(

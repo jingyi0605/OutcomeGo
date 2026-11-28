@@ -1,4 +1,5 @@
 import type { ProductEvent } from "@outcomego/contracts";
+import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/group-tasks";
 import type { OutcomeKind } from "@outcomego/contracts/outcomes";
 
 export interface OutcomeTriageEvent {
@@ -104,7 +105,8 @@ const notifySoon = (outcomeId: string) => {
 
 export const refreshOutcomeViews = (event?: ProductEvent) => {
   if (!event || event.topic === "snapshot.required") notifyList(true);
-  else if (event.topic.startsWith("routine.") || event.topic === "goal.schedule.changed") notifyList(false);
+  else if (event.topic.startsWith("routine.") || event.topic === "goal.schedule.changed" ||
+      event.topic === GROUP_TASK_CHANGED_TOPIC || event.topic === "channel.deleted") notifyList(false);
   else if (event.topic === "goal.status.changed" || event.topic === "goal.updated") {
     notifyList(false);
     if (event.entityId && listeners.has(event.entityId)) notifySoon(event.entityId);

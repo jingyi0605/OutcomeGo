@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { Effect } from "effect";
+import { ApiError } from "@outcomego/contracts";
+import { CHECK_GROUP_TASK_WORK } from "@outcomego/contracts/group-tasks";
 import { InternalToolService } from "../src/services/internal-tool-service";
+import type { GroupTaskTools } from "../src/services/group-task-tools";
 
 const request = (tool: string, argumentsValue: unknown = { type: "text", content: "Hello" }) => ({
   runId: "run-1",
@@ -18,6 +21,7 @@ const serviceFixture = (
     childIdentity?: Record<string, unknown> | null;
     administration?: Record<string, unknown>;
     subagents?: Record<string, unknown>;
+    groupTaskTools?: Pick<GroupTaskTools, "assertWorkClaim" | "execute">;
   } = {}
 ) => {
   const deliveries: Array<{
@@ -37,6 +41,7 @@ const serviceFixture = (
           status: "running",
           origin: "user",
           inboxEvents: [],
+          ...(options.groupTaskTools ? { channel: { kind: "group" }, delivery: { round: { rootMessageId: "shared-request" } } } : {}),
         }),
       },
       subagent: { findUnique: async () => options.childIdentity ?? null },
@@ -54,12 +59,36 @@ const serviceFixture = (
     {} as never,
     (options.subagents ?? {}) as never,
     (options.administration ?? {}) as never,
-    {} as never
+    {} as never,
+    undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+    options.groupTaskTools
   );
   return { deliveries, service };
 };
 
 describe("InternalToolService user-delivery tool name", () => {
+  test("a group run checks work at the control plane and gives board tools the shared request ID", async () => {
+    let allowed = false;
+    let dispatched = 0;
+    const { service } = serviceFixture({
+      groupTaskTools: {
+        assertWorkClaim: async () => {
+          if (!allowed) throw new ApiError(409, "group_task_claim_required", "Claim the group task first");
+        },
+        execute: async (_request, _context, scope) => scope,
+      },
+      subagents: { stop: async () => ({ stopped: ++dispatched }) },
+    });
+    const call = (tool: string, args?: unknown) => Effect.runPromise(service.execute(request(tool, args)));
+    await expect(call("SendToUser")).resolves.toBe("sent");
+    await expect(call("ClaimGroupTask", { task: 1 })).resolves.toEqual({ runId: "run-1", requestId: "shared-request" });
+    await expect(call("StopSubagent", { all: true })).rejects.toThrow("Claim the group task first");
+    expect(dispatched).toBe(0);
+    allowed = true;
+    await expect(call(CHECK_GROUP_TASK_WORK, {})).resolves.toEqual({ allowed: true });
+    await expect(call("StopSubagent", { all: true })).resolves.toEqual({ stopped: 1 });
+  });
+
   test("accepts only SendToUser", async () => {
     const { deliveries, service } = serviceFixture();
     await expect(Effect.runPromise(service.execute(request("SendToUser")))).resolves.toBe("sent");

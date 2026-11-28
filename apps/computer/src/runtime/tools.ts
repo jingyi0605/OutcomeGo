@@ -1,6 +1,7 @@
 import { REQUEST_OUTCOME_DECISION_TOOL, RequestOutcomeDecisionInput } from "@outcomego/contracts/outcome-inbox";
 import { OUTCOME_GOAL_THREAD_TOOLS, decodeOutcomeThreadInput, goalThreadToolsForPurpose } from "@outcomego/contracts/outcome-thread";
 import { replaceTaskProgressContext } from "@outcomego/contracts/task-progress";
+import { CHECK_GROUP_TASK_WORK, requiresGroupTaskClaim } from "@outcomego/contracts/group-tasks";
 import {
   OUTCOME_THREAD_TOOL_NAMES,
   DEFER_WORK_ITEM_TOOL,
@@ -1001,6 +1002,8 @@ export class RuntimeTools {
       throw new Error(AUTOMATION_RUN_VISIBLE_TRANSCRIPT_BLOCKED);
     }
     args = normalizeMainToolArguments(tool, args);
+    if (tool !== CALL_DYNAMIC_TOOL_TOOL.name && this.groupWorkRequiresClaim(active, tool, args))
+      await this.checkGroupTaskWork(active, callId, signal);
     if (workerTopLevelTools(active).includes(tool)) {
       const definition = this.firstPartyTool(active, tool);
       return definition.execute(
@@ -1516,6 +1519,21 @@ export class RuntimeTools {
       : timeout;
     const result = await this.privateControl(active, `preview:${callId}`, REPLY_PREVIEW_CONTROL, { attempt, callId, content }, signal);
     return result.published === true;
+  }
+
+  private groupWorkRequiresClaim(active: ActiveTurn, tool: string, args: unknown): boolean {
+    return (active.groupTasksEnabled || active.groupTurn === true) &&
+      active.runtimeProfile !== "subagent" && active.requestSource !== "automation" &&
+      !active.goalThread && requiresGroupTaskClaim(tool, args, active.channelId);
+  }
+
+  private async checkGroupTaskWork(active: ActiveTurn, callId: string, signal?: AbortSignal) {
+    const timeout = AbortSignal.timeout(10_000);
+    const checkSignal = AbortSignal.any([timeout, ...(signal ? [signal] : []),
+      ...(active.pluginAbortController ? [active.pluginAbortController.signal] : [])]);
+    const result = await this.privateControl(active, `${callId}:group-task`, CHECK_GROUP_TASK_WORK, {}, checkSignal);
+    if (result.allowed !== true) throw new Error("Could not verify the active group task claim");
+    checkSignal.throwIfAborted();
   }
 
   private async privateControl(
@@ -2494,6 +2512,9 @@ export class RuntimeTools {
       // the closing state after the mutation wait while retaining its one-use grant.
       if (active.endTurnRequested && !(responseCall && active.finishResponseCalls))
         throw new Error("The turn has ended; wait for the next user message");
+      const action = resolved.namespace.kind === "mcp" ? "PluginCall" : resolved.tool.name;
+      if (this.groupWorkRequiresClaim(active, action, resolved.arguments))
+        await this.checkGroupTaskWork(active, callId, signal);
       const result = resolved.namespace.kind === "mcp"
         ? await resolved.tool.execute(active, callId, resolved.arguments, signal)
             .catch((error) => { throw connectorCallError(error, resolved.namespace, input.toolName, options); })

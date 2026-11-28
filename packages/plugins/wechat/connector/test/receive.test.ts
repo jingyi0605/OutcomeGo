@@ -295,8 +295,8 @@ describe("files", () => {
 
   test("an undecryptable picture is reported as such", async () => {
     c = await world.start({ link: true });
-    world.sim.cdn.set("pic-2", encrypt(PNG, key));
-    world.sim.enqueue({ messageId: "1", fromUserId: owner, items: [imageItem("pic-2", randomBytes(16))] });
+    world.sim.cdn.set("pic-2", encrypt(PNG, key).subarray(0, -1));
+    world.sim.enqueue({ messageId: "1", fromUserId: owner, items: [imageItem("pic-2", key)] });
     await until(() => ids(c).length === 1, "message");
     expect(c.spool.read(0, 1)[0]!.message.mediaFailures).toEqual([{ code: "wechat_media_decrypt_failed" }]);
   });

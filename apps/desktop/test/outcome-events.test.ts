@@ -1,5 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import type { ProductEvent } from "@outcomego/contracts";
+import { GROUP_TASK_CHANGED_TOPIC } from "@outcomego/contracts/group-tasks";
 import {
   OUTCOME_REFRESH_DEBOUNCE_MS,
   refreshOutcomeViews,
@@ -41,6 +42,16 @@ test("a schedule change refreshes the matching open goal and aggregate views onc
   expect(a()).toBe(0);
   await wait(OUTCOME_REFRESH_DEBOUNCE_MS + 80);
   expect([a(), b(), listReloads]).toEqual([1, 0, 1]);
+});
+
+test("board changes refresh aggregate Outcome views without refreshing a goal detail", async () => {
+  const goal = watch("room");
+  let refreshes = 0;
+  cleanups.push(subscribeOutcomeListRefresh(() => refreshes++));
+  refreshOutcomeViews(event(GROUP_TASK_CHANGED_TOPIC, "room"));
+  refreshOutcomeViews(event(GROUP_TASK_CHANGED_TOPIC, "room"));
+  await wait(OUTCOME_REFRESH_DEBOUNCE_MS + 80);
+  expect([goal(), refreshes]).toEqual([0, 1]);
 });
 
 test("thread completion, work item, status and decision events refresh the open goal once per burst", async () => {

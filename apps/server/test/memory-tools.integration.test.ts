@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect } from "effect";
 import { createPrismaClient } from "@outcomego/db";
-import { AgentDataStore } from "@outcomego/messaging";
+import { AgentDataStore, GroupTaskService } from "@outcomego/messaging";
+import { GroupTaskTools } from "../src/services/group-task-tools";
 import { InternalToolService } from "../src/services/internal-tool-service";
 import { DurableStateService } from "../src/update-state";
 import { UPDATE_MEMORY_TOOL } from "@outcomego/contracts";
@@ -51,6 +52,7 @@ databaseTest(
       channelIds.push(group.id, personal.id);
       await store.initializeBot(botId);
       const state = new DurableStateService(prisma, {} as never, store, {} as never);
+      const groupTasks = new GroupTaskService(prisma);
       const service = new InternalToolService(
         prisma,
         { agentData: store } as never,
@@ -59,7 +61,9 @@ databaseTest(
         {} as never,
         {} as never,
         {} as never,
-        {} as never
+        {} as never,
+        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+        new GroupTaskTools(groupTasks)
       );
       const runIn = async (channelId: string) => {
         const run = await prisma.run.create({
@@ -166,6 +170,9 @@ databaseTest(
       expect(await room.call("RecallMemory", { query: "Lyon", includeHistory: true })).not.toContain("shared_profile");
 
       await expect(room.call("RecallMemory", { query: " " })).rejects.toThrow("String must contain at least 1 character");
+      await groupTasks.create(group.id, botId, { title: "Check available memory tools", assignTo: "me" }, {
+        runId: room.id, requestId: room.id,
+      });
       await expect(room.call("RequestMemory", { query: "COBALT" })).rejects.toThrow("Unknown tool");
       await expect(room.call("update_state", { target: "memory", ...request })).rejects.toThrow("Unknown tool update_state");
       await prisma.run.update({ where: { id: room.id }, data: { status: "completed" } });

@@ -48,7 +48,7 @@ import { withConnectorDraftCardReminder } from "./connector-draft-reminder";
 import { createHash, randomUUID } from "node:crypto";
 import { OUTCOME_THREAD_TOOL_NAMES } from "@outcomego/contracts/outcomes";
 import { OUTCOME_CHAT_TOOL_NAMES } from "@outcomego/contracts/outcome-chat";
-import { isGroupTaskTool } from "@outcomego/contracts/group-tasks";
+import { CHECK_GROUP_TASK_WORK, isGroupTaskTool, requiresGroupTaskClaim } from "@outcomego/contracts/group-tasks";
 import type { GroupTaskTools } from "./group-task-tools";
 import type { OutcomeChatTools } from "./outcome-chat-tools";
 import { isOutcomeThreadTool, type OutcomeThreadTools } from "./outcome-thread-tools";
@@ -79,6 +79,9 @@ import type { UserLocationService } from "./user-location";
 
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const isBackgroundOrigin = (origin: string) => origin === "routine" || origin === "outcome" || origin === "outcome_thread";
+const groupRuntimeControls = new Set([
+  REPLY_PREVIEW_CONTROL, "RefreshToolCatalog", "AcknowledgeCardOutcomes", "VoiceSpeak", "VoiceNarration",
+]);
 const researchTools = new Set([
   "ReadTranscript", "RecallMemory", "ReadAgentActivity", "ListSections", "SearchPlugins", "GetPlugin", "GetMcpServerStatus", "RefreshToolCatalog", "PluginCall",
 ]);
@@ -133,7 +136,7 @@ export class InternalToolService {
     private readonly outcomeChatTools?: OutcomeChatTools,
     private readonly userLocations?: UserLocationService,
     private readonly goalThreadTools?: OutcomeThreadTools,
-    private readonly groupTaskTools?: GroupTaskTools,
+    private readonly groupTaskTools?: Pick<GroupTaskTools, "assertWorkClaim" | "execute">,
     private readonly replyPreviews?: ReplyPreviews,
   ) {}
 
@@ -174,6 +177,8 @@ export class InternalToolService {
             take: 1,
           },
           outcomeThreadTurn: { select: researchTurnSelect },
+          channel: { select: { kind: true } },
+          delivery: { select: { round: { select: { rootMessageId: true } } } },
         },
       });
       if (
@@ -217,6 +222,20 @@ export class InternalToolService {
         select: { id: true, parentBotId: true, parentRunId: true, subagentType: true },
       });
       const backgroundRun = isBackgroundOrigin(run.origin);
+      const groupRun = !childIdentity && !backgroundRun && (run.origin === "group" || run.channel?.kind === "group");
+      if (request.tool === CHECK_GROUP_TASK_WORK ||
+          (groupRun && !groupRuntimeControls.has(request.tool) && requiresGroupTaskClaim(
+            request.tool,
+            request.tool === "SendToUser" ? normalizeMainToolArguments(request.tool, request.arguments) : request.arguments,
+            context.channelId
+          ))) {
+        if (!groupRun || !context.channelId)
+          throw new ApiError(403, "group_task_unavailable", "Group work requires an active group conversation");
+        if (!this.groupTaskTools)
+          throw new ApiError(503, "group_task_unavailable", "Group task tools are not available");
+        await this.groupTaskTools.assertWorkClaim(context);
+        if (request.tool === CHECK_GROUP_TASK_WORK) return { allowed: true };
+      }
       if (request.tool === REPLY_PREVIEW_CONTROL) {
         const input = request.arguments as { attempt?: unknown; callId?: unknown; content?: unknown } | null;
         const inbox = run.inboxEvents[0];
@@ -268,11 +287,14 @@ export class InternalToolService {
       }
       if (isGroupTaskTool(request.tool)) {
         // A shared group board is for the group's own members, not their workers or background runs.
-        if (childIdentity || backgroundRun)
+        if (!groupRun)
           throw new ApiError(403, "group_task_unavailable", "Group tasks are managed from the member's own group conversation");
         if (!this.groupTaskTools)
           throw new ApiError(503, "group_task_unavailable", "Group task tools are not available");
-        return this.groupTaskTools.execute(request, context);
+        return this.groupTaskTools.execute(request, context, {
+          runId: run.id,
+          requestId: run.delivery?.round.rootMessageId ?? run.id,
+        });
       }
       if (request.tool === GET_USER_LOCATION_TOOL.name) {
         if (childIdentity)

@@ -1,9 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { ApiError, type DynamicToolCallRequest } from "@outcomego/contracts";
-import type { GroupTaskView } from "@outcomego/contracts/group-tasks";
+import { GROUP_TASK_CHANGED_TOPIC, type GroupTaskView } from "@outcomego/contracts/group-tasks";
 import { createPrismaClient } from "@outcomego/db";
 import { GroupTaskService, releaseGroupTasksForBots, type ToolContext } from "@outcomego/messaging";
 import { GroupTaskTools } from "../src/services/group-task-tools";
+import { ActivityService } from "../src/services/activity-service";
+import { ScheduleService } from "../src/services/schedule-service";
 
 // specs/010-群任务看板: needs a disposable database that already has the current schema.
 const databaseUrl = process.env.OUTCOMEGO_TEST_DATABASE_URL ?? process.env.OPENTEAM_TEST_DATABASE_URL;
@@ -133,6 +135,63 @@ suite("group task board", () => {
     const { tasks, group, a, b, c } = await fixture();
     const created = await Promise.all([a, b, c].map((bot, index) => tasks.create(group.id, bot.id, { title: `Job ${index}` })));
     expect(created.map((result) => result.task.number).sort()).toEqual([1, 2, 3]);
+  });
+
+  test("one group request has one root across responders, with work allowed only for the active owner", async () => {
+    const { tasks, group, a, b } = await fixture();
+    const requestId = crypto.randomUUID();
+    const start = async (botId: string) => {
+      const conversation = await db.conversation.create({ data: { botId } });
+      const run = await db.run.create({ data: {
+        botId, channelId: group.id, conversationId: conversation.id, userMessageId: crypto.randomUUID(),
+        origin: "group", status: "running",
+      } });
+      return { runId: run.id, requestId };
+    };
+    const [first, second] = await Promise.all([start(a.id), start(b.id)]);
+    expect(await code(tasks.assertWorkClaim(group.id, a.id, first.runId))).toBe("group_task_claim_required");
+    const contenders = [{ bot: a, scope: first, title: "Research pricing" }, { bot: b, scope: second, title: "Investigate costs" }];
+    const results = await Promise.allSettled(contenders.map(({ bot, scope, title }) =>
+      tasks.create(group.id, bot.id, { title, assignTo: "me" }, scope)));
+    const winner = results.findIndex((result) => result.status === "fulfilled");
+    expect(winner).toBeGreaterThanOrEqual(0);
+    const loserResult = results[1 - winner]!;
+    expect(loserResult).toMatchObject({ status: "rejected", reason: { code: "group_task_duplicate" } });
+    const owner = contenders[winner]!;
+    const other = contenders[1 - winner]!;
+    const [task] = (await tasks.list(group.id, user)).tasks;
+    expect(task?.assignee?.id).toBe(owner.bot.id);
+    await tasks.assertWorkClaim(group.id, owner.bot.id, owner.scope.runId);
+    expect(await code(tasks.assertWorkClaim(group.id, other.bot.id, other.scope.runId))).toBe("group_task_claim_required");
+    expect(await code(tasks.create(group.id, other.bot.id, { title: "Duplicate subtask", parent: task!.number }, other.scope))).toBe("group_task_forbidden");
+    await tasks.userAct(group.id, task!.number, { action: "release", expectedRevision: task!.revision });
+    expect(await code(tasks.assertWorkClaim(group.id, owner.bot.id, owner.scope.runId))).toBe("group_task_claim_required");
+    await tasks.claim(group.id, other.bot.id, task!.number, undefined, other.scope);
+    await tasks.assertWorkClaim(group.id, other.bot.id, other.scope.runId);
+    await tasks.update(group.id, { kind: "bot", botId: other.bot.id }, task!.number, { status: "done", note: "Verified" }, other.scope);
+    expect(await code(tasks.assertWorkClaim(group.id, other.bot.id, other.scope.runId))).toBe("group_task_claim_required");
+    expect(await code(tasks.create(group.id, owner.bot.id, { title: "Try again" }, owner.scope))).toBe("group_task_duplicate");
+  });
+
+  test("Outcome activity and calendar project the same task and current status", async () => {
+    const { tasks, group, a } = await fixture();
+    const { task } = await tasks.create(group.id, a.id, { title: "Shared work", assignTo: "me" });
+    const id = `group_task:${task.id}`;
+    const link = { type: "channel", id: group.id };
+    const activity = new ActivityService(db);
+    const schedule = new ScheduleService(db);
+    const instant = Date.parse(task.createdAt);
+    const calendar = () => schedule.list("local", {
+      from: new Date(instant - 60_000).toISOString(), to: new Date(instant + 60_000).toISOString(), kinds: ["group_task"], botId: a.id,
+    }, new Date(), "UTC");
+    expect((await activity.list({ botId: a.id })).items).toContainEqual(expect.objectContaining({ id, link, state: "in_progress" }));
+    expect((await calendar()).items).toEqual([expect.objectContaining({
+      id, link, state: "in_progress", start: task.createdAt.slice(0, 10), allDay: true, editable: false,
+    })]);
+    await tasks.update(group.id, { kind: "bot", botId: a.id }, task.number, { status: "done", note: "Completed" });
+    expect((await activity.list({ botId: a.id })).items).toContainEqual(expect.objectContaining({ id, link, state: "completed" }));
+    expect((await calendar()).items).toEqual([expect.objectContaining({ id, link, state: "completed" })]);
+    expect(await db.event.count({ where: { topic: GROUP_TASK_CHANGED_TOPIC, entityId: group.id } })).toBe(2);
   });
 
   test("owner moves through the states; others are refused; finished tasks stay finished", async () => {

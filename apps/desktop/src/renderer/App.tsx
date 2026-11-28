@@ -1675,6 +1675,10 @@ export default function App() {
                   bots={snapshot.bots}
                   onClose={() => setOutcomeTarget(null)}
                   onOpenChannel={(channelId) => selectSidebarChannel(channelId)}
+                  onOpenGroupTasks={(channelId) => {
+                    selectSidebarChannel(channelId);
+                    setGroupTasksOpen(true);
+                  }}
                   onOpenRoutine={openScheduledRoutine}
                 />
               </Suspense>

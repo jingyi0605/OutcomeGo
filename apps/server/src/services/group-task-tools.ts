@@ -4,7 +4,7 @@ import {
   type GroupTaskToolName,
   type GroupTaskView,
 } from "@outcomego/contracts/group-tasks";
-import type { GroupTaskService, ToolContext } from "@outcomego/messaging";
+import type { GroupTaskRunScope, GroupTaskService, ToolContext } from "@outcomego/messaging";
 
 const FINISH =
   "When it is finished call UpdateGroupTask with status done and a note summarising the result; use status blocked with a note if you are stuck, and assignTo \"none\" if you stop.";
@@ -21,9 +21,9 @@ const afterUpdate = (task: GroupTaskView): string => {
     case "done":
       return `Task #${task.number} is done. Tell the group the result in a sentence if it matters to them.`;
     case "cancelled":
-      return `Task #${task.number} is cancelled together with its unfinished subtasks. Create a new task if the work resumes.`;
+      return `Task #${task.number} is cancelled together with its unfinished subtasks. A new group request can start new work.`;
     case "blocked":
-      return `Task #${task.number} is blocked. Say what you need in the group, and resume with status in_progress when it arrives.`;
+      return `Task #${task.number} is blocked. Say what you need in the group, and call ClaimGroupTask to resume when it arrives.`;
     case "open":
       return task.assignee
         ? `Task #${task.number} was handed to ${task.assignee.name}, who must claim it.`
@@ -40,7 +40,9 @@ const afterUpdate = (task: GroupTaskView): string => {
 export class GroupTaskTools {
   constructor(private readonly tasks: GroupTaskService) {}
 
-  execute = async (request: DynamicToolCallRequest, context: ToolContext): Promise<unknown> => {
+  assertWorkClaim = (context: ToolContext) => this.tasks.assertWorkClaim(context.channelId, context.botId, context.runId);
+
+  execute = async (request: DynamicToolCallRequest, context: ToolContext, scope?: GroupTaskRunScope): Promise<unknown> => {
     const channelId = context.channelId;
     if (!channelId) throw new ApiError(403, "group_task_unavailable", "The task board exists only in group chats");
     const botId = context.botId;
@@ -56,17 +58,17 @@ export class GroupTaskTools {
       case "ListGroupTasks":
         return this.tasks.list(channelId, caller, input("ListGroupTasks"));
       case "CreateGroupTask": {
-        const { task, created } = await this.tasks.create(channelId, botId, input("CreateGroupTask"));
+        const { task, created } = await this.tasks.create(channelId, botId, input("CreateGroupTask"), scope);
         return { task, created, nextStep: afterCreate(task, botId, created) };
       }
       case "ClaimGroupTask": {
         const { task: number, expectedRevision } = input("ClaimGroupTask");
-        const task = await this.tasks.claim(channelId, botId, number, expectedRevision);
+        const task = await this.tasks.claim(channelId, botId, number, expectedRevision, scope);
         return { task, nextStep: `You own #${task.number}. Do the work. ${FINISH}` };
       }
       case "UpdateGroupTask": {
         const { task: number, ...change } = input("UpdateGroupTask");
-        const task = await this.tasks.update(channelId, caller, number, change);
+        const task = await this.tasks.update(channelId, caller, number, change, scope);
         return { task, nextStep: afterUpdate(task) };
       }
       default:

@@ -1,6 +1,6 @@
 import { localDateOf, type TimeItem, type TimeItemKind } from "@outcomego/contracts/task-overview";
 
-export const defaultCalendarKinds: readonly TimeItemKind[] = ["goal_due", "human_task", "work_item", "todo", "follow_up", "scheduled_once"];
+export const defaultCalendarKinds: readonly TimeItemKind[] = ["goal_due", "human_task", "work_item", "group_task", "todo", "follow_up", "scheduled_once"];
 
 export type CalendarView = "day" | "week" | "month";
 

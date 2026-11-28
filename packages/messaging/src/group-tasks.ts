@@ -1,7 +1,9 @@
 import { ApiError } from "@outcomego/contracts";
 import {
   GROUP_TASK_ACTIVE_STATUSES,
+  GROUP_TASK_CHANGED_TOPIC,
   GROUP_TASK_LIMITS,
+  GROUP_TASK_WORK_REQUIRED,
   GroupTaskRuleError,
   emptyGroupTaskCounts,
   normalizeGroupTaskTitle,
@@ -206,6 +208,39 @@ const duplicateError = (existing: Row) =>
     { existing: toView(existing) }
   );
 
+export interface GroupTaskRunScope {
+  runId: string;
+  requestId: string;
+}
+
+const requestTask = (tx: Prisma.TransactionClient, scope: GroupTaskRunScope) =>
+  tx.groupTaskRequest.findUnique({
+    where: { requestId: scope.requestId },
+    select: { task: { include } },
+  }).then((request) => request?.task ?? null);
+
+const requestConflict = (task: Row) => new ApiError(
+  409,
+  "group_task_duplicate",
+  `This group request is already registered as #${task.number} (${task.status}${task.assignee ? `, owner: ${task.assignee.name}` : ""}). Read that task or its subtasks on the board.`,
+  { existing: toView(task) }
+);
+
+const linkRequest = (tx: Prisma.TransactionClient, scope: GroupTaskRunScope, taskId: string) =>
+  tx.groupTaskRequest.create({ data: { requestId: scope.requestId, taskId } });
+
+async function bindRun(tx: Prisma.TransactionClient, scope: GroupTaskRunScope, row: Row, botId: string) {
+  if (row.status !== "in_progress" || row.assigneeBotId !== botId) return;
+  const result = await tx.run.updateMany({
+    where: { id: scope.runId, channelId: row.channelId, botId, status: "running" },
+    data: { groupTaskId: row.id },
+  });
+  if (!result.count) throw new ApiError(409, "tool_context_invalid", "Group task context is no longer active");
+}
+
+const notifyBoard = (tx: Prisma.TransactionClient, channelId: string) =>
+  tx.event.create({ data: { topic: GROUP_TASK_CHANGED_TOPIC, entityId: channelId, payload: { channelId } } });
+
 async function countByStatus(db: Db, channelId: string): Promise<GroupTaskCounts> {
   const counts = emptyGroupTaskCounts();
   const groups = await db.groupTask.groupBy({ by: ["status"], where: { channelId }, _count: { _all: true } });
@@ -236,6 +271,21 @@ export interface ListGroupTasksInput {
 
 export class GroupTaskService {
   constructor(private readonly prisma: PrismaClient) {}
+
+  assertWorkClaim = async (channelId: string, botId: string, runId: string): Promise<void> => {
+    const run = await this.prisma.run.findFirst({
+      where: {
+        id: runId,
+        status: "running",
+        botId,
+        channelId,
+        groupTask: { channelId, assigneeBotId: botId, status: "in_progress" },
+        channel: { kind: "group", archivedAt: null, members: { some: { botId, bot: { status: "active" } } } },
+      },
+      select: { id: true },
+    });
+    if (!run) throw new ApiError(409, "group_task_claim_required", GROUP_TASK_WORK_REQUIRED);
+  };
 
   /** The live board. A Bot caller must be a member; the user (no botId) may read any active group. */
   list = async (channelId: string, caller: Caller, input: ListGroupTasksInput = {}): Promise<GroupTaskBoard> => {
@@ -268,16 +318,25 @@ export class GroupTaskService {
     return { tasks: rows.map(toView), counts };
   };
 
-  create = (channelId: string, botId: string, input: CreateGroupTaskInput) =>
+  create = (channelId: string, botId: string, input: CreateGroupTaskInput, scope?: GroupTaskRunScope) =>
     this.prisma.$transaction(async (tx) => {
       const caller: Caller = { kind: "bot", botId };
       const group = await openGroup(tx, channelId, caller);
+      const registered = scope ? await requestTask(tx, scope) : null;
       if (input.clientRequestId) {
         const prior = await tx.groupTask.findUnique({
           where: { channelId_clientRequestId: { channelId, clientRequestId: input.clientRequestId } },
           include,
         });
-        if (prior) return { task: toView(prior), created: false };
+        if (prior) {
+          const rootId = prior.parentId ?? prior.id;
+          if (registered && registered.id !== rootId) throw requestConflict(registered);
+          if (scope) {
+            if (!registered) await linkRequest(tx, scope, rootId);
+            await bindRun(tx, scope, prior, botId);
+          }
+          return { task: toView(prior), created: false };
+        }
       }
       const title = cleanTitle(input.title);
       const description = (input.description ?? "").trim();
@@ -287,21 +346,29 @@ export class GroupTaskService {
       let parent: Row | null = null;
       if (input.parent !== undefined) {
         parent = await findTask(tx, channelId, input.parent);
+        if (registered && registered.id !== parent.id) throw requestConflict(registered);
         if (parent.parentId !== null)
           throw new ApiError(409, "group_task_depth", `Task #${parent.number} is already a subtask; subtasks cannot have subtasks`);
         if (parent.status === "done" || parent.status === "cancelled")
           throw new ApiError(409, "group_task_closed", `Task #${parent.number} is already ${parent.status}; create a new top-level task instead`);
+        if (scope && (parent.assigneeBotId !== botId || parent.status !== "in_progress"))
+          throw new ApiError(403, "group_task_forbidden", `Only the active owner of #${parent.number} can register new subtasks`);
         const siblings = await tx.groupTask.count({ where: { parentId: parent.id } });
         if (siblings >= GROUP_TASK_LIMITS.subtasksPerParent)
           throw new ApiError(409, "group_task_limit", `A task has at most ${GROUP_TASK_LIMITS.subtasksPerParent} subtasks`);
+      } else if (registered) {
+        throw requestConflict(registered);
+      }
+
+      const titleKey = normalizeGroupTaskTitle(title);
+      const duplicate = await duplicateOf(tx, { channelId, parentId: parent?.id ?? null, titleKey });
+      if (duplicate) {
+        if (scope && !registered) await linkRequest(tx, scope, duplicate.parentId ?? duplicate.id);
+        return duplicateError(duplicate);
       }
       const active = await tx.groupTask.count({ where: { channelId, status: { in: ACTIVE } } });
       if (active >= GROUP_TASK_LIMITS.activePerGroup)
         throw new ApiError(409, "group_task_limit", `The board has ${GROUP_TASK_LIMITS.activePerGroup} unfinished tasks; finish or cancel some first`);
-
-      const titleKey = normalizeGroupTaskTitle(title);
-      const duplicate = await duplicateOf(tx, { channelId, parentId: parent?.id ?? null, titleKey });
-      if (duplicate) throw duplicateError(duplicate);
 
       const assignee = input.assignTo === undefined ? null : resolveAssignee(group.members, caller, input.assignTo);
       const last = await tx.groupTask.aggregate({ where: { channelId }, _max: { number: true } });
@@ -320,17 +387,35 @@ export class GroupTaskService {
         },
         include,
       });
+      if (scope) {
+        if (!registered) await linkRequest(tx, scope, parent?.id ?? created.id);
+        await bindRun(tx, scope, created, botId);
+      }
+      await notifyBoard(tx, channelId);
       return { task: toView(created), created: true };
+    }).then((result) => {
+      if (result instanceof ApiError) throw result;
+      return result;
     });
 
-  claim = (channelId: string, botId: string, number: number, expectedRevision?: number) =>
+  claim = (channelId: string, botId: string, number: number, expectedRevision?: number, scope?: GroupTaskRunScope) =>
     this.prisma.$transaction(async (tx) => {
       await openGroup(tx, channelId, { kind: "bot", botId });
       const row = await findTask(tx, channelId, number);
+      const rootId = row.parentId ?? row.id;
+      const registered = scope ? await requestTask(tx, scope) : null;
+      if (registered && registered.id !== rootId) throw requestConflict(registered);
       staleRevision(row, expectedRevision);
-      const plan = applyRule(row, () => planGroupTaskClaim(stateOf(row), botId));
-      if (plan.unchanged) return toView(row);
-      const updated = await tx.groupTask.update({
+      let plan: ReturnType<typeof planGroupTaskClaim>;
+      try {
+        plan = planGroupTaskClaim(stateOf(row), botId);
+      } catch (error) {
+        if (!(error instanceof GroupTaskRuleError)) throw error;
+        if (scope && !registered && error.code === "group_task_claimed") await linkRequest(tx, scope, rootId);
+        return refuse(error, row);
+      }
+      if (scope && !registered) await linkRequest(tx, scope, rootId);
+      const updated = plan.unchanged ? row : await tx.groupTask.update({
         where: { id: row.id },
         data: {
           status: plan.status,
@@ -340,10 +425,15 @@ export class GroupTaskService {
         },
         include,
       });
+      if (scope) await bindRun(tx, scope, updated, botId);
+      if (!plan.unchanged) await notifyBoard(tx, channelId);
       return toView(updated);
+    }).then((result) => {
+      if (result instanceof ApiError) throw result;
+      return result;
     });
 
-  update = (channelId: string, caller: Caller, number: number, input: UpdateGroupTaskInput) =>
+  update = (channelId: string, caller: Caller, number: number, input: UpdateGroupTaskInput, scope?: GroupTaskRunScope) =>
     this.prisma.$transaction(async (tx) => {
       const group = await openGroup(tx, channelId, caller);
       const row = await findTask(tx, channelId, number);
@@ -356,6 +446,9 @@ export class GroupTaskService {
       if (input.note !== undefined && input.note.length > GROUP_TASK_LIMITS.note)
         throw new ApiError(400, "invalid_request", `A note is at most ${GROUP_TASK_LIMITS.note} characters`);
       const assignee = input.assignTo === undefined ? undefined : resolveAssignee(group.members, caller, input.assignTo);
+      if (scope && caller.kind === "bot" && row.status === "in_progress" && row.assigneeBotId !== caller.botId &&
+          (assignee !== undefined || input.status === "cancelled"))
+        throw new ApiError(409, "group_task_claimed", `Task #${row.number} is in progress with ${row.assignee?.name ?? "another member"}`);
 
       const change: GroupTaskChange = {
         ...(input.status !== undefined ? { status: input.status } : {}),
@@ -396,6 +489,7 @@ export class GroupTaskService {
           data: { status: "cancelled", note: TERMINAL_NOTE, completedAt: now, revision: { increment: 1 } },
         });
       }
+      await notifyBoard(tx, channelId);
       return toView(updated);
     });
 
@@ -447,13 +541,15 @@ export async function releaseGroupTasksForBots(
   channelId?: string
 ): Promise<number> {
   if (botIds.length === 0) return 0;
-  const released = await tx.groupTask.updateMany({
+  const released = await tx.groupTask.updateManyAndReturn({
     where: {
       assigneeBotId: { in: [...botIds] },
       status: { in: ACTIVE },
       ...(channelId ? { channelId } : {}),
     },
     data: { assigneeBotId: null, status: "open", note: null, revision: { increment: 1 } },
+    select: { channelId: true },
   });
-  return released.count;
+  for (const id of new Set(released.map((task) => task.channelId))) await notifyBoard(tx, id);
+  return released.length;
 }

@@ -520,19 +520,26 @@ test("all goals manages scheduled work and displays the planner's saved advice",
   expect(detail().textContent).toContain("Cancelled");
 });
 
-test("the calendar retries without the one-time source on a legacy server", async () => {
+test.each([true, false])("the calendar falls back on a server with one-time source support: %s", async (supportsScheduledOnce) => {
   const { CalendarPage } = await import("../src/renderer/components/outcomego/outcomes/calendar/calendar-page");
   const original = api.schedule.list;
   const queries: ScheduleQuery[] = [];
   api.schedule.list = async (query) => {
     queries.push(query);
-    if (query.kinds?.includes("scheduled_once")) throw new OutcomeGoClientError("Invalid schedule filter", "invalid_request", 400);
+    if (query.kinds?.includes("group_task") || (!supportsScheduledOnce && query.kinds?.includes("scheduled_once")))
+      throw new OutcomeGoClientError("Invalid schedule filter", "invalid_request", 400);
     return { items: [], truncated: false };
   };
   try {
     await mount(<CalendarPage bots={bots} onClose={() => {}} onOpenOutcome={() => {}} />);
-    expect(queries).toHaveLength(2);
-    expect(queries[1]?.kinds).toEqual(["goal_due", "human_task", "work_item", "todo", "follow_up"]);
+    expect(queries).toHaveLength(supportsScheduledOnce ? 2 : 3);
+    expect(queries[0]?.kinds).toContain("group_task");
+    expect(queries[1]?.kinds).not.toContain("group_task");
+    expect(queries[1]?.kinds).toContain("scheduled_once");
+    expect(queries.at(-1)?.kinds).toEqual([
+      "goal_due", "human_task", "work_item", "todo", "follow_up",
+      ...(supportsScheduledOnce ? ["scheduled_once"] : []),
+    ]);
     expect(host.querySelector('[role="alert"]')).toBeNull();
   } finally {
     api.schedule.list = original;

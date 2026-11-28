@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   StickyNote,
   Target,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -58,6 +59,7 @@ const kindLabels: Record<TimeItemKind, string> = {
   goal_due: "Goal deadlines",
   human_task: "Human tasks",
   work_item: "Bot tasks",
+  group_task: "Group tasks",
   todo: "To-dos",
   follow_up: "Follow-ups",
   routine_run: "Routines",
@@ -70,6 +72,7 @@ const kindIcons: Record<TimeItemKind, LucideIcon> = {
   goal_due: Target,
   human_task: Hand,
   work_item: Bot,
+  group_task: Users,
   todo: CheckSquare,
   follow_up: BellRing,
   routine_run: Repeat,
@@ -106,6 +109,7 @@ export type CalendarPageProps = {
   embedded?: boolean;
   onOpenOutcome: (outcomeId: string) => void;
   onOpenChannel?: (channelId: string) => void;
+  onOpenGroupTasks?: (channelId: string) => void;
   onOpenRoutine?: (routineId: string, botId?: string) => void;
   refreshVersion?: number;
   onBusyChange?: (busy: boolean) => void;
@@ -158,7 +162,7 @@ function itemTooltip(
     item.title || t("Untitled"),
     `${t(kindLabels[item.kind])} · ${time}`,
     item.overdue ? t("Overdue") : "",
-    item.kind === "scheduled_once"
+    item.kind === "scheduled_once" || item.kind === "group_task"
       ? [botName, t(styleForActivity(item.state).label)].filter(Boolean).join(" · ")
       : botName ?? "",
     item.editable ? t("Drag to change the date") : t("Read-only calendar item"),
@@ -211,7 +215,7 @@ function CalendarItemCard({
   const showTime = forceDetailed || metrics.showTime;
   const showMeta = forceDetailed || metrics.showMeta;
   const showIcon = forceDetailed || density === "detailed";
-  const activity = item.kind === "scheduled_once" ? styleForActivity(item.state) : null;
+  const activity = item.kind === "scheduled_once" || item.kind === "group_task" ? styleForActivity(item.state) : null;
   const metaText = activity
     ? [botName, t(activity.label)].filter(Boolean).join(" · ")
     : botName;
@@ -794,7 +798,7 @@ function DayBoard({
   const renderCard = (item: TimeItem, showRail = false) => {
     const time = itemTimeLabel(item, timeZone, locale, t);
     const botName = bots.find((bot) => bot.id === item.botId)?.name;
-    const activity = item.kind === "scheduled_once" ? styleForActivity(item.state) : null;
+    const activity = item.kind === "scheduled_once" || item.kind === "group_task" ? styleForActivity(item.state) : null;
     const statusLabel = activity ? t(activity.label) : "";
     const KindIcon = item.overdue ? AlertCircle : kindIcons[item.kind];
 
@@ -974,6 +978,7 @@ export function CalendarPage({
   embedded = false,
   onOpenOutcome,
   onOpenChannel,
+  onOpenGroupTasks,
   onOpenRoutine,
   refreshVersion = 0,
   onBusyChange,
@@ -1067,23 +1072,21 @@ export function CalendarPage({
         ...(selectedBot ? { botId: selectedBot } : {}),
         ...(mine ? { mine: true } : {}),
       } satisfies ScheduleQuery;
-      let response: Awaited<ReturnType<typeof api.schedule.list>>;
-      try {
-        response = await api.schedule.list(query);
-      } catch (cause) {
-        if (
-          !selectedKinds.includes("scheduled_once") ||
-          !(cause instanceof ClientError) ||
-          cause.status !== 400 ||
-          cause.code !== "invalid_request"
-        ) {
-          throw cause;
+      const loadSchedule = async (
+        kinds: readonly TimeItemKind[],
+        fallbackKinds: readonly TimeItemKind[]
+      ): Promise<Awaited<ReturnType<typeof api.schedule.list>>> => {
+        if (!kinds.length) return { items: [], truncated: false };
+        try {
+          return await api.schedule.list({ ...query, kinds });
+        } catch (cause) {
+          const fallback = fallbackKinds.find((kind) => kinds.includes(kind));
+          if (!fallback || !(cause instanceof ClientError) || cause.status !== 400 || cause.code !== "invalid_request")
+            throw cause;
+          return loadSchedule(kinds.filter((kind) => kind !== fallback), fallbackKinds.filter((kind) => kind !== fallback));
         }
-        const legacyKinds = selectedKinds.filter((kind) => kind !== "scheduled_once");
-        response = legacyKinds.length
-          ? await api.schedule.list({ ...query, kinds: legacyKinds })
-          : { items: [], truncated: false };
-      }
+      };
+      const response = await loadSchedule(selectedKinds, ["group_task", "scheduled_once"]);
       const external = externalSelection();
       let externalItems: TimeItem[] = [];
       let unavailable: string | null = null;
@@ -1172,7 +1175,10 @@ export function CalendarPage({
     // To-dos are handled on the dashboard, which an empty ID opens.
     if (item.kind === "todo" || (item.kind === "follow_up" && item.link.type === "outcome")) onOpenOutcome("");
     else if (item.outcomeId) onOpenOutcome(item.outcomeId);
-    else if (item.link.type === "channel") onOpenChannel?.(item.link.id);
+    else if (item.link.type === "channel") {
+      const openChannel = item.kind === "group_task" ? onOpenGroupTasks ?? onOpenChannel : onOpenChannel;
+      openChannel?.(item.link.id);
+    }
     else if (item.link.type === "routine") onOpenRoutine?.(item.link.id, item.botId);
   };
 
