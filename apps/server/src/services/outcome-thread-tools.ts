@@ -13,7 +13,7 @@ import {
 } from "@outcomego/contracts/outcome-thread";
 import { decodeOutcomeCursor, OUTCOME_LIMITS, type OutcomeDetail } from "@outcomego/contracts/outcomes";
 import type { PrismaClient } from "@outcomego/db";
-import { outcomeReviewDecisionFilter, readOutcomesEnabled, type ToolContext } from "@outcomego/messaging";
+import { outcomeReviewDecisionFilter, readOutcomesEnabled, type ActorRef, type ToolContext } from "@outcomego/messaging";
 import { Cause, Effect, Exit } from "effect";
 import type { OutcomeClassificationService } from "./outcome-classification";
 import type { OutcomePlanService } from "./outcome-plan-service";
@@ -361,7 +361,14 @@ export class OutcomeThreadTools {
         if (!triggeredByOwner(turn.triggerBy))
           throw new ApiError(403, "cancel_requires_owner", "Only the owner's words in this thread can cancel the goal");
         const { outcomeId: _outcomeId, ...rest } = input;
-        const outcome = await run(this.outcomes.cancel(outcomeId, rest, actor, { ownerId: turn.thread.outcome.ownerId }), signal);
+        const ownerActor = turn.triggerBy as ActorRef;
+        const outcome = await run(
+          this.outcomes.cancel(outcomeId, rest, ownerActor, {
+            ownerId: turn.thread.outcome.ownerId,
+            runId: context.runId,
+          }),
+          signal
+        );
         return { outcome, nextStep: "The goal is cancelled and its history is kept. Tell the owner in your final message." };
       }
       case "GetOutcome": {
